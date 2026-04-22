@@ -44,3 +44,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 serviceAccountKey.json
+
+# Firebase 金鑰 (極度重要！)
+serviceAccountKey.json
+backend/serviceAccountKey.json

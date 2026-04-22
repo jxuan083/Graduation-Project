@@ -8,7 +8,10 @@ function uuidv4() {
 
 // API Configuration
 // Try to connect to backend on the same machine IP but port 8000
-const BACKEND_HOST = window.location.hostname + ':8000';
+// 1. BACKEND_HOST 只留網址主體，不加 https://
+const BACKEND_HOST = 'phubbing-backend-798458690617.asia-east1.run.app';
+
+// 2. 修正三元運算式的語法 (補上 : 後面的部分)
 const isSecure = window.location.protocol === 'https:';
 const HTTP_PROTOCOL = isSecure ? 'https://' : 'http://';
 const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
@@ -70,7 +73,12 @@ document.getElementById('btn-create-room').onclick = async () => {
     
     // Pass frontend origin so that backend QR generator points to the frontend server!
     const frontendUrl = window.location.protocol + "//" + window.location.host;
-    const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/create_room?frontend_url=${encodeURIComponent(frontendUrl)}`);
+    const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/create_room?frontend_url=${encodeURIComponent(frontendUrl)}`, {
+    mode: 'cors', // 強制使用 cors 模式
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
     const data = await res.json();
     
     document.getElementById('qr-code-img').src = 'data:image/png;base64,' + data.qr_base64;
