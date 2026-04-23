@@ -48,3 +48,35 @@ serviceAccountKey.json
 # Firebase 金鑰 (極度重要！)
 serviceAccountKey.json
 backend/serviceAccountKey.json
+# AI tool folders
+.adal/
+.agents/
+.augment/
+.bob/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills/
+skills-lock.json
