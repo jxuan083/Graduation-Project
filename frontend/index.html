@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css?v=7">
+    <link rel="stylesheet" href="./style.css?v=8">
     <!-- Firebase JS SDK (compat 版本，保持 vanilla script 用法) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -38,6 +38,7 @@
                 <p id="home-login-hint" class="hint" style="display:none;">※ 發起聚會需要先登入 Google 帳號</p>
                 <button id="btn-scan-qr" class="btn secondary">掃描 QR Code 加入</button>
                 <button id="btn-open-meetings" class="btn secondary" style="display:none;">📒 聚會紀錄</button>
+                <button id="btn-open-questions" class="btn secondary" style="display:none;">📝 題庫管理</button>
                 <p class="hint">也可以直接用手機相機掃 QR Code 加入</p>
             </div>
         </section>
@@ -70,6 +71,60 @@
                 <ul id="md-members" class="member-ul"></ul>
             </div>
             <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
+        </section>
+
+        <section id="view-question-bank" class="view">
+            <h2>題庫管理</h2>
+            <div class="qbank-tabs">
+                <button id="qbank-tab-mine" class="qbank-tab active">📒 我的題庫</button>
+                <button id="qbank-tab-public" class="qbank-tab">🌐 公共題庫</button>
+            </div>
+            <div id="qbank-list" class="qbank-list"></div>
+            <p id="qbank-empty" class="hint" style="display:none;"></p>
+            <button id="btn-qbank-add" class="btn primary">+ 新增題目</button>
+            <button id="btn-qbank-back" class="btn secondary">返回</button>
+        </section>
+
+        <section id="view-question-edit" class="view">
+            <h2 id="qedit-title">新增題目</h2>
+            <div class="profile-card">
+                <label class="profile-label" for="qedit-question">題目</label>
+                <textarea id="qedit-question" maxlength="120" rows="2" class="profile-input" placeholder="想問大家什麼？"></textarea>
+
+                <label class="profile-label">選項（2~6 個）</label>
+                <div id="qedit-options-list"></div>
+                <button id="btn-qedit-add-option" class="btn secondary" style="margin-top:4px;">+ 新增一個選項</button>
+
+                <label class="profile-label" style="margin-top:16px;">
+                    <input type="checkbox" id="qedit-has-answer" style="margin-right:8px;" />
+                    這題有正解（作答結束會公布答案）
+                </label>
+                <p class="hint" id="qedit-answer-hint" style="display:none;">勾選左側圓圈標示正解</p>
+
+                <p id="qedit-status" class="profile-status"></p>
+            </div>
+            <button id="btn-qedit-save" class="btn primary">儲存</button>
+            <button id="btn-qedit-cancel" class="btn secondary">取消</button>
+        </section>
+
+        <section id="view-qa-source" class="view">
+            <h2>選擇題目來源</h2>
+            <p>要給大家答哪一題？</p>
+            <button id="btn-qa-src-mine" class="btn primary">🎲 從我的題庫隨機</button>
+            <button id="btn-qa-src-public" class="btn primary">🌐 從公共題庫隨機</button>
+            <button id="btn-qa-src-pick" class="btn secondary">📋 手動挑一題</button>
+            <button id="btn-qa-src-cancel" class="btn secondary">取消</button>
+        </section>
+
+        <section id="view-qa-picker" class="view">
+            <h2>選一題送出</h2>
+            <div class="qbank-tabs">
+                <button id="qpick-tab-mine" class="qbank-tab active">📒 我的題庫</button>
+                <button id="qpick-tab-public" class="qbank-tab">🌐 公共題庫</button>
+            </div>
+            <div id="qpick-list" class="qbank-list"></div>
+            <p id="qpick-empty" class="hint" style="display:none;"></p>
+            <button id="btn-qpick-back" class="btn secondary">返回</button>
         </section>
 
         <section id="view-profile" class="view">
@@ -199,6 +254,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js?v=7"></script>
+    <script src="./app.js?v=8"></script>
 </body>
 </html>

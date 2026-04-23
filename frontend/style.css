@@ -520,3 +520,167 @@ body.mode-class { background-color: #064e3b !important; }
   flex-wrap: wrap;
   gap: 8px 12px;
 }
+
+/* =========================================
+   題庫管理 (Question Bank)
+========================================= */
+
+.qbank-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin: 8px 0 16px;
+}
+
+.qbank-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.qbank-tab.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.qbank-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.qbank-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.qbank-item-q {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.qbank-item-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.qbank-item-opt {
+  background: rgba(255,255,255,0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.qbank-item-opt.correct {
+  background: rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+.qbank-item-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.qbank-item-actions .qbank-mini-btn {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.qbank-item-actions .qbank-mini-btn:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.qbank-item-actions .qbank-mini-btn.danger {
+  color: #fca5a5;
+}
+
+.qbank-item-actions .qbank-mini-btn.primary {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: var(--accent-color);
+  color: #bfdbfe;
+}
+
+.qbank-item-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* 編輯題目：選項列 */
+.qedit-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.qedit-option-row input[type="radio"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981;
+  cursor: pointer;
+}
+
+.qedit-option-row .qedit-option-input {
+  flex-grow: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.qedit-option-row .qedit-option-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.qedit-option-row .qedit-remove-btn {
+  flex-shrink: 0;
+  background: transparent;
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qedit-option-row .qedit-remove-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

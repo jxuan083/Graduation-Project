@@ -66,6 +66,10 @@ const viewWaitingRoom = document.getElementById('view-waiting-room');
 const viewScanner = document.getElementById('view-scanner');
 const viewMeetings = document.getElementById('view-meetings');
 const viewMeetingDetail = document.getElementById('view-meeting-detail');
+const viewQuestionBank = document.getElementById('view-question-bank');
+const viewQuestionEdit = document.getElementById('view-question-edit');
+const viewQaSource = document.getElementById('view-qa-source');
+const viewQaPicker = document.getElementById('view-qa-picker');
 
 // 正在嘗試加入的房間 ID（掃 QR 進來時暫存，還沒真的連 ws）
 let pendingRoomId = null;
@@ -94,7 +98,7 @@ const qaDatabase = {
     ]
 };
 
-const uiViews = [viewHome, viewHostRoom, viewSyncRitual, viewFocus, viewBuffer, viewSummary, viewQaGame, viewProfile, viewJoin, viewWaitingRoom, viewScanner, viewMeetings, viewMeetingDetail];
+const uiViews = [viewHome, viewHostRoom, viewSyncRitual, viewFocus, viewBuffer, viewSummary, viewQaGame, viewProfile, viewJoin, viewWaitingRoom, viewScanner, viewMeetings, viewMeetingDetail, viewQuestionBank, viewQuestionEdit, viewQaSource, viewQaPicker];
 
 function switchView(viewElement) {
     if (!viewElement) return; 
@@ -134,6 +138,8 @@ function renderAuthBar() {
     const homeHint = document.getElementById('home-login-hint');
     const meetingsBtn = document.getElementById('btn-open-meetings');
 
+    const questionsBtn = document.getElementById('btn-open-questions');
+
     if (currentUser && currentProfile) {
         loggedOut.style.display = 'none';
         loggedIn.style.display = 'flex';
@@ -143,11 +149,13 @@ function renderAuthBar() {
         nickEl.innerText = currentProfile.nickname || currentUser.displayName || '使用者';
         if (homeHint) homeHint.style.display = 'none';
         if (meetingsBtn) meetingsBtn.style.display = 'block';
+        if (questionsBtn) questionsBtn.style.display = 'block';
     } else {
         loggedOut.style.display = 'block';
         loggedIn.style.display = 'none';
         if (homeHint) homeHint.style.display = 'block';
         if (meetingsBtn) meetingsBtn.style.display = 'none';
+        if (questionsBtn) questionsBtn.style.display = 'none';
     }
 }
 
@@ -376,6 +384,46 @@ window.onload = () => {
     document.getElementById('btn-open-meetings').onclick = openMeetingsList;
     document.getElementById('btn-meetings-back').onclick = () => switchView(viewHome);
     document.getElementById('btn-meeting-detail-back').onclick = openMeetingsList;
+
+    // ===== 題庫管理按鈕 =====
+    document.getElementById('btn-open-questions').onclick = openQuestionBank;
+    document.getElementById('btn-qbank-back').onclick = () => switchView(viewHome);
+    document.getElementById('btn-qbank-add').onclick = () => openQuestionEdit('new', null);
+    document.getElementById('qbank-tab-mine').onclick = () => {
+        qbankCurrentTab = 'mine';
+        document.getElementById('qbank-tab-mine').classList.add('active');
+        document.getElementById('qbank-tab-public').classList.remove('active');
+        refreshQuestionBank();
+    };
+    document.getElementById('qbank-tab-public').onclick = () => {
+        qbankCurrentTab = 'public';
+        document.getElementById('qbank-tab-public').classList.add('active');
+        document.getElementById('qbank-tab-mine').classList.remove('active');
+        refreshQuestionBank();
+    };
+    document.getElementById('btn-qedit-save').onclick = saveQuestionEdit;
+    document.getElementById('btn-qedit-cancel').onclick = openQuestionBank;
+    document.getElementById('btn-qedit-add-option').onclick = addQeditOption;
+    document.getElementById('qedit-has-answer').onchange = updateQeditAnswerHint;
+
+    // ===== 出題流程 =====
+    document.getElementById('btn-qa-src-mine').onclick = () => startQaFromSource('mine');
+    document.getElementById('btn-qa-src-public').onclick = () => startQaFromSource('public');
+    document.getElementById('btn-qa-src-pick').onclick = openQaManualPicker;
+    document.getElementById('btn-qa-src-cancel').onclick = () => switchView(viewFocus);
+    document.getElementById('btn-qpick-back').onclick = () => switchView(viewQaSource);
+    document.getElementById('qpick-tab-mine').onclick = () => {
+        qpickerCurrentTab = 'mine';
+        document.getElementById('qpick-tab-mine').classList.add('active');
+        document.getElementById('qpick-tab-public').classList.remove('active');
+        refreshQaPickerList();
+    };
+    document.getElementById('qpick-tab-public').onclick = () => {
+        qpickerCurrentTab = 'public';
+        document.getElementById('qpick-tab-public').classList.add('active');
+        document.getElementById('qpick-tab-mine').classList.remove('active');
+        refreshQaPickerList();
+    };
 
     // ===== 房主的「開始同步定錨」改成廣播 START_SYNC =====
     const startSyncBtn = document.getElementById('btn-start-sync');
@@ -616,6 +664,438 @@ function formatDateTime(iso) {
     }
 }
 
+// =========================================
+// 題庫管理 (Question Bank)
+// =========================================
+let qbankCurrentTab = 'mine';         // 'mine' | 'public'
+let qbankMyQuestions = [];            // 我的題庫快取
+let qbankPublicQuestions = [];        // 公共題庫快取
+let qeditContext = { mode: 'new', questionId: null };   // 編輯頁狀態
+// qa-picker (聚會中挑題) 模式
+let qpickerCurrentTab = 'mine';
+
+async function openQuestionBank() {
+    if (!currentUser) {
+        alert('請先登入 Google 帳號');
+        return;
+    }
+    qbankCurrentTab = 'mine';
+    document.getElementById('qbank-tab-mine').classList.add('active');
+    document.getElementById('qbank-tab-public').classList.remove('active');
+    const addBtn = document.getElementById('btn-qbank-add');
+    if (addBtn) addBtn.style.display = 'block';
+    switchView(viewQuestionBank);
+    await refreshQuestionBank();
+}
+
+async function refreshQuestionBank() {
+    const listEl = document.getElementById('qbank-list');
+    const emptyEl = document.getElementById('qbank-empty');
+    const addBtn = document.getElementById('btn-qbank-add');
+    listEl.innerHTML = '<p class="hint">載入中...</p>';
+    emptyEl.style.display = 'none';
+
+    try {
+        if (qbankCurrentTab === 'mine') {
+            if (addBtn) addBtn.style.display = 'block';
+            const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/questions`, {
+                headers: await getAuthHeaders()
+            });
+            const data = await res.json();
+            qbankMyQuestions = data.questions || [];
+            renderQbankList(qbankMyQuestions, 'mine');
+        } else {
+            if (addBtn) addBtn.style.display = 'none';
+            const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/public_questions`, {
+                headers: await getAuthHeaders()
+            });
+            const data = await res.json();
+            qbankPublicQuestions = data.questions || [];
+            renderQbankList(qbankPublicQuestions, 'public');
+        }
+    } catch (err) {
+        listEl.innerHTML = '';
+        emptyEl.innerText = '讀取失敗:' + (err.message || err);
+        emptyEl.style.display = 'block';
+    }
+}
+
+function renderQbankList(questions, kind) {
+    const listEl = document.getElementById('qbank-list');
+    const emptyEl = document.getElementById('qbank-empty');
+    listEl.innerHTML = '';
+
+    if (!questions.length) {
+        emptyEl.innerText = kind === 'mine'
+            ? '你還沒有任何題目。可以按「+ 新增題目」建立,或切到「公共題庫」複製幾題過來。'
+            : '公共題庫目前是空的。';
+        emptyEl.style.display = 'block';
+        return;
+    }
+    emptyEl.style.display = 'none';
+
+    questions.forEach(q => {
+        const item = document.createElement('div');
+        item.className = 'qbank-item';
+
+        const qText = document.createElement('div');
+        qText.className = 'qbank-item-q';
+        qText.innerText = q.question;
+        item.appendChild(qText);
+
+        if (kind === 'public' && q.category) {
+            const meta = document.createElement('div');
+            meta.className = 'qbank-item-meta';
+            meta.innerText = `分類:${q.category}` + (q.has_answer ? ' · 有正解' : '');
+            item.appendChild(meta);
+        } else if (kind === 'mine' && q.has_answer) {
+            const meta = document.createElement('div');
+            meta.className = 'qbank-item-meta';
+            meta.innerText = '✅ 有正解';
+            item.appendChild(meta);
+        }
+
+        const optsWrap = document.createElement('div');
+        optsWrap.className = 'qbank-item-opts';
+        (q.options || []).forEach((opt, idx) => {
+            const span = document.createElement('span');
+            span.className = 'qbank-item-opt';
+            if (q.has_answer && q.correct_index === idx) {
+                span.classList.add('correct');
+                span.innerText = '✓ ' + opt;
+            } else {
+                span.innerText = opt;
+            }
+            optsWrap.appendChild(span);
+        });
+        item.appendChild(optsWrap);
+
+        const actions = document.createElement('div');
+        actions.className = 'qbank-item-actions';
+        if (kind === 'mine') {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'qbank-mini-btn';
+            editBtn.innerText = '✏️ 編輯';
+            editBtn.onclick = () => openQuestionEdit('edit', q);
+            actions.appendChild(editBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'qbank-mini-btn danger';
+            delBtn.innerText = '🗑️ 刪除';
+            delBtn.onclick = () => deleteMyQuestion(q.id);
+            actions.appendChild(delBtn);
+        } else {
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'qbank-mini-btn primary';
+            copyBtn.innerText = '📥 加到我的題庫';
+            copyBtn.onclick = () => importPublicQuestion(q.id, copyBtn);
+            actions.appendChild(copyBtn);
+        }
+        item.appendChild(actions);
+        listEl.appendChild(item);
+    });
+}
+
+async function deleteMyQuestion(qid) {
+    if (!confirm('確定要刪除這題?')) return;
+    try {
+        const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/questions/${qid}`, {
+            method: 'DELETE',
+            headers: await getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.status !== 'success') {
+            alert('刪除失敗:' + (data.detail || ''));
+            return;
+        }
+        await refreshQuestionBank();
+    } catch (err) {
+        alert('刪除失敗:' + (err.message || err));
+    }
+}
+
+async function importPublicQuestion(publicId, btn) {
+    if (btn) { btn.disabled = true; btn.innerText = '加入中...'; }
+    try {
+        const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/questions/import`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ public_id: publicId })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') {
+            alert('加入失敗:' + (data.detail || ''));
+            if (btn) { btn.disabled = false; btn.innerText = '📥 加到我的題庫'; }
+            return;
+        }
+        if (btn) { btn.innerText = '✓ 已加入'; }
+    } catch (err) {
+        alert('加入失敗:' + (err.message || err));
+        if (btn) { btn.disabled = false; btn.innerText = '📥 加到我的題庫'; }
+    }
+}
+
+// ---- 新增 / 編輯題目 ----
+function openQuestionEdit(mode, question) {
+    qeditContext = { mode, questionId: question ? question.id : null };
+    document.getElementById('qedit-title').innerText =
+        mode === 'edit' ? '編輯題目' : '新增題目';
+    document.getElementById('qedit-question').value = question ? (question.question || '') : '';
+    document.getElementById('qedit-has-answer').checked = !!(question && question.has_answer);
+    document.getElementById('qedit-status').innerText = '';
+    renderEditOptions(
+        question && question.options ? question.options.slice() : ['', ''],
+        question ? question.correct_index : null
+    );
+    updateQeditAnswerHint();
+    switchView(viewQuestionEdit);
+}
+
+function renderEditOptions(options, correctIndex) {
+    const container = document.getElementById('qedit-options-list');
+    container.innerHTML = '';
+
+    options.forEach((text, idx) => {
+        const row = document.createElement('div');
+        row.className = 'qedit-option-row';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'qedit-correct';
+        radio.value = String(idx);
+        if (idx === correctIndex) radio.checked = true;
+        row.appendChild(radio);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'qedit-option-input';
+        input.placeholder = `選項 ${idx + 1}`;
+        input.maxLength = 40;
+        input.value = text;
+        row.appendChild(input);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'qedit-remove-btn';
+        removeBtn.innerText = '✕';
+        removeBtn.title = '刪除這個選項';
+        removeBtn.onclick = () => {
+            if (container.children.length <= 2) return;   // 至少要留 2 個
+            row.remove();
+        };
+        row.appendChild(removeBtn);
+
+        container.appendChild(row);
+    });
+
+    updateQeditRemoveButtons();
+}
+
+function updateQeditRemoveButtons() {
+    const container = document.getElementById('qedit-options-list');
+    const rows = container.querySelectorAll('.qedit-option-row');
+    const disableRemove = rows.length <= 2;
+    rows.forEach(r => {
+        const btn = r.querySelector('.qedit-remove-btn');
+        if (btn) btn.disabled = disableRemove;
+    });
+}
+
+function updateQeditAnswerHint() {
+    const hasAns = document.getElementById('qedit-has-answer').checked;
+    document.getElementById('qedit-answer-hint').style.display = hasAns ? 'block' : 'none';
+    // 未勾選正解時,清掉 radio
+    if (!hasAns) {
+        const container = document.getElementById('qedit-options-list');
+        container.querySelectorAll('input[type="radio"]').forEach(r => (r.checked = false));
+    }
+}
+
+function addQeditOption() {
+    const container = document.getElementById('qedit-options-list');
+    if (container.children.length >= 6) {
+        document.getElementById('qedit-status').innerText = '最多只能 6 個選項';
+        return;
+    }
+    const idx = container.children.length;
+
+    const row = document.createElement('div');
+    row.className = 'qedit-option-row';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'qedit-correct';
+    radio.value = String(idx);
+    row.appendChild(radio);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'qedit-option-input';
+    input.placeholder = `選項 ${idx + 1}`;
+    input.maxLength = 40;
+    row.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'qedit-remove-btn';
+    removeBtn.innerText = '✕';
+    removeBtn.onclick = () => { row.remove(); updateQeditRemoveButtons(); };
+    row.appendChild(removeBtn);
+
+    container.appendChild(row);
+    updateQeditRemoveButtons();
+    document.getElementById('qedit-status').innerText = '';
+}
+
+async function saveQuestionEdit() {
+    const q = document.getElementById('qedit-question').value.trim();
+    const statusEl = document.getElementById('qedit-status');
+    const container = document.getElementById('qedit-options-list');
+    const rows = container.querySelectorAll('.qedit-option-row');
+    const options = [];
+    let correctIndex = null;
+    rows.forEach((row, idx) => {
+        const txt = row.querySelector('input[type="text"]').value.trim();
+        if (txt) options.push(txt);
+        const radio = row.querySelector('input[type="radio"]');
+        if (radio && radio.checked) correctIndex = options.length - 1;   // 以已填入 options 的索引為準
+    });
+    const hasAnswer = document.getElementById('qedit-has-answer').checked;
+
+    if (!q) { statusEl.innerText = '題目不能是空的'; return; }
+    if (options.length < 2) { statusEl.innerText = '至少要 2 個有內容的選項'; return; }
+    if (options.length > 6) { statusEl.innerText = '最多只能 6 個選項'; return; }
+    if (hasAnswer && correctIndex === null) { statusEl.innerText = '請指定正解'; return; }
+
+    const payload = {
+        question: q,
+        options,
+        has_answer: hasAnswer,
+        correct_index: hasAnswer ? correctIndex : null
+    };
+
+    const saveBtn = document.getElementById('btn-qedit-save');
+    saveBtn.disabled = true;
+    statusEl.innerText = '儲存中...';
+
+    try {
+        let url = `${HTTP_PROTOCOL}${BACKEND_HOST}/api/questions`;
+        let method = 'POST';
+        if (qeditContext.mode === 'edit' && qeditContext.questionId) {
+            url += '/' + qeditContext.questionId;
+            method = 'PATCH';
+        }
+        const res = await fetch(url, {
+            method,
+            headers: await getAuthHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status !== 'success') {
+            statusEl.innerText = '失敗:' + (data.detail || '未知錯誤');
+            saveBtn.disabled = false;
+            return;
+        }
+        statusEl.innerText = '';
+        saveBtn.disabled = false;
+        await openQuestionBank();
+    } catch (err) {
+        statusEl.innerText = '失敗:' + (err.message || err);
+        saveBtn.disabled = false;
+    }
+}
+
+// =========================================
+// 出題選擇流程 (聚會中)
+// =========================================
+function openQaSourcePicker() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('連線中斷,無法出題');
+        return;
+    }
+    switchView(viewQaSource);
+}
+
+function startQaFromSource(source) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('連線中斷');
+        return;
+    }
+    ws.send(JSON.stringify({ action: "START_QA", source }));
+    // 不直接切 view,讓 QA_STARTED 廣播回來時統一處理
+}
+
+async function openQaManualPicker() {
+    qpickerCurrentTab = 'mine';
+    document.getElementById('qpick-tab-mine').classList.add('active');
+    document.getElementById('qpick-tab-public').classList.remove('active');
+    switchView(viewQaPicker);
+    await refreshQaPickerList();
+}
+
+async function refreshQaPickerList() {
+    const listEl = document.getElementById('qpick-list');
+    const emptyEl = document.getElementById('qpick-empty');
+    listEl.innerHTML = '<p class="hint">載入中...</p>';
+    emptyEl.style.display = 'none';
+
+    try {
+        const url = qpickerCurrentTab === 'mine'
+            ? `${HTTP_PROTOCOL}${BACKEND_HOST}/api/questions`
+            : `${HTTP_PROTOCOL}${BACKEND_HOST}/api/public_questions`;
+        const res = await fetch(url, { headers: await getAuthHeaders() });
+        const data = await res.json();
+        const questions = data.questions || [];
+
+        listEl.innerHTML = '';
+        if (!questions.length) {
+            emptyEl.innerText = qpickerCurrentTab === 'mine'
+                ? '你的個人題庫還沒有題目'
+                : '公共題庫目前是空的';
+            emptyEl.style.display = 'block';
+            return;
+        }
+
+        questions.forEach(q => {
+            const item = document.createElement('div');
+            item.className = 'qbank-item';
+            item.style.cursor = 'pointer';
+
+            const qText = document.createElement('div');
+            qText.className = 'qbank-item-q';
+            qText.innerText = q.question;
+            item.appendChild(qText);
+
+            const opts = document.createElement('div');
+            opts.className = 'qbank-item-opts';
+            (q.options || []).forEach((opt, idx) => {
+                const span = document.createElement('span');
+                span.className = 'qbank-item-opt';
+                if (q.has_answer && q.correct_index === idx) span.classList.add('correct');
+                span.innerText = opt;
+                opts.appendChild(span);
+            });
+            item.appendChild(opts);
+
+            item.onclick = () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    alert('連線中斷');
+                    return;
+                }
+                ws.send(JSON.stringify({
+                    action: "START_QA",
+                    source: "specific",
+                    question_id: q.id
+                }));
+                // 不切 view,讓 QA_STARTED 廣播回來時統一處理
+            };
+            listEl.appendChild(item);
+        });
+    } catch (err) {
+        listEl.innerHTML = '';
+        emptyEl.innerText = '讀取失敗:' + (err.message || err);
+        emptyEl.style.display = 'block';
+    }
+}
+
 document.getElementById('btn-create-room').onclick = async () => {
     // 發起聚會強制要求登入
     if (!currentUser) {
@@ -682,19 +1162,10 @@ document.addEventListener('click', function(e) {
         }
     }
     
-    // 🟢 擴充：房主發起問答 (從多題庫隨機出一題)
+    // 🟢 房主發起問答 → 打開「選題目來源」頁
     const qaBtn = e.target.closest('#btn-mode-qa');
     if (qaBtn) {
-        const questions = qaDatabase[currentRoomMode];
-        const randomItem = questions[Math.floor(Math.random() * questions.length)];
-        
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                action: "START_QA", 
-                question: randomItem.q,
-                options: randomItem.opts
-            }));
-        }
+        openQaSourcePicker();
     }
 });
 
@@ -874,7 +1345,7 @@ function handleServerMessage(msg) {
             statusEl.innerText = `你已送出答案，等待其他人... (${msg.answered_count}/${msg.total_count})`;
         }
     } else if (msg.type === "QA_FINISHED") {
-        // 全員答完，顯示票數結果，5 秒後自動回到定錨畫面
+        // 全員答完，顯示票數結果，5 秒後自動回到聚會畫面
         const statusEl = document.getElementById('qa-status');
         const container = document.getElementById('qa-options-container');
         const questionEl = document.getElementById('qa-question-text');
@@ -889,21 +1360,34 @@ function handleServerMessage(msg) {
                 div.className = 'qa-option-btn';
                 div.style.opacity = '1';
                 div.style.cursor = 'default';
-                div.innerText = `${opt}  —  ${count} 票`;
+                // 如果有正解,把正解選項高亮
+                if (msg.has_answer && msg.correct_option && opt === msg.correct_option) {
+                    div.style.background = 'rgba(16, 185, 129, 0.25)';
+                    div.style.borderColor = '#34d399';
+                    div.style.color = '#a7f3d0';
+                    div.innerText = `✅ ${opt}  —  ${count} 票（正解）`;
+                } else {
+                    div.innerText = `${opt}  —  ${count} 票`;
+                }
                 container.appendChild(div);
             });
         }
 
-        if (questionEl) questionEl.innerText = "📊 結果統計";
-        if (statusEl) statusEl.innerText = "5 秒後返回定錨...";
+        if (questionEl) {
+            if (msg.has_answer && msg.correct_option) {
+                questionEl.innerText = `📊 正解:${msg.correct_option}（${msg.correct_count || 0} 人答對）`;
+            } else {
+                questionEl.innerText = "📊 結果統計";
+            }
+        }
+        if (statusEl) statusEl.innerText = "5 秒後返回聚會畫面...";
 
         let countdown = 5;
         const countdownInterval = setInterval(() => {
             countdown--;
-            if (statusEl) statusEl.innerText = `${countdown} 秒後返回定錨...`;
+            if (statusEl) statusEl.innerText = `${countdown} 秒後返回聚會畫面...`;
             if (countdown <= 0) {
                 clearInterval(countdownInterval);
-                // 回到定錨畫面
                 currentPhase = 'ACTIVE';
                 switchView(viewFocus);
                 document.body.classList.add('mode-flow');

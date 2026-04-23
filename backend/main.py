@@ -40,11 +40,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],  # 明確列出方法
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],  # 題庫需要 PATCH/DELETE
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v7-meeting-history"
+BACKEND_VERSION = "v8-question-bank"
 
 
 @app.get("/api/version")
@@ -216,6 +216,261 @@ async def get_meeting(meeting_id: str, decoded: dict = Depends(verify_token)):
     except Exception as e:
         print(f"Error getting meeting: {e}")
         raise HTTPException(status_code=500, detail=f"讀取聚會失敗: {e}")
+
+
+# ===== 題庫 API =====
+class QuestionPayload(BaseModel):
+    question: str
+    options: List[str]
+    has_answer: Optional[bool] = False
+    correct_index: Optional[int] = None
+
+
+def _validate_question_payload(payload: QuestionPayload) -> dict:
+    """檢查題目合法性並回傳整理過的 dict"""
+    q = (payload.question or "").strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="題目不能是空的")
+    if len(q) > 120:
+        raise HTTPException(status_code=400, detail="題目最多 120 字")
+
+    opts = [str(o).strip() for o in (payload.options or []) if str(o).strip()]
+    if len(opts) < 2:
+        raise HTTPException(status_code=400, detail="至少要 2 個選項")
+    if len(opts) > 6:
+        raise HTTPException(status_code=400, detail="最多只能 6 個選項")
+    for o in opts:
+        if len(o) > 40:
+            raise HTTPException(status_code=400, detail="單一選項最多 40 字")
+
+    has_answer = bool(payload.has_answer)
+    correct_index = None
+    if has_answer:
+        correct_index = payload.correct_index
+        if correct_index is None or not isinstance(correct_index, int):
+            raise HTTPException(status_code=400, detail="勾選了有正解，請指定正解")
+        if correct_index < 0 or correct_index >= len(opts):
+            raise HTTPException(status_code=400, detail="正解索引超出選項範圍")
+
+    return {
+        "question": q,
+        "options": opts,
+        "has_answer": has_answer,
+        "correct_index": correct_index,
+    }
+
+
+def _serialize_question(data: dict, doc_id: str) -> dict:
+    """把 Firestore question document 轉成可序列化 dict"""
+    out = dict(data)
+    out["id"] = doc_id
+    for ts_field in ("created_at", "updated_at"):
+        if out.get(ts_field) and hasattr(out[ts_field], "isoformat"):
+            out[ts_field] = out[ts_field].isoformat()
+        elif out.get(ts_field):
+            out[ts_field] = str(out[ts_field])
+    return out
+
+
+@app.get("/api/questions")
+async def list_my_questions(decoded: dict = Depends(verify_token)):
+    """列出目前登入者的個人題庫"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    try:
+        docs = list(db.collection("users").document(uid).collection("questions").stream())
+        questions = [_serialize_question(d.to_dict() or {}, d.id) for d in docs]
+        questions.sort(key=lambda q: q.get("created_at") or "", reverse=True)
+        return {"status": "success", "questions": questions}
+    except Exception as e:
+        print(f"Error listing questions: {e}")
+        raise HTTPException(status_code=500, detail=f"讀取題庫失敗: {e}")
+
+
+@app.post("/api/questions")
+async def create_question(payload: QuestionPayload, decoded: dict = Depends(verify_token)):
+    """新增一題到個人題庫"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    cleaned = _validate_question_payload(payload)
+    cleaned["created_at"] = firestore.SERVER_TIMESTAMP
+    cleaned["updated_at"] = firestore.SERVER_TIMESTAMP
+
+    try:
+        ref = db.collection("users").document(uid).collection("questions").document()
+        ref.set(cleaned)
+        # 回傳時去掉 sentinel
+        out = dict(cleaned)
+        out.pop("created_at", None)
+        out.pop("updated_at", None)
+        out["id"] = ref.id
+        return {"status": "success", "question": out}
+    except Exception as e:
+        print(f"Error creating question: {e}")
+        raise HTTPException(status_code=500, detail=f"新增失敗: {e}")
+
+
+@app.patch("/api/questions/{qid}")
+async def update_question(qid: str, payload: QuestionPayload, decoded: dict = Depends(verify_token)):
+    """編輯個人題庫中的某一題"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    ref = db.collection("users").document(uid).collection("questions").document(qid)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="找不到這題")
+
+    cleaned = _validate_question_payload(payload)
+    cleaned["updated_at"] = firestore.SERVER_TIMESTAMP
+
+    try:
+        ref.update(cleaned)
+        out = dict(cleaned)
+        out.pop("updated_at", None)
+        out["id"] = qid
+        return {"status": "success", "question": out}
+    except Exception as e:
+        print(f"Error updating question: {e}")
+        raise HTTPException(status_code=500, detail=f"更新失敗: {e}")
+
+
+@app.delete("/api/questions/{qid}")
+async def delete_question(qid: str, decoded: dict = Depends(verify_token)):
+    """刪除個人題庫中的某一題"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    ref = db.collection("users").document(uid).collection("questions").document(qid)
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="找不到這題")
+    try:
+        ref.delete()
+        return {"status": "success", "id": qid}
+    except Exception as e:
+        print(f"Error deleting question: {e}")
+        raise HTTPException(status_code=500, detail=f"刪除失敗: {e}")
+
+
+@app.get("/api/public_questions")
+async def list_public_questions(decoded: dict = Depends(verify_token)):
+    """列出公共題庫"""
+    try:
+        docs = list(db.collection("public_questions").stream())
+        questions = [_serialize_question(d.to_dict() or {}, d.id) for d in docs]
+        questions.sort(key=lambda q: q.get("category") or "")
+        return {"status": "success", "questions": questions}
+    except Exception as e:
+        print(f"Error listing public questions: {e}")
+        raise HTTPException(status_code=500, detail=f"讀取公共題庫失敗: {e}")
+
+
+class ImportQuestionPayload(BaseModel):
+    public_id: str
+
+
+@app.post("/api/questions/import")
+async def import_public_question(payload: ImportQuestionPayload, decoded: dict = Depends(verify_token)):
+    """從公共題庫複製一題到自己的個人題庫"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    src = db.collection("public_questions").document(payload.public_id).get()
+    if not src.exists:
+        raise HTTPException(status_code=404, detail="公共題庫找不到這題")
+
+    src_data = src.to_dict() or {}
+    new_q = {
+        "question": src_data.get("question", ""),
+        "options": src_data.get("options", []),
+        "has_answer": bool(src_data.get("has_answer", False)),
+        "correct_index": src_data.get("correct_index"),
+        "imported_from_public": payload.public_id,
+        "created_at": firestore.SERVER_TIMESTAMP,
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }
+
+    try:
+        ref = db.collection("users").document(uid).collection("questions").document()
+        ref.set(new_q)
+        out = {
+            "id": ref.id,
+            "question": new_q["question"],
+            "options": new_q["options"],
+            "has_answer": new_q["has_answer"],
+            "correct_index": new_q["correct_index"],
+        }
+        return {"status": "success", "question": out}
+    except Exception as e:
+        print(f"Error importing question: {e}")
+        raise HTTPException(status_code=500, detail=f"複製失敗: {e}")
+
+
+def _pick_question_for_host(host_uid: str, source: str, question_id: Optional[str]) -> Optional[dict]:
+    """
+    根據 source 決定用哪一題：
+    - "mine":    從 host 個人題庫隨機
+    - "public":  從公共題庫隨機
+    - "specific":精準用 question_id（可能是 mine 或 public）
+    回傳 dict: {question, options, has_answer, correct_index}；找不到回 None
+    """
+    import random
+
+    if source == "mine":
+        docs = list(db.collection("users").document(host_uid).collection("questions").stream())
+        if not docs:
+            return None
+        pick = random.choice(docs)
+        d = pick.to_dict() or {}
+        return {
+            "question": d.get("question", ""),
+            "options": d.get("options", []),
+            "has_answer": bool(d.get("has_answer", False)),
+            "correct_index": d.get("correct_index"),
+        }
+
+    if source == "public":
+        docs = list(db.collection("public_questions").stream())
+        if not docs:
+            return None
+        pick = random.choice(docs)
+        d = pick.to_dict() or {}
+        return {
+            "question": d.get("question", ""),
+            "options": d.get("options", []),
+            "has_answer": bool(d.get("has_answer", False)),
+            "correct_index": d.get("correct_index"),
+        }
+
+    if source == "specific" and question_id:
+        # 先試個人題庫，再試公共題庫
+        ref1 = db.collection("users").document(host_uid).collection("questions").document(question_id).get()
+        if ref1.exists:
+            d = ref1.to_dict() or {}
+            return {
+                "question": d.get("question", ""),
+                "options": d.get("options", []),
+                "has_answer": bool(d.get("has_answer", False)),
+                "correct_index": d.get("correct_index"),
+            }
+        ref2 = db.collection("public_questions").document(question_id).get()
+        if ref2.exists:
+            d = ref2.to_dict() or {}
+            return {
+                "question": d.get("question", ""),
+                "options": d.get("options", []),
+                "has_answer": bool(d.get("has_answer", False)),
+                "correct_index": d.get("correct_index"),
+            }
+
+    return None
 
 
 # ===== 系統工具函數 =====
@@ -501,17 +756,51 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 })
 
             # 2. 房主發布問答題
+            # 支援兩種格式：
+            # (新) { action:"START_QA", source:"mine|public|specific", question_id?:"..." }
+            # (舊) { action:"START_QA", question:"...", options:[...] } → 房主手動傳題目(沒有正解)
             elif action == "START_QA":
-                question = data.get("question")
-                options = data.get("options")
+                if rooms[room_id].get("host_uid") != user_id:
+                    print(f"[START_QA] rejected: user={user_id} is not host of room {room_id}")
+                    continue
+
+                source = data.get("source")
+                picked = None
+                if source in ("mine", "public", "specific"):
+                    host_uid_local = rooms[room_id].get("host_uid") or user_id
+                    picked = _pick_question_for_host(host_uid_local, source, data.get("question_id"))
+                    if not picked:
+                        # 題庫是空的或找不到該題
+                        await websocket.send_text(json.dumps({
+                            "type": "QA_ERROR",
+                            "message": "找不到可用的題目，請到題庫管理新增題目"
+                        }))
+                        continue
+                else:
+                    # 相容舊格式：直接帶題目內容
+                    picked = {
+                        "question": data.get("question", ""),
+                        "options": data.get("options", []),
+                        "has_answer": False,
+                        "correct_index": None,
+                    }
+
+                question_text = picked["question"]
+                options_list = picked["options"]
+                has_answer = bool(picked.get("has_answer"))
+                correct_index = picked.get("correct_index")
+
                 rooms[room_id]["mode"] = "QA_GAME"
-                rooms[room_id]["qa_state"]["current_question"] = question
+                rooms[room_id]["qa_state"]["current_question"] = question_text
+                rooms[room_id]["qa_state"]["current_options"] = options_list
+                rooms[room_id]["qa_state"]["has_answer"] = has_answer
+                rooms[room_id]["qa_state"]["correct_index"] = correct_index
                 rooms[room_id]["qa_state"]["answers"] = {}
 
                 try:
                     db.collection("rooms").document(room_id).update({
                         "mode": "QA_GAME",
-                        "qa_state.current_question": question,
+                        "qa_state.current_question": question_text,
                         "qa_state.answers": {}
                     })
                 except Exception as e:
@@ -519,8 +808,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 await manager.broadcast_to_room(room_id, {
                     "type": "QA_STARTED",
-                    "question": question,
-                    "options": options
+                    "question": question_text,
+                    "options": options_list,
+                    "has_answer": has_answer
+                    # 注意：故意不廣播 correct_index，避免前端能偷看正解
                 })
 
             # 3. 參與者提交答案
@@ -555,6 +846,18 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     for ans in answers.values():
                         results[ans] = results.get(ans, 0) + 1
 
+                    # 如果這題有正解，回傳正解 + 答對人數
+                    qa_state_prev = rooms[room_id].get("qa_state") or {}
+                    has_answer = bool(qa_state_prev.get("has_answer"))
+                    correct_index = qa_state_prev.get("correct_index")
+                    correct_option = None
+                    correct_count = None
+                    if has_answer and correct_index is not None:
+                        opts_prev = qa_state_prev.get("current_options") or []
+                        if 0 <= correct_index < len(opts_prev):
+                            correct_option = opts_prev[correct_index]
+                            correct_count = sum(1 for a in answers.values() if a == correct_option)
+
                     # 模式回到 ACTIVE (定錨)，清空題目
                     rooms[room_id]["mode"] = "ACTIVE"
                     rooms[room_id]["qa_state"] = {"current_question": None, "answers": {}}
@@ -568,10 +871,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     except Exception as e:
                         print(f"Error resetting QA state in Firestore: {e}")
 
-                    await manager.broadcast_to_room(room_id, {
+                    finished_msg = {
                         "type": "QA_FINISHED",
-                        "results": results
-                    })
+                        "results": results,
+                        "has_answer": has_answer,
+                    }
+                    if has_answer and correct_option is not None:
+                        finished_msg["correct_option"] = correct_option
+                        finished_msg["correct_count"] = correct_count
+                    await manager.broadcast_to_room(room_id, finished_msg)
 
             # 4. 同步進度
             elif action == "SYNC_PROGRESS":

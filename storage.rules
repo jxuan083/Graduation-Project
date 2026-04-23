@@ -13,12 +13,13 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');     // 必須是圖片
     }
 
-    // 預留：未來聚會合照可放這
-    // match /meeting-photos/{roomId}/{fileName} {
-    //   allow read: if request.auth != null;
-    //   allow write: if request.auth != null
-    //                && request.resource.size < 10 * 1024 * 1024;
-    // }
+    // 聚會照片：讀取開放給所有登入者（實際權限由後端 + download URL 控制）
+    // 寫入完全走後端 (Admin SDK 會繞過規則)
+    // 路徑慣例：meeting-photos/{meetingId}/{photoId}.jpg
+    match /meeting-photos/{meetingId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
 
     // 預設拒絕其他路徑
     match /{allPaths=**} {
