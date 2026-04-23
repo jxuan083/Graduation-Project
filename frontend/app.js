@@ -178,8 +178,12 @@ function joinRoom(id) {
 
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        console.log('[WS RECV]', msg);  // DEBUG: log all messages
         handleServerMessage(msg);
     };
+
+    ws.onerror = (err) => console.error('[WS ERROR]', err);
+    ws.onclose = (e) => console.warn('[WS CLOSED]', e.code, e.reason);
 }
 
 function handleServerMessage(msg) {
@@ -228,6 +232,49 @@ function handleServerMessage(msg) {
                 container.appendChild(btn);
             });
         }
+    } else if (msg.type === "QA_PROGRESS") {
+        // 即時更新「X/Y 已作答」進度（已送答的人才會看到）
+        const statusEl = document.getElementById('qa-status');
+        if (statusEl && statusEl.innerText.includes("等待其他人")) {
+            statusEl.innerText = `你已送出答案，等待其他人... (${msg.answered_count}/${msg.total_count})`;
+        }
+    } else if (msg.type === "QA_FINISHED") {
+        // 全員答完，顯示票數結果，5 秒後自動回到定錨畫面
+        const statusEl = document.getElementById('qa-status');
+        const container = document.getElementById('qa-options-container');
+        const questionEl = document.getElementById('qa-question-text');
+
+        // 把選項按鈕區改成結果統計
+        if (container) {
+            container.innerHTML = '';
+            // 按票數排序顯示
+            const sorted = Object.entries(msg.results).sort((a, b) => b[1] - a[1]);
+            sorted.forEach(([opt, count]) => {
+                const div = document.createElement('div');
+                div.className = 'qa-option-btn';
+                div.style.opacity = '1';
+                div.style.cursor = 'default';
+                div.innerText = `${opt}  —  ${count} 票`;
+                container.appendChild(div);
+            });
+        }
+
+        if (questionEl) questionEl.innerText = "📊 結果統計";
+        if (statusEl) statusEl.innerText = "5 秒後返回定錨...";
+
+        let countdown = 5;
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (statusEl) statusEl.innerText = `${countdown} 秒後返回定錨...`;
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                // 回到定錨畫面
+                currentPhase = 'ACTIVE';
+                switchView(viewFocus);
+                document.body.classList.add('mode-flow');
+                if (statusEl) statusEl.innerText = "";
+            }
+        }, 1000);
     }
 }
 
