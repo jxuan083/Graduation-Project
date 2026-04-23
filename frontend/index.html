@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=3">
 </head>
 <body>
     <div id="app-container">
 
-        <!-- ===== Home View ===== -->
         <section id="view-home" class="view active">
             <div class="hero">
                 <h1>注意力定錨</h1>
@@ -22,7 +21,6 @@
             </div>
         </section>
 
-        <!-- ===== Host Room View ===== -->
         <section id="view-host-room" class="view">
             <h2>房間已建立</h2>
             <div class="qr-container">
@@ -32,10 +30,20 @@
             <div class="member-list">
                 <h3>已加入成員 : <span id="member-count">0</span></h3>
             </div>
+
+            <div class="mode-controls">
+                <h3>選擇聚會模式：</h3>
+                <div class="mode-btns">
+                    <button id="btn-mode-gathering" class="btn secondary mode-btn active-mode">🎉 朋友聚會 (預設)</button>
+                    <button id="btn-mode-family" class="btn secondary mode-btn">🏠 家庭聚會</button>
+                    <button id="btn-mode-meeting" class="btn secondary mode-btn">💼 嚴肅開會</button>
+                    <button id="btn-mode-class" class="btn secondary mode-btn">📚 上課模式</button>
+                </div>
+            </div>
+
             <button id="btn-start-sync" class="btn primary disabled">開始同步定錨</button>
         </section>
 
-        <!-- ===== Sync Ritual View ===== -->
         <section id="view-sync-ritual" class="view">
             <h2>同步儀式</h2>
             <p>大家一起長按圓鈕，將能量注滿</p>
@@ -47,7 +55,6 @@
             </div>
         </section>
 
-        <!-- ===== Flow State (Focus) View ===== -->
         <section id="view-focus" class="view">
             <h2 class="status-title">定錨成功</h2>
             <p class="status-subtitle">請將手機倒扣，享受當下的互動</p>
@@ -57,10 +64,26 @@
             <div class="stats">
                 <p>偏離次數: <span id="deviation-count">0</span></p>
             </div>
+            
+            <div id="host-only-controls" style="display: none; width: 100%;">
+                <button id="btn-mode-qa" class="btn primary">❓ 發起團體問答</button>
+            </div>
             <button id="btn-end-session" class="btn secondary">結束聚會</button>
         </section>
 
-        <!-- ===== Buffer / Penalty View ===== -->
+        <section id="view-qa-game" class="view">
+            <h2>團體問答時間</h2>
+            <p>請在下方選擇你的答案</p>
+            
+            <div class="qa-card">
+                <h3 id="qa-question-text">等待房主出題...</h3>
+                <div id="qa-options-container" class="mode-btns">
+                    </div>
+            </div>
+            
+            <p id="qa-status"></p>
+        </section>
+
         <section id="view-buffer" class="view overlay">
             <div class="buffer-content">
                 <h2>⚠️ 認知緩衝區</h2>
@@ -70,7 +93,6 @@
             </div>
         </section>
 
-        <!-- ===== Summary View ===== -->
         <section id="view-summary" class="view">
             <h2>結算報告</h2>
             <div class="summary-card">
@@ -83,8 +105,7 @@
 
     </div>
 
-    <!-- Lottie Web Core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js"></script>
+    <script src="./app.js?v="></script>
 </body>
 </html>

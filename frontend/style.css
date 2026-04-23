@@ -1,5 +1,4 @@
-/* 
-  Vanilla CSS for Social Anchor MVP
+/* Vanilla CSS for Social Anchor MVP
   Responsive, modern, glassmorphism UI logic 
 */
 
@@ -30,7 +29,7 @@ body {
   align-items: center;
   min-height: 100vh;
   margin: 0;
-  overflow: hidden;
+  overflow-y: auto; 
   transition: background-color 1s ease;
 }
 
@@ -45,7 +44,7 @@ body.mode-danger {
 #app-container {
   width: 100%;
   max-width: 480px;
-  height: 100vh;
+  min-height: 150vh;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -211,3 +210,87 @@ p { font-size: 1rem; color: var(--text-secondary); margin-bottom: 24px; }
   margin-bottom: 32px;
   border: 1px solid rgba(255,255,255,0.1);
 }
+
+/* =========================================
+   新增：模式切換與問答遊戲 (Q&A Game) 樣式
+========================================= */
+
+/* 房主模式選擇控制區塊 */
+.mode-controls {
+  margin: 24px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.mode-controls h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.mode-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 問答遊戲卡片區塊 */
+.qa-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 24px;
+  border-radius: 16px;
+  margin: 24px 0;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 問答遊戲選項按鈕 */
+.qa-option-btn {
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--text-secondary);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.qa-option-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  border-color: var(--text-primary);
+}
+
+.qa-option-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: none;
+}
+
+#qa-status {
+  font-weight: bold;
+  margin-top: 16px;
+  color: #10b981; 
+  min-height: 24px;
+}
+
+.btn.secondary.active-mode {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-color: #34d399;
+  color: #a7f3d0;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+  transform: scale(0.98);
+}
+/* 聚會背景主題色同步 */
+body.mode-gathering { background-color: #2e1065 !important; }
+body.mode-family { background-color: #451a03 !important; }
+body.mode-meeting { background-color: #0f172a !important; }
+body.mode-class { background-color: #064e3b !important; }
