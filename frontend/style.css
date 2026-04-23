@@ -294,3 +294,229 @@ body.mode-gathering { background-color: #2e1065 !important; }
 body.mode-family { background-color: #451a03 !important; }
 body.mode-meeting { background-color: #0f172a !important; }
 body.mode-class { background-color: #064e3b !important; }
+
+/* =========================================
+   Phase 0：Auth bar、登入按鈕、個人資料頁
+========================================= */
+
+#auth-bar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#auth-logged-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.08);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+}
+
+.auth-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #334155;
+}
+
+.auth-nickname {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-auth {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-auth:hover { opacity: 0.9; }
+.btn-auth:active { transform: scale(0.97); }
+
+.btn-auth-small {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+/* Profile 頁 */
+.profile-card {
+  background: rgba(255,255,255,0.05);
+  padding: 24px;
+  border-radius: 16px;
+  width: 100%;
+  margin: 24px 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  align-self: center;
+  object-fit: cover;
+  background: #334155;
+  border: 3px solid rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+
+.profile-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  text-align: left;
+}
+
+.profile-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.profile-status {
+  font-size: 0.85rem;
+  color: #34d399;
+  min-height: 18px;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* 成員清單 (waiting / host room) */
+.member-list {
+  width: 100%;
+  margin: 16px 0;
+}
+
+.member-ul {
+  list-style: none;
+  margin: 12px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-ul li {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.member-ul .member-tag {
+  font-size: 0.85rem;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.member-ul .member-tag.host {
+  color: #93c5fd;   /* 淡藍 */
+}
+
+.member-ul .member-tag.you {
+  color: #6ee7b7;   /* 淡綠 */
+}
+
+/* 結算頁的房主提示 */
+#summary-host-hint {
+  color: #fca5a5;
+  font-weight: bold;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* QR 掃描器 */
+.scanner-container {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 16px auto;
+  position: relative;
+}
+
+.scanner-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+/* 聚會紀錄列表 */
+.meetings-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.meeting-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+  text-align: left;
+}
+
+.meeting-card:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.meeting-card .mc-mode {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.meeting-card .mc-meta {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}

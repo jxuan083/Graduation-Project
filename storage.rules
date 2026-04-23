@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // 頭像：每個 user 只能在自己的資料夾下寫，所有人可讀
+    // 路徑慣例：avatars/{uid}/<filename>
+    match /avatars/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024              // 5 MB 上限
+                   && request.resource.contentType.matches('image/.*');     // 必須是圖片
+    }
+
+    // 預留：未來聚會合照可放這
+    // match /meeting-photos/{roomId}/{fileName} {
+    //   allow read: if request.auth != null;
+    //   allow write: if request.auth != null
+    //                && request.resource.size < 10 * 1024 * 1024;
+    // }
+
+    // 預設拒絕其他路徑
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,31 +4,124 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css?v=3">
+    <link rel="stylesheet" href="./style.css?v=7">
+    <!-- Firebase JS SDK (compat 版本，保持 vanilla script 用法) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+    <!-- QR Code 掃描函式庫 -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
     <div id="app-container">
 
+        <!-- 頂部使用者狀態列 -->
+        <header id="auth-bar">
+            <div id="auth-logged-out">
+                <button id="btn-google-login" class="btn-auth">使用 Google 登入</button>
+            </div>
+            <div id="auth-logged-in" style="display:none;">
+                <img id="auth-avatar" class="auth-avatar" src="" alt="avatar" />
+                <span id="auth-nickname" class="auth-nickname"></span>
+                <button id="btn-open-profile" class="btn-auth btn-auth-small">編輯</button>
+                <button id="btn-logout" class="btn-auth btn-auth-small">登出</button>
+            </div>
+        </header>
+
         <section id="view-home" class="view active">
             <div class="hero">
-                <h1>注意力定錨</h1>
-                <p>重新找回真實社交的溫度</p>
+                <h1>聚會時間</h1>
+                <p>放下手機，享受當下的相聚</p>
             </div>
             <div class="actions">
                 <button id="btn-create-room" class="btn primary">發起聚會</button>
-                <div class="divider"><span>或掃描朋友的 QR Code</span></div>
-                <p class="hint">請直接使用手機相機掃描 QR Code 加入</p>
+                <p id="home-login-hint" class="hint" style="display:none;">※ 發起聚會需要先登入 Google 帳號</p>
+                <button id="btn-scan-qr" class="btn secondary">掃描 QR Code 加入</button>
+                <button id="btn-open-meetings" class="btn secondary" style="display:none;">📒 聚會紀錄</button>
+                <p class="hint">也可以直接用手機相機掃 QR Code 加入</p>
             </div>
         </section>
 
+        <section id="view-scanner" class="view">
+            <h2>掃描 QR Code</h2>
+            <p>把朋友的 QR Code 對準鏡頭</p>
+            <div id="scanner-container" class="scanner-container"></div>
+            <p class="hint" id="scanner-hint">啟動相機中...</p>
+            <button id="btn-scanner-cancel" class="btn secondary">取消</button>
+        </section>
+
+        <section id="view-meetings" class="view">
+            <h2>聚會紀錄</h2>
+            <div id="meetings-list" class="meetings-list"></div>
+            <p id="meetings-empty" class="hint" style="display:none;">還沒有任何聚會紀錄，去發起一場吧！</p>
+            <button id="btn-meetings-back" class="btn secondary">返回</button>
+        </section>
+
+        <section id="view-meeting-detail" class="view">
+            <h2 id="meeting-detail-title">聚會詳情</h2>
+            <div class="summary-card">
+                <p>主辦人: <span id="md-host">-</span></p>
+                <p>聚會模式: <span id="md-mode">-</span></p>
+                <p>持續時間: <span id="md-duration">-</span> 分鐘</p>
+                <p>分心次數: <span id="md-deviations">-</span> 次</p>
+                <p>結束時間: <span id="md-time">-</span></p>
+                <p>結束原因: <span id="md-reason">-</span></p>
+                <h3 style="margin-top:20px; margin-bottom:8px;">參與成員 (<span id="md-count">0</span>)</h3>
+                <ul id="md-members" class="member-ul"></ul>
+            </div>
+            <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
+        </section>
+
+        <section id="view-profile" class="view">
+            <h2>個人資料</h2>
+            <div class="profile-card">
+                <img id="profile-avatar-preview" class="profile-avatar" src="" alt="avatar" />
+                <label for="profile-avatar-input" class="btn secondary" style="cursor:pointer;">更換頭像</label>
+                <input id="profile-avatar-input" type="file" accept="image/*" style="display:none;" />
+
+                <label class="profile-label" for="profile-nickname">暱稱</label>
+                <input id="profile-nickname" type="text" maxlength="30" class="profile-input" placeholder="顯示名稱" />
+
+                <label class="profile-label" for="profile-bio">自我介紹</label>
+                <textarea id="profile-bio" maxlength="200" class="profile-input" rows="3" placeholder="一句話介紹自己（最多 200 字）"></textarea>
+
+                <p id="profile-status" class="profile-status"></p>
+            </div>
+            <button id="btn-profile-save" class="btn primary">儲存</button>
+            <button id="btn-profile-back" class="btn secondary">返回</button>
+        </section>
+
+        <section id="view-join" class="view">
+            <h2>加入聚會</h2>
+            <p>輸入一個暱稱讓大家認得你</p>
+            <div class="profile-card">
+                <label class="profile-label" for="join-nickname">你的暱稱</label>
+                <input id="join-nickname" type="text" maxlength="20" class="profile-input" placeholder="例如：小明" />
+                <p class="hint" id="join-login-hint" style="margin-top:8px;">💡 登入 Google 帳號可自動使用你的頭像和暱稱</p>
+            </div>
+            <button id="btn-confirm-join" class="btn primary">加入聚會</button>
+            <button id="btn-cancel-join" class="btn secondary">取消</button>
+        </section>
+
+        <section id="view-waiting-room" class="view">
+            <h2>已加入聚會</h2>
+            <p>等房主開始...</p>
+            <div class="member-list">
+                <h3>目前成員 (<span id="waiting-member-count">0</span>)</h3>
+                <ul id="waiting-member-list-ul" class="member-ul"></ul>
+            </div>
+            <button id="btn-leave-waiting" class="btn secondary">離開聚會</button>
+        </section>
+
         <section id="view-host-room" class="view">
-            <h2>房間已建立</h2>
+            <h2>聚會已建立</h2>
             <div class="qr-container">
                 <img id="qr-code-img" src="" alt="QR Code" />
             </div>
-            <p>請朋友掃描以上 QR Code 加入</p>
+            <p>請朋友掃描上方 QR Code 加入</p>
             <div class="member-list">
-                <h3>已加入成員 : <span id="member-count">0</span></h3>
+                <h3>已加入成員 (<span id="member-count">0</span>)</h3>
+                <ul id="member-list-ul" class="member-ul"></ul>
             </div>
 
             <div class="mode-controls">
@@ -41,30 +134,30 @@
                 </div>
             </div>
 
-            <button id="btn-start-sync" class="btn primary disabled">開始同步定錨</button>
+            <button id="btn-start-sync" class="btn primary disabled">大家準備好，開始！</button>
         </section>
 
         <section id="view-sync-ritual" class="view">
-            <h2>同步儀式</h2>
-            <p>大家一起長按圓鈕，將能量注滿</p>
+            <h2>一起準備</h2>
+            <p>大家一起長按圓鈕，準備開始</p>
             <div class="sync-container">
                 <div class="progress-bar-bg">
                     <div id="sync-progress-fill" class="progress-bar-fill"></div>
                 </div>
-                <button id="btn-sync-hold" class="btn-circular">HOLD</button>
+                <button id="btn-sync-hold" class="btn-circular">長按</button>
             </div>
         </section>
 
         <section id="view-focus" class="view">
-            <h2 class="status-title">定錨成功</h2>
-            <p class="status-subtitle">請將手機倒扣，享受當下的互動</p>
-            
+            <h2 class="status-title">聚會中</h2>
+            <p class="status-subtitle">把手機蓋著，享受當下的互動</p>
+
             <div class="lottie-container" id="lottie-orb"></div>
-            
+
             <div class="stats">
-                <p>偏離次數: <span id="deviation-count">0</span></p>
+                <p>分心次數: <span id="deviation-count">0</span></p>
             </div>
-            
+
             <div id="host-only-controls" style="display: none; width: 100%;">
                 <button id="btn-mode-qa" class="btn primary">❓ 發起團體問答</button>
             </div>
@@ -86,19 +179,19 @@
 
         <section id="view-buffer" class="view overlay">
             <div class="buffer-content">
-                <h2>⚠️ 認知緩衝區</h2>
+                <h2>⚠️ 提醒</h2>
                 <h1 id="buffer-timer" class="timer">30</h1>
-                <p>請在倒數結束前關閉螢幕！</p>
-                <p class="buffer-hint">如果您現在將螢幕熄滅，結界就不會被破壞</p>
+                <p>請在倒數結束前蓋上手機！</p>
+                <p class="buffer-hint">蓋上手機就不會被計入分心</p>
             </div>
         </section>
 
         <section id="view-summary" class="view">
-            <h2>結算報告</h2>
+            <h2>聚會總結</h2>
             <div class="summary-card">
-                <h3>總結</h3>
-                <p>累積時間: <span id="summary-time">0</span> 分鐘</p>
-                <p>團隊偏差: <span id="summary-deviations">0</span> 次</p>
+                <h3>這次聚會</h3>
+                <p>持續時間: <span id="summary-time">0</span> 分鐘</p>
+                <p>分心次數: <span id="summary-deviations">0</span> 次</p>
             </div>
             <button class="btn primary" onclick="location.href='/'">回到首頁</button>
         </section>
@@ -106,6 +199,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js?v="></script>
+    <script src="./app.js?v=7"></script>
 </body>
 </html>
