@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css?v=9">
+    <link rel="stylesheet" href="./style.css?v=10">
     <!-- Firebase JS SDK (compat 版本，保持 vanilla script 用法) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -69,8 +69,28 @@
                 <p>結束原因: <span id="md-reason">-</span></p>
                 <h3 style="margin-top:20px; margin-bottom:8px;">參與成員 (<span id="md-count">0</span>)</h3>
                 <ul id="md-members" class="member-ul"></ul>
+
+                <h3 style="margin-top:20px; margin-bottom:8px;">聚會照片 (<span id="md-photo-count">0</span>/10)</h3>
+                <div id="md-photos-grid" class="photos-grid"></div>
+                <p id="md-photos-empty" class="hint" style="display:none;">還沒有人上傳照片</p>
+                <div id="md-photos-host-controls" style="display:none; margin-top:8px;">
+                    <button id="btn-md-add-photo" class="btn secondary">📸 新增照片</button>
+                </div>
+                <input id="md-photo-input" type="file" accept="image/*" style="display:none;" />
             </div>
             <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
+        </section>
+
+        <!-- 照片放大檢視 lightbox -->
+        <section id="view-photo-lightbox" class="view overlay">
+            <div class="lightbox-content">
+                <img id="lightbox-img" src="" alt="photo" />
+                <div class="lightbox-controls">
+                    <button id="btn-lightbox-close" class="btn secondary">關閉</button>
+                    <button id="btn-lightbox-set-cover" class="btn primary" style="display:none;">設為封面</button>
+                    <button id="btn-lightbox-delete" class="btn danger" style="display:none;">刪除</button>
+                </div>
+            </div>
         </section>
 
         <section id="view-question-bank" class="view">
@@ -215,7 +235,10 @@
 
             <div id="host-only-controls" style="display: none; width: 100%;">
                 <button id="btn-mode-qa" class="btn primary">❓ 發起團體問答</button>
+                <button id="btn-host-photo" class="btn secondary">📸 拍照 / 上傳相片</button>
             </div>
+            <!-- 拍照/上傳 input：accept=image/* 讓 iOS Safari 跳原生選單 -->
+            <input id="host-photo-input" type="file" accept="image/*" style="display:none;" />
             <button id="btn-end-session" class="btn secondary">結束聚會</button>
         </section>
 
@@ -256,6 +279,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js?v=9"></script>
+    <script src="./app.js?v=10"></script>
 </body>
 </html>

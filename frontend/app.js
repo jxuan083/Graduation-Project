@@ -70,6 +70,18 @@ const viewQuestionBank = document.getElementById('view-question-bank');
 const viewQuestionEdit = document.getElementById('view-question-edit');
 const viewQaSource = document.getElementById('view-qa-source');
 const viewQaPicker = document.getElementById('view-qa-picker');
+const viewPhotoLightbox = document.getElementById('view-photo-lightbox');
+
+// ==== 照片功能狀態 ====
+// photoModeActive: 為 true 時，visibilitychange 不會觸發分心倒數（使用者正在拍照/選照片）
+let photoModeActive = false;
+let photoModeTimeoutObj = null;
+// 現在打開的聚會詳情頁相關 state（供照片 grid 使用）
+let currentMeetingDetailId = null;
+let currentMeetingIsHost = false;
+let currentMeetingPhotos = [];
+// lightbox 正在檢視的照片
+let lightboxPhoto = null;
 
 // 正在嘗試加入的房間 ID（掃 QR 進來時暫存，還沒真的連 ws）
 let pendingRoomId = null;
@@ -98,7 +110,7 @@ const qaDatabase = {
     ]
 };
 
-const uiViews = [viewHome, viewHostRoom, viewSyncRitual, viewFocus, viewBuffer, viewSummary, viewQaGame, viewProfile, viewJoin, viewWaitingRoom, viewScanner, viewMeetings, viewMeetingDetail, viewQuestionBank, viewQuestionEdit, viewQaSource, viewQaPicker];
+const uiViews = [viewHome, viewHostRoom, viewSyncRitual, viewFocus, viewBuffer, viewSummary, viewQaGame, viewProfile, viewJoin, viewWaitingRoom, viewScanner, viewMeetings, viewMeetingDetail, viewQuestionBank, viewQuestionEdit, viewQaSource, viewQaPicker, viewPhotoLightbox];
 
 function switchView(viewElement) {
     if (!viewElement) return; 
@@ -385,6 +397,18 @@ window.onload = () => {
     document.getElementById('btn-meetings-back').onclick = () => switchView(viewHome);
     document.getElementById('btn-meeting-detail-back').onclick = openMeetingsList;
 
+    // ===== 照片功能按鈕 =====
+    // 聚會中：房主拍照/上傳
+    document.getElementById('btn-host-photo').onclick = handleHostPhotoClick;
+    document.getElementById('host-photo-input').addEventListener('change', handleHostPhotoChange);
+    // 聚會詳情頁：房主補傳
+    document.getElementById('btn-md-add-photo').onclick = handleDetailPhotoClick;
+    document.getElementById('md-photo-input').addEventListener('change', handleDetailPhotoChange);
+    // Lightbox 按鈕
+    document.getElementById('btn-lightbox-close').onclick = closePhotoLightbox;
+    document.getElementById('btn-lightbox-set-cover').onclick = lightboxSetCover;
+    document.getElementById('btn-lightbox-delete').onclick = lightboxDelete;
+
     // ===== 題庫管理按鈕 =====
     document.getElementById('btn-open-questions').onclick = openQuestionBank;
     document.getElementById('btn-qbank-back').onclick = () => switchView(viewHome);
@@ -561,15 +585,21 @@ async function openMeetingsList() {
         }
         data.meetings.forEach(m => {
             const card = document.createElement('div');
-            card.className = 'meeting-card';
+            card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
             const modeLabel = formatModeLabel(m.mode);
             const dateLabel = formatDateTime(m.ended_at);
+            const coverHtml = m.cover_url
+                ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
+                : '';
             card.innerHTML = `
-                <div class="mc-mode">${modeLabel}</div>
-                <div class="mc-meta">
-                    <span>👥 ${m.member_count || 0} 人</span>
-                    <span>⏱ ${m.duration_minutes || 0} 分鐘</span>
-                    <span>📅 ${dateLabel}</span>
+                ${coverHtml}
+                <div class="mc-body">
+                    <div class="mc-mode">${modeLabel}</div>
+                    <div class="mc-meta">
+                        <span>👥 ${m.member_count || 0} 人</span>
+                        <span>⏱ ${m.duration_minutes || 0} 分鐘</span>
+                        <span>📅 ${dateLabel}</span>
+                    </div>
                 </div>`;
             card.onclick = () => openMeetingDetail(m.id);
             listEl.appendChild(card);
@@ -582,6 +612,9 @@ async function openMeetingsList() {
 
 async function openMeetingDetail(meetingId) {
     switchView(viewMeetingDetail);
+    currentMeetingDetailId = meetingId;
+    currentMeetingIsHost = false;
+    currentMeetingPhotos = [];
     document.getElementById('md-host').innerText = '讀取中...';
     document.getElementById('md-mode').innerText = '-';
     document.getElementById('md-duration').innerText = '-';
@@ -590,6 +623,10 @@ async function openMeetingDetail(meetingId) {
     document.getElementById('md-reason').innerText = '-';
     document.getElementById('md-count').innerText = '0';
     document.getElementById('md-members').innerHTML = '';
+    document.getElementById('md-photos-grid').innerHTML = '';
+    document.getElementById('md-photo-count').innerText = '0';
+    document.getElementById('md-photos-empty').style.display = 'none';
+    document.getElementById('md-photos-host-controls').style.display = 'none';
 
     try {
         const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/meetings/${meetingId}`, {
@@ -629,6 +666,14 @@ async function openMeetingDetail(meetingId) {
             }
             ul.appendChild(li);
         });
+
+        // 判斷現在登入的使用者是不是這場聚會的房主（決定要不要顯示新增/刪除照片按鈕）
+        currentMeetingIsHost = !!(currentUser && m.host_uid && currentUser.uid === m.host_uid);
+        if (currentMeetingIsHost) {
+            document.getElementById('md-photos-host-controls').style.display = 'block';
+        }
+        // 載入照片
+        await loadMeetingPhotos(meetingId);
     } catch (err) {
         console.error('openMeetingDetail failed:', err);
         document.getElementById('md-host').innerText = '讀取失敗：' + (err.message || err);
@@ -1443,13 +1488,19 @@ function endHold(e) {
 
 // ==== PAGE VISIBILITY API ====
 document.addEventListener("visibilitychange", () => {
-    if (currentPhase !== 'ACTIVE') return; 
+    if (currentPhase !== 'ACTIVE') return;
+
+    // 如果正在拍照 / 從相簿選照片 → 不算分心，跳過 buffer 倒數
+    if (photoModeActive) {
+        // 維持 hidden 狀態的對外廣播（選完照片 / 超時後會由 endPhotoMode 另外處理）
+        return;
+    }
 
     if (document.visibilityState === "visible") {
         startCognitiveBuffer();
         if(ws) ws.send(JSON.stringify({action: "VISIBILITY_CHANGE", state: "visible"}));
     } else {
-        endCognitiveBuffer(true); 
+        endCognitiveBuffer(true);
         if(ws) ws.send(JSON.stringify({action: "VISIBILITY_CHANGE", state: "hidden"}));
     }
 });
@@ -1510,6 +1561,250 @@ function handleBufferTimeout() {
         document.getElementById('lottie-orb').style.filter = "none";
         document.body.classList.add('mode-flow');
     }, 5000);
+}
+
+// ==== 聚會照片功能 ====
+
+// ---- photo mode：拍照時暫時停用分心偵測 ----
+function startPhotoMode() {
+    photoModeActive = true;
+    // 30 秒保險：如果使用者取消 file picker 而沒觸發 change，避免 flag 卡住永遠不會被清
+    if (photoModeTimeoutObj) clearTimeout(photoModeTimeoutObj);
+    photoModeTimeoutObj = setTimeout(() => {
+        console.warn('[photoMode] 30s timeout reached, force end');
+        endPhotoMode();
+    }, 30000);
+}
+
+function endPhotoMode() {
+    photoModeActive = false;
+    if (photoModeTimeoutObj) {
+        clearTimeout(photoModeTimeoutObj);
+        photoModeTimeoutObj = null;
+    }
+}
+
+// ---- 壓縮 ----
+// 用 canvas resize 到長邊 1920 + JPEG 0.8，回傳 Blob
+async function compressImage(file, maxEdge = 1920, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(img.src);
+            let { width, height } = img;
+            if (width > maxEdge || height > maxEdge) {
+                if (width >= height) {
+                    height = Math.round(height * maxEdge / width);
+                    width = maxEdge;
+                } else {
+                    width = Math.round(width * maxEdge / height);
+                    height = maxEdge;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => {
+                if (!blob) return reject(new Error('壓縮失敗'));
+                resolve(blob);
+            }, 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('無法讀取圖片')); };
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+// ---- 上傳 ----
+async function uploadMeetingPhoto(meetingId, file) {
+    // 壓縮
+    let uploadBlob;
+    try {
+        uploadBlob = await compressImage(file);
+    } catch (e) {
+        console.warn('compress failed, fall back to original:', e);
+        uploadBlob = file;
+    }
+
+    if (!currentUser) throw new Error('請先登入');
+    const idToken = await currentUser.getIdToken(false);
+    const form = new FormData();
+    form.append('file', uploadBlob, 'photo.jpg');
+
+    const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/meetings/${meetingId}/photos`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken },
+        body: form
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') {
+        throw new Error(data.detail || '上傳失敗');
+    }
+    return data.photo;
+}
+
+// ---- 聚會中：房主按「拍照/上傳」 ----
+function handleHostPhotoClick() {
+    if (!amIHost) return;
+    if (!roomId) {
+        alert('聚會尚未建立');
+        return;
+    }
+    startPhotoMode();
+    const input = document.getElementById('host-photo-input');
+    input.value = ''; // 清掉上次的選擇，以便同檔再選一次
+    input.click();
+}
+
+async function handleHostPhotoChange(e) {
+    const file = e.target.files && e.target.files[0];
+    endPhotoMode(); // 使用者已經回來了，先關掉 flag
+    if (!file) return;
+    // 視覺提示：拍照按鈕變「上傳中...」
+    const btn = document.getElementById('btn-host-photo');
+    const origText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳ 上傳中...';
+    try {
+        await uploadMeetingPhoto(roomId, file);
+        btn.innerText = '✅ 上傳成功';
+        setTimeout(() => { btn.innerText = origText; btn.disabled = false; }, 1500);
+    } catch (err) {
+        console.error('upload photo failed:', err);
+        alert('照片上傳失敗：' + (err.message || err));
+        btn.innerText = origText;
+        btn.disabled = false;
+    }
+}
+
+// ---- 聚會詳情頁：載入 + render 照片 ----
+async function loadMeetingPhotos(meetingId) {
+    const grid = document.getElementById('md-photos-grid');
+    const empty = document.getElementById('md-photos-empty');
+    const countEl = document.getElementById('md-photo-count');
+    grid.innerHTML = '<p class="hint">讀取中...</p>';
+    empty.style.display = 'none';
+
+    try {
+        const res = await fetch(`${HTTP_PROTOCOL}${BACKEND_HOST}/api/meetings/${meetingId}/photos`, {
+            headers: await getAuthHeaders()
+        });
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.detail || '讀取照片失敗');
+        currentMeetingPhotos = data.photos || [];
+        renderMeetingPhotosGrid();
+        countEl.innerText = currentMeetingPhotos.length;
+    } catch (err) {
+        console.error('loadMeetingPhotos failed:', err);
+        grid.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗：${err.message || err}</p>`;
+    }
+}
+
+function renderMeetingPhotosGrid() {
+    const grid = document.getElementById('md-photos-grid');
+    const empty = document.getElementById('md-photos-empty');
+    const countEl = document.getElementById('md-photo-count');
+    grid.innerHTML = '';
+    countEl.innerText = currentMeetingPhotos.length;
+
+    if (!currentMeetingPhotos.length) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    currentMeetingPhotos.forEach(p => {
+        const tile = document.createElement('div');
+        tile.className = 'photo-tile' + (p.is_cover ? ' is-cover' : '');
+        tile.style.backgroundImage = `url("${p.url}")`;
+        if (p.is_cover) {
+            const badge = document.createElement('span');
+            badge.className = 'photo-cover-badge';
+            badge.innerText = '封面';
+            tile.appendChild(badge);
+        }
+        tile.onclick = () => openPhotoLightbox(p);
+        grid.appendChild(tile);
+    });
+}
+
+function openPhotoLightbox(photo) {
+    lightboxPhoto = photo;
+    document.getElementById('lightbox-img').src = photo.url;
+    const canManage = currentMeetingIsHost;
+    document.getElementById('btn-lightbox-set-cover').style.display = (canManage && !photo.is_cover) ? 'inline-block' : 'none';
+    document.getElementById('btn-lightbox-delete').style.display = canManage ? 'inline-block' : 'none';
+    switchView(viewPhotoLightbox);
+}
+
+function closePhotoLightbox() {
+    lightboxPhoto = null;
+    switchView(viewMeetingDetail);
+}
+
+async function lightboxSetCover() {
+    if (!lightboxPhoto || !currentMeetingDetailId) return;
+    try {
+        const res = await fetch(
+            `${HTTP_PROTOCOL}${BACKEND_HOST}/api/meetings/${currentMeetingDetailId}/photos/${lightboxPhoto.id}/cover`,
+            { method: 'PATCH', headers: await getAuthHeaders() }
+        );
+        const data = await res.json();
+        if (!res.ok || data.status !== 'success') throw new Error(data.detail || '設定失敗');
+        // 重新載入
+        closePhotoLightbox();
+        await loadMeetingPhotos(currentMeetingDetailId);
+    } catch (err) {
+        alert('設定封面失敗：' + (err.message || err));
+    }
+}
+
+async function lightboxDelete() {
+    if (!lightboxPhoto || !currentMeetingDetailId) return;
+    if (!confirm('確定刪除這張照片？')) return;
+    try {
+        const res = await fetch(
+            `${HTTP_PROTOCOL}${BACKEND_HOST}/api/meetings/${currentMeetingDetailId}/photos/${lightboxPhoto.id}`,
+            { method: 'DELETE', headers: await getAuthHeaders() }
+        );
+        const data = await res.json();
+        if (!res.ok || data.status !== 'success') throw new Error(data.detail || '刪除失敗');
+        closePhotoLightbox();
+        await loadMeetingPhotos(currentMeetingDetailId);
+    } catch (err) {
+        alert('刪除照片失敗：' + (err.message || err));
+    }
+}
+
+// ---- 詳情頁房主上傳 ----
+function handleDetailPhotoClick() {
+    if (!currentMeetingIsHost || !currentMeetingDetailId) return;
+    if (currentMeetingPhotos.length >= 10) {
+        alert('每場聚會最多 10 張照片');
+        return;
+    }
+    const input = document.getElementById('md-photo-input');
+    input.value = '';
+    input.click();
+}
+
+async function handleDetailPhotoChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !currentMeetingDetailId) return;
+    const btn = document.getElementById('btn-md-add-photo');
+    const orig = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '⏳ 上傳中...';
+    try {
+        await uploadMeetingPhoto(currentMeetingDetailId, file);
+        await loadMeetingPhotos(currentMeetingDetailId);
+    } catch (err) {
+        alert('照片上傳失敗：' + (err.message || err));
+    } finally {
+        btn.disabled = false;
+        btn.innerText = orig;
+    }
 }
 
 // ==== SUMMARY ====

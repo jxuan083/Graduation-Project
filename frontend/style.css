@@ -521,6 +521,112 @@ body.mode-class { background-color: #064e3b !important; }
   gap: 8px 12px;
 }
 
+/* 聚會卡片有封面時：橫向排版 */
+.meeting-card.has-cover {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+}
+.meeting-card .mc-cover {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.08);
+}
+.meeting-card .mc-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* =========================================
+   聚會照片 (Meeting Photos)
+========================================= */
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.photo-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.photo-tile:hover {
+  transform: scale(1.02);
+}
+.photo-tile.is-cover {
+  outline: 2px solid var(--accent, #60a5fa);
+}
+.photo-cover-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Lightbox */
+#view-photo-lightbox.overlay {
+  background: rgba(0,0,0,0.9);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+#view-photo-lightbox.view.active {
+  display: flex;
+}
+.lightbox-content {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+#lightbox-img {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #000;
+}
+.lightbox-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lightbox-controls .btn {
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+
+/* 危險按鈕（刪除） */
+.btn.danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  border: none;
+}
+.btn.danger:hover {
+  filter: brightness(1.1);
+}
+
 /* =========================================
    題庫管理 (Question Bank)
 ========================================= */

@@ -8,24 +8,28 @@ import socket
 import datetime
 import os
 import firebase_admin
-from firebase_admin import credentials, firestore, auth as fb_auth
+from firebase_admin import credentials, firestore, auth as fb_auth, storage as fb_storage
 from typing import Dict, Set, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# ===== Firebase Storage 設定 =====
+# 預設指向這個專案的 bucket；可以透過環境變數覆寫
+STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "graduation-6ae65.firebasestorage.app")
 
 # 檢查是否已經有初始化的 Firebase App
 if not firebase_admin._apps:
     try:
         # 在 Cloud Run 環境中，不需要 serviceAccountKey.json，它會自動抓取環境權限
-        firebase_admin.initialize_app()
-        print("Firebase initialized with default credentials.")
+        firebase_admin.initialize_app(options={"storageBucket": STORAGE_BUCKET})
+        print(f"Firebase initialized with default credentials. Bucket: {STORAGE_BUCKET}")
     except Exception as e:
         # 只有在本地環境找不到預設權限時，才嘗試讀取 JSON 檔案
         print(f"Default auth failed, trying local JSON: {e}")
         try:
             cred = credentials.Certificate("serviceAccountKey.json")
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, options={"storageBucket": STORAGE_BUCKET})
         except Exception as inner_e:
             print(f"Critical Error: Could not initialize Firebase: {inner_e}")
 
@@ -44,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v9-focus-fix"
+BACKEND_VERSION = "v10-photos"
 
 
 @app.get("/api/version")
@@ -471,6 +475,203 @@ def _pick_question_for_host(host_uid: str, source: str, question_id: Optional[st
             }
 
     return None
+
+
+# ===== 聚會照片 API =====
+MAX_PHOTOS_PER_MEETING = 10
+PHOTO_MAX_BYTES = 10 * 1024 * 1024  # 硬上限 10MB（前端壓縮後應該遠小於）
+
+
+def _get_meeting_or_403(meeting_id: str, uid: str, require_host: bool = False) -> dict:
+    """取得聚會 doc，確認使用者是參與者（或房主）；失敗直接 raise HTTPException"""
+    doc = db.collection("meetings").document(meeting_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到這場聚會紀錄")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("participants") or []):
+        raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+    if require_host and data.get("host_uid") != uid:
+        raise HTTPException(status_code=403, detail="只有房主可以執行此操作")
+    return data
+
+
+def _serialize_photo(data: dict, doc_id: str) -> dict:
+    out = dict(data)
+    out["id"] = doc_id
+    ts = out.get("uploaded_at")
+    if ts and hasattr(ts, "isoformat"):
+        out["uploaded_at"] = ts.isoformat()
+    elif ts:
+        out["uploaded_at"] = str(ts)
+    return out
+
+
+@app.post("/api/meetings/{meeting_id}/photos")
+async def upload_meeting_photo(
+    meeting_id: str,
+    file: UploadFile = File(...),
+    decoded: dict = Depends(verify_token),
+):
+    """房主上傳照片到 Firebase Storage，並在 Firestore 存 metadata"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    _get_meeting_or_403(meeting_id, uid, require_host=True)
+
+    # 檢查數量上限
+    photos_col = db.collection("meetings").document(meeting_id).collection("photos")
+    existing = list(photos_col.stream())
+    if len(existing) >= MAX_PHOTOS_PER_MEETING:
+        raise HTTPException(status_code=400, detail=f"每場聚會最多 {MAX_PHOTOS_PER_MEETING} 張照片")
+
+    # 檢查 content type
+    if not (file.content_type and file.content_type.startswith("image/")):
+        raise HTTPException(status_code=400, detail="只接受圖片檔")
+
+    try:
+        content = await file.read()
+        if len(content) > PHOTO_MAX_BYTES:
+            raise HTTPException(status_code=400, detail="檔案太大 (>10MB)")
+
+        # 副檔名
+        ext = "jpg"
+        if file.filename and "." in file.filename:
+            ext_cand = file.filename.split(".")[-1].lower()
+            if ext_cand in ("jpg", "jpeg", "png", "webp"):
+                ext = ext_cand
+        photo_id = uuid.uuid4().hex
+        blob_name = f"meeting-photos/{meeting_id}/{photo_id}.{ext}"
+
+        bucket = fb_storage.bucket()
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string(content, content_type=file.content_type)
+        # 讓檔案可以透過 URL 讀取（URL 只有透過我們 API 回傳才拿得到，所以只有參與者能看到）
+        blob.make_public()
+        public_url = blob.public_url
+
+        # 寫 Firestore
+        is_first = len(existing) == 0
+        payload = {
+            "url": public_url,
+            "storage_path": blob_name,
+            "uploaded_by": uid,
+            "uploaded_at": firestore.SERVER_TIMESTAMP,
+            "is_cover": is_first,  # 第一張自動設為封面
+        }
+        photos_col.document(photo_id).set(payload)
+
+        # 如果這是第一張，更新 meeting doc 方便清單直接顯示封面縮圖
+        if is_first:
+            db.collection("meetings").document(meeting_id).update({
+                "cover_url": public_url,
+                "cover_photo_id": photo_id,
+            })
+
+        saved = payload.copy()
+        saved["uploaded_at"] = datetime.datetime.utcnow().isoformat()
+        return {"status": "success", "photo": _serialize_photo(saved, photo_id)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error uploading photo: {e}")
+        raise HTTPException(status_code=500, detail=f"上傳失敗: {e}")
+
+
+@app.get("/api/meetings/{meeting_id}/photos")
+async def list_meeting_photos(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """列出聚會的所有照片（參與者即可查看）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    _get_meeting_or_403(meeting_id, uid)
+
+    photos_col = db.collection("meetings").document(meeting_id).collection("photos")
+    docs = list(photos_col.stream())
+    photos = [_serialize_photo(d.to_dict() or {}, d.id) for d in docs]
+    # 封面優先，其餘照 uploaded_at 先後排列
+    photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
+    return {"status": "success", "photos": photos, "max": MAX_PHOTOS_PER_MEETING}
+
+
+@app.delete("/api/meetings/{meeting_id}/photos/{photo_id}")
+async def delete_meeting_photo(
+    meeting_id: str, photo_id: str, decoded: dict = Depends(verify_token)
+):
+    """房主刪除指定的照片（連同 Storage 裡的 blob）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    _get_meeting_or_403(meeting_id, uid, require_host=True)
+
+    photo_ref = db.collection("meetings").document(meeting_id).collection("photos").document(photo_id)
+    photo_doc = photo_ref.get()
+    if not photo_doc.exists:
+        raise HTTPException(status_code=404, detail="找不到這張照片")
+    photo_data = photo_doc.to_dict() or {}
+    was_cover = bool(photo_data.get("is_cover"))
+
+    # 刪 Storage（失敗不阻斷 Firestore 的刪除，避免殘留指向不存在檔案的 metadata）
+    try:
+        blob_name = photo_data.get("storage_path")
+        if blob_name:
+            bucket = fb_storage.bucket()
+            blob = bucket.blob(blob_name)
+            if blob.exists():
+                blob.delete()
+    except Exception as e:
+        print(f"Warning: failed to delete blob: {e}")
+
+    photo_ref.delete()
+
+    # 如果刪的是封面，把第一張剩下的照片升格成封面
+    if was_cover:
+        remaining = list(db.collection("meetings").document(meeting_id).collection("photos").stream())
+        if remaining:
+            new_cover = remaining[0]
+            new_cover.reference.update({"is_cover": True})
+            new_data = new_cover.to_dict() or {}
+            db.collection("meetings").document(meeting_id).update({
+                "cover_url": new_data.get("url"),
+                "cover_photo_id": new_cover.id,
+            })
+        else:
+            db.collection("meetings").document(meeting_id).update({
+                "cover_url": firestore.DELETE_FIELD,
+                "cover_photo_id": firestore.DELETE_FIELD,
+            })
+
+    return {"status": "success"}
+
+
+@app.patch("/api/meetings/{meeting_id}/photos/{photo_id}/cover")
+async def set_meeting_photo_cover(
+    meeting_id: str, photo_id: str, decoded: dict = Depends(verify_token)
+):
+    """房主指定某張為封面"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    _get_meeting_or_403(meeting_id, uid, require_host=True)
+
+    photos_col = db.collection("meetings").document(meeting_id).collection("photos")
+    target_ref = photos_col.document(photo_id)
+    target_doc = target_ref.get()
+    if not target_doc.exists:
+        raise HTTPException(status_code=404, detail="找不到這張照片")
+
+    # 所有照片的 is_cover 一次重寫：目標 True，其餘 False
+    batch = db.batch()
+    for d in photos_col.stream():
+        batch.update(d.reference, {"is_cover": d.id == photo_id})
+    batch.commit()
+
+    target_data = target_doc.to_dict() or {}
+    db.collection("meetings").document(meeting_id).update({
+        "cover_url": target_data.get("url"),
+        "cover_photo_id": photo_id,
+    })
+    return {"status": "success"}
 
 
 # ===== 系統工具函數 =====
