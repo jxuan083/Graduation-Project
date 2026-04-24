@@ -48,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v10a-photos-active-fix"
+BACKEND_VERSION = "v10b-photos-upsert-fix"
 
 
 @app.get("/api/version")
@@ -581,11 +581,12 @@ async def upload_meeting_photo(
         photos_col.document(photo_id).set(payload)
 
         # 如果這是第一張，更新 meeting doc 方便清單直接顯示封面縮圖
+        # 用 set + merge=True：聚會進行中 meetings/{id} 還不存在也能寫入（END_SESSION 會再 merge 其餘欄位）
         if is_first:
-            db.collection("meetings").document(meeting_id).update({
+            db.collection("meetings").document(meeting_id).set({
                 "cover_url": public_url,
                 "cover_photo_id": photo_id,
-            })
+            }, merge=True)
 
         saved = payload.copy()
         saved["uploaded_at"] = datetime.datetime.utcnow().isoformat()
@@ -650,15 +651,21 @@ async def delete_meeting_photo(
             new_cover = remaining[0]
             new_cover.reference.update({"is_cover": True})
             new_data = new_cover.to_dict() or {}
-            db.collection("meetings").document(meeting_id).update({
+            db.collection("meetings").document(meeting_id).set({
                 "cover_url": new_data.get("url"),
                 "cover_photo_id": new_cover.id,
-            })
+            }, merge=True)
         else:
-            db.collection("meetings").document(meeting_id).update({
-                "cover_url": firestore.DELETE_FIELD,
-                "cover_photo_id": firestore.DELETE_FIELD,
-            })
+            # 只有在 meetings doc 存在時才移除封面欄位（進行中的聚會還沒建立 doc，無須處理）
+            try:
+                meeting_doc = db.collection("meetings").document(meeting_id).get()
+                if meeting_doc.exists:
+                    db.collection("meetings").document(meeting_id).update({
+                        "cover_url": firestore.DELETE_FIELD,
+                        "cover_photo_id": firestore.DELETE_FIELD,
+                    })
+            except Exception as e:
+                print(f"Warning: clear cover fields failed: {e}")
 
     return {"status": "success"}
 
@@ -686,10 +693,10 @@ async def set_meeting_photo_cover(
     batch.commit()
 
     target_data = target_doc.to_dict() or {}
-    db.collection("meetings").document(meeting_id).update({
+    db.collection("meetings").document(meeting_id).set({
         "cover_url": target_data.get("url"),
         "cover_photo_id": photo_id,
-    })
+    }, merge=True)
     return {"status": "success"}
 
 
