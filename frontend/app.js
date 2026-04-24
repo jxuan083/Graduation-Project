@@ -1455,13 +1455,19 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function startCognitiveBuffer() {
+    // 防呆：若前一次的計時器還沒清掉，先清掉，避免重疊跳號
+    if (bufferTimerObj) {
+        clearInterval(bufferTimerObj);
+        bufferTimerObj = null;
+    }
+
     switchView(viewBuffer);
     document.body.classList.remove('mode-flow');
     document.body.classList.add('mode-danger');
-    
+
     bufferSecondsLeft = 30;
     document.getElementById('buffer-timer').innerText = bufferSecondsLeft;
-    
+
     if (navigator.vibrate) navigator.vibrate(200);
 
     bufferTimerObj = setInterval(() => {
@@ -1477,12 +1483,22 @@ function startCognitiveBuffer() {
 
 function endCognitiveBuffer(safe) {
     clearInterval(bufferTimerObj);
+    bufferTimerObj = null;
     if(safe) {
         switchView(viewFocus);
         document.body.classList.remove('mode-danger');
         document.body.classList.add('mode-flow');
     }
 }
+
+// 「我回來專心了」按鈕：使用者手動關閉提醒，視為安全回來（不計分心）
+document.getElementById('btn-buffer-back').onclick = () => {
+    endCognitiveBuffer(true);
+    // 通知後端這個人已經「回到桌上」（等同於手機蓋上），其他成員看到他安全
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({action: "VISIBILITY_CHANGE", state: "hidden"}));
+    }
+};
 
 function handleBufferTimeout() {
     if(ws) ws.send(JSON.stringify({action: "LOG_DEVIATION"}));

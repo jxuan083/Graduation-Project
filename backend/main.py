@@ -44,7 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v8-question-bank"
+BACKEND_VERSION = "v9-focus-fix"
 
 
 @app.get("/api/version")

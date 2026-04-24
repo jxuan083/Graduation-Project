@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css?v=8">
+    <link rel="stylesheet" href="./style.css?v=9">
     <!-- Firebase JS SDK (compat 版本，保持 vanilla script 用法) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -238,6 +238,8 @@
                 <h1 id="buffer-timer" class="timer">30</h1>
                 <p>請在倒數結束前蓋上手機！</p>
                 <p class="buffer-hint">蓋上手機就不會被計入分心</p>
+                <button id="btn-buffer-back" class="btn primary" style="margin-top:24px;">我回來專心了</button>
+                <p class="hint" style="margin-top:8px;">（按下可關閉提醒,不會被計入分心）</p>
             </div>
         </section>
 
@@ -254,6 +256,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js?v=8"></script>
+    <script src="./app.js?v=9"></script>
 </body>
 </html>
