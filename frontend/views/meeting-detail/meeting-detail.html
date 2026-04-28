@@ -1,0 +1,22 @@
+<section id="view-meeting-detail" class="view">
+            <h2 id="meeting-detail-title">聚會詳情</h2>
+            <div class="summary-card">
+                <p>主辦人: <span id="md-host">-</span></p>
+                <p>聚會模式: <span id="md-mode">-</span></p>
+                <p>持續時間: <span id="md-duration">-</span> 分鐘</p>
+                <p>分心次數: <span id="md-deviations">-</span> 次</p>
+                <p>結束時間: <span id="md-time">-</span></p>
+                <p>結束原因: <span id="md-reason">-</span></p>
+                <h3 style="margin-top:20px; margin-bottom:8px;">參與成員 (<span id="md-count">0</span>)</h3>
+                <ul id="md-members" class="member-ul"></ul>
+
+                <h3 style="margin-top:20px; margin-bottom:8px;">聚會照片 (<span id="md-photo-count">0</span>/10)</h3>
+                <div id="md-photos-grid" class="photos-grid"></div>
+                <p id="md-photos-empty" class="hint" style="display:none;">還沒有人上傳照片</p>
+                <div id="md-photos-host-controls" style="display:none; margin-top:8px;">
+                    <button id="btn-md-add-photo" class="btn secondary">📸 新增照片</button>
+                </div>
+                <input id="md-photo-input" type="file" accept="image/*" style="display:none;" />
+            </div>
+            <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
+        </section>

@@ -4,10 +4,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===== users =====
-    // 任何登入者都能讀其他人的基本資料 (未來想加好友/leaderboard 用)
-    // 只有自己能寫自己的資料
+    // 🔒 [C2 修正 v15.2] 收緊讀取規則:只能讀自己的完整 doc
+    // 別人的 nickname/photoURL/bio 等公開欄位走後端 /api/users/{uid}/public
+    // (後端 Admin SDK 會繞過這條規則,且只回傳公開欄位 — 不含 email)
+    // 修正前: allow read: if request.auth != null  → 任何登入者可讀任何人的 email
     match /users/{uid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid;
       allow delete: if false;
 
@@ -16,6 +18,27 @@ service cloud.firestore {
       // 寫入也可以透過後端 Admin SDK（繞過規則）
       match /questions/{questionId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // ===== 好友名單 =====
+      // 只有自己能讀自己的好友；寫入走後端 Admin SDK（才能同時維護雙邊）
+      match /friends/{friendUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // ===== 好友邀請（收件/寄件） =====
+      // 只有自己能讀；寫入走後端
+      match /friend_requests/{requestId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // ===== 個人聚會紀錄鏡像（用於排行榜 query） =====
+      // 只有自己能讀；寫入走後端
+      match /meetings/{meetingId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
       }
     }
 

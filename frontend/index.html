@@ -4,281 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css?v=10">
-    <!-- Firebase JS SDK (compat 版本，保持 vanilla script 用法) -->
+
+    <!-- 共用樣式 (依 v=18 為新版號) -->
+    <link rel="stylesheet" href="./styles/base.css?v=20">
+    <link rel="stylesheet" href="./styles/components.css?v=20">
+    <link rel="stylesheet" href="./styles/social.css?v=20">
+    <link rel="stylesheet" href="./styles/taboo.css?v=20">
+
+    <!-- Firebase (compat 全域) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
-    <!-- QR Code 掃描函式庫 -->
+
+    <!-- QR Code 掃描 + Lottie -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
 <body>
     <div id="app-container">
-
-        <!-- 頂部使用者狀態列 -->
+        <!-- 頂部使用者狀態列 (常駐,所有頁面都看得到) -->
         <header id="auth-bar">
             <div id="auth-logged-out">
                 <button id="btn-google-login" class="btn-auth">使用 Google 登入</button>
+                <button id="btn-open-about-guest" class="btn-auth btn-auth-small">關於</button>
             </div>
             <div id="auth-logged-in" style="display:none;">
-                <img id="auth-avatar" class="auth-avatar" src="" alt="avatar" />
-                <span id="auth-nickname" class="auth-nickname"></span>
-                <button id="btn-open-profile" class="btn-auth btn-auth-small">編輯</button>
-                <button id="btn-logout" class="btn-auth btn-auth-small">登出</button>
+                <button id="btn-user-menu-toggle" class="user-menu-toggle" aria-haspopup="true" aria-expanded="false">
+                    <img id="auth-avatar" class="auth-avatar" src="" alt="avatar" />
+                    <span id="auth-nickname" class="auth-nickname"></span>
+                    <span id="menu-red-dot" class="menu-red-dot" style="display:none;"></span>
+                    <span class="menu-caret">▾</span>
+                </button>
+                <div id="user-menu-dropdown" class="user-menu" style="display:none;">
+                    <button id="btn-open-profile" class="user-menu-item">👤 個人資料</button>
+                    <button id="btn-open-friends" class="user-menu-item">👥 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
+                    <button id="btn-open-leaderboard" class="user-menu-item">🏆 排行榜</button>
+                    <button id="btn-open-about" class="user-menu-item">ℹ️ 關於</button>
+                    <div class="user-menu-sep"></div>
+                    <button id="btn-logout" class="user-menu-item danger">🚪 登出</button>
+                </div>
             </div>
         </header>
 
-        <section id="view-home" class="view active">
-            <div class="hero">
-                <h1>聚會時間</h1>
-                <p>放下手機，享受當下的相聚</p>
-            </div>
-            <div class="actions">
-                <button id="btn-create-room" class="btn primary">發起聚會</button>
-                <p id="home-login-hint" class="hint" style="display:none;">※ 發起聚會需要先登入 Google 帳號</p>
-                <button id="btn-scan-qr" class="btn secondary">掃描 QR Code 加入</button>
-                <button id="btn-open-meetings" class="btn secondary" style="display:none;">📒 聚會紀錄</button>
-                <button id="btn-open-questions" class="btn secondary" style="display:none;">📝 題庫管理</button>
-                <p class="hint">也可以直接用手機相機掃 QR Code 加入</p>
-            </div>
-        </section>
+        <!-- 所有 view 會由 main.js 動態載入到這裡 -->
+        <main id="app"></main>
 
-        <section id="view-scanner" class="view">
-            <h2>掃描 QR Code</h2>
-            <p>把朋友的 QR Code 對準鏡頭</p>
-            <div id="scanner-container" class="scanner-container"></div>
-            <p class="hint" id="scanner-hint">啟動相機中...</p>
-            <button id="btn-scanner-cancel" class="btn secondary">取消</button>
-        </section>
+        <!-- 底部版本 -->
+        <footer id="app-footer">
+            <span id="footer-version">Phubbing Anchor · 載入版本中…</span>
+        </footer>
 
-        <section id="view-meetings" class="view">
-            <h2>聚會紀錄</h2>
-            <div id="meetings-list" class="meetings-list"></div>
-            <p id="meetings-empty" class="hint" style="display:none;">還沒有任何聚會紀錄，去發起一場吧！</p>
-            <button id="btn-meetings-back" class="btn secondary">返回</button>
-        </section>
+        <!-- Toast 提示容器 (浮於所有頁面上層) -->
+        <div id="toast-container" class="toast-container"></div>
 
-        <section id="view-meeting-detail" class="view">
-            <h2 id="meeting-detail-title">聚會詳情</h2>
-            <div class="summary-card">
-                <p>主辦人: <span id="md-host">-</span></p>
-                <p>聚會模式: <span id="md-mode">-</span></p>
-                <p>持續時間: <span id="md-duration">-</span> 分鐘</p>
-                <p>分心次數: <span id="md-deviations">-</span> 次</p>
-                <p>結束時間: <span id="md-time">-</span></p>
-                <p>結束原因: <span id="md-reason">-</span></p>
-                <h3 style="margin-top:20px; margin-bottom:8px;">參與成員 (<span id="md-count">0</span>)</h3>
-                <ul id="md-members" class="member-ul"></ul>
-
-                <h3 style="margin-top:20px; margin-bottom:8px;">聚會照片 (<span id="md-photo-count">0</span>/10)</h3>
-                <div id="md-photos-grid" class="photos-grid"></div>
-                <p id="md-photos-empty" class="hint" style="display:none;">還沒有人上傳照片</p>
-                <div id="md-photos-host-controls" style="display:none; margin-top:8px;">
-                    <button id="btn-md-add-photo" class="btn secondary">📸 新增照片</button>
-                </div>
-                <input id="md-photo-input" type="file" accept="image/*" style="display:none;" />
-            </div>
-            <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
-        </section>
-
-        <!-- 照片放大檢視 lightbox -->
-        <section id="view-photo-lightbox" class="view overlay">
-            <div class="lightbox-content">
-                <img id="lightbox-img" src="" alt="photo" />
-                <div class="lightbox-controls">
-                    <button id="btn-lightbox-close" class="btn secondary">關閉</button>
-                    <button id="btn-lightbox-set-cover" class="btn primary" style="display:none;">設為封面</button>
-                    <button id="btn-lightbox-delete" class="btn danger" style="display:none;">刪除</button>
-                </div>
-            </div>
-        </section>
-
-        <section id="view-question-bank" class="view">
-            <h2>題庫管理</h2>
-            <div class="qbank-tabs">
-                <button id="qbank-tab-mine" class="qbank-tab active">📒 我的題庫</button>
-                <button id="qbank-tab-public" class="qbank-tab">🌐 公共題庫</button>
-            </div>
-            <div id="qbank-list" class="qbank-list"></div>
-            <p id="qbank-empty" class="hint" style="display:none;"></p>
-            <button id="btn-qbank-add" class="btn primary">+ 新增題目</button>
-            <button id="btn-qbank-back" class="btn secondary">返回</button>
-        </section>
-
-        <section id="view-question-edit" class="view">
-            <h2 id="qedit-title">新增題目</h2>
-            <div class="profile-card">
-                <label class="profile-label" for="qedit-question">題目</label>
-                <textarea id="qedit-question" maxlength="120" rows="2" class="profile-input" placeholder="想問大家什麼？"></textarea>
-
-                <label class="profile-label">選項（2~6 個）</label>
-                <div id="qedit-options-list"></div>
-                <button id="btn-qedit-add-option" class="btn secondary" style="margin-top:4px;">+ 新增一個選項</button>
-
-                <label class="profile-label" style="margin-top:16px;">
-                    <input type="checkbox" id="qedit-has-answer" style="margin-right:8px;" />
-                    這題有正解（作答結束會公布答案）
-                </label>
-                <p class="hint" id="qedit-answer-hint" style="display:none;">勾選左側圓圈標示正解</p>
-
-                <p id="qedit-status" class="profile-status"></p>
-            </div>
-            <button id="btn-qedit-save" class="btn primary">儲存</button>
-            <button id="btn-qedit-cancel" class="btn secondary">取消</button>
-        </section>
-
-        <section id="view-qa-source" class="view">
-            <h2>選擇題目來源</h2>
-            <p>要給大家答哪一題？</p>
-            <button id="btn-qa-src-mine" class="btn primary">🎲 從我的題庫隨機</button>
-            <button id="btn-qa-src-public" class="btn primary">🌐 從公共題庫隨機</button>
-            <button id="btn-qa-src-pick" class="btn secondary">📋 手動挑一題</button>
-            <button id="btn-qa-src-cancel" class="btn secondary">取消</button>
-        </section>
-
-        <section id="view-qa-picker" class="view">
-            <h2>選一題送出</h2>
-            <div class="qbank-tabs">
-                <button id="qpick-tab-mine" class="qbank-tab active">📒 我的題庫</button>
-                <button id="qpick-tab-public" class="qbank-tab">🌐 公共題庫</button>
-            </div>
-            <div id="qpick-list" class="qbank-list"></div>
-            <p id="qpick-empty" class="hint" style="display:none;"></p>
-            <button id="btn-qpick-back" class="btn secondary">返回</button>
-        </section>
-
-        <section id="view-profile" class="view">
-            <h2>個人資料</h2>
-            <div class="profile-card">
-                <img id="profile-avatar-preview" class="profile-avatar" src="" alt="avatar" />
-                <label for="profile-avatar-input" class="btn secondary" style="cursor:pointer;">更換頭像</label>
-                <input id="profile-avatar-input" type="file" accept="image/*" style="display:none;" />
-
-                <label class="profile-label" for="profile-nickname">暱稱</label>
-                <input id="profile-nickname" type="text" maxlength="30" class="profile-input" placeholder="顯示名稱" />
-
-                <label class="profile-label" for="profile-bio">自我介紹</label>
-                <textarea id="profile-bio" maxlength="200" class="profile-input" rows="3" placeholder="一句話介紹自己（最多 200 字）"></textarea>
-
-                <p id="profile-status" class="profile-status"></p>
-            </div>
-            <button id="btn-profile-save" class="btn primary">儲存</button>
-            <button id="btn-profile-back" class="btn secondary">返回</button>
-        </section>
-
-        <section id="view-join" class="view">
-            <h2>加入聚會</h2>
-            <p>輸入一個暱稱讓大家認得你</p>
-            <div class="profile-card">
-                <label class="profile-label" for="join-nickname">你的暱稱</label>
-                <input id="join-nickname" type="text" maxlength="20" class="profile-input" placeholder="例如：小明" />
-                <p class="hint" id="join-login-hint" style="margin-top:8px;">💡 登入 Google 帳號可自動使用你的頭像和暱稱</p>
-            </div>
-            <button id="btn-confirm-join" class="btn primary">加入聚會</button>
-            <button id="btn-cancel-join" class="btn secondary">取消</button>
-        </section>
-
-        <section id="view-waiting-room" class="view">
-            <h2>已加入聚會</h2>
-            <p>等房主開始...</p>
-            <div class="member-list">
-                <h3>目前成員 (<span id="waiting-member-count">0</span>)</h3>
-                <ul id="waiting-member-list-ul" class="member-ul"></ul>
-            </div>
-            <button id="btn-leave-waiting" class="btn secondary">離開聚會</button>
-        </section>
-
-        <section id="view-host-room" class="view">
-            <h2>聚會已建立</h2>
-            <div class="qr-container">
-                <img id="qr-code-img" src="" alt="QR Code" />
-            </div>
-            <p>請朋友掃描上方 QR Code 加入</p>
-            <div class="member-list">
-                <h3>已加入成員 (<span id="member-count">0</span>)</h3>
-                <ul id="member-list-ul" class="member-ul"></ul>
-            </div>
-
-            <div class="mode-controls">
-                <h3>選擇聚會模式：</h3>
-                <div class="mode-btns">
-                    <button id="btn-mode-gathering" class="btn secondary mode-btn active-mode">🎉 朋友聚會 (預設)</button>
-                    <button id="btn-mode-family" class="btn secondary mode-btn">🏠 家庭聚會</button>
-                    <button id="btn-mode-meeting" class="btn secondary mode-btn">💼 嚴肅開會</button>
-                    <button id="btn-mode-class" class="btn secondary mode-btn">📚 上課模式</button>
-                </div>
-            </div>
-
-            <button id="btn-start-sync" class="btn primary disabled">大家準備好，開始！</button>
-        </section>
-
-        <section id="view-sync-ritual" class="view">
-            <h2>一起準備</h2>
-            <p>大家一起長按圓鈕，準備開始</p>
-            <div class="sync-container">
-                <div class="progress-bar-bg">
-                    <div id="sync-progress-fill" class="progress-bar-fill"></div>
-                </div>
-                <button id="btn-sync-hold" class="btn-circular">長按</button>
-            </div>
-        </section>
-
-        <section id="view-focus" class="view">
-            <h2 class="status-title">聚會中</h2>
-            <p class="status-subtitle">把手機蓋著，享受當下的互動</p>
-
-            <div class="lottie-container" id="lottie-orb"></div>
-
-            <div class="stats">
-                <p>分心次數: <span id="deviation-count">0</span></p>
-            </div>
-
-            <div id="host-only-controls" style="display: none; width: 100%;">
-                <button id="btn-mode-qa" class="btn primary">❓ 發起團體問答</button>
-                <button id="btn-host-photo" class="btn secondary">📸 拍照 / 上傳相片</button>
-            </div>
-            <!-- 拍照/上傳 input：accept=image/* 讓 iOS Safari 跳原生選單 -->
-            <input id="host-photo-input" type="file" accept="image/*" style="display:none;" />
-            <button id="btn-end-session" class="btn secondary">結束聚會</button>
-        </section>
-
-        <section id="view-qa-game" class="view">
-            <h2>團體問答時間</h2>
-            <p>請在下方選擇你的答案</p>
-            
-            <div class="qa-card">
-                <h3 id="qa-question-text">等待房主出題...</h3>
-                <div id="qa-options-container" class="mode-btns">
-                    </div>
-            </div>
-            
-            <p id="qa-status"></p>
-        </section>
-
-        <section id="view-buffer" class="view overlay">
-            <div class="buffer-content">
-                <h2>⚠️ 提醒</h2>
-                <h1 id="buffer-timer" class="timer">30</h1>
-                <p>請在倒數結束前蓋上手機！</p>
-                <p class="buffer-hint">蓋上手機就不會被計入分心</p>
-                <button id="btn-buffer-back" class="btn primary" style="margin-top:24px;">我回來專心了</button>
-                <p class="hint" style="margin-top:8px;">（按下可關閉提醒,不會被計入分心）</p>
-            </div>
-        </section>
-
-        <section id="view-summary" class="view">
-            <h2>聚會總結</h2>
-            <div class="summary-card">
-                <h3>這次聚會</h3>
-                <p>持續時間: <span id="summary-time">0</span> 分鐘</p>
-                <p>分心次數: <span id="summary-deviations">0</span> 次</p>
-            </div>
-            <button class="btn primary" onclick="location.href='/'">回到首頁</button>
-        </section>
-
+        <!-- 「返回聚會」浮動按鈕 -->
+        <button id="btn-resume-meeting" class="btn-resume-meeting" style="display:none;">🔵 返回聚會</button>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js?v=10"></script>
+    <!-- App 進入點 (ES Module) -->
+    <script type="module" src="./main.js?v=20"></script>
 </body>
 </html>

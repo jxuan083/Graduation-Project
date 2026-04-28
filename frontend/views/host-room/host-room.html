@@ -1,0 +1,25 @@
+<section id="view-host-room" class="view">
+            <h2>聚會已建立</h2>
+            <div class="qr-container">
+                <img id="qr-code-img" src="" alt="QR Code" />
+            </div>
+            <p>請朋友掃描上方 QR Code 加入</p>
+            <button id="btn-copy-room-link" class="btn secondary copy-link-btn">📋 複製聚會連結</button>
+            <div class="member-list">
+                <h3>已加入成員 (<span id="member-count">0</span>)</h3>
+                <ul id="member-list-ul" class="member-ul"></ul>
+            </div>
+
+            <div class="mode-controls">
+                <h3>選擇聚會模式：</h3>
+                <div class="mode-btns">
+                    <button id="btn-mode-gathering" class="btn secondary mode-btn active-mode">🎉 朋友聚會 (預設)</button>
+                    <button id="btn-mode-family" class="btn secondary mode-btn">🏠 家庭聚會</button>
+                    <button id="btn-mode-meeting" class="btn secondary mode-btn">💼 嚴肅開會</button>
+                    <button id="btn-mode-class" class="btn secondary mode-btn">📚 上課模式</button>
+                </div>
+            </div>
+
+            <button id="btn-start-sync" class="btn primary disabled">大家準備好，開始！</button>
+            <button id="btn-cancel-host-room" class="btn secondary">取消聚會</button>
+        </section>

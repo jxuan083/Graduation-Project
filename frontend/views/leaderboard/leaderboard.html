@@ -1,0 +1,16 @@
+<section id="view-leaderboard" class="view">
+            <h2>排行榜</h2>
+            <p class="hint" id="leaderboard-period-hint">本週</p>
+            <div class="tabs">
+                <button id="lb-tab-global" class="tab-btn active">🌏 全站週榜</button>
+                <button id="lb-tab-friends" class="tab-btn">👥 好友圈週榜</button>
+            </div>
+
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+            <p id="leaderboard-empty" class="hint" style="display:none;">本週還沒有人聚會喔</p>
+            <p class="hint" style="margin-top:16px; font-size:0.8rem;">
+                計分方式：每場聚會 max(0, 50 - 分心×5) + 時長×0.5 + 零分心且時長≥20分鐘 bonus +10 + 房主 +5
+            </p>
+
+            <button id="btn-leaderboard-back" class="btn secondary" style="margin-top:20px;">回到首頁</button>
+        </section>

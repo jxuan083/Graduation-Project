@@ -48,6 +48,9 @@ serviceAccountKey.json
 # Firebase 金鑰 (極度重要！)
 serviceAccountKey.json
 backend/serviceAccountKey.json
+
+# 本地備份檔
+*.bak.v*
 # AI tool folders
 .adal/
 .agents/

@@ -1,0 +1,18 @@
+<section id="view-profile" class="view">
+            <h2>個人資料</h2>
+            <div class="profile-card">
+                <img id="profile-avatar-preview" class="profile-avatar" src="" alt="avatar" />
+                <label for="profile-avatar-input" class="btn secondary" style="cursor:pointer;">更換頭像</label>
+                <input id="profile-avatar-input" type="file" accept="image/*" style="display:none;" />
+
+                <label class="profile-label" for="profile-nickname">暱稱</label>
+                <input id="profile-nickname" type="text" maxlength="30" class="profile-input" placeholder="顯示名稱" />
+
+                <label class="profile-label" for="profile-bio">自我介紹</label>
+                <textarea id="profile-bio" maxlength="200" class="profile-input" rows="3" placeholder="一句話介紹自己（最多 200 字）"></textarea>
+
+                <p id="profile-status" class="profile-status"></p>
+            </div>
+            <button id="btn-profile-save" class="btn primary">儲存</button>
+            <button id="btn-profile-back" class="btn secondary">回到首頁</button>
+        </section>

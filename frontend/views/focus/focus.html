@@ -1,0 +1,29 @@
+<section id="view-focus" class="view">
+            <h2 class="status-title">聚會中</h2>
+            <p class="status-subtitle">把手機蓋著，享受當下的互動</p>
+
+            <div class="lottie-container" id="lottie-orb"></div>
+
+            <div class="stats">
+                <p>分心次數: <span id="deviation-count">0</span></p>
+            </div>
+
+            <!-- 折疊成員列表（聚會中也能看成員、加好友） -->
+            <button id="btn-focus-members-toggle" class="btn secondary members-toggle">
+                👥 成員 (<span id="focus-member-count">0</span>)
+            </button>
+            <div id="focus-members-panel" class="members-panel" style="display:none;">
+                <ul id="focus-member-list-ul" class="member-ul"></ul>
+            </div>
+
+            <div id="host-only-controls" style="display: none; width: 100%;">
+                <button id="btn-mode-qa" class="btn primary">❓ 發起團體問答</button>
+                <button id="btn-mode-taboo" class="btn primary">🎯 發起關鍵字遊戲</button>
+                <button id="btn-host-photo" class="btn secondary">📸 拍照 / 上傳相片</button>
+            </div>
+            <!-- 拍照/上傳 input：accept=image/* 讓 iOS Safari 跳原生選單 -->
+            <input id="host-photo-input" type="file" accept="image/*" style="display:none;" />
+            <!-- Feature 3：聚會中也能邀請朋友加入 -->
+            <button id="btn-focus-invite" class="btn secondary">📤 邀請朋友加入</button>
+            <button id="btn-end-session" class="btn secondary">結束聚會</button>
+        </section>

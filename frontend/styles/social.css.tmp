@@ -1,0 +1,626 @@
+/* styles/social.css — Phase 2 friends/leaderboard/preview, focus folding, v13 banner/toast/resume, copy-link, invite-modal */
+/* ===================================================
+ * Phase 2: 好友 / 排行榜 / 成員預覽 / 聚會中成員折疊
+ * =================================================== */
+
+/* 聚會中成員列表的「成員列 row」：名字 + 動作按鈕 */
+.member-ul .member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+.member-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-tag {
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.member-tag.host {
+  background: rgba(250, 204, 21, 0.18);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.member-tag.you {
+  background: rgba(96, 165, 250, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.member-tag.guest {
+  background: rgba(148, 163, 184, 0.18);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.member-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.member-action-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.member-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.member-action-btn.add {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #bfdbfe;
+}
+
+.member-action-btn.add:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.28);
+}
+
+.member-action-btn.done {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+  cursor: default;
+}
+
+.member-action-btn.pending {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+  cursor: default;
+}
+
+.member-action-btn:disabled {
+  opacity: 0.9;
+}
+
+/* 聚會中（view-focus）成員折疊按鈕 */
+.members-toggle {
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.members-panel {
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.members-panel .member-ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tabs（好友頁、排行榜頁共用） */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 0.9rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 0;
+}
+
+.tab-btn:hover {
+  color: #e2e8f0;
+}
+
+.tab-btn.active {
+  color: var(--accent-color, #60a5fa);
+  border-bottom-color: var(--accent-color, #60a5fa);
+  font-weight: 600;
+}
+
+/* 好友頁 */
+.friends-pane {
+  width: 100%;
+}
+
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.friend-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.friend-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.friend-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.friend-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-sub {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.friend-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-mini {
+  font-size: 0.82rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-mini:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-mini.primary {
+  background: rgba(96, 165, 250, 0.25);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #dbeafe;
+}
+
+.btn-mini.primary:hover {
+  background: rgba(96, 165, 250, 0.38);
+}
+
+.btn-mini.danger {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fecaca;
+}
+
+.btn-mini.danger:hover {
+  background: rgba(239, 68, 68, 0.32);
+}
+
+/* 加好友頁輸入框 */
+#friends-add-email {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  color: #f1f5f9;
+  font-size: 0.95rem;
+}
+
+.hint.ok { color: #6ee7b7; }
+.hint.error { color: #fca5a5; }
+
+/* 排行榜 */
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.leaderboard-row.me {
+  background: rgba(96, 165, 250, 0.14);
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.2);
+}
+
+.lb-rank {
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+  color: #facc15;
+}
+
+.lb-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.lb-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lb-name {
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-sub {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.lb-score {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent-color, #60a5fa);
+  flex-shrink: 0;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* 成員資料預覽 modal（用已存在的 .overlay 排版） */
+.member-preview-card {
+  position: relative;
+  background: #1e293b;
+  border-radius: 18px;
+  padding: 28px 24px 24px;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.member-preview-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+}
+
+#member-preview-nickname {
+  margin: 8px 0 4px;
+  font-size: 1.3rem;
+  color: #f1f5f9;
+}
+
+.member-preview-bio {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* ===================================================
+ * v13: 互加好友 / 邀請橫幅 / Toast / 返回聚會
+ * =================================================== */
+
+/* 好友邀請橫幅（首頁頂部） */
+.incoming-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(167, 139, 250, 0.22));
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(96, 165, 250, 0.15);
+  animation: bannerSlideIn 0.35s ease-out;
+}
+
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.incoming-banner-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.incoming-banner-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  color: #f1f5f9;
+}
+
+.incoming-banner-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.incoming-banner-sub {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+/* 選單紅點（附在 user-menu-toggle 右上） */
+.menu-red-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 4px;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+/* 選單項目的計數徽章（好友項目後面的 "(3)"） */
+.menu-badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 4px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: max-content;
+  max-width: 90vw;
+}
+
+.toast {
+  background: rgba(30, 41, 59, 0.95);
+  color: #f1f5f9;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.22s, transform 0.22s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 「返回聚會」浮動按鈕 */
+.btn-resume-meeting {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 8888;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: resumePulse 2.4s ease-in-out infinite;
+}
+
+.btn-resume-meeting:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.6);
+}
+
+@keyframes resumePulse {
+  0%, 100% { box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45); }
+  50%       { box-shadow: 0 6px 22px rgba(99, 102, 241, 0.8); }
+}
+
+/* ===================================================
+ * 真正 modal 浮層（疊在當前畫面上，不切頁）
+ * =================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalFadeIn 0.18s ease-out;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* modal 內的卡片動畫（讓 .member-preview-card 進場時有輕微縮放） */
+.modal-overlay .member-preview-card {
+  animation: modalCardIn 0.2s ease-out;
+}
+
+@keyframes modalCardIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* 通用的 modal 右上角圓形關閉鍵 */
+.modal-close-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  padding: 0;
+}
+
+.modal-close-x:hover {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+  transform: scale(1.08);
+}
+
+.modal-close-x:active {
+  transform: scale(0.95);
+}
+
+/* ===================================================
+ * 複製聚會連結按鈕
+ * =================================================== */
+
+.copy-link-btn {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  max-width: 320px;
+  width: 90%;
+}
+
+/* ===================================================
+ * 邀請朋友 modal（聚會中分享 QR + 連結）
+ * =================================================== */
+
+.invite-card {
+  position: relative;
+  background: #1e293b;
+  border-radius: 18px;
+  padding: 28px 24px 24px;
+  max-width: 400px;
+  width: 92%;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: modalCardIn 0.2s ease-out;
+}
+
+.invite-card h3 {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  color: #f1f5f9;
+}
+
+.invite-qr-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 8px;
+}
+
+.invite-qr-wrap img {
+  max-width: 260px;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  padding: 8px;
+  border-radius: 12px;
+}
+

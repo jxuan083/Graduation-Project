@@ -1,0 +1,32 @@
+<section id="view-friends" class="view">
+            <h2>好友</h2>
+            <div class="tabs">
+                <button id="friends-tab-list" class="tab-btn active">👥 我的好友 (<span id="friends-count">0</span>)</button>
+                <button id="friends-tab-incoming" class="tab-btn">📩 收到邀請 (<span id="friends-incoming-count">0</span>)</button>
+                <button id="friends-tab-add" class="tab-btn">➕ 加好友</button>
+            </div>
+
+            <div id="friends-list-pane" class="friends-pane">
+                <div id="friends-list" class="friends-list"></div>
+                <p id="friends-empty-hint" class="hint" style="display:none;">還沒有好友，到「加好友」頁面邀請別人加入吧！</p>
+            </div>
+
+            <div id="friends-incoming-pane" class="friends-pane" style="display:none;">
+                <div id="friends-incoming-list" class="friends-list"></div>
+                <p id="friends-incoming-empty" class="hint" style="display:none;">目前沒有待處理的邀請</p>
+            </div>
+
+            <div id="friends-add-pane" class="friends-pane" style="display:none;">
+                <p class="hint" style="text-align:left; margin-bottom:12px;">輸入對方的 Email 來送邀請（對方需要先用 Google 登入過本 App）</p>
+                <input id="friends-add-email" class="qedit-input" type="email" placeholder="friend@example.com" />
+                <button id="btn-send-friend-req" class="btn primary" style="margin-top:12px;">送出邀請</button>
+                <p id="friends-add-msg" class="hint" style="margin-top:8px;"></p>
+
+                <div id="friends-outgoing-wrap" style="margin-top:24px;">
+                    <h3 style="font-size:1.05rem; text-align:left;">已送出邀請</h3>
+                    <div id="friends-outgoing-list" class="friends-list"></div>
+                </div>
+            </div>
+
+            <button id="btn-friends-back" class="btn secondary" style="margin-top:20px;">回到首頁</button>
+        </section>

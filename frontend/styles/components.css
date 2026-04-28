@@ -1,0 +1,730 @@
+/* styles/components.css — auth bar, profile, member-list, scanner, meetings list, photos, qbank, dropdown, footer, about */
+/* =========================================
+   Phase 0：Auth bar、登入按鈕、個人資料頁
+========================================= */
+
+#auth-bar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#auth-logged-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.08);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+}
+
+.auth-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #334155;
+}
+
+.auth-nickname {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-auth {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-auth:hover { opacity: 0.9; }
+.btn-auth:active { transform: scale(0.97); }
+
+.btn-auth-small {
+  background: rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+/* Profile 頁 */
+.profile-card {
+  background: rgba(255,255,255,0.05);
+  padding: 24px;
+  border-radius: 16px;
+  width: 100%;
+  margin: 24px 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  align-self: center;
+  object-fit: cover;
+  background: #334155;
+  border: 3px solid rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+
+.profile-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  text-align: left;
+}
+
+.profile-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.profile-status {
+  font-size: 0.85rem;
+  color: #34d399;
+  min-height: 18px;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* 成員清單 (waiting / host room) */
+.member-list {
+  width: 100%;
+  margin: 16px 0;
+}
+
+.member-ul {
+  list-style: none;
+  margin: 12px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-ul li {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.member-ul .member-tag {
+  font-size: 0.85rem;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.member-ul .member-tag.host {
+  color: #93c5fd;   /* 淡藍 */
+}
+
+.member-ul .member-tag.you {
+  color: #6ee7b7;   /* 淡綠 */
+}
+
+/* 結算頁的房主提示 */
+#summary-host-hint {
+  color: #fca5a5;
+  font-weight: bold;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+/* QR 掃描器 */
+.scanner-container {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 16px auto;
+  position: relative;
+}
+
+.scanner-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+/* 聚會紀錄列表 */
+.meetings-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.meeting-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+  text-align: left;
+}
+
+.meeting-card:hover {
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-2px);
+}
+
+.meeting-card .mc-mode {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.meeting-card .mc-meta {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+/* 聚會卡片有封面時：橫向排版 */
+.meeting-card.has-cover {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+}
+.meeting-card .mc-cover {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.08);
+}
+.meeting-card .mc-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* =========================================
+   聚會照片 (Meeting Photos)
+========================================= */
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.photo-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.photo-tile:hover {
+  transform: scale(1.02);
+}
+.photo-tile.is-cover {
+  outline: 2px solid var(--accent, #60a5fa);
+}
+.photo-cover-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Lightbox */
+#view-photo-lightbox.overlay {
+  background: rgba(0,0,0,0.9);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+#view-photo-lightbox.view.active {
+  display: flex;
+}
+.lightbox-content {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+#lightbox-img {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #000;
+}
+.lightbox-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lightbox-controls .btn {
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+
+/* 危險按鈕（刪除） */
+.btn.danger {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #fff;
+  border: none;
+}
+.btn.danger:hover {
+  filter: brightness(1.1);
+}
+
+/* =========================================
+   題庫管理 (Question Bank)
+========================================= */
+
+.qbank-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin: 8px 0 16px;
+}
+
+.qbank-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.qbank-tab.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.qbank-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.qbank-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  color: var(--text-primary);
+}
+
+.qbank-item-q {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.qbank-item-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.qbank-item-opt {
+  background: rgba(255,255,255,0.08);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.qbank-item-opt.correct {
+  background: rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+  font-weight: 600;
+}
+
+.qbank-item-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.qbank-item-actions .qbank-mini-btn {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.qbank-item-actions .qbank-mini-btn:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+.qbank-item-actions .qbank-mini-btn.danger {
+  color: #fca5a5;
+}
+
+.qbank-item-actions .qbank-mini-btn.primary {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: var(--accent-color);
+  color: #bfdbfe;
+}
+
+.qbank-item-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* 編輯題目：選項列 */
+.qedit-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.qedit-option-row input[type="radio"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981;
+  cursor: pointer;
+}
+
+.qedit-option-row .qedit-option-input {
+  flex-grow: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.qedit-option-row .qedit-option-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.qedit-option-row .qedit-remove-btn {
+  flex-shrink: 0;
+  background: transparent;
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qedit-option-row .qedit-remove-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   Phase 1.5：右上角下拉選單（C 方案）
+========================================= */
+
+/* auth-logged-in 變成 dropdown 的定位父層，移除原本的 pill 外框 */
+#auth-logged-in {
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+/* 觸發按鈕 = 原本 pill 的外觀 */
+.user-menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.08);
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.user-menu-toggle:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.25);
+}
+
+.user-menu-toggle[aria-expanded="true"] {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.menu-caret {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: 2px;
+  transition: transform 0.15s;
+}
+
+.user-menu-toggle[aria-expanded="true"] .menu-caret {
+  transform: rotate(180deg);
+}
+
+/* dropdown 本體 */
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.25);
+  z-index: 60;
+  animation: menu-pop 0.12s ease-out;
+}
+
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.92rem;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.user-menu-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.user-menu-item.danger {
+  color: #fca5a5;
+}
+
+.user-menu-item.danger:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.user-menu-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 4px 6px;
+}
+
+/* 未登入時右上角「關於」按鈕略小一點 */
+.btn-auth-small {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+  background: rgba(255,255,255,0.1) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+.btn-auth-small:hover {
+  background: rgba(255,255,255,0.18) !important;
+}
+
+/* =========================================
+   Phase 1.5：底部版本 footer（B 方案）
+========================================= */
+
+#app-footer {
+  width: 100%;
+  margin-top: auto;        /* 沉到 app-container flex column 底部 */
+  padding: 20px 16px 12px;
+  text-align: center;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.75rem;
+  opacity: 0.65;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+#footer-version {
+  user-select: text;
+}
+
+/* =========================================
+   Phase 1.5：關於頁面 view-about
+========================================= */
+
+#view-about {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
+
+#view-about h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.about-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.about-card h3 {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+  color: var(--text-primary);
+}
+
+.about-card p {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+  margin: 8px 0;
+  opacity: 0.92;
+}
+
+.about-card strong {
+  color: var(--accent-color, #60a5fa);
+  font-weight: 600;
+}
+
+.about-card ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.about-card ul li {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+.changelog {
+  list-style: none;
+  padding-left: 0 !important;
+}
+
+.changelog li {
+  position: relative;
+  padding: 8px 0 8px 14px;
+  border-left: 2px solid rgba(96, 165, 250, 0.4);
+  margin-bottom: 2px !important;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.changelog li strong {
+  display: inline-block;
+  min-width: 40px;
+  color: var(--accent-color, #60a5fa);
+  margin-right: 6px;
+}
+
+.about-link {
+  display: inline-block;
+  color: var(--accent-color, #60a5fa);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  transition: background 0.15s;
+}
+
+.about-link:hover {
+  background: rgba(96, 165, 250, 0.2);
+}
+
+#btn-about-back {
+  display: block;
+  margin: 20px auto 0;
+}
+
