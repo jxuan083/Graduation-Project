@@ -8,7 +8,8 @@ export async function openMemberPreview(targetUid) {
     state.memberPreviewUid = targetUid;
     document.getElementById('member-preview-nickname').innerText = '載入中...';
     document.getElementById('member-preview-bio').innerText = '';
-    document.getElementById('member-preview-avatar').src = '';
+    // 🔒 [Bug 7 v15.3] 用 placeholder 而非 src=''
+    document.getElementById('member-preview-avatar').src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
     const btnAdd = document.getElementById('btn-member-preview-add');
     btnAdd.style.display = 'none';
     const modal = document.getElementById('view-member-preview');

@@ -181,6 +181,7 @@ frontend/
 
 | 版本 | 主要內容 |
 |------|----------|
+| v15.3 | WebSocket token 改 first-message handshake；LOG_DEVIATION 加 phase + rate-limit；SUBMIT_ANSWER 嚴格驗證；SVG 上傳擋掉；avatar src 改 placeholder |
 | v15.2 | 安全性修正：收緊 Firestore 讀取規則；好友系統 + 排行榜 API |
 | v11 | 前端架構重構：從單一 app.js 拆分為 ES Module 多檔結構 |
 | v10b | 修正聚會中照片上傳（set merge=True 允許 doc 不存在） |
@@ -230,3 +231,28 @@ python backfill_scores.py
 - **後端部署**：推送到 `main` 會透過 GitHub Actions 自動部署到 Cloud Run
 - **前端部署**：`firebase deploy --only hosting`
 - **備份檔**：`*.bak.v*` 為本地備份，不需要追蹤
+
+---
+
+## 已知議題 / 後續改進
+
+### 🔸 聚會照片仍使用 `blob.make_public()` 永久公開 URL
+**現況**：`backend/main.py:upload_meeting_photo` 透過 `blob.make_public()` 讓照片 URL 永久可讀。雖然 URL 路徑由 `meeting_id`(8 字 hex) + `photo_id`(32 字 hex) 組成難猜，但只要 URL 外洩（截圖、錯誤地分享連結）就會永久存在。
+
+**修法（需 IAM 配置）**：改用 `blob.generate_signed_url()` 產生短效（10 分鐘）簽名 URL，每次列表時動態產生。需要 Cloud Run service account 加上 `roles/iam.serviceAccountTokenCreator` 角色才能 sign blob。沒對好 IAM 會直接打壞照片功能，故未進 v15.3。
+
+### 🔸 collection_group leaderboard 第一次部署需要建索引
+排行榜 `/api/leaderboard/global` 用 `collection_group("meetings")` query，需在 Firebase Console 建立索引：
+- Collection group: `meetings`
+- Field: `ended_at` (Ascending)
+
+未建索引時 API 會回空陣列且印出 console warning。
+
+### 🔸 CORS 過寬
+`backend/main.py` 目前 `allow_origins=["*"]`，建議收緊到實際前端域：
+```python
+allow_origins=["https://graduation-6ae65.web.app", "https://graduation-6ae65.firebaseapp.com"]
+```
+
+### 🔸 `is_guest` 用 `"-" in uid` 判斷的脆弱假設
+依賴「Firebase UID 不含 dash、訪客 UUID4 含 dash」這個現況。Firebase 沒保證 UID 格式不變。建議未來訪客 uid 加 `guest_` 前綴明確區分。

@@ -79,8 +79,9 @@ function renderAuthBar() {
     if (state.currentUser && state.currentProfile) {
         loggedOut.style.display = 'none';
         loggedIn.style.display = 'flex';
+        const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
         document.getElementById('auth-avatar').src =
-            state.currentProfile.photoURL || state.currentUser.photoURL || '';
+            state.currentProfile.photoURL || state.currentUser.photoURL || PLACEHOLDER;
         document.getElementById('auth-nickname').innerText =
             state.currentProfile.nickname || state.currentUser.displayName || '使用者';
         if (homeHint) homeHint.style.display = 'none';

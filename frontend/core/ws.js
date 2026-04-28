@@ -19,37 +19,54 @@ export function registerHandler(type, handler) {
     return () => handlers.get(type)?.delete(handler);
 }
 
-// 🔒 [C1 修正 v15.2] 已登入使用者連線時必須帶 Firebase ID token,
-//    後端會驗證 token 並比對 path uid。訪客不帶 token,後端會 detect。
+// 🔒 [Bug 5 修正 v15.3] token 改用 first-message handshake (不再放 URL query)
+//    流程:open → 立刻送 {action:"AUTH", token, nickname} → 等 AUTH_OK → 才呼叫 onOpen
 export async function connectRoom(roomId, userId, nickname, onOpen) {
     state.roomId = roomId;
-    const nickParam = encodeURIComponent(nickname || '訪客');
 
-    // 已登入使用者:取 Firebase ID token 帶在 query param
-    let tokenParam = '';
+    // 預先取 ID token(若已登入)
+    let idToken = null;
     if (state.currentUser) {
         try {
-            const idToken = await state.currentUser.getIdToken(/* forceRefresh */ false);
-            tokenParam = `&token=${encodeURIComponent(idToken)}`;
+            idToken = await state.currentUser.getIdToken(/* forceRefresh */ false);
         } catch (err) {
             console.error('[WS] failed to get ID token,連線會被後端拒絕:', err);
-            // 不 return — 讓連線開出去,onclose 會收到 4401 然後觸發錯誤處理
         }
     }
 
-    const url = `${WS_PROTOCOL}${BACKEND_HOST}/ws/${roomId}/${userId}?nickname=${nickParam}${tokenParam}`;
+    // URL 不再帶 token,僅保留 nickname 作為 server-side fallback
+    const nickParam = encodeURIComponent(nickname || '訪客');
+    const url = `${WS_PROTOCOL}${BACKEND_HOST}/ws/${roomId}/${userId}?nickname=${nickParam}`;
     const ws = new WebSocket(url);
     state.ws = ws;
 
+    let authed = false;
+
     ws.onopen = () => {
-        events.emit('ws:open');
-        onOpen?.();
+        // 連線打開後立刻送 AUTH frame
+        try {
+            ws.send(JSON.stringify({
+                action: 'AUTH',
+                token: idToken,            // 訪客為 null,後端會根據 user_id 格式辨識
+                nickname: nickname || '訪客',
+            }));
+        } catch (err) {
+            console.error('[WS] failed to send AUTH:', err);
+        }
     };
 
     ws.onmessage = (event) => {
         let msg;
         try { msg = JSON.parse(event.data); }
         catch (e) { console.error('[WS] parse error:', e); return; }
+
+        // 第一個 AUTH_OK 才視為連線成功,呼叫上層 onOpen
+        if (!authed && msg.type === 'AUTH_OK') {
+            authed = true;
+            events.emit('ws:open');
+            onOpen?.();
+            return;
+        }
 
         console.log('[WS RECV]', msg);
         const set = handlers.get(msg.type);

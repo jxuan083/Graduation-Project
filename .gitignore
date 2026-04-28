@@ -51,6 +51,10 @@ backend/serviceAccountKey.json
 
 # 本地備份檔
 *.bak.v*
+
+# Claude Code / Firecrawl 工作目錄
+.claude/
+.firecrawl/
 # AI tool folders
 .adal/
 .agents/

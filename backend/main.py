@@ -48,8 +48,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v15.2-security-fix"
-BACKEND_BUILD_DATE = "2026-04-26"  # 每次部署手動更新
+BACKEND_VERSION = "v15.3-ws-hardening"
+BACKEND_BUILD_DATE = "2026-04-28"  # 每次部署手動更新
 
 
 @app.get("/api/version")
@@ -1013,21 +1013,20 @@ async def upload_meeting_photo(
     if len(existing) >= MAX_PHOTOS_PER_MEETING:
         raise HTTPException(status_code=400, detail=f"每場聚會最多 {MAX_PHOTOS_PER_MEETING} 張照片")
 
-    # 檢查 content type
-    if not (file.content_type and file.content_type.startswith("image/")):
-        raise HTTPException(status_code=400, detail="只接受圖片檔")
+    # 🔒 [Bug 4 修正 v15.3] content_type 白名單,排除 SVG (含可執行 script,
+    #     若使用者直接點 storage URL 會在 storage.googleapis.com 域下執行 JS)
+    ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+    if not file.content_type or file.content_type not in ALLOWED_PHOTO_TYPES:
+        raise HTTPException(status_code=400, detail="只接受 JPEG / PNG / WebP 圖片")
 
     try:
         content = await file.read()
         if len(content) > PHOTO_MAX_BYTES:
             raise HTTPException(status_code=400, detail="檔案太大 (>10MB)")
 
-        # 副檔名
-        ext = "jpg"
-        if file.filename and "." in file.filename:
-            ext_cand = file.filename.split(".")[-1].lower()
-            if ext_cand in ("jpg", "jpeg", "png", "webp"):
-                ext = ext_cand
+        # 副檔名(白名單,並依 content_type 為主而不是 filename)
+        ext_by_ct = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+        ext = ext_by_ct[file.content_type]
         photo_id = uuid.uuid4().hex
         blob_name = f"meeting-photos/{meeting_id}/{photo_id}.{ext}"
 
@@ -1290,25 +1289,46 @@ async def create_room(frontend_url: str = None, decoded: dict = Depends(verify_t
 
 @app.websocket("/ws/{room_id}/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
-    # 從 query param 取得暱稱 (ws 沒有 header 能塞 token，所以用 query)
-    nickname = websocket.query_params.get("nickname") or "訪客"
-    nickname = nickname.strip()[:20] or "訪客"
+    # 從 query param 取得暱稱 (僅用作 fallback,正式 nickname 由 AUTH frame 帶)
+    nickname_q = websocket.query_params.get("nickname") or "訪客"
+    nickname_q = nickname_q.strip()[:20] or "訪客"
 
     # ============================================================
-    # 🔒 [C1 修正 v15.2] WebSocket 身份驗證
+    # 🔒 [Bug 5 修正 v15.3] WebSocket 身份驗證改為 first-message handshake
     # ============================================================
-    # 修正前: user_id 直接從 URL path 信任,任何人可以冒充任何 user_id
+    # 修正前: token 放 URL query,可能會被反代理 / Cloud Run access log 記錄
     # 修正後:
-    #   - 已登入使用者: query param 帶 ?token=<firebase_id_token>,
-    #                  後端 verify_id_token,且 verified uid 必須等於 path user_id
-    #   - 訪客: 不帶 token,path user_id 必須是合法 UUID4 格式 (uuid4 含 dash,
-    #           firebase uid 不含 dash,以此區分)
+    #   1. accept() 接受連線
+    #   2. 5 秒內必須收到 first message {action:"AUTH", token?, nickname?}
+    #   3. 已登入者: token 必填,且 verified uid 須等於 path user_id
+    #      訪客: token 不必填,path user_id 須為合法 uuid4
+    #   4. 失敗直接 close;成功後 send {type:"AUTH_OK"} 並進入正常 message loop
     # ============================================================
-    token = websocket.query_params.get("token")
+    await websocket.accept()
+
     is_guest_uid = "-" in user_id  # uuid4 含 dash;firebase uid 不含 dash
+    token = None
+    nickname = nickname_q
+    try:
+        first_raw = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+        first_msg = json.loads(first_raw)
+        if first_msg.get("action") != "AUTH":
+            print(f"[ws-auth] reject: first action != AUTH ({first_msg.get('action')!r})")
+            await websocket.close(code=4400, reason="First frame must be AUTH")
+            return
+        token = first_msg.get("token")
+        if first_msg.get("nickname"):
+            nickname = (first_msg.get("nickname") or "").strip()[:20] or "訪客"
+    except asyncio.TimeoutError:
+        print(f"[ws-auth] reject: AUTH timeout for {user_id!r}")
+        await websocket.close(code=4401, reason="AUTH timeout")
+        return
+    except Exception as e:
+        print(f"[ws-auth] reject: AUTH parse error for {user_id!r}: {e}")
+        await websocket.close(code=4400, reason="AUTH parse error")
+        return
 
     if is_guest_uid:
-        # 訪客流程:不接受 token,且 user_id 必須是合法 uuid4 格式
         if token:
             print(f"[ws-auth] reject: guest uid {user_id!r} should not carry token")
             await websocket.close(code=4400, reason="Guest cannot have token")
@@ -1320,7 +1340,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             await websocket.close(code=4401, reason="Invalid guest id")
             return
     else:
-        # 已登入使用者:必須帶 token,且 token 解出的 uid 必須等於 path user_id
         if not token:
             print(f"[ws-auth] reject: non-guest uid {user_id!r} missing token")
             await websocket.close(code=4401, reason="Missing auth token")
@@ -1336,10 +1355,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             print(f"[ws-auth] reject: path uid={user_id!r} mismatches token uid={verified_uid!r}")
             await websocket.close(code=4403, reason="Identity mismatch")
             return
-        # 身份驗證通過 — 接下來 user_id 可以信任了
         print(f"[ws-auth] OK: uid={user_id!r} (room={room_id})")
 
-    await manager.connect(user_id, websocket)
+    # 通知 client AUTH 通過(不能呼叫 manager.connect 因為 connect 內含 accept,
+    # 我們已經 accept 過了)
+    manager.active_connections[user_id] = websocket
+    try:
+        await websocket.send_text(json.dumps({"type": "AUTH_OK"}))
+    except Exception as e:
+        print(f"[ws-auth] failed to send AUTH_OK: {e}")
 
     # 1. 檢查房間是否存在，若不在記憶體則嘗試從 Firestore 恢復或初始化
     if room_id not in rooms:
@@ -1619,8 +1643,26 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 })
 
             # 3. 參與者提交答案
+            # 🔒 [Bug 2 修正 v15.3]
+            #   - 必須處於 QA_GAME 模式且有 current_question 才接受
+            #   - answer 必須是當前 options 之一(不接受任意字串)
+            #   - 不接受成員重複作答(以「第一次」為準,避免後改)
             elif action == "SUBMIT_ANSWER":
+                qa_state = rooms[room_id].get("qa_state") or {}
+                if rooms[room_id].get("mode") != "QA_GAME" or not qa_state.get("current_question"):
+                    print(f"[SUBMIT_ANSWER] rejected: no active QA in room {room_id}")
+                    continue
+
                 answer = data.get("answer")
+                allowed_options = qa_state.get("current_options") or []
+                if answer not in allowed_options:
+                    print(f"[SUBMIT_ANSWER] rejected: answer {answer!r} not in options")
+                    continue
+
+                if user_id in qa_state.get("answers", {}):
+                    print(f"[SUBMIT_ANSWER] rejected: user {user_id} already answered")
+                    continue
+
                 rooms[room_id]["qa_state"]["answers"][user_id] = answer
 
                 try:
@@ -1735,7 +1777,27 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     })
 
             # 6. 紀錄偏差：這是重要數據，直接寫入並使用 Increment 原子操作
+            # 🔒 [Bug 1 修正 v15.3] 加上 phase + per-user rate-limit,
+            #     防止任一惡意成員透過狂送 LOG_DEVIATION 把全員積分灌成 0
             elif action == "LOG_DEVIATION":
+                # 只在 ACTIVE 階段且非 QA/Taboo 模式才接受
+                if rooms[room_id].get("status") != "ACTIVE":
+                    print(f"[LOG_DEVIATION] rejected: room {room_id} not ACTIVE")
+                    continue
+                if rooms[room_id].get("mode") in ("QA_GAME", "TABOO_GAME"):
+                    print(f"[LOG_DEVIATION] rejected: in {rooms[room_id].get('mode')} mode")
+                    continue
+
+                # per-user rate-limit: 同一個 user 兩次 deviation 至少間隔 25 秒
+                # (前端 buffer 倒數本來就是 30 秒,合理使用者不可能 25 秒內觸發兩次)
+                now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+                member = rooms[room_id]["members"].get(user_id) or {}
+                last_dev_ms = member.get("last_deviation_ms", 0)
+                if now_ms - last_dev_ms < 25_000:
+                    print(f"[LOG_DEVIATION] rate-limited user={user_id} room={room_id}")
+                    continue
+                rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms
+
                 rooms[room_id]["deviations"] += 1
 
                 try:

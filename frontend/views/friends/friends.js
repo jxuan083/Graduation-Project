@@ -108,7 +108,9 @@ function buildFriendCard(item, kind) {
 
     const avatar = document.createElement('img');
     avatar.className = 'friend-avatar';
-    avatar.src = (kind === 'friend' ? item.avatar_snapshot : item.other_avatar) || '';
+    const avatarUrl = (kind === 'friend' ? item.avatar_snapshot : item.other_avatar) || '';
+    // 🔒 [Bug 7 修正 v15.3] src='' 會讓瀏覽器把當前頁當圖片抓 → 用透明 1x1 placeholder
+    avatar.src = avatarUrl || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
     avatar.alt = 'avatar';
     avatar.onerror = () => { avatar.style.visibility = 'hidden'; };
     card.appendChild(avatar);

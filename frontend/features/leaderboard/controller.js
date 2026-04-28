@@ -59,7 +59,8 @@ function buildLeaderboardRow(e, index, meUid) {
 
     const avatar = document.createElement('img');
     avatar.className = 'lb-avatar';
-    avatar.src = e.avatar_url || '';
+    // 🔒 [Bug 7 v15.3] placeholder 避免 src='' 觸發整頁重抓
+    avatar.src = e.avatar_url || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
     avatar.onerror = () => { avatar.style.visibility = 'hidden'; };
     row.appendChild(avatar);
 
