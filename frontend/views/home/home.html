@@ -1,24 +1,63 @@
 <section id="view-home" class="view active">
-            <!-- 好友邀請提示橫幅 -->
-            <div id="incoming-banner" class="incoming-banner" style="display:none;">
-                <div class="incoming-banner-icon">📩</div>
-                <div class="incoming-banner-text">
-                    <div class="incoming-banner-title">你有 <span id="incoming-banner-count">0</span> 筆好友邀請待處理</div>
-                    <div id="incoming-banner-sub" class="incoming-banner-sub"></div>
-                </div>
-                <button id="btn-incoming-banner-view" class="btn-mini primary">查看</button>
-            </div>
 
-            <div class="hero">
-                <h1>聚會時間</h1>
-                <p>放下手機，享受當下的相聚</p>
-            </div>
-            <div class="actions">
-                <button id="btn-create-room" class="btn primary">發起聚會</button>
-                <p id="home-login-hint" class="hint" style="display:none;">※ 發起聚會需要先登入 Google 帳號</p>
-                <button id="btn-scan-qr" class="btn secondary">掃描 QR Code 加入</button>
-                <button id="btn-open-meetings" class="btn secondary" style="display:none;">📒 聚會紀錄</button>
-                <button id="btn-open-questions" class="btn secondary" style="display:none;">📝 題庫管理</button>
-                <p class="hint">也可以直接用手機相機掃 QR Code 加入</p>
-            </div>
-        </section>
+    <!-- 好友邀請提示橫幅 -->
+    <div id="incoming-banner" class="incoming-banner" style="display:none;">
+        <div class="incoming-banner-icon">📩</div>
+        <div class="incoming-banner-text">
+            <div class="incoming-banner-title">你有 <span id="incoming-banner-count">0</span> 筆好友邀請待處理</div>
+            <div id="incoming-banner-sub" class="incoming-banner-sub"></div>
+        </div>
+        <button id="btn-incoming-banner-view" class="btn-mini primary">查看</button>
+    </div>
+
+    <!-- 篝火英雄區 -->
+    <div class="campfire-card">
+        <div class="campfire-glow"></div>
+        <div class="campfire-scene">
+            <div class="campfire-bubbles" id="campfire-bubbles"></div>
+            <div class="campfire-fire">🔥</div>
+        </div>
+        <div class="campfire-bar">
+            <span class="campfire-online" id="home-campfire-hint">等朋友一起聚會</span>
+            <span class="campfire-streak" id="home-campfire-streak" style="display:none;">🔥 連續 0 場</span>
+        </div>
+    </div>
+
+    <!-- 主標題 -->
+    <div class="home-title">
+        <h1>聚會時間</h1>
+        <p>放下手機，圍著火光好好聊</p>
+    </div>
+
+    <!-- 主要 CTA -->
+    <button id="btn-create-room" class="btn primary btn-fire">🔥 發起聚會</button>
+    <p id="home-login-hint" class="hint" style="display:none; text-align:center; margin-bottom:12px;">※ 發起聚會需要先登入 Google 帳號</p>
+    <button id="btn-scan-qr" class="btn secondary btn-qr">📷 掃描 QR Code 加入</button>
+
+    <!-- 功能 2×2 Grid（登入後顯示） -->
+    <div class="home-grid" id="home-feature-grid">
+        <button id="btn-open-groups" class="home-grid-card">
+            <span class="hgc-icon">👥</span>
+            <span class="hgc-title">群組管理</span>
+            <span class="hgc-sub" id="hgc-groups-sub">管理你的群組</span>
+        </button>
+        <button id="btn-open-meetings" class="home-grid-card">
+            <span class="hgc-icon">📒</span>
+            <span class="hgc-title">聚會紀錄</span>
+            <span class="hgc-sub">查看過去聚會</span>
+        </button>
+        <button id="btn-open-questions" class="home-grid-card">
+            <span class="hgc-icon">📝</span>
+            <span class="hgc-title">題庫管理</span>
+            <span class="hgc-sub">自訂問答題目</span>
+        </button>
+        <button id="btn-home-leaderboard" class="home-grid-card">
+            <span class="hgc-icon">🏆</span>
+            <span class="hgc-title">排行榜</span>
+            <span class="hgc-sub">查看本週排名</span>
+        </button>
+    </div>
+
+    <p class="hint footer-hint">也可以直接用手機相機掃 QR Code 加入</p>
+
+</section>

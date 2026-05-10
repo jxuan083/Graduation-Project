@@ -7,6 +7,8 @@ import base64
 import socket
 import datetime
 import os
+import random
+import string
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth, storage as fb_storage
 from typing import Dict, Set, List, Optional
@@ -1181,6 +1183,485 @@ def get_local_ip():
     return ip
 
 
+# ===== 難度參數系統 =====
+DIFFICULTY_PARAMS: Dict[str, dict] = {
+    "L": {
+        "buffer_sec_per_window": 90,
+        "buffer_window_sec": 900,
+        "quality_decay_rate": 0.5,
+        "quality_recovery_rate": 0.3,
+        "pickup_tolerance_sec": 15,
+        "consecutive_use_penalty_threshold": 180,
+        "quality_sample_interval_sec": 30,
+        "buffer_check_interval_sec": 15,
+        "pin_exempt_duration_sec": 600,
+        "pin_exempt_max_count": 3,
+        "deviation_rate_limit_sec": 30,   # LOG_DEVIATION 最短間隔
+    },
+    "M": {
+        "buffer_sec_per_window": 45,
+        "buffer_window_sec": 900,
+        "quality_decay_rate": 1.0,
+        "quality_recovery_rate": 0.2,
+        "pickup_tolerance_sec": 8,
+        "consecutive_use_penalty_threshold": 90,
+        "quality_sample_interval_sec": 20,
+        "buffer_check_interval_sec": 10,
+        "pin_exempt_duration_sec": 300,
+        "pin_exempt_max_count": 2,
+        "deviation_rate_limit_sec": 25,
+    },
+    "H": {
+        "buffer_sec_per_window": 15,
+        "buffer_window_sec": 1200,
+        "quality_decay_rate": 1.5,
+        "quality_recovery_rate": 0.1,
+        "pickup_tolerance_sec": 3,
+        "consecutive_use_penalty_threshold": 45,
+        "quality_sample_interval_sec": 10,
+        "buffer_check_interval_sec": 10,
+        "pin_exempt_duration_sec": 180,
+        "pin_exempt_max_count": 1,
+        "deviation_rate_limit_sec": 20,
+    },
+}
+
+CONTEXT_PARAM_OVERRIDES: Dict[str, dict] = {
+    "class":       {"pickup_tolerance_sec": 0, "pin_exempt_max_count": 0},
+    "meeting":     {"pickup_tolerance_sec": 0},
+    "meal":        {"buffer_sec_per_window": 120, "pickup_tolerance_sec": 30},
+    "family":      {"pin_exempt_duration_sec": 900, "pin_exempt_max_count": 5},
+    "celebration": {"buffer_sec_per_window": 150},
+    "date":        {"consecutive_use_penalty_threshold": 60},
+    "workshop":    {"buffer_sec_per_window": 60, "pickup_tolerance_sec": 20},
+    "study":       {"buffer_sec_per_window": 30},
+}
+
+CONTEXT_DEFAULTS: Dict[str, dict] = {
+    "general":     {"difficulty": "L", "expected_duration_min": 90,  "mode": "GATHERING"},
+    "meeting":     {"difficulty": "H", "expected_duration_min": 60,  "mode": "MEETING"},
+    "family":      {"difficulty": "L", "expected_duration_min": 120, "mode": "FAMILY"},
+    "study":       {"difficulty": "M", "expected_duration_min": 90,  "mode": "CLASS"},
+    "class":       {"difficulty": "H", "expected_duration_min": 50,  "mode": "CLASS"},
+    "meal":        {"difficulty": "L", "expected_duration_min": 90,  "mode": "GATHERING"},
+    "date":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
+    "celebration": {"difficulty": "L", "expected_duration_min": 120, "mode": "GATHERING"},
+    "workshop":    {"difficulty": "M", "expected_duration_min": 180, "mode": "MEETING"},
+    "team":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
+    "custom":      {"difficulty": "M", "expected_duration_min": 90,  "mode": "GATHERING"},
+}
+
+VALID_CONTEXTS = set(CONTEXT_DEFAULTS.keys())
+VALID_DIFFICULTIES = {"L", "M", "H"}
+PET_BODY_OPTIONS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐸", "🐧", "🐼", "🐨", "🐯"]
+
+
+def get_session_params(context: str, difficulty: str) -> dict:
+    """取得最終難度參數（基礎 + 情境覆寫）"""
+    base = dict(DIFFICULTY_PARAMS.get(difficulty, DIFFICULTY_PARAMS["M"]))
+    overrides = CONTEXT_PARAM_OVERRIDES.get(context, {})
+    base.update(overrides)
+    return base
+
+
+# ===== 群組 API =====
+class CreateGroupPayload(BaseModel):
+    name: str
+    member_uids: Optional[List[str]] = []
+
+
+class UpdateGroupPayload(BaseModel):
+    name: Optional[str] = None
+
+
+class AddGroupMemberPayload(BaseModel):
+    uid: Optional[str] = None
+    email: Optional[str] = None
+
+
+class PetVotePayload(BaseModel):
+    target_uid: str
+
+
+class UpdatePetPayload(BaseModel):
+    pet_body_emoji: Optional[str] = None
+    pet_name: Optional[str] = None
+    pet_target_uid: Optional[str] = None
+
+
+def _generate_invite_code() -> str:
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(chars, k=8))
+
+
+def _serialize_group(data: dict, doc_id: str) -> dict:
+    out = dict(data)
+    out["group_id"] = doc_id
+    for f in ("created_at", "pet_last_fed_at"):
+        if out.get(f) and hasattr(out[f], "isoformat"):
+            out[f] = out[f].isoformat()
+        elif out.get(f):
+            out[f] = str(out[f])
+    return out
+
+
+@app.post("/api/groups")
+async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(verify_token)):
+    """建立新群組"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    name = (payload.name or "").strip()[:30]
+    if not name:
+        raise HTTPException(status_code=400, detail="群組名稱不能為空")
+
+    # 初始成員 = 建立者 + 傳入的 uids
+    member_set = {uid}
+    for m in (payload.member_uids or []):
+        if m and isinstance(m, str):
+            member_set.add(m)
+
+    group_data = {
+        "name": name,
+        "creator_uid": uid,
+        "member_uids": list(member_set),
+        "created_at": firestore.SERVER_TIMESTAMP,
+        # 寵物系統初始值
+        "pet_target_uid": None,
+        "pet_body_emoji": None,
+        "pet_name": "",
+        "pet_energy": 50,
+        "pet_max_energy": 100,
+        "pet_hp": 5,
+        "pet_level": 1,
+        "pet_accumulated_score": 0,
+        "pet_accessories": [],
+        "pet_status": "NORMAL",
+        "pet_last_fed_at": None,
+        # 寵物投票
+        "pet_votes": {},   # {voter_uid: target_uid}
+        # 邀請碼
+        "invite_code": _generate_invite_code(),
+    }
+
+    try:
+        ref = db.collection("groups").document()
+        ref.set(group_data)
+        out = _serialize_group(group_data, ref.id)
+        out.pop("created_at", None)
+        return {"status": "success", "group": out}
+    except Exception as e:
+        print(f"[create_group] error: {e}")
+        raise HTTPException(status_code=500, detail=f"建立群組失敗: {e}")
+
+
+@app.get("/api/groups")
+async def list_my_groups(decoded: dict = Depends(verify_token)):
+    """列出我參與的所有群組"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    try:
+        docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
+        groups = [_serialize_group(d.to_dict() or {}, d.id) for d in docs]
+        groups.sort(key=lambda g: g.get("created_at") or "", reverse=True)
+        return {"status": "success", "groups": groups}
+    except Exception as e:
+        print(f"[list_groups] error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/groups/{group_id}")
+async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
+    """取得群組詳情"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是這個群組的成員")
+    # 舊群組沒有 invite_code 時懶惰補上
+    if not data.get("invite_code"):
+        new_code = _generate_invite_code()
+        doc_ref.update({"invite_code": new_code})
+        data["invite_code"] = new_code
+    return {"status": "success", "group": _serialize_group(data, group_id)}
+
+
+@app.patch("/api/groups/{group_id}")
+async def update_group(group_id: str, payload: UpdateGroupPayload, decoded: dict = Depends(verify_token)):
+    """更新群組名稱（建立者才可）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc = db.collection("groups").document(group_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if data.get("creator_uid") != uid:
+        raise HTTPException(status_code=403, detail="只有建立者可以編輯群組")
+    updates = {}
+    if payload.name is not None:
+        n = payload.name.strip()[:30]
+        if n:
+            updates["name"] = n
+    if not updates:
+        raise HTTPException(status_code=400, detail="沒有要更新的欄位")
+    db.collection("groups").document(group_id).update(updates)
+    return {"status": "success"}
+
+
+@app.post("/api/groups/{group_id}/members")
+async def add_group_member(group_id: str, payload: AddGroupMemberPayload, decoded: dict = Depends(verify_token)):
+    """邀請成員加入群組"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是這個群組的成員")
+
+    target_uid = (payload.uid or "").strip()
+    target_email = (payload.email or "").strip().lower()
+    if not target_uid and not target_email:
+        raise HTTPException(status_code=400, detail="請提供 uid 或 email")
+
+    if not target_uid and target_email:
+        q = db.collection("users").where("email", "==", target_email).limit(1).stream()
+        found = next(iter(q), None)
+        if not found:
+            raise HTTPException(status_code=404, detail="找不到這個 email 的使用者")
+        target_uid = found.id
+
+    if target_uid in (data.get("member_uids") or []):
+        raise HTTPException(status_code=400, detail="對方已在群組中")
+
+    doc_ref.update({"member_uids": firestore.ArrayUnion([target_uid])})
+    return {"status": "success", "target_uid": target_uid}
+
+
+@app.delete("/api/groups/{group_id}/members/{target_uid}")
+async def remove_group_member(group_id: str, target_uid: str, decoded: dict = Depends(verify_token)):
+    """移除群組成員（建立者可移除任人；成員可移除自己）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid != data.get("creator_uid") and uid != target_uid:
+        raise HTTPException(status_code=403, detail="無權限移除此成員")
+    if data.get("creator_uid") == target_uid:
+        raise HTTPException(status_code=400, detail="不能移除建立者")
+    doc_ref.update({"member_uids": firestore.ArrayRemove([target_uid])})
+    return {"status": "success"}
+
+
+@app.post("/api/groups/{group_id}/pet/vote")
+async def vote_pet(group_id: str, payload: PetVotePayload, decoded: dict = Depends(verify_token)):
+    """投票誰當寵物（每人一票，可改票）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    members = data.get("member_uids") or []
+    if uid not in members:
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+    if payload.target_uid not in members:
+        raise HTTPException(status_code=400, detail="被投票者不在群組中")
+
+    doc_ref.update({f"pet_votes.{uid}": payload.target_uid})
+
+    # 重新計票
+    updated = doc_ref.get().to_dict() or {}
+    votes = updated.get("pet_votes") or {}
+    tally: Dict[str, int] = {}
+    for v in votes.values():
+        tally[v] = tally.get(v, 0) + 1
+
+    # 若所有成員都投票完畢，自動確定寵物
+    if len(votes) >= len(members):
+        winner = max(tally, key=lambda x: tally[x])
+        doc_ref.update({"pet_target_uid": winner})
+        return {"status": "success", "tally": tally, "confirmed_pet_uid": winner}
+
+    return {"status": "success", "tally": tally, "votes_cast": len(votes), "members_total": len(members)}
+
+
+@app.patch("/api/groups/{group_id}/pet")
+async def update_pet(group_id: str, payload: UpdatePetPayload, decoded: dict = Depends(verify_token)):
+    """更新寵物設定（建立者/多數同意者才可）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+
+    updates = {}
+    if payload.pet_body_emoji is not None:
+        if payload.pet_body_emoji not in PET_BODY_OPTIONS:
+            raise HTTPException(status_code=400, detail=f"不合法的 emoji，可用：{' '.join(PET_BODY_OPTIONS)}")
+        updates["pet_body_emoji"] = payload.pet_body_emoji
+    if payload.pet_name is not None:
+        updates["pet_name"] = payload.pet_name.strip()[:20]
+    if payload.pet_target_uid is not None:
+        if payload.pet_target_uid not in (data.get("member_uids") or []):
+            raise HTTPException(status_code=400, detail="寵物人必須是群組成員")
+        updates["pet_target_uid"] = payload.pet_target_uid
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="沒有要更新的欄位")
+
+    doc_ref.update(updates)
+    return {"status": "success"}
+
+
+@app.get("/api/groups/{group_id}/pet")
+async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
+    """取得群組寵物當前狀態"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc = db.collection("groups").document(group_id).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+
+    pet_fields = {k: v for k, v in data.items() if k.startswith("pet_")}
+    if pet_fields.get("pet_last_fed_at") and hasattr(pet_fields["pet_last_fed_at"], "isoformat"):
+        pet_fields["pet_last_fed_at"] = pet_fields["pet_last_fed_at"].isoformat()
+
+    # 取得寵物人的 profile（頭像）
+    pet_uid = data.get("pet_target_uid")
+    pet_person_profile = None
+    if pet_uid:
+        pet_snap = db.collection("users").document(pet_uid).get()
+        if pet_snap.exists:
+            pd = pet_snap.to_dict() or {}
+            pet_person_profile = {
+                "uid": pet_uid,
+                "nickname": pd.get("nickname", ""),
+                "photoURL": pd.get("photoURL", ""),
+            }
+
+    return {
+        "status": "success",
+        "pet": pet_fields,
+        "pet_person": pet_person_profile,
+        "pet_body_options": PET_BODY_OPTIONS,
+        "votes": data.get("pet_votes", {}),
+        "member_count": len(data.get("member_uids", [])),
+    }
+
+
+class JoinByInvitePayload(BaseModel):
+    code: str
+
+
+@app.get("/api/group_invite/{code}")
+async def get_group_by_invite_code(code: str, decoded: dict = Depends(verify_token)):
+    """透過邀請碼預覽群組資訊（加入前確認用，成員也可呼叫）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    clean_code = code.upper().strip()
+    try:
+        docs = list(db.collection("groups").where("invite_code", "==", clean_code).limit(1).stream())
+        if not docs:
+            raise HTTPException(status_code=404, detail="找不到對應的邀請碼")
+        data = docs[0].to_dict() or {}
+        group_id = docs[0].id
+        already_member = uid in (data.get("member_uids") or [])
+        return {
+            "status": "success",
+            "group_id": group_id,
+            "name": data.get("name", ""),
+            "member_count": len(data.get("member_uids", [])),
+            "already_member": already_member,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/group_invite/join")
+async def join_group_by_invite(payload: JoinByInvitePayload, decoded: dict = Depends(verify_token)):
+    """透過邀請碼加入群組"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    clean_code = (payload.code or "").upper().strip()
+    if not clean_code:
+        raise HTTPException(status_code=400, detail="邀請碼不能為空")
+    try:
+        docs = list(db.collection("groups").where("invite_code", "==", clean_code).limit(1).stream())
+        if not docs:
+            raise HTTPException(status_code=404, detail="找不到對應的邀請碼，請確認後再試")
+        doc = docs[0]
+        data = doc.to_dict() or {}
+        group_id = doc.id
+        if uid in (data.get("member_uids") or []):
+            return {"status": "success", "group_id": group_id, "already_member": True}
+        doc.reference.update({"member_uids": firestore.ArrayUnion([uid])})
+        _ensure_user_doc(decoded)
+        return {"status": "success", "group_id": group_id, "already_member": False}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/groups/{group_id}/invite_code/refresh")
+async def refresh_invite_code(group_id: str, decoded: dict = Depends(verify_token)):
+    """重新產生邀請碼（只有建立者可以操作）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if data.get("creator_uid") != uid:
+        raise HTTPException(status_code=403, detail="只有建立者可以重新產生邀請碼")
+    new_code = _generate_invite_code()
+    doc_ref.update({"invite_code": new_code})
+    return {"status": "success", "invite_code": new_code}
+
+
+@app.get("/api/context_defaults")
+async def get_context_defaults():
+    """回傳所有情境的預設參數（前端情境選擇器用）"""
+    return {
+        "status": "success",
+        "contexts": CONTEXT_DEFAULTS,
+        "difficulty_params": DIFFICULTY_PARAMS,
+    }
+
+
 # ===== 房間與 WebSocket 管理 =====
 rooms: Dict[str, Dict] = {}
 
@@ -1218,50 +1699,72 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.get("/api/create_room")
-async def create_room(frontend_url: str = None, decoded: dict = Depends(verify_token)):
+class CreateRoomRequest(BaseModel):
+    frontend_url: Optional[str] = None
+    context: Optional[str] = "general"
+    difficulty: Optional[str] = None        # None → 從 context 預設值取
+    expected_duration_min: Optional[int] = None
+    group_id: Optional[str] = None
+
+
+@app.post("/api/create_room")
+async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_token)):
     """
     建立房間並同步存入 Firestore (需登入)
+    接受 context / difficulty / expected_duration_min / group_id 參數
     """
     host_uid = decoded.get("uid") or decoded.get("user_id")
-    # 確保 host 有 user doc
     host_profile = _ensure_user_doc(decoded)
 
+    # 解析情境 / 難度
+    ctx = body.context if body.context in VALID_CONTEXTS else "general"
+    ctx_defaults = CONTEXT_DEFAULTS[ctx]
+    difficulty = body.difficulty if body.difficulty in VALID_DIFFICULTIES else ctx_defaults["difficulty"]
+    expected_duration_min = body.expected_duration_min or ctx_defaults["expected_duration_min"]
+    default_mode = ctx_defaults["mode"]
+    group_id = body.group_id or None
+
+    # 驗證 group_id 成員資格
+    if group_id:
+        try:
+            g_snap = db.collection("groups").document(group_id).get()
+            if not g_snap.exists or host_uid not in g_snap.to_dict().get("member_uids", []):
+                group_id = None  # 不是成員就忽略
+        except Exception:
+            group_id = None
+
+    session_params = get_session_params(ctx, difficulty)
     room_id = str(uuid.uuid4())[:8]
 
-    # 1. 準備要存入 Firestore 的資料結構（含 SERVER_TIMESTAMP 給 Firestore 用）
     firestore_data = {
         "room_id": room_id,
         "host_uid": host_uid,
         "host_nickname": host_profile.get("nickname", ""),
         "status": "WAITING",
-        "mode": "GATHERING",  # 預設聚會模式
+        "mode": default_mode,
+        "context": ctx,
+        "difficulty": difficulty,
+        "expected_duration_min": expected_duration_min,
+        "group_id": group_id,
+        "session_params": session_params,
         "members": {},
         "sync_start_time": None,
         "deviations": 0,
-        "qa_state": {
-            "current_question": None,
-            "answers": {}
-        },
-        "created_at": firestore.SERVER_TIMESTAMP  # 使用 Firebase 伺服器時間
+        "qa_state": {"current_question": None, "answers": {}},
+        "created_at": firestore.SERVER_TIMESTAMP,
     }
 
-    # 記憶體版本不能含 SERVER_TIMESTAMP（無法 JSON 序列化，會讓 WebSocket 廣播失敗）
     memory_data = {k: v for k, v in firestore_data.items() if k != "created_at"}
-    # 額外記下開始時間（毫秒 epoch），結束聚會時用來計算時長
     memory_data["started_at"] = int(datetime.datetime.utcnow().timestamp() * 1000)
 
-    # 2. 寫入 Firestore 資料庫 (集合名稱設為 'rooms')
     try:
         db.collection("rooms").document(room_id).set(firestore_data)
     except Exception as e:
         print(f"Error saving to Firestore: {e}")
-        # 即使 Firestore 寫入失敗，記憶體仍可運作
     rooms[room_id] = memory_data
 
-    # --- QR Code 生成邏輯 ---
-    base_url = frontend_url if frontend_url else "http://localhost:3000"
-
+    # QR Code
+    base_url = body.frontend_url if body.frontend_url else "http://localhost:3000"
     if "localhost" in base_url or "127.0.0.1" in base_url:
         try:
             local_ip = get_local_ip()
@@ -1274,7 +1777,6 @@ async def create_room(frontend_url: str = None, decoded: dict = Depends(verify_t
     qr.add_data(host_url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -1283,7 +1785,13 @@ async def create_room(frontend_url: str = None, decoded: dict = Depends(verify_t
         "room_id": room_id,
         "qr_base64": img_str,
         "url": host_url,
-        "backend_ip": ""
+        "context": ctx,
+        "difficulty": difficulty,
+        "expected_duration_min": expected_duration_min,
+        "mode": default_mode,
+        "group_id": group_id,
+        "session_params": session_params,
+        "backend_ip": "",
     }
 
 
@@ -1551,10 +2059,56 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 except Exception as e:
                     print(f"Error saving meeting record: {e}")
 
+                # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
+                group_id_local = rooms[room_id].get("group_id")
+                if group_id_local:
+                    try:
+                        g_ref = db.collection("groups").document(group_id_local)
+                        g_snap = g_ref.get()
+                        if g_snap.exists:
+                            g_data = g_snap.to_dict() or {}
+                            pet_hp = int(g_data.get("pet_hp", 5))
+                            pet_energy = int(g_data.get("pet_energy", 50))
+                            pet_max_energy = int(g_data.get("pet_max_energy", 100))
+                            # 使用共享基礎分 (0-100) 判斷餵食還是扣血
+                            if base_score >= 70:
+                                energy_delta = min(10 + int((base_score - 70) / 3), 20)
+                                pet_energy = min(pet_energy + energy_delta, pet_max_energy)
+                                hp_delta = 0
+                            elif base_score >= 40:
+                                energy_delta = 0
+                                hp_delta = 0
+                            else:
+                                energy_delta = -5
+                                pet_energy = max(pet_energy + energy_delta, 0)
+                                hp_delta = -1
+                                pet_hp = max(pet_hp + hp_delta, 0)
+
+                            if pet_energy >= 80:
+                                new_status = "HAPPY"
+                            elif pet_energy >= 40:
+                                new_status = "NORMAL"
+                            elif pet_energy >= 15:
+                                new_status = "HUNGRY"
+                            else:
+                                new_status = "CRITICAL"
+
+                            g_ref.update({
+                                "pet_energy": pet_energy,
+                                "pet_hp": pet_hp,
+                                "pet_status": new_status,
+                                "pet_last_fed": firestore.SERVER_TIMESTAMP,
+                            })
+                            print(f"[END_SESSION] group pet updated: group={group_id_local} energy={pet_energy} hp={pet_hp} status={new_status}")
+                    except Exception as pet_err:
+                        print(f"[END_SESSION] group pet update failed: {pet_err}")
+
                 print(f"[END_SESSION] room={room_id} reason={reason}")
                 await manager.broadcast_to_room(room_id, {
                     "type": "SESSION_ENDED",
-                    "reason": reason
+                    "reason": reason,
+                    "base_score": base_score,
+                    "group_id": group_id_local,
                 })
                 continue
 
@@ -1788,12 +2342,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"[LOG_DEVIATION] rejected: in {rooms[room_id].get('mode')} mode")
                     continue
 
-                # per-user rate-limit: 同一個 user 兩次 deviation 至少間隔 25 秒
-                # (前端 buffer 倒數本來就是 30 秒,合理使用者不可能 25 秒內觸發兩次)
+                # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定
+                rate_limit_ms = int(rooms[room_id].get("session_params", {}).get("deviation_rate_limit_sec", 25)) * 1000
                 now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
                 member = rooms[room_id]["members"].get(user_id) or {}
                 last_dev_ms = member.get("last_deviation_ms", 0)
-                if now_ms - last_dev_ms < 25_000:
+                if now_ms - last_dev_ms < rate_limit_ms:
                     print(f"[LOG_DEVIATION] rate-limited user={user_id} room={room_id}")
                     continue
                 rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms

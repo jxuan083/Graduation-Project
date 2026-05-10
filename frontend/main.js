@@ -15,6 +15,7 @@ import { loadBackendVersion } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
+import { events } from './core/events.js';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -24,7 +25,8 @@ const VIEW_NAMES = [
     'waiting-room', 'host-room', 'sync-ritual', 'focus', 'qa-game',
     'taboo-prepare', 'taboo-countdown', 'taboo-card',
     'buffer', 'summary',
-    'member-preview', 'invite-modal'
+    'member-preview', 'invite-modal',
+    'meeting-setup', 'groups', 'group-setup',
 ];
 
 // ===== view 模組(動態 import,parallel) =====
@@ -55,6 +57,9 @@ const VIEW_MODULES = {
     'summary':           () => import('./views/summary/summary.js'),
     'member-preview':    () => import('./views/member-preview/member-preview.js'),
     'invite-modal':      () => import('./views/invite-modal/invite-modal.js'),
+    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js'),
+    'groups':            () => import('./views/groups/groups.js'),
+    'group-setup':       () => import('./views/group-setup/group-setup.js'),
 };
 
 async function loadAllViewHtml() {
@@ -128,9 +133,17 @@ async function boot() {
         // 8. 依 URL 決定起始畫面
         const urlParams = new URLSearchParams(window.location.search);
         const roomFromUrl = urlParams.get('room');
+        const groupInviteCode = urlParams.get('group_invite');
         if (roomFromUrl) {
             state.pendingRoomId = roomFromUrl;
             showJoinView();
+        } else if (groupInviteCode) {
+            state.pendingGroupInviteCode = groupInviteCode;
+            // Clean up URL without reload
+            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+            switchView('view-home');
+            handleGroupInviteOnBoot(groupInviteCode);
         } else {
             switchView('view-home');
         }
@@ -143,6 +156,48 @@ async function boot() {
             <p>${err.message || err}</p>
             <p>請重新整理頁面再試</p>
         </div>`;
+    }
+}
+
+function handleGroupInviteOnBoot(code) {
+    async function tryJoin() {
+        if (!state.currentUser) {
+            alert('請先登入 Google 帳號，才能透過邀請碼加入群組');
+            state.pendingGroupInviteCode = code;
+            return;
+        }
+        try {
+            const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js');
+            const { data: info } = await getGroupInviteInfo(code);
+            if (!info?.group_name) { alert('邀請碼無效或已過期'); return; }
+            if (info.already_member) {
+                alert(`你已經是「${info.group_name}」的成員了！`);
+                switchView('view-groups');
+                return;
+            }
+            const ok = confirm(`加入群組「${info.group_name}」（${info.member_count} 位成員）？`);
+            if (!ok) return;
+            const { data: joinData } = await joinGroupByInviteCode(code);
+            if (joinData?.status === 'success') {
+                alert('成功加入群組！');
+                switchView('view-groups');
+            } else {
+                alert('加入失敗：' + (joinData?.detail || JSON.stringify(joinData)));
+            }
+        } catch (err) {
+            alert('加入失敗：' + (err.message || err));
+        } finally {
+            state.pendingGroupInviteCode = null;
+        }
+    }
+
+    if (state.currentUser) {
+        tryJoin();
+    } else {
+        const unsubscribe = events.on('auth:logged-in', () => {
+            unsubscribe();
+            tryJoin();
+        });
     }
 }
 

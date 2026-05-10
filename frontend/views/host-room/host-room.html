@@ -1,25 +1,37 @@
-<section id="view-host-room" class="view">
-            <h2>聚會已建立</h2>
-            <div class="qr-container">
-                <img id="qr-code-img" src="" alt="QR Code" />
-            </div>
-            <p>請朋友掃描上方 QR Code 加入</p>
-            <button id="btn-copy-room-link" class="btn secondary copy-link-btn">📋 複製聚會連結</button>
-            <div class="member-list">
-                <h3>已加入成員 (<span id="member-count">0</span>)</h3>
-                <ul id="member-list-ul" class="member-ul"></ul>
-            </div>
+<section id="view-host-room" class="view page-view">
 
-            <div class="mode-controls">
-                <h3>選擇聚會模式：</h3>
-                <div class="mode-btns">
-                    <button id="btn-mode-gathering" class="btn secondary mode-btn active-mode">🎉 朋友聚會 (預設)</button>
-                    <button id="btn-mode-family" class="btn secondary mode-btn">🏠 家庭聚會</button>
-                    <button id="btn-mode-meeting" class="btn secondary mode-btn">💼 嚴肅開會</button>
-                    <button id="btn-mode-class" class="btn secondary mode-btn">📚 上課模式</button>
-                </div>
-            </div>
+    <div class="page-header">
+        <span class="page-title">聚會已建立</span>
+        <div id="room-context-badge" class="context-badge" style="display:none; margin-left:auto; margin-bottom:0;">
+            <span id="room-context-label"></span>
+            <span id="room-difficulty-badge" class="diff-badge"></span>
+        </div>
+    </div>
 
-            <button id="btn-start-sync" class="btn primary disabled">大家準備好，開始！</button>
-            <button id="btn-cancel-host-room" class="btn secondary">取消聚會</button>
-        </section>
+    <div style="display:flex; flex-direction:column; align-items:center; width:100%;">
+        <div class="qr-container">
+            <img id="qr-code-img" src="" alt="QR Code" />
+        </div>
+        <p style="margin-bottom:8px;">請朋友掃描 QR Code 加入</p>
+        <button id="btn-copy-room-link" class="btn secondary copy-link-btn" style="max-width:280px;">📋 複製聚會連結</button>
+    </div>
+
+    <div class="setup-section" style="margin-top:16px;">
+        <h3>已加入成員 (<span id="member-count">0</span>)</h3>
+        <ul id="member-list-ul" class="member-ul"></ul>
+    </div>
+
+    <div class="mode-controls">
+        <h3>聚會模式</h3>
+        <div class="mode-btns">
+            <button id="btn-mode-gathering" class="btn secondary mode-btn active-mode">🎉 朋友聚會</button>
+            <button id="btn-mode-family"    class="btn secondary mode-btn">🏠 家庭聚會</button>
+            <button id="btn-mode-meeting"   class="btn secondary mode-btn">💼 嚴肅開會</button>
+            <button id="btn-mode-class"     class="btn secondary mode-btn">📚 上課模式</button>
+        </div>
+    </div>
+
+    <button id="btn-start-sync"        class="btn primary disabled" style="margin-top:8px;">大家準備好，開始！</button>
+    <button id="btn-cancel-host-room"  class="btn secondary">取消聚會</button>
+
+</section>

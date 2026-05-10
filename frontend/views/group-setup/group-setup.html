@@ -1,0 +1,58 @@
+<section id="view-group-setup" class="view page-view">
+
+    <div class="page-header">
+        <button id="btn-group-setup-back" class="btn-back">←</button>
+        <span id="group-setup-title" class="page-title">群組設定</span>
+    </div>
+
+    <!-- 群組名稱 -->
+    <div class="setup-section">
+        <h3>群組名稱</h3>
+        <input id="group-name-input" type="text" class="text-input" maxlength="40" placeholder="幫群組取個名字…" />
+        <button id="btn-save-group-name" class="btn primary" style="margin-top:12px; border-radius:var(--r-sm);">儲存名稱</button>
+    </div>
+
+    <!-- 邀請碼 -->
+    <div class="setup-section" id="group-invite-section" style="display:none;">
+        <h3>邀請碼</h3>
+        <p class="hint" style="margin-bottom:8px;">分享連結給朋友，他們即可直接加入</p>
+        <div class="invite-code-display" id="invite-code-display">—</div>
+        <div class="invite-actions">
+            <button id="btn-copy-invite" class="btn secondary">複製連結</button>
+            <button id="btn-refresh-invite" class="btn secondary" style="display:none;">重新產生</button>
+        </div>
+    </div>
+
+    <!-- 成員管理 -->
+    <div class="setup-section" id="group-members-section" style="display:none;">
+        <h3>成員 (<span id="group-member-count">0</span>)</h3>
+        <ul id="group-member-list" class="member-ul"></ul>
+        <div class="add-member-row">
+            <input id="add-member-input" type="text" class="text-input" placeholder="Email 或 UID" />
+            <button id="btn-add-member" class="btn secondary">新增</button>
+        </div>
+    </div>
+
+    <!-- 寵物投票 -->
+    <div class="setup-section" id="pet-vote-section" style="display:none;">
+        <h3>朋友寵物投票</h3>
+        <p class="hint" style="margin-bottom:8px;">選一位成員作為群組寵物頭像</p>
+        <ul id="pet-vote-list" class="member-ul"></ul>
+        <p id="pet-vote-status" class="hint" style="margin-top:8px;"></p>
+    </div>
+
+    <!-- 寵物身體選擇 -->
+    <div class="setup-section" id="pet-body-section" style="display:none;">
+        <h3>寵物身體</h3>
+        <div id="pet-body-grid" class="pet-body-grid"></div>
+        <button id="btn-save-pet-body" class="btn secondary" style="margin-top:4px; border-radius:var(--r-sm);">確認身體造型</button>
+    </div>
+
+    <!-- 目前寵物預覽 -->
+    <div class="setup-section" id="pet-preview-section" style="display:none;">
+        <h3>目前寵物</h3>
+        <div id="pet-preview" class="pet-preview" style="display:flex; justify-content:center;"></div>
+        <p id="pet-hp-energy" class="hint" style="margin-top:8px; text-align:center;"></p>
+    </div>
+
+</section>

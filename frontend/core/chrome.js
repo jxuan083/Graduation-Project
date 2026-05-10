@@ -73,9 +73,8 @@ function renderAuthBar() {
     const loggedOut = document.getElementById('auth-logged-out');
     const loggedIn = document.getElementById('auth-logged-in');
     const homeHint = document.getElementById('home-login-hint');
-    const meetingsBtn = document.getElementById('btn-open-meetings');
-    const questionsBtn = document.getElementById('btn-open-questions');
 
+    const homeGrid = document.getElementById('home-feature-grid');
     if (state.currentUser && state.currentProfile) {
         loggedOut.style.display = 'none';
         loggedIn.style.display = 'flex';
@@ -85,16 +84,14 @@ function renderAuthBar() {
         document.getElementById('auth-nickname').innerText =
             state.currentProfile.nickname || state.currentUser.displayName || '使用者';
         if (homeHint) homeHint.style.display = 'none';
-        if (meetingsBtn) meetingsBtn.style.display = 'block';
-        if (questionsBtn) questionsBtn.style.display = 'block';
+        if (homeGrid) homeGrid.style.display = 'grid';
     } else {
         loggedOut.style.display = 'flex';
         loggedIn.style.display = 'none';
         const dd = document.getElementById('user-menu-dropdown');
         if (dd) dd.style.display = 'none';
         if (homeHint) homeHint.style.display = 'block';
-        if (meetingsBtn) meetingsBtn.style.display = 'none';
-        if (questionsBtn) questionsBtn.style.display = 'none';
+        if (homeGrid) homeGrid.style.display = 'none';
     }
 }
 

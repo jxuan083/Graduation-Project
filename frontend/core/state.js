@@ -27,6 +27,18 @@ export const state = {
     sessionStartTime: null,
     totalDeviations: 0,
 
+    // === 聚會設定 (meeting-setup) ===
+    currentContext: 'general',
+    currentDifficulty: 'L',
+    currentExpectedDuration: 90,
+    currentGroupId: null,           // 選擇的群組 ID（可選）
+    pendingMeetingSetup: null,      // { context, difficulty, expected_duration_min, group_id }
+
+    // === 群組 ===
+    myGroups: [],
+    currentGroupDetail: null,       // 正在查看的群組 detail
+    pendingGroupInviteCode: null,   // URL ?group_invite=CODE 暫存
+
     // === Sync Ritual ===
     holdInterval: null,
     myProgress: 0,

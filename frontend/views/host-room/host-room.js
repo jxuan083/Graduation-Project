@@ -4,9 +4,13 @@ import { state } from '../../core/state.js';
 import { sendAction, closeWs } from '../../core/ws.js';
 import { cleanupSession, updateThemeByMode } from '../../core/session.js';
 import { copyInviteLink } from '../invite-modal/invite-modal.js';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js';
 
 export function init() {
-    register('view-host-room', { element: document.getElementById('view-host-room') });
+    register('view-host-room', {
+        element: document.getElementById('view-host-room'),
+        onShow: updateContextBadge,
+    });
 
     // 複製聚會連結
     const btnCopy = document.getElementById('btn-copy-room-link');
@@ -27,6 +31,22 @@ export function init() {
 
     // 模式切換按鈕 — 用 event delegation 在 document 層處理
     document.addEventListener('click', handleModeBtnClick);
+}
+
+function updateContextBadge() {
+    const badge = document.getElementById('room-context-badge');
+    const ctxLabel = document.getElementById('room-context-label');
+    const diffBadge = document.getElementById('room-difficulty-badge');
+    if (!badge) return;
+    const ctx = state.currentContext || 'general';
+    const diff = state.currentDifficulty || 'M';
+    const cfg = CONTEXT_CONFIGS[ctx] || CONTEXT_CONFIGS.general;
+    if (ctxLabel) ctxLabel.textContent = `${cfg.icon} ${cfg.label}`;
+    if (diffBadge) {
+        diffBadge.textContent = DIFFICULTY_LABELS[diff] || diff;
+        diffBadge.className = `diff-badge diff-${diff.toLowerCase()}`;
+    }
+    badge.style.display = '';
 }
 
 function setActiveModeBtn(clickedBtnId) {
