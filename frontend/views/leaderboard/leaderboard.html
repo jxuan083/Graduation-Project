@@ -1,0 +1,21 @@
+<section id="view-leaderboard" class="view page-view">
+
+    <div class="page-header">
+        <button id="btn-leaderboard-back" class="btn-back">←</button>
+        <span class="page-title">排行榜</span>
+        <span class="hint" id="leaderboard-period-hint" style="margin-left:auto;">本週</span>
+    </div>
+
+    <div class="tabs">
+        <button id="lb-tab-global"  class="tab-btn active">🌏 全站週榜</button>
+        <button id="lb-tab-friends" class="tab-btn">👥 好友圈</button>
+    </div>
+
+    <div id="leaderboard-list" class="leaderboard-list"></div>
+    <p id="leaderboard-empty" class="hint" style="display:none; text-align:center; margin-top:32px;">本週還沒有人聚會喔</p>
+
+    <p class="hint" style="margin-top:20px; font-size:0.78rem; text-align:center; line-height:1.6;">
+        計分：max(0, 50 − 分心×5) + 時長×0.5<br>零分心且≥20分鐘 +10 · 房主 +5
+    </p>
+
+</section>

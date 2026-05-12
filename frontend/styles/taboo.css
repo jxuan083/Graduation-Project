@@ -1,0 +1,128 @@
+/* styles/taboo.css — Taboo Game (關鍵字遊戲) */
+/* ==========================================
+   🎯 Taboo Game (關鍵字遊戲) 樣式
+   ========================================== */
+
+/* 規則卡片 */
+.taboo-rules-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin: 16px 0;
+  text-align: left;
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+.taboo-rules-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.05rem;
+  color: #fbbf24;
+}
+.taboo-rules-card p {
+  margin: 6px 0;
+}
+
+/* 大型按鈕 (抽卡 / 我輸了) */
+.taboo-big-btn {
+  font-size: 1.3rem !important;
+  padding: 18px 24px !important;
+  margin-top: 16px !important;
+  border-radius: 16px !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* 全螢幕模式 — 倒數和顯示字卡時把整個視窗鋪滿 */
+.taboo-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.taboo-fullscreen.active {
+  display: flex !important;
+}
+
+/* 倒數區塊 */
+.taboo-countdown-wrap {
+  text-align: center;
+  color: #fff;
+}
+.taboo-countdown-label {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #fbbf24;
+}
+.taboo-countdown-num {
+  font-size: 13rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(251, 191, 36, 0.8);
+  animation: taboo-pulse 1s ease-in-out infinite;
+}
+@keyframes taboo-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* 字卡顯示 — 高對比黃底黑字,字超大 */
+.taboo-card-bg {
+  background: #fde047;  /* 鮮黃 */
+}
+.taboo-card-wrap {
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+}
+.taboo-card-label {
+  font-size: 1rem;
+  color: #422006;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: 0.1em;
+}
+.taboo-card-word {
+  font-size: clamp(4rem, 22vw, 10rem);
+  font-weight: 900;
+  color: #111;
+  line-height: 1.1;
+  margin: 32px 0;
+  word-break: break-all;
+  letter-spacing: 0.05em;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 反轉文字 (可選) — 給把手機倒過來戴額頭的玩家用,觀眾從正常方向看正字 */
+.taboo-card-word.flip {
+  transform: rotate(180deg);
+}
+
+/* 字卡上的按鈕配色 (黃底背景所以重新調) */
+.taboo-card-bg .btn.danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+.taboo-card-bg .btn.secondary {
+  background: rgba(0, 0, 0, 0.15);
+  color: #422006;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+/* 手機橫向時數字適度縮小 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .taboo-countdown-num { font-size: 8rem; }
+  .taboo-card-word { font-size: clamp(3rem, 15vh, 7rem); }
+  .taboo-card-wrap { max-width: 90vw; }
+  .taboo-card-word { margin: 16px 0; }
+}

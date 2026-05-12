@@ -4,87 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
-    <link rel="stylesheet" href="./style.css">
+
+    <!-- 共用樣式 (依 v=18 為新版號) -->
+    <link rel="stylesheet" href="./styles/base.css?v=21">
+    <link rel="stylesheet" href="./styles/components.css?v=21">
+    <link rel="stylesheet" href="./styles/social.css?v=21">
+    <link rel="stylesheet" href="./styles/taboo.css?v=21">
+
+    <!-- Firebase (compat 全域) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+    <!-- QR Code 掃描 + Lottie -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 </head>
 <body>
     <div id="app-container">
-
-        <!-- ===== Home View ===== -->
-        <section id="view-home" class="view active">
-            <div class="hero">
-                <h1>注意力定錨</h1>
-                <p>重新找回真實社交的溫度</p>
+        <!-- 頂部使用者狀態列 (常駐,所有頁面都看得到) -->
+        <header id="auth-bar">
+            <div id="auth-logged-out">
+                <button id="btn-google-login" class="btn-auth">使用 Google 登入</button>
+                <button id="btn-open-about-guest" class="btn-auth btn-auth-small">關於</button>
             </div>
-            <div class="actions">
-                <button id="btn-create-room" class="btn primary">發起聚會</button>
-                <div class="divider"><span>或掃描朋友的 QR Code</span></div>
-                <p class="hint">請直接使用手機相機掃描 QR Code 加入</p>
-            </div>
-        </section>
-
-        <!-- ===== Host Room View ===== -->
-        <section id="view-host-room" class="view">
-            <h2>房間已建立</h2>
-            <div class="qr-container">
-                <img id="qr-code-img" src="" alt="QR Code" />
-            </div>
-            <p>請朋友掃描以上 QR Code 加入</p>
-            <div class="member-list">
-                <h3>已加入成員 : <span id="member-count">0</span></h3>
-            </div>
-            <button id="btn-start-sync" class="btn primary disabled">開始同步定錨</button>
-        </section>
-
-        <!-- ===== Sync Ritual View ===== -->
-        <section id="view-sync-ritual" class="view">
-            <h2>同步儀式</h2>
-            <p>大家一起長按圓鈕，將能量注滿</p>
-            <div class="sync-container">
-                <div class="progress-bar-bg">
-                    <div id="sync-progress-fill" class="progress-bar-fill"></div>
+            <div id="auth-logged-in" style="display:none;">
+                <button id="btn-user-menu-toggle" class="user-menu-toggle" aria-haspopup="true" aria-expanded="false">
+                    <img id="auth-avatar" class="auth-avatar" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="avatar" />
+                    <span id="auth-nickname" class="auth-nickname"></span>
+                    <span id="menu-red-dot" class="menu-red-dot" style="display:none;"></span>
+                    <span class="menu-caret">▾</span>
+                </button>
+                <div id="user-menu-dropdown" class="user-menu" style="display:none;">
+                    <button id="btn-open-profile" class="user-menu-item">👤 個人資料</button>
+                    <button id="btn-open-friends" class="user-menu-item">👥 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
+                    <button id="btn-open-leaderboard" class="user-menu-item">🏆 排行榜</button>
+                    <button id="btn-open-about" class="user-menu-item">ℹ️ 關於</button>
+                    <div class="user-menu-sep"></div>
+                    <button id="btn-logout" class="user-menu-item danger">🚪 登出</button>
                 </div>
-                <button id="btn-sync-hold" class="btn-circular">HOLD</button>
             </div>
-        </section>
+        </header>
 
-        <!-- ===== Flow State (Focus) View ===== -->
-        <section id="view-focus" class="view">
-            <h2 class="status-title">定錨成功</h2>
-            <p class="status-subtitle">請將手機倒扣，享受當下的互動</p>
-            
-            <div class="lottie-container" id="lottie-orb"></div>
-            
-            <div class="stats">
-                <p>偏離次數: <span id="deviation-count">0</span></p>
-            </div>
-            <button id="btn-end-session" class="btn secondary">結束聚會</button>
-        </section>
+        <!-- 所有 view 會由 main.js 動態載入到這裡 -->
+        <main id="app"></main>
 
-        <!-- ===== Buffer / Penalty View ===== -->
-        <section id="view-buffer" class="view overlay">
-            <div class="buffer-content">
-                <h2>⚠️ 認知緩衝區</h2>
-                <h1 id="buffer-timer" class="timer">30</h1>
-                <p>請在倒數結束前關閉螢幕！</p>
-                <p class="buffer-hint">如果您現在將螢幕熄滅，結界就不會被破壞</p>
-            </div>
-        </section>
+        <!-- 底部版本 -->
+        <footer id="app-footer">
+            <span id="footer-version">Phubbing Anchor · 載入版本中…</span>
+        </footer>
 
-        <!-- ===== Summary View ===== -->
-        <section id="view-summary" class="view">
-            <h2>結算報告</h2>
-            <div class="summary-card">
-                <h3>總結</h3>
-                <p>累積時間: <span id="summary-time">0</span> 分鐘</p>
-                <p>團隊偏差: <span id="summary-deviations">0</span> 次</p>
-            </div>
-            <button class="btn primary" onclick="location.href='/'">回到首頁</button>
-        </section>
+        <!-- Toast 提示容器 (浮於所有頁面上層) -->
+        <div id="toast-container" class="toast-container"></div>
 
+        <!-- 「返回聚會」浮動按鈕 -->
+        <button id="btn-resume-meeting" class="btn-resume-meeting" style="display:none;">🔵 返回聚會</button>
     </div>
 
-    <!-- Lottie Web Core -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
-    <script src="./app.js"></script>
+    <!-- App 進入點 (ES Module) -->
+    <script type="module" src="./main.js?v=21"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+/* styles/base.css — vars, reset, body, view system, typography, buttons, qr, sync, lottie, buffer, summary, mode themes, qa-game */
 /* Vanilla CSS for Social Anchor MVP
   Responsive, modern, glassmorphism UI logic 
 */
@@ -294,3 +295,4 @@ body.mode-gathering { background-color: #2e1065 !important; }
 body.mode-family { background-color: #451a03 !important; }
 body.mode-meeting { background-color: #0f172a !important; }
 body.mode-class { background-color: #064e3b !important; }
+

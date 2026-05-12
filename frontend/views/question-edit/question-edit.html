@@ -1,0 +1,28 @@
+<section id="view-question-edit" class="view page-view">
+
+    <div class="page-header">
+        <button id="btn-qedit-cancel" class="btn-back">←</button>
+        <span id="qedit-title" class="page-title">新增題目</span>
+    </div>
+
+    <div class="setup-section">
+        <h3>題目</h3>
+        <textarea id="qedit-question" maxlength="120" rows="3" class="text-input" placeholder="想問大家什麼？"></textarea>
+    </div>
+
+    <div class="setup-section">
+        <h3>選項（2~6 個）</h3>
+        <div id="qedit-options-list"></div>
+        <button id="btn-qedit-add-option" class="btn secondary" style="margin-top:8px; border-radius:var(--r-sm);">＋ 新增選項</button>
+
+        <label class="profile-label" style="margin-top:16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="qedit-has-answer" style="width:16px; height:16px; accent-color:var(--accent-fire);" />
+            這題有正解（作答結束會公布答案）
+        </label>
+        <p class="hint" id="qedit-answer-hint" style="display:none; margin-top:6px;">勾選左側圓圈標示正解</p>
+    </div>
+
+    <p id="qedit-status" class="profile-status" style="text-align:center; margin-bottom:12px;"></p>
+    <button id="btn-qedit-save" class="btn primary">儲存題目</button>
+
+</section>

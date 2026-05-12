@@ -1,0 +1,52 @@
+<section id="view-about" class="view">
+            <h2>關於</h2>
+            <div class="about-card">
+                <h3>🫂 專案介紹</h3>
+                <p>社交定錨（Phubbing Anchor）是一個為了<strong>拉近人與人之間距離</strong>而存在的工具。</p>
+                <p>當大家約好見面時，本來是想好好聊天、互動、享受當下的相聚，但總是會不自覺地滑起手機——結果人到了，心卻沒到。</p>
+                <p>這個 App 想幫助你在<strong>實體聚會時</strong>，把手機放下，把眼神交給彼此，得到更高品質的社交體驗。不是強迫離開手機，而是讓大家一起做這個選擇。</p>
+            </div>
+
+            <div class="about-card">
+                <h3>📜 版本更新</h3>
+                <ul class="changelog">
+                    <li><strong>v15.2 🔒 安全修正</strong> — (1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單</li>
+                    <li><strong>v15.1</strong> — 修正重構後右上角選單擋住標題的問題:給 #app 容器補上 flex 屬性、給 #app-container 加 padding-top 避開絕對定位的 auth-bar</li>
+                    <li><strong>v15</strong> — 前端模組化重構:把 3000 行的 app.js / 1700 行的 style.css / 450 行的 index.html 拆成 60+ 個小檔(core/ + utils/ + features/ + views/ + styles/),維護更輕鬆,功能完全沒變</li>
+                    <li><strong>v14</strong> — 新增關鍵字遊戲(Taboo Game):房主可在聚會中發起,玩家抽卡後 5 秒倒數把手機放上額頭顯示關鍵字,輸了可自行換下一張,內建 120+ 張台灣本土化字卡</li>
+                    <li><strong>v13</strong> — 互加自動成為好友、首頁邀請橫幅、聚會中離開頁面可返回、修正非房主看不到聚會照片的 bug</li>
+                    <li><strong>v12</strong> — 好友系統、週排行榜（全站／好友圈）、聚會中可互加好友與查看彼此資料</li>
+                    <li><strong>v11</strong> — 右上角收合成選單、關於頁面、底部版本標示</li>
+                    <li><strong>v10</strong> — 聚會照片上傳／刪除／設封面，聚會中拍照不會觸發分心倒數</li>
+                    <li><strong>v9</strong> — 分心倒數加上「我回來專心了」按鈕，計時器防呆</li>
+                    <li><strong>v8</strong> — 可編輯題庫（個人＋公共）、題目可選擇有無正解</li>
+                    <li><strong>v7</strong> — Google 登入、個人資料、聚會紀錄、QR Code 掃描、介面中文化</li>
+                </ul>
+            </div>
+
+            <div class="about-card">
+                <h3>🔐 隱私政策</h3>
+                <p><strong>我們收集什麼？</strong></p>
+                <ul>
+                    <li>Google 登入資料：Email、暱稱、頭像（用於你的個人資料顯示）</li>
+                    <li>聚會資料：聚會時長、分心次數、成員列表、你上傳的照片</li>
+                    <li>題庫資料：你建立的題目</li>
+                </ul>
+                <p><strong>我們怎麼使用？</strong></p>
+                <ul>
+                    <li>只用在本 App 的功能運作，不會把你的資料賣給第三方</li>
+                    <li>聚會資料只有當場的參與者看得到</li>
+                    <li>資料存在 Google Firebase（Firestore / Storage）伺服器</li>
+                </ul>
+                <p><strong>你的權利：</strong>有任何關於資料的疑問、想刪除帳號或特定資料，請透過下方 Email 聯絡。</p>
+            </div>
+
+            <div class="about-card">
+                <h3>💬 意見回饋</h3>
+                <p>有 bug、想建議功能、或任何意見都歡迎來信：</p>
+                <p><a href="mailto:112306074@g.nccu.edu.tw" class="about-link">112306074@g.nccu.edu.tw</a></p>
+                <p class="hint" style="margin-top:8px;">（未來會提供線上表單方便回饋）</p>
+            </div>
+
+            <button id="btn-about-back" class="btn secondary">回到首頁</button>
+        </section>
