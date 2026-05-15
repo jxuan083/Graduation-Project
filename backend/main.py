@@ -1826,6 +1826,29 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
 
 # ===== 67 挑戰：server-side 遊戲生命週期 =====
 
+async def _game67_ready_timeout(room_id: str):
+    """A3: 30 秒沒全員準備就自動開始或取消"""
+    await asyncio.sleep(30)
+    if room_id not in rooms or not rooms[room_id].get("game67"):
+        return
+    g = rooms[room_id]["game67"]
+    if g.get("started"):
+        return
+    ready_count = len(g["ready"])
+    if ready_count == 0:
+        await manager.broadcast_to_room(room_id, {
+            "type": "GAME67_CANCELLED", "reason": "timeout"
+        })
+        rooms[room_id]["mode"] = "ACTIVE"
+        rooms[room_id]["game67"] = None
+        print(f"[67] cancelled: no one ready in room {room_id}")
+    else:
+        g["started"] = True
+        await manager.broadcast_to_room(room_id, {"type": "GAME67_COUNTDOWN"})
+        asyncio.create_task(_game67_lifecycle(room_id))
+        print(f"[67] auto-start with {ready_count} ready in room {room_id}")
+
+
 async def _game67_lifecycle(room_id: str):
     """A1: Server 控制遊戲計時 — 3 秒倒數 + 20 秒遊戲 + 自動結算"""
     COUNTDOWN = 3
@@ -2535,31 +2558,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"Error updating 67 game state: {e}")
 
                 await manager.broadcast_to_room(room_id, {"type": "GAME67_STARTED"})
-
-                # A3: Ready 超時 — 30 秒沒全員準備就自動開始或取消
-                async def _game67_ready_timeout(rid):
-                    await asyncio.sleep(30)
-                    if rid not in rooms or not rooms[rid].get("game67"):
-                        return
-                    g = rooms[rid]["game67"]
-                    if g.get("started"):
-                        return  # 已經開始了
-                    ready_count = len(g["ready"])
-                    if ready_count == 0:
-                        # 沒人準備 → 取消
-                        await manager.broadcast_to_room(rid, {
-                            "type": "GAME67_CANCELLED", "reason": "timeout"
-                        })
-                        rooms[rid]["mode"] = "ACTIVE"
-                        rooms[rid]["game67"] = None
-                        print(f"[67] cancelled: no one ready in room {rid}")
-                    else:
-                        # 有人準備 → 直接開始
-                        g["started"] = True
-                        await manager.broadcast_to_room(rid, {"type": "GAME67_COUNTDOWN"})
-                        asyncio.create_task(_game67_lifecycle(rid))
-                        print(f"[67] auto-start with {ready_count} ready in room {rid}")
-
                 asyncio.create_task(_game67_ready_timeout(room_id))
 
             # 10. 玩家準備好了
@@ -2646,7 +2644,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     "last_broadcast": 0,
                     "task": None,
                 }
+                try:
+                    db.collection("rooms").document(room_id).update({"mode": "GAME_67"})
+                except Exception as e:
+                    print(f"Error updating 67 restart state: {e}")
                 await manager.broadcast_to_room(room_id, {"type": "GAME67_STARTED"})
+                asyncio.create_task(_game67_ready_timeout(room_id))
 
     except WebSocketDisconnect:
         manager.disconnect(user_id)

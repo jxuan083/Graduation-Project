@@ -261,8 +261,9 @@ async function handleSaveName() {
         const { createGroup, updateGroupName } = await import('../../features/groups/controller.js');
         if (!currentGroupId) {
             const { data } = await createGroup(name);
-            if (data?.group_id) {
-                currentGroupId = data.group_id;
+            const groupId = data?.group?.group_id || data?.group_id;
+            if (groupId) {
+                currentGroupId = groupId;
                 state.currentGroupDetail = { group_id: currentGroupId, name };
                 const titleEl = document.getElementById('group-setup-title');
                 if (titleEl) titleEl.textContent = '群組設定';
