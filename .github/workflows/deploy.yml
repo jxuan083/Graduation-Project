@@ -1,0 +1,59 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  GCP_PROJECT_ID: graduation-6ae65
+  GCP_REGION: asia-east1
+  CLOUD_RUN_SERVICE: phubbing-backend
+
+jobs:
+  # ── Frontend: Firebase Hosting ──
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.GCP_SA_EMAIL }}
+          projectId: graduation-6ae65
+          channelId: live
+
+  # ── Backend: Cloud Run (用 gcloud run deploy --source，免 Artifact Registry) ──
+  deploy-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run from source
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --source ./backend \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --quiet

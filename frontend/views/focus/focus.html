@@ -1,0 +1,34 @@
+<section id="view-focus" class="view">
+    <h2 class="status-title">聚會中 🔥</h2>
+    <p class="status-subtitle">把手機蓋著，享受當下的互動</p>
+
+    <div class="lottie-container" id="lottie-orb"></div>
+
+    <div class="setup-section" style="text-align:center; padding:12px 18px;">
+        <span style="font-size:0.85rem; color:var(--text-secondary);">分心次數</span>
+        <div style="font-size:2.2rem; font-weight:800; margin-top:4px;"><span id="deviation-count">0</span></div>
+    </div>
+
+    <button id="btn-focus-members-toggle" class="btn secondary members-toggle">
+        👥 成員 (<span id="focus-member-count">0</span>)
+    </button>
+    <div id="focus-members-panel" class="members-panel" style="display:none;">
+        <ul id="focus-member-list-ul" class="member-ul"></ul>
+    </div>
+
+    <div id="host-only-controls" style="display:none; width:100%;">
+        <button id="btn-mode-qa"    class="btn primary blue">❓ 發起團體問答</button>
+        <button id="btn-mode-taboo" class="btn primary blue">🎯 發起關鍵字遊戲</button>
+        <button id="btn-mode-67"    class="btn primary blue">💥 發起 67 挑戰</button>
+    </div>
+
+    <div id="meeting-photo-controls" style="width:100%;">
+        <button id="btn-meeting-camera" class="btn secondary">📷 開啟相機</button>
+        <button id="btn-meeting-album" class="btn secondary">🖼️ 從相簿選擇</button>
+    </div>
+    <input id="meeting-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
+    <input id="meeting-album-input" type="file" accept="image/*" style="display:none;" />
+
+    <button id="btn-focus-invite" class="btn secondary">📤 邀請朋友加入</button>
+    <button id="btn-end-session"  class="btn secondary">結束聚會</button>
+</section>

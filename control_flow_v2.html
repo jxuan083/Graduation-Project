@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>反低頭社交系統 · 後端控制流規格 v2</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --surface-2: #f3f1eb;
+    --text: #1f1f1c;
+    --text-2: #5f5e5a;
+    --text-3: #888780;
+    --border: rgba(0,0,0,0.1);
+    --border-2: rgba(0,0,0,0.18);
+    --accent: #185FA5;
+    --accent-bg: #E6F1FB;
+    --accent-text: #0C447C;
+    --success: #3B6D11;
+    --success-bg: #EAF3DE;
+    --warn: #854F0B;
+    --warn-bg: #FAEEDA;
+    --danger: #A32D2D;
+    --danger-bg: #FCEBEB;
+    --purple: #534AB7;
+    --purple-bg: #EEEDFE;
+    --teal: #0F6E56;
+    --teal-bg: #E1F5EE;
+    --coral: #993C1D;
+    --coral-bg: #FAECE7;
+    --code-bg: #f0ede4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141412;
+      --surface: #1e1e1b;
+      --surface-2: #26251f;
+      --text: #e8e6de;
+      --text-2: #b4b2a9;
+      --text-3: #888780;
+      --border: rgba(255,255,255,0.12);
+      --border-2: rgba(255,255,255,0.22);
+      --accent: #85B7EB;
+      --accent-bg: #0C447C;
+      --accent-text: #B5D4F4;
+      --success: #97C459;
+      --success-bg: #173404;
+      --warn: #EF9F27;
+      --warn-bg: #412402;
+      --danger: #F09595;
+      --danger-bg: #501313;
+      --purple: #AFA9EC;
+      --purple-bg: #26215C;
+      --teal: #5DCAA5;
+      --teal-bg: #04342C;
+      --coral: #F0997B;
+      --coral-bg: #4A1B0C;
+      --code-bg: #26251f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    font-size: 15px; line-height: 1.65;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 32px 96px; }
+  h1 { font-size: 28px; font-weight: 500; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-2); font-size: 14px; margin: 0 0 24px; }
+  .version-badge { display: inline-block; background: var(--coral-bg); color: var(--coral); padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
+  .meta { display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 16px; background: var(--surface-2); border-radius: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 32px; }
+  .meta span strong { color: var(--text); font-weight: 500; }
+  h2 { font-size: 20px; font-weight: 500; margin: 56px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); letter-spacing: -0.005em; }
+  h3 { font-size: 16px; font-weight: 500; margin: 32px 0 12px; color: var(--text); }
+  h4 { font-size: 14px; font-weight: 500; margin: 20px 0 8px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 24px; }
+  li { margin-bottom: 4px; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text); }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.55; margin: 12px 0 16px; border: 1px solid var(--border); }
+  pre code { background: none; padding: 0; font-size: 13px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 10px; margin-right: 6px; vertical-align: middle; }
+  .tag-new { background: var(--coral-bg); color: var(--coral); }
+  .tag-phase { background: var(--accent-bg); color: var(--accent-text); }
+  .tag-client { background: var(--teal-bg); color: var(--teal); }
+  .tag-baas { background: var(--purple-bg); color: var(--purple); }
+  .callout { background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 16px; margin: 16px 0; font-size: 14px; border-radius: 4px; }
+  .callout-warn { border-left-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
+  .callout-err { border-left-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+  .callout-new { border-left-color: var(--coral); background: var(--coral-bg); color: var(--coral); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0 20px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 500; color: var(--text-2); background: var(--surface-2); font-size: 12px; }
+  td code { font-size: 12px; }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 40px; font-size: 14px; }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc a { color: var(--text); text-decoration: none; }
+  .toc a:hover { color: var(--accent); }
+  .toc li { margin-bottom: 6px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0 24px; font-size: 12px; color: var(--text-2); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border-2); }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; fill: var(--text); }
+  svg text.sub { fill: var(--text-2); font-size: 11px; }
+  svg .node-rect { fill: var(--surface); stroke: var(--border-2); stroke-width: 1; }
+  svg .decision { fill: var(--warn-bg); stroke: var(--warn); stroke-width: 1; }
+  svg .decision-text { fill: var(--warn); font-weight: 500; }
+  svg .terminal { fill: var(--surface-2); stroke: var(--border-2); stroke-width: 1; }
+  svg .success-node { fill: var(--success-bg); stroke: var(--success); stroke-width: 1; }
+  svg .error-node { fill: var(--danger-bg); stroke: var(--danger); stroke-width: 1; }
+  svg .client-node { fill: var(--teal-bg); stroke: var(--teal); stroke-width: 1; }
+  svg .baas-node { fill: var(--purple-bg); stroke: var(--purple); stroke-width: 1; }
+  svg .new-node { fill: var(--coral-bg); stroke: var(--coral); stroke-width: 1.2; }
+  svg .flow-line { stroke: var(--text-2); stroke-width: 1; fill: none; }
+  svg .flow-line-err { stroke: var(--danger); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  .section-intro { color: var(--text-2); font-size: 14px; margin-bottom: 20px; }
+  .arch-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  .arch-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+  .arch-col.client { border-color: var(--teal); }
+  .arch-col.baas { border-color: var(--purple); }
+  .arch-col h4 { margin-top: 0; }
+  @media (max-width: 700px) {
+    .arch-split { grid-template-columns: 1fr; }
+    .wrap { padding: 24px 16px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>反低頭社交系統 · 後端控制流規格 <span class="version-badge">v2</span></h1>
+<p class="subtitle">整合組員討論調整 · 含帳號系統、NFC 入場、AI/ML 分析、排行榜、群組寵物與回憶錄報紙</p>
+
+<div class="meta">
+  <span><strong>文件目的</strong> 後端實作參考</span>
+  <span><strong>架構</strong> Client + BaaS（Firebase/Supabase）</span>
+  <span><strong>v2 新增</strong> 帳號系統、NFC、Q&A（可編輯題庫）、AI/ML、排行榜、群組寵物、回憶錄報紙、聚會照片</span>
+</div>
+
+<div class="callout callout-new">
+  <strong>v2 相對 v1 主要變更</strong><br>
+  ① 移除聚會期間植物／動物生態，改為極簡共享螢幕 · ② 群組寵物：選定群組內某人為寵物（頭=該人臉，身體=去頭 emoji 動物），聚會中不出現，結束時依品質獲得能量或損失生命 · ③ 遺產卡改為「回憶錄報紙」，支援錄音轉文字抓高光時刻 · ④ 擴充情境預設選項 · ⑤ 新增聚會中 optional Q&A（題庫可編輯）· ⑥ 新增全站排行榜 · ⑦ 入場主路徑 NFC（QR 降級）· ⑧ 新增 AI/ML 處理階段（LLM 摘要、表現分析、對話建議）· ⑨ 明確 Client/BaaS 分層架構、加入完整帳號註冊登入流程 · ⑩ 新增聚會照片上傳功能。
+</div>
+
+<div class="toc">
+  <strong style="display: block; margin-bottom: 10px; font-size: 13px; color: var(--text-2);">目錄</strong>
+  <ol>
+    <li><a href="#s0">架構總覽與 Client/BaaS 分層</a></li>
+    <li><a href="#s1">使用者帳號系統（註冊 / 登入）</a> <span class="tag tag-new">NEW</span></li>
+    <li><a href="#s2">Phase 0 · 會前設定（含群組寵物初始化）</a></li>
+    <li><a href="#s3">Phase 1 · 入場定錨（NFC + QR fallback）</a></li>
+    <li><a href="#s4">Phase 2 · 聚會進行（含 optional Q&A）</a></li>
+    <li><a href="#s4q">Phase 2 補充 · 聚會品質監測與難度參數</a> <span class="tag tag-new">v2.1</span></li>
+    <li><a href="#s5">Phase 3 · 結束偵測</a></li>
+    <li><a href="#s6">Phase 4 · 回憶錄報紙生成 + AI/ML 處理</a></li>
+    <li><a href="#s7">Phase 5 · 資料分流（含感情積分、排行榜、群組寵物更新）</a></li>
+    <li><a href="#s8">跨階段共用邏輯</a></li>
+    <li><a href="#s9">資料模型與 API 契約</a></li>
+    <li><a href="#s10">實作優先序建議（四階段 Sprint）</a></li>
+  </ol>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--teal-bg); border-color: var(--teal);"></div>Client（App 端）邏輯</div>
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--purple-bg); border-color: var(--purple);"></div>BaaS（雲端後端）邏輯</div>
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--warn-bg); border-color: var(--warn);"></div>決策節點</div>
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--success-bg); border-color: var(--success);"></div>成功路徑</div>
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--danger-bg); border-color: var(--danger);"></div>錯誤路徑</div>
+  <div class="legend-item"><div class="legend-swatch" style="background: var(--coral-bg); border-color: var(--coral);"></div>v2 新增模組</div>
+</div>
+
+<hr>
+
+<h2 id="s0">0. 架構總覽與 Client/BaaS 分層</h2>
+<p class="section-intro">本系統為典型 BaaS 架構：前端 App 處理 UI、感測器、邊緣運算；後端由 Firebase 或 Supabase 提供驗證、資料庫、雲端函數。</p>
+
+<svg width="100%" viewBox="0 0 860 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="30" y="30" width="800" height="240" rx="12" fill="none" stroke="var(--teal)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="50" y="54" style="fill: var(--teal); font-weight: 500;">一、Client 端（iOS / Android App）</text>
+
+  <rect x="50" y="70" width="180" height="60" rx="8" class="client-node"/>
+  <text x="140" y="94" text-anchor="middle">使用者介面 UI</text>
+  <text x="140" y="112" text-anchor="middle" class="sub">登入／設定／聚會／排行</text>
+
+  <rect x="250" y="70" width="180" height="60" rx="8" class="client-node"/>
+  <text x="340" y="94" text-anchor="middle">Auth SDK</text>
+  <text x="340" y="112" text-anchor="middle" class="sub">取得 UID</text>
+
+  <rect x="450" y="70" width="180" height="60" rx="8" class="client-node"/>
+  <text x="540" y="94" text-anchor="middle">感測器讀取</text>
+  <text x="540" y="112" text-anchor="middle" class="sub">姿態／螢幕／Wi-Fi／NFC</text>
+
+  <rect x="650" y="70" width="160" height="60" rx="8" class="client-node"/>
+  <text x="730" y="94" text-anchor="middle">Edge Computing</text>
+  <text x="730" y="112" text-anchor="middle" class="sub">on-device VAD / Whisper</text>
+
+  <rect x="50" y="160" width="280" height="60" rx="8" class="client-node"/>
+  <text x="190" y="184" text-anchor="middle">事件批次化與本地 queue</text>
+  <text x="190" y="202" text-anchor="middle" class="sub">離線暫存 · 每 5 秒批次上傳</text>
+
+  <rect x="350" y="160" width="280" height="60" rx="8" class="client-node"/>
+  <text x="490" y="184" text-anchor="middle">共享螢幕 renderer</text>
+  <text x="490" y="202" text-anchor="middle" class="sub">極簡視覺（時間／專注數／Q&A）</text>
+
+  <rect x="650" y="160" width="160" height="60" rx="8" class="client-node"/>
+  <text x="730" y="184" text-anchor="middle">背景任務</text>
+  <text x="730" y="202" text-anchor="middle" class="sub">iOS Background / Android Service</text>
+
+  <path d="M 440 270 L 440 290" class="flow-line" marker-end="url(#arr0)"/>
+  <text x="455" y="286" class="sub">雙向同步</text>
+
+  <rect x="30" y="300" width="800" height="240" rx="12" fill="none" stroke="var(--purple)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="50" y="324" style="fill: var(--purple); font-weight: 500;">二、BaaS 雲端後端（Firebase / Supabase）</text>
+
+  <rect x="50" y="340" width="150" height="60" rx="8" class="baas-node"/>
+  <text x="125" y="364" text-anchor="middle">Auth 服務</text>
+  <text x="125" y="382" text-anchor="middle" class="sub">Email / OAuth / Anonymous</text>
+
+  <rect x="220" y="340" width="150" height="60" rx="8" class="baas-node"/>
+  <text x="295" y="364" text-anchor="middle">Users 資料表</text>
+  <text x="295" y="382" text-anchor="middle" class="sub">profile / stats / score</text>
+
+  <rect x="390" y="340" width="190" height="60" rx="8" class="baas-node"/>
+  <text x="485" y="364" text-anchor="middle">Sessions 與 SensorData</text>
+  <text x="485" y="382" text-anchor="middle" class="sub">Firestore / Realtime DB</text>
+
+  <rect x="600" y="340" width="210" height="60" rx="8" class="baas-node"/>
+  <text x="705" y="364" text-anchor="middle">Storage（頭像、去背照片）</text>
+  <text x="705" y="382" text-anchor="middle" class="sub">Firebase Storage / S3</text>
+
+  <rect x="50" y="420" width="190" height="60" rx="8" class="baas-node"/>
+  <text x="145" y="444" text-anchor="middle">Cloud Functions</text>
+  <text x="145" y="462" text-anchor="middle" class="sub">任務結束後處理</text>
+
+  <rect x="260" y="420" width="170" height="60" rx="8" class="baas-node"/>
+  <text x="345" y="444" text-anchor="middle">AI / ML pipeline</text>
+  <text x="345" y="462" text-anchor="middle" class="sub">LLM 摘要 · 分析</text>
+
+  <rect x="450" y="420" width="170" height="60" rx="8" class="baas-node"/>
+  <text x="535" y="444" text-anchor="middle">Leaderboard 服務</text>
+  <text x="535" y="462" text-anchor="middle" class="sub">Redis sorted set</text>
+
+  <rect x="640" y="420" width="170" height="60" rx="8" class="baas-node"/>
+  <text x="725" y="444" text-anchor="middle">Push Notification</text>
+  <text x="725" y="462" text-anchor="middle" class="sub">APNs / FCM</text>
+
+  <text x="440" y="515" text-anchor="middle" class="sub">所有 Client/BaaS 通訊走 HTTPS · 即時資料透過 WebSocket 或 Firestore snapshot listener</text>
+</svg>
+
+<h3>0.1 推薦技術棧</h3>
+<div class="arch-split">
+  <div class="arch-col client">
+    <h4 style="color: var(--teal);">Client 端</h4>
+    <ul>
+      <li><strong>框架</strong>：React Native（跨平台）或原生 Swift + Kotlin</li>
+      <li><strong>感測器</strong>：<code>CoreMotion</code> (iOS) / <code>SensorManager</code> (Android)</li>
+      <li><strong>NFC</strong>：<code>CoreNFC</code> (iOS 11+) / <code>NfcAdapter</code> (Android)</li>
+      <li><strong>Edge VAD</strong>：TensorFlow Lite + WebRTC VAD</li>
+      <li><strong>Edge Whisper</strong>：<code>whisper.cpp</code> tiny model（選配，Layer 3 才用）</li>
+      <li><strong>背景去背</strong>：iOS 16+ Vision API / Android ML Kit Segmentation</li>
+      <li><strong>本地儲存</strong>：SQLite（事件 queue）</li>
+    </ul>
+  </div>
+  <div class="arch-col baas">
+    <h4 style="color: var(--purple);">BaaS 端</h4>
+    <ul>
+      <li><strong>主選擇</strong>：Firebase（Auth + Firestore + Functions + Storage）</li>
+      <li><strong>次選擇</strong>：Supabase（Postgres 更好、Realtime 更透明）</li>
+      <li><strong>ML</strong>：Cloud Functions 呼叫 Anthropic / OpenAI API</li>
+      <li><strong>Leaderboard</strong>：Firebase Extensions 或 Redis sorted set</li>
+      <li><strong>推播</strong>：FCM（跨平台）</li>
+      <li><strong>監控</strong>：Crashlytics + Performance Monitoring</li>
+    </ul>
+  </div>
+</div>
+
+<h3>0.2 Session 狀態機（延續 v1）</h3>
+<p>狀態：<code>CREATED → LOBBY → ACTIVE → ENDED → ARCHIVED → CLOSED</code>，任一階段可 <code>ABORTED</code>。非法轉移一律由 Cloud Functions 拒絕並記錄。</p>
+
+<hr>
+
+<h2 id="s1">1. 使用者帳號系統 <span class="tag tag-new">v2 NEW</span></h2>
+<p class="section-intro">所有功能的前置條件——使用者必須先註冊並登入取得 <code>uid</code>，才能建立或加入聚會。此流程為附圖最左側「登入／註冊 → Auth SDK → 取得 UID」的展開。</p>
+
+<svg width="100%" viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-auth" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">App 啟動</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-auth)"/>
+
+  <polygon points="430,88 540,128 430,168 320,128" class="decision"/>
+  <text x="430" y="124" text-anchor="middle" class="decision-text">本地有</text>
+  <text x="430" y="139" text-anchor="middle" class="decision-text">有效 token?</text>
+
+  <line x1="540" y1="128" x2="640" y2="128" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="590" y="118" class="sub">是</text>
+  <rect x="640" y="108" width="180" height="40" rx="8" class="success-node"/>
+  <text x="730" y="133" text-anchor="middle" style="fill: var(--success);">直接進入主頁</text>
+
+  <line x1="430" y1="168" x2="430" y2="196" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="445" y="188" class="sub">否</text>
+
+  <rect x="320" y="196" width="220" height="44" rx="8" class="client-node"/>
+  <text x="430" y="222" text-anchor="middle">顯示登入 / 註冊頁</text>
+  <line x1="430" y1="240" x2="430" y2="264" class="flow-line" marker-end="url(#arr-auth)"/>
+
+  <polygon points="430,268 540,308 430,348 320,308" class="decision"/>
+  <text x="430" y="304" text-anchor="middle" class="decision-text">選擇</text>
+  <text x="430" y="319" text-anchor="middle" class="decision-text">登入方式</text>
+
+  <line x1="320" y1="308" x2="230" y2="308" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="270" y="298" class="sub">OAuth</text>
+  <rect x="40" y="288" width="190" height="40" rx="8" class="client-node"/>
+  <text x="135" y="312" text-anchor="middle">Google / Apple OAuth</text>
+
+  <line x1="430" y1="348" x2="430" y2="372" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="445" y="366" class="sub">Email</text>
+  <rect x="340" y="372" width="180" height="40" rx="8" class="client-node"/>
+  <text x="430" y="396" text-anchor="middle">Email + 密碼</text>
+
+  <line x1="540" y1="308" x2="640" y2="308" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="590" y="298" class="sub">匿名</text>
+  <rect x="640" y="288" width="180" height="40" rx="8" class="client-node"/>
+  <text x="730" y="312" text-anchor="middle">Anonymous（試用）</text>
+
+  <line x1="135" y1="328" x2="135" y2="432" class="flow-line"/>
+  <line x1="430" y1="412" x2="430" y2="432" class="flow-line"/>
+  <line x1="730" y1="328" x2="730" y2="432" class="flow-line"/>
+  <line x1="135" y1="432" x2="730" y2="432" class="flow-line"/>
+  <line x1="430" y1="432" x2="430" y2="456" class="flow-line" marker-end="url(#arr-auth)"/>
+
+  <rect x="310" y="456" width="240" height="44" rx="8" class="baas-node"/>
+  <text x="430" y="482" text-anchor="middle">BaaS Auth 驗證 → 取得 UID</text>
+  <line x1="430" y1="500" x2="430" y2="524" class="flow-line" marker-end="url(#arr-auth)"/>
+
+  <polygon points="430,528 540,568 430,608 320,568" class="decision"/>
+  <text x="430" y="564" text-anchor="middle" class="decision-text">profile 已</text>
+  <text x="430" y="579" text-anchor="middle" class="decision-text">完成設定?</text>
+
+  <line x1="320" y1="568" x2="220" y2="568" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="270" y="558" class="sub">否（新用戶）</text>
+  <rect x="40" y="548" width="180" height="40" rx="8" class="node-rect"/>
+  <text x="130" y="572" text-anchor="middle">建立 Users 文件</text>
+  <text x="130" y="587" text-anchor="middle" class="sub">寫入 display_name、頭像</text>
+
+  <line x1="540" y1="568" x2="640" y2="568" class="flow-line" marker-end="url(#arr-auth)"/>
+  <text x="590" y="558" class="sub">是</text>
+  <rect x="640" y="548" width="180" height="40" rx="8" class="success-node"/>
+  <text x="730" y="572" text-anchor="middle" style="fill: var(--success); font-weight: 500;">→ 進入主頁</text>
+</svg>
+
+<h3>1.1 Users 資料表結構</h3>
+<pre><code>// BaaS: users collection
+interface User {
+  uid: string;                        // from Auth
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;          // 基礎頭像（大頭貼）
+  cutout_avatar_url: string | null;   // 去背版本（群組寵物頭部使用）
+  created_at: ISO8601;
+  last_active_at: ISO8601;
+
+  // 統計數據
+  total_sessions: number;
+  total_focus_minutes: number;
+  current_streak: number;             // 連續無手機聚會天數
+
+  // 排行榜
+  performance_score: number;          // 全域表現積分（累加）
+  rank_weekly: number | null;         // 快取用
+  rank_global: number | null;
+
+  // 偏好
+  preferred_difficulty: "L" | "M" | "H";
+  notifications_enabled: boolean;
+}</code></pre>
+
+<h3>1.2 頭像去背流程</h3>
+<p>使用者上傳頭像時，系統自動產生兩個版本：原始頭像（大頭貼用）與去背版本（群組寵物頭部用）。去背使用裝置端 ML（iOS Vision / Android ML Kit Segmentation），失敗時 fallback 到 Remove.bg API。</p>
+
+<pre><code>async function uploadAvatar(file: File): Promise&lt;{ avatar: string, cutout: string }&gt; {
+  const originalUrl = await storage.upload(file, `users/${uid}/avatar.jpg`);
+
+  try {
+    const cutoutBlob = await onDeviceSegmentation(file);  // Vision / MLKit
+    const cutoutUrl = await storage.upload(cutoutBlob, `users/${uid}/cutout.png`);
+    return { avatar: originalUrl, cutout: cutoutUrl };
+  } catch (e) {
+    const cutoutBlob = await callRemoveBgAPI(file);
+    const cutoutUrl = await storage.upload(cutoutBlob, `users/${uid}/cutout.png`);
+    return { avatar: originalUrl, cutout: cutoutUrl };
+  }
+}</code></pre>
+
+<hr>
+
+<h2 id="s2">2. Phase 0 · 會前設定（含群組寵物初始化）</h2>
+<p class="section-intro">主持者建立 session 的流程。v2 新增「Q&A 開關（可編輯題庫）」、「情境預設擴充」、「聚會照片開關」，並明確群組寵物的初始化邏輯。</p>
+
+<h3>2.1 情境預設表 <span class="tag tag-new">v2 擴充</span></h3>
+<p>使用者選擇情境，系統自動載入對應的難度預設、時長預設、Q&A 建議池。實體聚會場景為主要支援類型。</p>
+
+<table>
+<thead><tr><th>情境 ID</th><th>顯示名稱</th><th>預設難度</th><th>預設時長</th><th>Q&A 池主題</th></tr></thead>
+<tbody>
+<tr><td><code>general</code></td><td>一般聚會</td><td>L</td><td>90 min</td><td>破冰、近況</td></tr>
+<tr><td><code>meeting</code></td><td>正式會議</td><td>H</td><td>60 min</td><td>無（預設關閉）</td></tr>
+<tr><td><code>family</code></td><td>家庭聚會</td><td>L</td><td>120 min</td><td>懷舊、近況、感恩</td></tr>
+<tr><td><code>study</code></td><td>讀書會</td><td>M</td><td>90 min</td><td>學習反思</td></tr>
+<tr><td><code>class</code></td><td>上課</td><td>H</td><td>50 min</td><td>無</td></tr>
+<tr><td><code>meal</code></td><td>用餐聚會</td><td>L</td><td>90 min</td><td>輕鬆話題</td></tr>
+<tr><td><code>date</code></td><td>約會</td><td>M</td><td>120 min</td><td>深度話題</td></tr>
+<tr><td><code>celebration</code></td><td>慶祝活動</td><td>L</td><td>120 min</td><td>祝福、回顧</td></tr>
+<tr><td><code>workshop</code></td><td>工作坊</td><td>M</td><td>180 min</td><td>學習反思</td></tr>
+<tr><td><code>team</code></td><td>團體活動</td><td>M</td><td>120 min</td><td>團隊協作</td></tr>
+<tr><td><code>custom</code></td><td>自訂</td><td>使用者選</td><td>使用者選</td><td>使用者選</td></tr>
+</tbody>
+</table>
+
+<h3>2.2 會前設定控制流</h3>
+
+<svg width="100%" viewBox="0 0 860 680" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-p0" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">主持者：建立 Session</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <polygon points="430,88 540,128 430,168 320,128" class="decision"/>
+  <text x="430" y="124" text-anchor="middle" class="decision-text">建立新群組</text>
+  <text x="430" y="139" text-anchor="middle" class="decision-text">或用既有?</text>
+
+  <line x1="320" y1="128" x2="220" y2="128" class="flow-line" marker-end="url(#arr-p0)"/>
+  <text x="270" y="118" class="sub">新群組</text>
+  <rect x="30" y="78" width="190" height="110" rx="8" class="new-node"/>
+  <text x="125" y="100" text-anchor="middle" style="fill: var(--coral); font-weight: 500;">建立群組流程</text>
+  <text x="125" y="118" text-anchor="middle" class="sub">輸入群組名稱</text>
+  <text x="125" y="134" text-anchor="middle" class="sub">邀請成員</text>
+  <text x="125" y="150" text-anchor="middle" class="sub">選定某人為「寵物」</text>
+  <text x="125" y="166" text-anchor="middle" class="sub">選擇 emoji 動物身體</text>
+  <text x="125" y="182" text-anchor="middle" class="sub">寵物人的臉去背→頭部</text>
+
+  <line x1="540" y1="128" x2="640" y2="128" class="flow-line" marker-end="url(#arr-p0)"/>
+  <text x="590" y="118" class="sub">既有</text>
+  <rect x="640" y="108" width="180" height="40" rx="8" class="node-rect"/>
+  <text x="730" y="132" text-anchor="middle">載入 group_id 與成員</text>
+
+  <line x1="430" y1="168" x2="430" y2="200" class="flow-line"/>
+  <line x1="125" y1="178" x2="125" y2="200" class="flow-line"/>
+  <line x1="730" y1="148" x2="730" y2="200" class="flow-line"/>
+  <line x1="125" y1="200" x2="730" y2="200" class="flow-line"/>
+  <line x1="430" y1="200" x2="430" y2="224" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <rect x="310" y="224" width="240" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="246" text-anchor="middle">選擇情境（11 種預設）</text>
+  <text x="430" y="262" text-anchor="middle" class="sub">自動載入難度與時長</text>
+  <line x1="430" y1="274" x2="430" y2="296" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <rect x="310" y="296" width="240" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="318" text-anchor="middle">調整難度（可覆寫預設）</text>
+  <text x="430" y="334" text-anchor="middle" class="sub">載入 buffer/wither/growth 參數</text>
+  <line x1="430" y1="346" x2="430" y2="368" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <polygon points="430,372 540,412 430,452 320,412" class="decision"/>
+  <text x="430" y="408" text-anchor="middle" class="decision-text">啟用</text>
+  <text x="430" y="423" text-anchor="middle" class="decision-text">選配功能?</text>
+
+  <line x1="540" y1="412" x2="640" y2="412" class="flow-line" marker-end="url(#arr-p0)"/>
+  <rect x="640" y="370" width="200" height="112" rx="8" class="new-node"/>
+  <text x="740" y="392" text-anchor="middle" style="fill: var(--coral); font-weight: 500;">選配開關</text>
+  <text x="740" y="412" text-anchor="middle" class="sub">VAD 對話偵測</text>
+  <text x="740" y="428" text-anchor="middle" class="sub">會中 Q&A（可自訂題庫）</text>
+  <text x="740" y="444" text-anchor="middle" class="sub">AI 回憶錄報紙</text>
+  <text x="740" y="460" text-anchor="middle" class="sub">排行榜參賽</text>
+  <text x="740" y="476" text-anchor="middle" class="sub">聚會照片上傳</text>
+
+  <line x1="430" y1="452" x2="430" y2="480" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <rect x="310" y="480" width="240" height="56" rx="8" class="node-rect"/>
+  <text x="430" y="502" text-anchor="middle">Cloud Function 寫入 Session</text>
+  <text x="430" y="520" text-anchor="middle" class="sub">state = CREATED · 載入 config</text>
+  <line x1="430" y1="536" x2="430" y2="558" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <rect x="250" y="558" width="360" height="60" rx="8" class="new-node"/>
+  <text x="430" y="582" text-anchor="middle" style="fill: var(--coral); font-weight: 500;">產生入場媒介（主 NFC + 降級 QR）</text>
+  <text x="430" y="602" text-anchor="middle" class="sub">NFC tag payload: deeplink URL · QR 編碼相同 payload</text>
+  <line x1="430" y1="618" x2="430" y2="640" class="flow-line" marker-end="url(#arr-p0)"/>
+
+  <rect x="340" y="640" width="180" height="36" rx="8" class="success-node"/>
+  <text x="430" y="662" text-anchor="middle" style="fill: var(--success); font-weight: 500;">→ Phase 1（LOBBY）</text>
+</svg>
+
+<h3>2.3 群組寵物初始化 <span class="tag tag-new">v2.1 NEW</span></h3>
+<p>群組建立時，成員們投票或指定一位成員成為「寵物」。被選中者的去背臉部照片作為寵物頭部，搭配成員共同選擇的去頭 emoji 動物身體。寵物在聚會期間不會出現，僅在聚會結束時依據品質評分獲得能量或損失生命值。</p>
+
+<pre><code>// 群組建立時
+interface Group {
+  group_id: UUID;
+  name: string;
+  creator_uid: UUID;
+  member_uids: UUID[];
+  created_at: ISO8601;
+
+  // v2.1 新增：群組寵物系統
+  pet_target_uid: UUID;                  // 被選為寵物的那個人
+  pet_body_emoji: string;                // 去頭 emoji（"🐰"/"🐻"/"🐱"/"🐶"/"🦊"/"🐸"/"🐧"等）
+  pet_name: string;                      // 寵物暱稱（可自訂）
+  pet_energy: number;                    // 能量值 0-100（>=0 存活，=0 瀕死）
+  pet_max_energy: number;                // 目前上限，隨等級成長
+  pet_hp: number;                        // 生命值 0-5（歸零 = 需要急救復活）
+  pet_level: number;                     // 等級（能量累積解鎖）
+  pet_accumulated_score: number;         // 歷史總能量累積
+  pet_accessories: string[];             // 解鎖的配件
+  pet_last_fed_at: ISO8601;              // 最後一次餵食（聚會結束時）
+  pet_status: "HAPPY" | "NORMAL" | "HUNGRY" | "CRITICAL";  // 依能量動態計算
+}</code></pre>
+
+<div class="callout callout-new">
+<strong>寵物能量與生命值機制</strong><br>
+<strong>聚會品質好（group_quality_score ≥ 70）</strong>：寵物獲得能量 +N，能量滿則升級。<br>
+<strong>聚會品質中等（40-69）</strong>：寵物能量不變。<br>
+<strong>聚會品質差（< 40）</strong>：寵物損失生命 -1 HP。HP 歸零後寵物進入「瀕死」狀態，下次聚會品質需 ≥ 80 才能復活。<br>
+<strong>長期未聚會（> 14 天）</strong>：能量每天自然衰減 -2，直到 HUNGRY 狀態，但不會扣 HP。<br>
+<br>
+寵物頭部 = 被選中的成員的 <code>cutout_avatar_url</code>（去背臉部照片）<br>
+寵物身體 = 去頭的 emoji 動物圖案（成員建群時共同選擇）
+</div>
+
+<h3>2.4 Session Config 結構（v2 擴充）</h3>
+<pre><code>interface SessionConfig {
+  session_id: UUID;
+  host_uid: UUID;
+  group_id: UUID | null;
+  context: "general" | "meeting" | "family" | "study" | "class" |
+           "meal" | "date" | "celebration" | "workshop" | "team" | "custom";
+  difficulty: "L" | "M" | "H";
+  expected_duration_min: number;
+
+  // 選配功能開關
+  vad_enabled: boolean;
+  in_meeting_qa_enabled: boolean;       // v2 新增
+  qa_custom_questions: string[];        // v2.1 新增：主持者自訂題目
+  ai_summary_enabled: boolean;          // v2 新增（預設 true）
+  leaderboard_opt_in: boolean;          // v2 新增（預設 true）
+  photo_capture_enabled: boolean;       // v2.1 新增：聚會照片上傳
+
+  // 入場媒介
+  entry_nfc_payload: string;            // v2 新增
+  entry_qr_code: string;
+  qr_expires_at: ISO8601;
+
+  host_note: string | null;
+  created_at: ISO8601;
+}</code></pre>
+
+<hr>
+
+<h2 id="s3">3. Phase 1 · 入場定錨（NFC 主路徑 + QR fallback） <span class="tag tag-new">v2 NFC</span></h2>
+<p class="section-intro">v2 主要入場方式改為 NFC tap；當裝置不支援或感應失敗時自動降級 QR。兩者後續流程完全一致。</p>
+
+<svg width="100%" viewBox="0 0 860 680" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-p1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">成員打開 App</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <polygon points="430,88 540,128 430,168 320,128" class="decision"/>
+  <text x="430" y="124" text-anchor="middle" class="decision-text">裝置 NFC</text>
+  <text x="430" y="139" text-anchor="middle" class="decision-text">可用?</text>
+
+  <line x1="540" y1="128" x2="640" y2="128" class="flow-line" marker-end="url(#arr-p1)"/>
+  <text x="590" y="118" class="sub">是</text>
+  <rect x="640" y="108" width="180" height="40" rx="8" class="new-node"/>
+  <text x="730" y="128" text-anchor="middle" style="fill: var(--coral);">主路徑：NFC tap</text>
+  <text x="730" y="143" text-anchor="middle" class="sub">讀 tag 取 payload</text>
+
+  <line x1="320" y1="128" x2="220" y2="128" class="flow-line-err" marker-end="url(#arr-p1)"/>
+  <text x="270" y="118" class="sub">否 / 失敗</text>
+  <rect x="40" y="108" width="180" height="40" rx="8" class="node-rect"/>
+  <text x="130" y="128" text-anchor="middle">降級：掃 QR</text>
+  <text x="130" y="143" text-anchor="middle" class="sub">相同 payload 格式</text>
+
+  <line x1="130" y1="148" x2="130" y2="184" class="flow-line"/>
+  <line x1="730" y1="148" x2="730" y2="184" class="flow-line"/>
+  <line x1="130" y1="184" x2="730" y2="184" class="flow-line"/>
+  <line x1="430" y1="184" x2="430" y2="208" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <polygon points="430,212 540,252 430,292 320,252" class="decision"/>
+  <text x="430" y="248" text-anchor="middle" class="decision-text">session 有效</text>
+  <text x="430" y="263" text-anchor="middle" class="decision-text">且未過期?</text>
+
+  <line x1="320" y1="252" x2="240" y2="252" class="flow-line-err" marker-end="url(#arr-p1)"/>
+  <rect x="40" y="232" width="200" height="40" rx="8" class="error-node"/>
+  <text x="140" y="250" text-anchor="middle" style="fill: var(--danger);">session 不存在/過期</text>
+  <text x="140" y="265" text-anchor="middle" class="sub">顯示錯誤 → 返回</text>
+
+  <line x1="430" y1="292" x2="430" y2="316" class="flow-line" marker-end="url(#arr-p1)"/>
+  <text x="445" y="308" class="sub">是</text>
+
+  <polygon points="430,320 540,360 430,400 320,360" class="decision"/>
+  <text x="430" y="356" text-anchor="middle" class="decision-text">已登入?</text>
+  <text x="430" y="371" text-anchor="middle" class="decision-text">（有 UID）</text>
+
+  <line x1="320" y1="360" x2="240" y2="360" class="flow-line-err" marker-end="url(#arr-p1)"/>
+  <rect x="40" y="340" width="200" height="40" rx="8" class="node-rect"/>
+  <text x="140" y="360" text-anchor="middle">跳轉到登入流程</text>
+  <text x="140" y="375" text-anchor="middle" class="sub">登入後回到此 session</text>
+
+  <line x1="430" y1="400" x2="430" y2="424" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <rect x="310" y="424" width="240" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="446" text-anchor="middle">Wi-Fi BSSID 驗證</text>
+  <text x="430" y="462" text-anchor="middle" class="sub">失敗降級到 GPS 距離 &lt; 50m</text>
+  <line x1="430" y1="474" x2="430" y2="498" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <polygon points="430,502 540,542 430,582 320,542" class="decision"/>
+  <text x="430" y="538" text-anchor="middle" class="decision-text">有啟用</text>
+  <text x="430" y="553" text-anchor="middle" class="decision-text">VAD 或 Q&A?</text>
+
+  <line x1="540" y1="542" x2="640" y2="542" class="flow-line" marker-end="url(#arr-p1)"/>
+  <text x="590" y="532" class="sub">是</text>
+  <rect x="640" y="518" width="180" height="54" rx="8" class="node-rect"/>
+  <text x="730" y="542" text-anchor="middle">額外同意書</text>
+  <text x="730" y="558" text-anchor="middle" class="sub">個別勾選 · 任一拒絕</text>
+  <text x="730" y="572" text-anchor="middle" class="sub">則該功能關閉</text>
+
+  <line x1="430" y1="582" x2="430" y2="608" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <rect x="310" y="608" width="240" height="44" rx="8" class="node-rect"/>
+  <text x="430" y="634" text-anchor="middle">Face-down 偵測（3 秒）</text>
+  <line x1="430" y1="652" x2="430" y2="670" class="flow-line" marker-end="url(#arr-p1)"/>
+
+  <rect x="340" y="670" width="180" height="6" rx="3" class="success-node"/>
+</svg>
+
+<h3>3.1 NFC 可行性說明</h3>
+
+<div class="callout">
+<strong>iOS 與 Android 的 NFC 能力差異</strong><br>
+<strong>Android</strong>：完整支援 NFC 讀寫與 P2P，所有現代裝置（Android 4.4+）內建 NFC 可用<code>Intent-filter</code> 自動啟動 App。<br>
+<strong>iOS</strong>：Core NFC 框架（iPhone 7+）可讀 NDEF 標籤但 P2P 已移除。iOS 11+ 需要使用者手動啟動掃描，iOS 14+ 支援背景自動偵測（需 App 註冊 domain）。<br>
+<strong>結論</strong>：NFC tag 方案可行但需確保 tag 內容為 NDEF URI 格式（<code>https://yourapp.com/join?s=...</code>），讓未安裝 App 的使用者也能引導到 App Store。
+</div>
+
+<h3>3.2 NFC Tag Payload 格式</h3>
+<pre><code>// NDEF URI 格式
+https://anchorapp.com/join?s={session_id}&t={short_token}
+
+// 展開後
+{
+  "scheme": "anchorapp",
+  "action": "join_session",
+  "session_id": "uuid-here",
+  "token": "6-digit-token",   // 短期憑證，伺服器驗證
+  "issued_at": "ISO8601"
+}
+
+// 客戶端處理
+async function handleNfcPayload(url: string) {
+  const params = parseUrl(url);
+  if (Date.now() - params.issued_at &gt; 7200_000) {
+    throw new Error("NFC_EXPIRED");
+  }
+  await joinSession(params.session_id, params.token);
+}</code></pre>
+
+<h3>3.3 部署策略建議</h3>
+<ul>
+<li><strong>場地預佈</strong>：固定聚會地點（教室、會議室）可貼永久 NFC 標籤，每次使用時主持者將 session token 寫入該 tag。</li>
+<li><strong>主持者手機充當 tag</strong>：使用 Android HCE (Host Card Emulation) 讓主持者手機扮演 NFC tag，成員靠近即可感應。iOS 目前不支援 HCE。</li>
+<li><strong>臨時聚會</strong>：主持者帶一張空白 NFC 標籤，App 現場寫入。或直接出 QR。</li>
+</ul>
+
+<hr>
+
+<h2 id="s4">4. Phase 2 · 聚會進行（含 optional Q&A） <span class="tag tag-new">v2 新增 Q&A</span></h2>
+<p class="section-intro">v2 移除聚會期間植物／動物視覺，共享螢幕改為極簡呈現。新增主持者 optional 觸發的會中 Q&A 小活動。</p>
+
+<h3>4.1 共享螢幕視覺元素（v2 極簡化）</h3>
+<table>
+<thead><tr><th>元素</th><th>一直顯示</th><th>說明</th></tr></thead>
+<tbody>
+<tr><td>Session 計時器</td><td>是</td><td>大字體，顯示已進行時間</td></tr>
+<tr><td>專注成員數</td><td>是</td><td>「5/5 face-down」或「4/5 in focus」</td></tr>
+<tr><td>情境色溫背景</td><td>是</td><td>依時段自動調整（calm tech）</td></tr>
+<tr><td>當前階段標示</td><td>是</td><td>暖身 · 高峰 · 緩和</td></tr>
+<tr><td>Q&A 卡片</td><td>僅主持者觸發時</td><td>覆蓋主畫面 30-60 秒 <span class="tag tag-new">NEW</span></td></tr>
+<tr><td>群體狀態提示</td><td>僅主持者開啟選配時</td><td>「全員專注已 20 分鐘」</td></tr>
+<tr><td>結束倒數</td><td>僅結束前 2 分鐘</td><td>溫和提示</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 Phase 2 事件驅動核心（v2 更新）</h3>
+
+<table>
+<thead><tr><th>事件類型</th><th>來源</th><th>頻率</th><th>處理</th></tr></thead>
+<tbody>
+<tr><td><code>POSTURE_CHANGED</code></td><td>Client 加速度計</td><td>姿態改變時</td><td>更新 posture_state</td></tr>
+<tr><td><code>SCREEN_STATE</code></td><td>Client OS 事件</td><td>螢幕狀態改變</td><td>更新 buffer 使用量</td></tr>
+<tr><td><code>WIFI_PING</code></td><td>Client 定時</td><td>30 秒</td><td>更新 presence</td></tr>
+<tr><td><code>VAD_SAMPLE</code></td><td>Edge Computing</td><td>1 秒聚合</td><td>累積語音節奏（不含原音）</td></tr>
+<tr><td><code>BUFFER_CHECK</code></td><td>系統定時</td><td>10 秒</td><td>評估緩衝</td></tr>
+<tr><td><code>PIN_EXEMPT</code></td><td>成員手動</td><td>觸發時</td><td>5 分鐘豁免</td></tr>
+<tr><td><code>HOST_COMMAND</code></td><td>主持者</td><td>觸發時</td><td>暫停／延長／結束</td></tr>
+<tr><td><code>QA_TRIGGER</code></td><td>主持者 <span class="tag tag-new">NEW</span></td><td>手動</td><td>觸發 Q&A 小活動</td></tr>
+<tr><td><code>QA_RESPONSE</code></td><td>成員 <span class="tag tag-new">NEW</span></td><td>Q&A 期間</td><td>接受回答（語音或短 tap）</td></tr>
+</tbody>
+</table>
+
+<h3>4.3 會中 Q&A 小活動控制流 <span class="tag tag-new">v2 NEW</span></h3>
+<p>Q&A 是短時間（30-90 秒）的結構化互動，作為額外的定錨機制——讓群體在當下有共同聚焦的目標。主持者可在任意時間觸發，每場聚會最多觸發 3 次（避免太干擾）。</p>
+
+<svg width="100%" viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-qa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">主持者點擊 Q&A 按鈕</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-qa)"/>
+
+  <polygon points="430,88 540,128 430,168 320,128" class="decision"/>
+  <text x="430" y="124" text-anchor="middle" class="decision-text">今日已觸發</text>
+  <text x="430" y="139" text-anchor="middle" class="decision-text">≥ 3 次?</text>
+
+  <line x1="320" y1="128" x2="240" y2="128" class="flow-line-err" marker-end="url(#arr-qa)"/>
+  <rect x="40" y="108" width="200" height="40" rx="8" class="error-node"/>
+  <text x="140" y="128" text-anchor="middle" style="fill: var(--danger);">提示「已達每場上限」</text>
+  <text x="140" y="143" text-anchor="middle" class="sub">中斷流程</text>
+
+  <line x1="430" y1="168" x2="430" y2="196" class="flow-line" marker-end="url(#arr-qa)"/>
+  <text x="445" y="188" class="sub">否</text>
+
+  <rect x="280" y="196" width="300" height="56" rx="8" class="node-rect"/>
+  <text x="430" y="218" text-anchor="middle">從 Q&A 池選題（依情境過濾）</text>
+  <text x="430" y="236" text-anchor="middle" class="sub">或主持者自訂問題（限 30 字內）</text>
+  <line x1="430" y1="252" x2="430" y2="276" class="flow-line" marker-end="url(#arr-qa)"/>
+
+  <polygon points="430,280 540,320 430,360 320,320" class="decision"/>
+  <text x="430" y="316" text-anchor="middle" class="decision-text">題目類型?</text>
+
+  <line x1="320" y1="320" x2="180" y2="320" class="flow-line" marker-end="url(#arr-qa)"/>
+  <text x="250" y="310" class="sub">分享型</text>
+  <rect x="20" y="300" width="160" height="44" rx="8" class="client-node"/>
+  <text x="100" y="322" text-anchor="middle">輪流說話</text>
+  <text x="100" y="338" text-anchor="middle" class="sub">VAD 偵測停頓換人</text>
+
+  <line x1="430" y1="360" x2="430" y2="384" class="flow-line" marker-end="url(#arr-qa)"/>
+  <text x="445" y="376" class="sub">投票型</text>
+  <rect x="340" y="384" width="180" height="40" rx="8" class="client-node"/>
+  <text x="430" y="404" text-anchor="middle">各自 tap 選項</text>
+  <text x="430" y="420" text-anchor="middle" class="sub">匿名聚合顯示</text>
+
+  <line x1="540" y1="320" x2="680" y2="320" class="flow-line" marker-end="url(#arr-qa)"/>
+  <text x="610" y="310" class="sub">冰破型</text>
+  <rect x="680" y="300" width="160" height="44" rx="8" class="client-node"/>
+  <text x="760" y="322" text-anchor="middle">破冰題</text>
+  <text x="760" y="338" text-anchor="middle" class="sub">純顯示 · 不收答案</text>
+
+  <line x1="100" y1="344" x2="100" y2="452" class="flow-line"/>
+  <line x1="430" y1="424" x2="430" y2="452" class="flow-line"/>
+  <line x1="760" y1="344" x2="760" y2="452" class="flow-line"/>
+  <line x1="100" y1="452" x2="760" y2="452" class="flow-line"/>
+  <line x1="430" y1="452" x2="430" y2="476" class="flow-line" marker-end="url(#arr-qa)"/>
+
+  <rect x="280" y="476" width="300" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="498" text-anchor="middle">共享螢幕顯示 Q&A · 計時 90 秒</text>
+  <text x="430" y="514" text-anchor="middle" class="sub">此期間不累計 buffer · 姿態要求放寬</text>
+  <line x1="430" y1="526" x2="430" y2="546" class="flow-line" marker-end="url(#arr-qa)"/>
+
+  <rect x="310" y="546" width="240" height="30" rx="8" class="success-node"/>
+  <text x="430" y="565" text-anchor="middle" style="fill: var(--success); font-weight: 500;">Q&A 結束 · 寫入 session log</text>
+</svg>
+
+<h3>4.4 Q&A 題庫設計（可編輯） <span class="tag tag-new">v2.1 可編輯</span></h3>
+<p>題庫分為兩層：<strong>系統預設題庫</strong>（雲端維護，定期更新）與<strong>群組自訂題庫</strong>（主持者或群組成員建立的自訂題目，存在群組內）。觸發 Q&A 時，先顯示自訂題，再從預設池補充。</p>
+
+<pre><code>// BaaS: qa_bank collection（系統預設題庫，雲端可更新）
+interface QAQuestion {
+  question_id: UUID;
+  content: string;                      // "大家最近有什麼值得分享的小事？"
+  type: "share" | "vote" | "icebreaker";
+  context_tags: SessionContext[];       // 適用情境
+  difficulty_tags: ("L" | "M" | "H")[];
+  options?: string[];                   // 若為 vote 類型
+  duration_sec: number;                 // 預設 60
+  min_members: number;                  // 最少幾人才顯示此題
+  source: "system" | "custom";         // v2.1 新增：題目來源
+}
+
+// BaaS: groups/{group_id}/custom_questions（群組自訂題庫）
+interface CustomQuestion {
+  question_id: UUID;
+  content: string;
+  type: "share" | "vote" | "icebreaker";
+  options?: string[];
+  created_by: UUID;                     // 誰建的
+  created_at: ISO8601;
+}
+
+// 主持者也可在 Phase 0 臨時新增題目（存在 SessionConfig.qa_custom_questions）
+
+// 範例
+{
+  content: "這群人中，誰最近看起來最閃亮？",
+  type: "vote",
+  context_tags: ["general", "meal", "celebration"],
+  options: ["member_a", "member_b", ...],  // 動態填入成員
+  duration_sec: 60
+}
+
+{
+  content: "請每個人用一個詞形容今天的心情",
+  type: "share",
+  context_tags: ["general", "family", "team"],
+  duration_sec: 90
+}
+
+{
+  content: "如果等等這頓飯有一道菜可以免費，你選哪道？",
+  type: "icebreaker",
+  context_tags: ["meal"],
+  duration_sec: 30
+}</code></pre>
+
+<h3>4.5 Phase 2 寫入 BaaS 的資料流</h3>
+
+<pre><code>// Client 端批次上傳（每 5 秒）
+POST /sessions/:id/events-batch
+{
+  "events": [
+    { "type": "POSTURE_CHANGED", "user_id": "uid", "posture": "FACE_DOWN", "ts": "..." },
+    { "type": "SCREEN_STATE", "user_id": "uid", "state": "ON_OTHER", "ts": "..." },
+    ...
+  ],
+  "idempotency_key": "uid-ts-hash"
+}
+
+// BaaS 端寫入結構（Firestore）
+sessions/{session_id}/sensor_events/{event_id}
+sessions/{session_id}/live_state/{user_id}  (overwritten, realtime sync)
+
+// Realtime 訂閱（共享螢幕）
+onSnapshot(sessions/{session_id}/live_state, (snap) =&gt; {
+  updateSharedScreen(snap.data());
+});</code></pre>
+
+<hr>
+
+<h2 id="s4q">4.6 Phase 2 補充 · 聚會品質監測與難度參數 <span class="tag tag-new">v2.1 補充</span></h2>
+<p class="section-intro">本章節專門說明聚會進行中，後端如何持續計算品質指標、緩衝區判定、以及難度參數的具體對應。這些數值不顯示給使用者（v2 移除植物生態後），但仍持續寫入 session log，作為 Phase 4 AI 分析、表現積分計算、ML 訓練的原料。</p>
+
+<h3>4.6.1 難度參數完整表</h3>
+<p>Phase 0 依情境選擇難度後，系統載入以下參數。這些參數決定聚會中的緩衝判定、品質扣分速率、事件廣播頻率。</p>
+
+<table>
+<thead>
+<tr>
+  <th>參數</th>
+  <th>說明</th>
+  <th>L（弱）</th>
+  <th>M（中）</th>
+  <th>H（強）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>buffer_sec_per_window</code></td>
+  <td>每個滾動窗口內允許的手機使用秒數</td>
+  <td>90</td>
+  <td>45</td>
+  <td>15</td>
+</tr>
+<tr>
+  <td><code>buffer_window_sec</code></td>
+  <td>滾動窗口時長</td>
+  <td>900（15 分）</td>
+  <td>900</td>
+  <td>1200（20 分）</td>
+</tr>
+<tr>
+  <td><code>quality_decay_rate</code></td>
+  <td>超額時每秒品質扣分速率</td>
+  <td>0.5</td>
+  <td>1.0</td>
+  <td>1.5</td>
+</tr>
+<tr>
+  <td><code>quality_recovery_rate</code></td>
+  <td>正常狀態每秒品質回復速率</td>
+  <td>0.3</td>
+  <td>0.2</td>
+  <td>0.1</td>
+</tr>
+<tr>
+  <td><code>pickup_tolerance_sec</code></td>
+  <td>拿起手機多久內視為「瞬間檢查」，不扣品質</td>
+  <td>15</td>
+  <td>8</td>
+  <td>3</td>
+</tr>
+<tr>
+  <td><code>consecutive_use_penalty_threshold</code></td>
+  <td>連續使用超過此秒數觸發額外扣分</td>
+  <td>180</td>
+  <td>90</td>
+  <td>45</td>
+</tr>
+<tr>
+  <td><code>quality_sample_interval_sec</code></td>
+  <td>品質取樣頻率（寫入 DB）</td>
+  <td>30</td>
+  <td>20</td>
+  <td>10</td>
+</tr>
+<tr>
+  <td><code>buffer_check_interval_sec</code></td>
+  <td>緩衝區評估循環週期</td>
+  <td>15</td>
+  <td>10</td>
+  <td>10</td>
+</tr>
+<tr>
+  <td><code>pin_exempt_duration_sec</code></td>
+  <td>PIN 豁免單次時長</td>
+  <td>600（10 分）</td>
+  <td>300（5 分）</td>
+  <td>180（3 分）</td>
+</tr>
+<tr>
+  <td><code>pin_exempt_max_count</code></td>
+  <td>每成員單場豁免次數上限</td>
+  <td>3</td>
+  <td>2</td>
+  <td>1</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>情境疊加修正</strong><br>
+部分情境會在難度基礎上再微調。例如 <code>class</code>（上課）即使選擇 H 難度，<code>pickup_tolerance_sec</code> 會降到 0（任何拿起即扣分）；<code>meal</code>（聚餐）即使選 H 難度，<code>buffer_sec_per_window</code> 仍維持 30 秒（留給看菜單、拍照的空間）。完整表見 §4.6.6。
+</div>
+
+<h3>4.6.2 聚會中資料結構</h3>
+
+<h4>MemberLiveState · 每個成員的即時狀態</h4>
+<pre><code>interface MemberLiveState {
+  // 身份
+  session_id: UUID;
+  user_id: UUID;
+
+  // 姿態與在場
+  posture: "FACE_DOWN" | "FACE_UP" | "HELD" | "UNKNOWN";
+  posture_since: ISO8601;               // 當前姿態持續時間起點
+  presence: "PRESENT" | "ABSENT" | "REMOTE";
+  last_wifi_ping_at: ISO8601;
+
+  // 螢幕使用
+  screen_state: "OFF" | "ON_APP" | "ON_OTHER";
+  screen_on_since: ISO8601 | null;
+  current_use_continuous_sec: number;   // 當前連續使用秒數
+  buffer_used_sec: number;              // 滾動窗口內累積
+  buffer_limit_sec: number;             // 依難度 + 個人基線動態調整
+
+  // 品質與狀態
+  personal_quality_score: number;       // 0-100，即時
+  status: "NORMAL" | "WARN" | "OVER" | "EXEMPT" | "ABSENT";
+
+  // 豁免
+  exempt_active: boolean;
+  exempt_until: ISO8601 | null;
+  exempt_count_used: number;
+
+  // ML 特徵（隱性累積）
+  pickup_count_total: number;           // 本 session 內拿起手機次數
+  longest_focus_streak_sec: number;     // 本 session 最長連續 face-down
+  response_latency_avg_ms: number;      // 提示後放回手機的平均延遲
+
+  last_updated: ISO8601;
+}</code></pre>
+
+<h4>SessionQualityState · 整場聚會的品質狀態</h4>
+<pre><code>interface SessionQualityState {
+  session_id: UUID;
+
+  // 群體聚合指標
+  group_quality_score: number;          // 0-100，即時群體品質
+  focus_ratio_instant: number;          // 當下有多少成員 face-down (0-1)
+  focus_ratio_rolling: number;          // 過去 5 分鐘平均
+  participation_balance: number;        // VAD 啟用時 · 說話均衡度 (0-1)
+
+  // 階段狀態
+  current_phase: "WARMUP" | "PEAK" | "COOLDOWN";  // 基於時長自動切換
+  phase_transition_at: ISO8601;
+
+  // 對話節奏（VAD 啟用時）
+  voice_activity_ratio: number | null;  // 過去 1 分鐘有聲音比例
+  speaker_transitions_per_min: number | null;
+  silence_gaps_count: number | null;
+
+  // 事件計數
+  total_pickup_events: number;
+  total_exempt_uses: number;
+  qa_triggered_count: number;
+
+  last_updated: ISO8601;
+}</code></pre>
+
+<h4>QualitySample · 時序取樣紀錄（供 Phase 4 ML 用）</h4>
+<pre><code>// 每 quality_sample_interval_sec 秒寫入一筆
+interface QualitySample {
+  session_id: UUID;
+  timestamp: ISO8601;
+  elapsed_sec: number;                  // 距 session 開始多久
+
+  // 群體層級（聚合）
+  group_quality_score: number;
+  focus_ratio: number;
+  voice_activity_ratio: number | null;
+  current_phase: "WARMUP" | "PEAK" | "COOLDOWN";
+
+  // 個人層級（陣列，每個成員一筆）
+  per_member: {
+    user_id: UUID;
+    personal_quality_score: number;
+    posture: string;
+    buffer_used_sec: number;
+    status: string;
+  }[];
+}</code></pre>
+
+<h3>4.6.3 緩衝區評估循環（每 10 秒執行）</h3>
+<p>這個循環是 Phase 2 的核心心跳。每輪執行時遍歷所有成員，依難度參數判定狀態並更新品質分數。</p>
+
+<svg width="100%" viewBox="0 0 860 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-q1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">Timer 觸發（每 10 秒）</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-q1)"/>
+
+  <rect x="290" y="84" width="280" height="40" rx="8" class="node-rect"/>
+  <text x="430" y="108" text-anchor="middle">遍歷 session 所有成員</text>
+  <line x1="430" y1="124" x2="430" y2="148" class="flow-line" marker-end="url(#arr-q1)"/>
+
+  <polygon points="430,152 540,192 430,232 320,192" class="decision"/>
+  <text x="430" y="188" text-anchor="middle" class="decision-text">成員在</text>
+  <text x="430" y="203" text-anchor="middle" class="decision-text">豁免期內?</text>
+
+  <line x1="540" y1="192" x2="640" y2="192" class="flow-line" marker-end="url(#arr-q1)"/>
+  <text x="590" y="182" class="sub">是</text>
+  <rect x="640" y="172" width="180" height="40" rx="8" class="node-rect"/>
+  <text x="730" y="192" text-anchor="middle">跳過此成員</text>
+  <text x="730" y="207" text-anchor="middle" class="sub">status = EXEMPT</text>
+
+  <line x1="430" y1="232" x2="430" y2="256" class="flow-line" marker-end="url(#arr-q1)"/>
+  <text x="445" y="248" class="sub">否</text>
+
+  <rect x="290" y="256" width="280" height="56" rx="8" class="node-rect"/>
+  <text x="430" y="278" text-anchor="middle">計算滾動窗口內 screen_on 累計</text>
+  <text x="430" y="296" text-anchor="middle" class="sub">扣除 pickup_tolerance_sec 的瞬間檢查</text>
+  <line x1="430" y1="312" x2="430" y2="336" class="flow-line" marker-end="url(#arr-q1)"/>
+
+  <polygon points="430,340 540,380 430,420 320,380" class="decision"/>
+  <text x="430" y="376" text-anchor="middle" class="decision-text">累計 vs</text>
+  <text x="430" y="391" text-anchor="middle" class="decision-text">buffer_limit?</text>
+
+  <line x1="320" y1="380" x2="220" y2="380" class="flow-line" marker-end="url(#arr-q1)"/>
+  <text x="270" y="370" class="sub">未超 50%</text>
+  <rect x="30" y="360" width="180" height="40" rx="8" class="success-node"/>
+  <text x="120" y="380" text-anchor="middle" style="fill: var(--success);">status = NORMAL</text>
+  <text x="120" y="395" text-anchor="middle" class="sub">品質 +recovery_rate</text>
+
+  <line x1="430" y1="420" x2="430" y2="444" class="flow-line" marker-end="url(#arr-q1)"/>
+  <text x="445" y="436" class="sub">50-99%</text>
+
+  <rect x="340" y="444" width="180" height="40" rx="8" class="node-rect"/>
+  <text x="430" y="464" text-anchor="middle">status = WARN</text>
+  <text x="430" y="479" text-anchor="middle" class="sub">品質維持不變</text>
+
+  <line x1="540" y1="380" x2="640" y2="380" class="flow-line-err" marker-end="url(#arr-q1)"/>
+  <text x="590" y="370" class="sub" style="fill: var(--danger);">超過 100%</text>
+  <rect x="640" y="360" width="180" height="40" rx="8" class="error-node"/>
+  <text x="730" y="380" text-anchor="middle" style="fill: var(--danger);">status = OVER</text>
+  <text x="730" y="395" text-anchor="middle" class="sub">品質 -decay_rate</text>
+
+  <line x1="120" y1="400" x2="120" y2="508" class="flow-line"/>
+  <line x1="430" y1="484" x2="430" y2="508" class="flow-line"/>
+  <line x1="730" y1="400" x2="730" y2="508" class="flow-line"/>
+  <line x1="120" y1="508" x2="730" y2="508" class="flow-line"/>
+  <line x1="430" y1="508" x2="430" y2="532" class="flow-line" marker-end="url(#arr-q1)"/>
+
+  <polygon points="430,536 540,576 430,616 320,576" class="decision"/>
+  <text x="430" y="572" text-anchor="middle" class="decision-text">連續使用</text>
+  <text x="430" y="587" text-anchor="middle" class="decision-text">超過 threshold?</text>
+
+  <line x1="540" y1="576" x2="640" y2="576" class="flow-line-err" marker-end="url(#arr-q1)"/>
+  <text x="590" y="566" class="sub" style="fill: var(--danger);">是</text>
+  <rect x="640" y="556" width="180" height="40" rx="8" class="error-node"/>
+  <text x="730" y="576" text-anchor="middle" style="fill: var(--danger);">額外 penalty 係數 ×2</text>
+  <text x="730" y="591" text-anchor="middle" class="sub">加速品質扣減</text>
+
+  <line x1="430" y1="616" x2="430" y2="640" class="flow-line" marker-end="url(#arr-q1)"/>
+
+  <rect x="290" y="640" width="280" height="40" rx="8" class="success-node"/>
+  <text x="430" y="664" text-anchor="middle" style="fill: var(--success);">更新 MemberLiveState</text>
+  <line x1="430" y1="680" x2="430" y2="700" class="flow-line"/>
+
+  <path d="M 430 700 Q 430 710 420 710 L 30 710 Q 20 710 20 700 L 20 104 Q 20 94 30 94 L 290 94" class="flow-line" stroke-dasharray="3 3" marker-end="url(#arr-q1)"/>
+  <text x="25" y="400" class="sub" transform="rotate(-90 25 400)">下一位成員</text>
+</svg>
+
+<h3>4.6.4 品質計算公式</h3>
+
+<h4>個人品質分數（即時）</h4>
+<pre><code>function updatePersonalQuality(
+  member: MemberLiveState,
+  dt_sec: number,           // 距上次更新的秒數
+  params: DifficultyParams
+): number {
+  let delta = 0;
+
+  if (member.status === "EXEMPT" || member.status === "ABSENT") {
+    // 不變動
+    return member.personal_quality_score;
+  }
+
+  if (member.status === "NORMAL") {
+    delta = +params.quality_recovery_rate * dt_sec;
+  } else if (member.status === "WARN") {
+    delta = 0;
+  } else if (member.status === "OVER") {
+    const basePenalty = params.quality_decay_rate;
+    const extraPenalty = member.current_use_continuous_sec
+                         > params.consecutive_use_penalty_threshold ? 2.0 : 1.0;
+    delta = -basePenalty * extraPenalty * dt_sec;
+  }
+
+  const newScore = member.personal_quality_score + delta;
+  return Math.max(0, Math.min(100, newScore));
+}</code></pre>
+
+<h4>群體品質分數（即時聚合）</h4>
+<pre><code>function computeGroupQuality(
+  members: MemberLiveState[],
+  session: SessionQualityState,
+  session_config: SessionConfig
+): number {
+  const activeMembers = members.filter(m => m.status !== "ABSENT");
+  if (activeMembers.length === 0) return 0;
+
+  // 權重 1: 成員個人品質平均（40%）
+  const avgPersonalQuality = mean(activeMembers.map(m => m.personal_quality_score));
+
+  // 權重 2: 即時專注比例（30%）
+  const focusRatio = activeMembers.filter(m => m.posture === "FACE_DOWN").length
+                     / activeMembers.length;
+  const focusScore = focusRatio * 100;
+
+  // 權重 3: 對話活躍度（若 VAD 啟用，20%；否則此權重歸零並提升其他）
+  let voiceScore = null;
+  if (session_config.vad_enabled) {
+    voiceScore = session.voice_activity_ratio * 100;
+  }
+
+  // 權重 4: 階段適配度（10%）
+  // 暖身期要求較低、高峰期要求高、緩和期容忍高
+  const phaseModifier = {
+    WARMUP: 1.1,    // 加分
+    PEAK: 1.0,
+    COOLDOWN: 1.05
+  }[session.current_phase];
+
+  let score;
+  if (voiceScore !== null) {
+    score = (avgPersonalQuality * 0.4 + focusScore * 0.3 + voiceScore * 0.2) * phaseModifier;
+  } else {
+    score = (avgPersonalQuality * 0.55 + focusScore * 0.35) * phaseModifier;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}</code></pre>
+
+<h3>4.6.5 VAD 資料如何參與品質計算</h3>
+<p>VAD 啟用時，主持者裝置每秒產生一個布林樣本（是否有聲音），以及粗略的說話者切換偵測。這些資料不含任何語意內容，但能給出對話節奏的訊號。</p>
+
+<pre><code>interface VadAggregate {
+  session_id: UUID;
+  minute_bucket: number;                // 第幾分鐘
+
+  voice_active_sec: number;             // 本分鐘內有聲音的秒數（0-60）
+  silence_gaps: { start_sec: number, duration_sec: number }[];
+  speaker_transitions: number;          // 粗略估計說話者切換次數
+
+  // 派生特徵
+  voice_activity_ratio: number;         // voice_active_sec / 60
+  avg_turn_length_sec: number;          // 平均說話段長度
+  participation_balance: number;        // 說話者切換頻率標準化 (0-1)
+}
+
+// 品質參與規則
+function scoreConversationQuality(vad: VadAggregate): number {
+  // 健康的聚會對話特徵：
+  // - voice_activity_ratio 在 0.4-0.7 之間（不是獨白也不是冷場）
+  // - speaker_transitions 適中（每分鐘 3-8 次，代表輪替）
+  // - 不會有過長 silence_gaps（單次 > 90 秒視為冷場）
+
+  let score = 50;  // baseline
+
+  if (vad.voice_activity_ratio >= 0.4 && vad.voice_activity_ratio <= 0.7) {
+    score += 20;
+  } else if (vad.voice_activity_ratio < 0.2) {
+    score -= 15;   // 過於安靜
+  }
+
+  if (vad.speaker_transitions >= 3 && vad.speaker_transitions <= 10) {
+    score += 15;
+  }
+
+  const longSilence = vad.silence_gaps.filter(g => g.duration_sec > 90).length;
+  score -= longSilence * 5;
+
+  return Math.max(0, Math.min(100, score));
+}</code></pre>
+
+<div class="callout callout-warn">
+<strong>VAD 的限制</strong><br>
+本系統 VAD 只在主持者單一裝置執行，因此無法精確辨認「誰在說話」——只能知道「有人說話 / 沒人說話」與「說話者切換的粗略次數」。這意味著 <code>participation_balance</code> 是近似值，不能用來評價某個成員的參與度。個人層級的參與評估得靠 Layer 2 主觀問卷。
+</div>
+
+<h3>4.6.6 情境 × 難度參數覆寫表</h3>
+<p>某些情境即使選了相同難度，參數仍需微調。這是因為不同聚會型態對手機使用的容忍度本質不同。</p>
+
+<table>
+<thead>
+<tr>
+  <th>情境</th>
+  <th>難度預設</th>
+  <th>覆寫項目</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>class</code> 上課</td>
+  <td>H</td>
+  <td><code>pickup_tolerance_sec=0</code>（任何拿起即扣）<br><code>pin_exempt_max_count=0</code>（不能豁免）</td>
+</tr>
+<tr>
+  <td><code>meeting</code> 正式會議</td>
+  <td>H</td>
+  <td><code>pickup_tolerance_sec=0</code><br>VAD 預設啟用</td>
+</tr>
+<tr>
+  <td><code>meal</code> 用餐</td>
+  <td>L</td>
+  <td><code>buffer_sec_per_window=120</code>（拍照、看菜單）<br><code>pickup_tolerance_sec=30</code></td>
+</tr>
+<tr>
+  <td><code>family</code> 家庭聚會</td>
+  <td>L</td>
+  <td><code>pin_exempt_duration_sec=900</code>（家人急電豁免較寬）<br><code>pin_exempt_max_count=5</code></td>
+</tr>
+<tr>
+  <td><code>celebration</code> 慶祝</td>
+  <td>L</td>
+  <td><code>buffer_sec_per_window=150</code>（拍照需求高）</td>
+</tr>
+<tr>
+  <td><code>date</code> 約會</td>
+  <td>M</td>
+  <td><code>consecutive_use_penalty_threshold=60</code>（對連續使用更嚴格）</td>
+</tr>
+<tr>
+  <td><code>workshop</code> 工作坊</td>
+  <td>M</td>
+  <td><code>buffer_sec_per_window=60</code>（可能需查資料）<br><code>pickup_tolerance_sec=20</code></td>
+</tr>
+<tr>
+  <td><code>study</code> 讀書會</td>
+  <td>M</td>
+  <td><code>buffer_sec_per_window=30</code>（查資料用）</td>
+</tr>
+<tr>
+  <td>其他</td>
+  <td>使用預設</td>
+  <td>無覆寫</td>
+</tr>
+</tbody>
+</table>
+
+<pre><code>// 載入最終 session 參數
+function resolveSessionParams(
+  context: SessionContext,
+  difficulty: "L" | "M" | "H"
+): DifficultyParams {
+  const base = DIFFICULTY_DEFAULTS[difficulty];
+  const overrides = CONTEXT_OVERRIDES[context]?.[difficulty] || {};
+  return { ...base, ...overrides };
+}</code></pre>
+
+<h3>4.6.7 個人基線調整（v2.1 強化）</h3>
+<p>ML 跨聚會學習出每個人的基線後，<code>buffer_limit_sec</code> 會動態調整。重度使用者的閾值稍寬、輕度使用者的閾值略嚴，避免一刀切造成的挫折感或過於寬鬆。</p>
+
+<pre><code>function getPersonalizedBufferLimit(
+  user_id: UUID,
+  base_limit: number,
+  baseline: UserBaseline | null
+): number {
+  if (!baseline || baseline.sample_count < 3) {
+    // 資料不足，用預設
+    return base_limit;
+  }
+
+  // 使用者歷史平均 vs 群體平均的 z-score
+  const z = (baseline.avg_usage_per_session - GLOBAL_AVG_USAGE) / GLOBAL_STD_USAGE;
+
+  // z > 1 （重度使用）：閾值放寬到最多 +50%
+  // z < -1（輕度使用）：閾值收緊到最多 -30%
+  const adjustment = Math.max(-0.3, Math.min(0.5, z * 0.2));
+
+  return Math.round(base_limit * (1 + adjustment));
+}</code></pre>
+
+<h3>4.6.8 寫入 BaaS 的頻率與結構</h3>
+<table>
+<thead>
+<tr>
+  <th>資料類型</th>
+  <th>寫入頻率</th>
+  <th>路徑</th>
+  <th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>MemberLiveState</code></td>
+  <td>狀態改變時 + 每 30 秒心跳</td>
+  <td><code>sessions/{id}/live_state/{uid}</code></td>
+  <td>共享螢幕即時渲染</td>
+</tr>
+<tr>
+  <td><code>SessionQualityState</code></td>
+  <td>每 10 秒</td>
+  <td><code>sessions/{id}/quality_state</code></td>
+  <td>共享螢幕聚合指標</td>
+</tr>
+<tr>
+  <td><code>QualitySample</code></td>
+  <td>依難度 10-30 秒</td>
+  <td><code>sessions/{id}/quality_samples/{ts}</code></td>
+  <td>Phase 4 分析 + ML 訓練</td>
+</tr>
+<tr>
+  <td><code>SensorEvent</code></td>
+  <td>事件發生時</td>
+  <td><code>sessions/{id}/events/{event_id}</code></td>
+  <td>峰值時刻偵測原料</td>
+</tr>
+<tr>
+  <td><code>VadAggregate</code></td>
+  <td>每分鐘</td>
+  <td><code>sessions/{id}/vad/{minute}</code></td>
+  <td>對話節奏分析</td>
+</tr>
+</tbody>
+</table>
+
+<h3>4.6.9 Phase 4 如何使用這些資料</h3>
+<p>Phase 2 持續寫入的 <code>QualitySample</code> 時序資料，在 Phase 4 會被聚合為：</p>
+<ul>
+<li><strong>group_quality_score</strong>：整場平均 + 中位數 + 標準差</li>
+<li><strong>focus_ratio</strong>：整場時序曲線 → 取最高點、最低點、平均</li>
+<li><strong>peak_moments</strong>：從 QualitySample 時序找出局部極大值區間</li>
+<li><strong>performance_score</strong>：每位成員的 <code>personal_quality_score</code> 積分 × 難度倍率</li>
+<li><strong>AI 摘要原料</strong>：聚合後的數字 + Layer 2 主觀感想 + Layer 3 關鍵詞</li>
+</ul>
+
+<pre><code>// Phase 4 聚合範例
+async function aggregateSessionMetrics(session_id: UUID) {
+  const samples = await db.collection(`sessions/${session_id}/quality_samples`).get();
+
+  return {
+    group_quality: {
+      avg: mean(samples.map(s => s.group_quality_score)),
+      median: median(samples.map(s => s.group_quality_score)),
+      std: std(samples.map(s => s.group_quality_score))
+    },
+    focus_curve: samples.map(s => ({
+      t: s.elapsed_sec,
+      ratio: s.focus_ratio
+    })),
+    peak_moments: findLocalMaxima(samples, window_sec=60, min_threshold=80),
+    per_member_summary: aggregatePerMember(samples)
+  };
+}</code></pre>
+
+<div class="callout callout-new">
+<strong>v2.1 新增設計原則</strong><br>
+即使使用者在聚會中看不到品質數值（因為移除了植物視覺），後端仍持續以 <code>quality_sample_interval_sec</code> 的頻率寫入 <code>QualitySample</code>。這是 Phase 4 AI 分析、個人基線 ML 訓練、表現積分計算的必要輸入。使用者無感，但系統清楚知道每場聚會的品質軌跡。
+</div>
+
+<hr>
+
+<h2 id="s5">5. Phase 3 · 結束偵測</h2>
+<p class="section-intro">v2 沿用 v1 三觸發源設計：主持者手動、預設時長到、LBS 多數離場。優先序相同。</p>
+
+<h3>5.1 觸發源與優先序</h3>
+<ol>
+<li><strong>主持者手動結束</strong>（最高優先）：立即生效，無需確認。</li>
+<li><strong>預設時長到</strong>：顯示 2 分鐘倒數；主持者可延長。</li>
+<li><strong>LBS 多數離場偵測</strong>：≥ 50% 成員離場持續 3 分鐘觸發。</li>
+</ol>
+
+<h3>5.2 結束後自動執行</h3>
+<ul>
+<li>凍結 session 行為日誌（不再接受新 events）。</li>
+<li>觸發 Cloud Function <code>onSessionEnd</code>，開始 Phase 4。</li>
+<li>共享螢幕顯示「聚會結束，感謝各位」過場畫面。</li>
+<li>推送 Layer 2 問卷到各成員（48 小時內填寫期限）。</li>
+</ul>
+
+<pre><code>// BaaS Cloud Function 觸發點
+exports.onSessionEnd = functions.firestore
+  .document('sessions/{sessionId}')
+  .onUpdate(async (change, context) =&gt; {
+    const before = change.before.data();
+    const after = change.after.data();
+
+    if (before.state === 'ACTIVE' && after.state === 'ENDED') {
+      await startPhase4Processing(context.params.sessionId);
+    }
+  });</code></pre>
+
+<hr>
+
+<h2 id="s6">6. Phase 4 · 回憶錄報紙生成 + AI/ML 處理 <span class="tag tag-new">v2.1 重構</span></h2>
+<p class="section-intro">v2.1 最大變更：「遺產卡」改為「回憶錄報紙」——報紙風格的單頁回顧，包含錄音轉文字的高光時刻、聚會照片、表現分析、AI 總結。每場聚會生成一份。</p>
+
+<svg width="100%" viewBox="0 0 860 760" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-p4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="330" y="20" width="200" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">onSessionEnd 觸發</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="290" y="84" width="280" height="50" rx="8" class="success-node"/>
+  <text x="430" y="106" text-anchor="middle" style="fill: var(--success);">Layer 1：情境 + 感測聚合</text>
+  <text x="430" y="122" text-anchor="middle" class="sub">自動 · 無需額外同意</text>
+  <line x1="430" y1="134" x2="430" y2="158" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="290" y="158" width="280" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="180" text-anchor="middle">等待 Layer 2 問卷（48h）</text>
+  <text x="430" y="196" text-anchor="middle" class="sub">推送到每位成員</text>
+  <line x1="430" y1="208" x2="430" y2="232" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <polygon points="430,236 540,276 430,316 320,276" class="decision"/>
+  <text x="430" y="272" text-anchor="middle" class="decision-text">VAD 啟用</text>
+  <text x="430" y="287" text-anchor="middle" class="decision-text">且有資料?</text>
+
+  <line x1="540" y1="276" x2="640" y2="276" class="flow-line" marker-end="url(#arr-p4)"/>
+  <text x="590" y="266" class="sub">是</text>
+  <rect x="640" y="256" width="180" height="44" rx="8" class="client-node"/>
+  <text x="730" y="278" text-anchor="middle">錄音轉文字（on-device）</text>
+  <text x="730" y="294" text-anchor="middle" class="sub">Whisper → 高光時刻提取</text>
+
+  <line x1="430" y1="316" x2="430" y2="348" class="flow-line"/>
+  <line x1="730" y1="300" x2="730" y2="348" class="flow-line"/>
+  <line x1="430" y1="348" x2="730" y2="348" class="flow-line"/>
+  <line x1="430" y1="348" x2="430" y2="376" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="240" y="376" width="380" height="60" rx="8" class="new-node"/>
+  <text x="430" y="400" text-anchor="middle" style="fill: var(--coral); font-weight: 500;">AI/ML 處理管線（並行）</text>
+  <text x="430" y="418" text-anchor="middle" class="sub">報紙摘要 · 表現計分 · 高光整理 · 寵物能量結算</text>
+  <line x1="430" y1="436" x2="430" y2="460" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="40" y="460" width="170" height="80" rx="8" class="new-node"/>
+  <text x="125" y="482" text-anchor="middle" style="fill: var(--coral);">① 報紙摘要</text>
+  <text x="125" y="502" text-anchor="middle" class="sub">LLM 整合全部資料</text>
+  <text x="125" y="518" text-anchor="middle" class="sub">生成報紙風格</text>
+  <text x="125" y="534" text-anchor="middle" class="sub">的回憶敘述</text>
+
+  <rect x="225" y="460" width="170" height="80" rx="8" class="new-node"/>
+  <text x="310" y="482" text-anchor="middle" style="fill: var(--coral);">② 表現 + 積分</text>
+  <text x="310" y="502" text-anchor="middle" class="sub">個人專注時長</text>
+  <text x="310" y="518" text-anchor="middle" class="sub">× 難度倍率</text>
+  <text x="310" y="534" text-anchor="middle" class="sub">× 連續加成</text>
+
+  <rect x="410" y="460" width="170" height="80" rx="8" class="new-node"/>
+  <text x="495" y="482" text-anchor="middle" style="fill: var(--coral);">③ 高光時刻</text>
+  <text x="495" y="502" text-anchor="middle" class="sub">錄音轉文字結果</text>
+  <text x="495" y="518" text-anchor="middle" class="sub">+ 峰值時刻</text>
+  <text x="495" y="534" text-anchor="middle" class="sub">整理為高光段落</text>
+
+  <rect x="595" y="460" width="170" height="80" rx="8" class="new-node"/>
+  <text x="680" y="482" text-anchor="middle" style="fill: var(--coral);">④ 寵物結算</text>
+  <text x="680" y="502" text-anchor="middle" class="sub">品質 → 能量/HP</text>
+  <text x="680" y="518" text-anchor="middle" class="sub">感情積分更新</text>
+  <text x="680" y="534" text-anchor="middle" class="sub">dyadic pairs</text>
+
+  <line x1="125" y1="540" x2="125" y2="580" class="flow-line"/>
+  <line x1="310" y1="540" x2="310" y2="580" class="flow-line"/>
+  <line x1="495" y1="540" x2="495" y2="580" class="flow-line"/>
+  <line x1="680" y1="540" x2="680" y2="580" class="flow-line"/>
+  <line x1="125" y1="580" x2="680" y2="580" class="flow-line"/>
+  <line x1="430" y1="580" x2="430" y2="604" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="290" y="604" width="280" height="60" rx="8" class="success-node"/>
+  <text x="430" y="626" text-anchor="middle" style="fill: var(--success);">合成回憶錄報紙（MemoryNewspaper）</text>
+  <text x="430" y="644" text-anchor="middle" class="sub">單次結算 · 報紙風格 · 含高光 + 照片 + 分析</text>
+  <line x1="430" y1="664" x2="430" y2="688" class="flow-line" marker-end="url(#arr-p4)"/>
+
+  <rect x="310" y="688" width="240" height="40" rx="8" class="success-node"/>
+  <text x="430" y="713" text-anchor="middle" style="fill: var(--success); font-weight: 500;">→ Phase 5 分流</text>
+</svg>
+
+<h3>6.1 表現積分計算公式 <span class="tag tag-new">v2 NEW</span></h3>
+<pre><code>// 個人表現積分（每場聚會結算一次）
+function computePerformanceScore(session: Session, user: User): number {
+  const focusMinutes = computeFocusMinutes(session, user);           // 個人 face-down 分鐘
+  const difficultyMultiplier = { L: 1.0, M: 1.3, H: 1.6 }[session.difficulty];
+  const contextMultiplier = contextScoreMap[session.context] || 1.0;  // 讀書會/會議分數高
+  const streakBonus = Math.min(user.current_streak * 0.05, 0.5);      // 連續日加成，上限 50%
+
+  const basePoints = focusMinutes * 2;
+  const score = basePoints * difficultyMultiplier * contextMultiplier * (1 + streakBonus);
+
+  return Math.round(score);
+}
+
+// 範例：讀書會、難度 M、連續 5 天、專注 60 分鐘
+// = 60 * 2 * 1.3 * 1.1 * 1.25
+// = 214.5 → 215 分</code></pre>
+
+<h3>6.2 感情積分（Relationship Points）<span class="tag tag-new">v2 NEW</span></h3>
+<pre><code>// 每對 dyadic pair 更新（群組內）
+// 例：A 與 B 本次聚會一起 → 兩人感情積分 +N
+function updateRelationshipPoints(session: Session) {
+  const attendees = session.attendee_uids;
+
+  for (const [a, b] of pairs(attendees)) {
+    const sessionQualityScore = computeGroupQuality(session);  // 0-100
+    const relationshipDelta = Math.round(sessionQualityScore / 10);
+
+    await db.upsert('relationship_edges', {
+      user_a: a, user_b: b,
+      co_session_count: increment(1),
+      relationship_points: increment(relationshipDelta),
+      last_met_at: session.ended_at
+    });
+  }
+}</code></pre>
+
+<h3>6.3 AI 回憶錄報紙摘要呼叫範例</h3>
+<pre><code>// BaaS Cloud Function（呼叫 Anthropic API）
+async function generateNewspaperSummary(newspaper: MemoryNewspaper) {
+  const prompt = `
+你是一位幫忙記錄社交聚會的記者。請用報紙專欄的語氣寫一段 3-5 句的回憶錄，
+像在為一群好朋友的聚會寫一篇溫暖的新聞特稿。
+
+聚會資料：
+- 情境：${newspaper.context}
+- 時長：${newspaper.duration_min} 分鐘
+- 成員：${newspaper.attendee_names.join('、')}
+- 專注比例：${newspaper.focus_ratio}%
+- 高光時刻：${newspaper.highlights.map(h => h.summary).join('；')}
+- 話題關鍵詞：${newspaper.topic_keywords?.join('、') || '（未啟用）'}
+- 成員感想亮點：${newspaper.best_moments.join('、')}
+- 上傳照片數：${newspaper.photo_count}
+`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-5",
+    max_tokens: 300,
+    messages: [{ role: "user", content: prompt }]
+  });
+
+  return response.content[0].text;
+}</code></pre>
+
+<h3>6.4 錄音高光時刻提取 <span class="tag tag-new">v2.1 NEW</span></h3>
+<p>錄音轉文字後，LLM 從逐字稿中提取「高光」段落——笑聲後的話題、情感爆發點、群體熱烈討論的轉折。這些高光構成回憶錄報紙的核心內容。</p>
+
+<pre><code>// on-device 先做 Whisper 轉文字，再把逐字稿送 Cloud Function 提取高光
+async function extractHighlights(transcript: string, peakMoments: PeakMoment[]) {
+  const prompt = `
+從以下聚會對話逐字稿中，提取 3-5 個「高光時刻」。
+每個高光需包含：一句精華摘要（15 字內）、以及關聯的話題詞。
+優先選擇笑聲後的對話段落、有情感表達的段落、或多人參與討論的段落。
+
+已偵測到的峰值時間點：${peakMoments.map(p => p.timestamp).join(', ')}
+
+逐字稿：
+${transcript}
+
+回傳 JSON 格式：
+[{ "summary": "...", "topic": "...", "timestamp_approx": "..." }]
+`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-sonnet-4-5",
+    max_tokens: 500,
+    messages: [{ role: "user", content: prompt }]
+  });
+
+  return JSON.parse(response.content[0].text);
+}
+
+interface Highlight {
+  summary: string;          // "一起笑到流淚的那個故事"
+  topic: string;            // "旅行"
+  timestamp_approx: string; // "20:15"
+  source: "vad_transcript" | "peak_detection" | "member_submitted";
+}</code></pre>
+
+<h3>6.4.1 聚會照片整合 <span class="tag tag-new">v2.1 NEW</span></h3>
+<p>若 <code>photo_capture_enabled=true</code>，成員可在聚會期間或結束後上傳照片。照片會被嵌入回憶錄報紙作為視覺素材。</p>
+
+<pre><code>// 照片上傳 API
+POST /sessions/:id/photos
+{
+  "user_id": "uid",
+  "photo_file": File,         // 壓縮後上傳
+  "caption": "可選標注",
+  "taken_at": "ISO8601"       // 拍照時間
+}
+
+// 存儲路徑
+Firebase Storage: sessions/{session_id}/photos/{photo_id}.jpg
+
+// 報紙呈現：AI 選最多 3 張照片嵌入報紙版面
+async function selectPhotosForNewspaper(sessionPhotos: Photo[]): Photo[] {
+  // 策略：選時間分散的照片（不要連拍）
+  // 優先選有 caption 的
+  // 最多 3 張
+  const sorted = sessionPhotos.sort((a, b) => a.taken_at - b.taken_at);
+  return spreadSelect(sorted, 3);
+}</code></pre>
+
+<h3>6.5 MemoryNewspaper 結構（v2.1）</h3>
+<pre><code>interface MemoryNewspaper {
+  session_id: UUID;
+  group_id: UUID | null;
+
+  // Layer 1 - 情境
+  context: SessionContext;
+  started_at: ISO8601;
+  ended_at: ISO8601;
+  duration_min: number;
+  attendee_uids: UUID[];
+  attendee_snapshot: { uid: UUID, display_name: string, avatar_url: string }[];
+
+  // Layer 1 - 感測聚合
+  focus_ratio: number;              // 0-100%
+  peak_moments: PeakMoment[];
+  group_quality_score: number;      // 綜合品質 0-100
+
+  // Layer 2 - 連結層（聚合）
+  connection_index_avg: number | null;
+  best_moment_texts: string[];      // 已去識別
+  memorable_tags: string[];
+
+  // Layer 3 - 高光時刻（錄音轉文字提取）
+  highlights: Highlight[];          // v2.1 新增：高光段落
+  topic_keywords: string[] | null;
+
+  // 聚會照片
+  photo_urls: string[];             // v2.1 新增：選入報紙的照片
+  photo_count: number;              // 總上傳照片數
+
+  // AI 報紙內容
+  newspaper_headline: string | null;    // v2.1 報紙大標題
+  newspaper_body: string | null;        // v2.1 報紙正文（3-5 句）
+  newspaper_style: "warm" | "playful" | "formal";  // 語氣風格
+  next_topic_suggestions: string[] | null;
+
+  // 個人分數（每個成員各有）
+  per_member_scores: {
+    [uid: string]: {
+      performance_score: number;
+      focus_minutes: number;
+      rank_in_session: number;      // 此場次內排名 1-N
+    }
+  };
+
+  // 群組寵物影響
+  pet_energy_delta: number;         // 此場貢獻（正 = 餵食，負 = 扣能量）
+  pet_hp_delta: number;             // 0 或 -1（品質太差時）
+  pet_level_before: number;
+  pet_level_after: number;
+  pet_unlocked: string[];           // 新解鎖的配件
+
+  generated_at: ISO8601;
+}</code></pre>
+
+<hr>
+
+<h2 id="s7">7. Phase 5 · 資料分流（含感情積分、排行榜、群組寵物更新）</h2>
+<p class="section-intro">v2 分流邏輯擴充：新增排行榜更新、群組動物累積、感情積分 dyadic pairs 同步。</p>
+
+<svg width="100%" viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-p5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M2 2L8 5L2 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="340" y="20" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="44" text-anchor="middle">MemoryNewspaper 就緒</text>
+  <line x1="430" y1="60" x2="430" y2="84" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="290" y="84" width="280" height="40" rx="8" class="baas-node"/>
+  <text x="430" y="109" text-anchor="middle">Cloud Function 分派四個並行 Job</text>
+  <line x1="430" y1="124" x2="430" y2="148" class="flow-line"/>
+
+  <line x1="100" y1="148" x2="760" y2="148" class="flow-line"/>
+  <line x1="100" y1="148" x2="100" y2="176" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="320" y1="148" x2="320" y2="176" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="540" y1="148" x2="540" y2="176" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="760" y1="148" x2="760" y2="176" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="20" y="176" width="160" height="40" rx="8" class="success-node"/>
+  <text x="100" y="196" text-anchor="middle" style="fill: var(--success);">Job A</text>
+  <text x="100" y="211" text-anchor="middle" class="sub">個人卡寫入</text>
+
+  <rect x="240" y="176" width="160" height="40" rx="8" class="success-node"/>
+  <text x="320" y="196" text-anchor="middle" style="fill: var(--success);">Job B</text>
+  <text x="320" y="211" text-anchor="middle" class="sub">群組 + 寵物結算</text>
+
+  <rect x="460" y="176" width="160" height="40" rx="8" class="new-node"/>
+  <text x="540" y="196" text-anchor="middle" style="fill: var(--coral);">Job C（v2 新）</text>
+  <text x="540" y="211" text-anchor="middle" class="sub">排行榜更新</text>
+
+  <rect x="680" y="176" width="160" height="40" rx="8" class="new-node"/>
+  <text x="760" y="196" text-anchor="middle" style="fill: var(--coral);">Job D（v2 新）</text>
+  <text x="760" y="211" text-anchor="middle" class="sub">感情積分 dyadic</text>
+
+  <line x1="100" y1="216" x2="100" y2="244" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="320" y1="216" x2="320" y2="244" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="540" y1="216" x2="540" y2="244" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="760" y1="216" x2="760" y2="244" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="20" y="244" width="160" height="80" rx="8" class="node-rect"/>
+  <text x="100" y="266" text-anchor="middle">對每位成員</text>
+  <text x="100" y="284" text-anchor="middle" class="sub">寫入個人回憶錄</text>
+  <text x="100" y="300" text-anchor="middle" class="sub">更新 total_focus_min</text>
+  <text x="100" y="316" text-anchor="middle" class="sub">更新 streak</text>
+
+  <rect x="240" y="244" width="160" height="80" rx="8" class="node-rect"/>
+  <text x="320" y="266" text-anchor="middle">若 group_id 非空</text>
+  <text x="320" y="284" text-anchor="middle" class="sub">append to timeline</text>
+  <text x="320" y="300" text-anchor="middle" class="sub">寵物能量/HP 結算</text>
+  <text x="320" y="316" text-anchor="middle" class="sub">可能升級或瀕死</text>
+
+  <rect x="460" y="244" width="160" height="80" rx="8" class="new-node"/>
+  <text x="540" y="266" text-anchor="middle" style="fill: var(--coral);">Redis ZADD</text>
+  <text x="540" y="284" text-anchor="middle" class="sub">更新每位成員</text>
+  <text x="540" y="300" text-anchor="middle" class="sub">performance_score</text>
+  <text x="540" y="316" text-anchor="middle" class="sub">weekly / global</text>
+
+  <rect x="680" y="244" width="160" height="80" rx="8" class="new-node"/>
+  <text x="760" y="266" text-anchor="middle" style="fill: var(--coral);">遍歷 pairs</text>
+  <text x="760" y="284" text-anchor="middle" class="sub">upsert edges</text>
+  <text x="760" y="300" text-anchor="middle" class="sub">感情積分 + 聚會數</text>
+  <text x="760" y="316" text-anchor="middle" class="sub">last_met_at</text>
+
+  <line x1="100" y1="324" x2="100" y2="376" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="320" y1="324" x2="320" y2="376" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="540" y1="324" x2="540" y2="376" class="flow-line" marker-end="url(#arr-p5)"/>
+  <line x1="760" y1="324" x2="760" y2="376" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="20" y="376" width="160" height="36" rx="8" class="success-node"/>
+  <text x="100" y="399" text-anchor="middle" style="fill: var(--success);">Job A 完成</text>
+
+  <rect x="240" y="376" width="160" height="36" rx="8" class="success-node"/>
+  <text x="320" y="399" text-anchor="middle" style="fill: var(--success);">Job B 完成</text>
+
+  <rect x="460" y="376" width="160" height="36" rx="8" class="success-node"/>
+  <text x="540" y="399" text-anchor="middle" style="fill: var(--success);">Job C 完成</text>
+
+  <rect x="680" y="376" width="160" height="36" rx="8" class="success-node"/>
+  <text x="760" y="399" text-anchor="middle" style="fill: var(--success);">Job D 完成</text>
+
+  <line x1="100" y1="412" x2="100" y2="440" class="flow-line"/>
+  <line x1="320" y1="412" x2="320" y2="440" class="flow-line"/>
+  <line x1="540" y1="412" x2="540" y2="440" class="flow-line"/>
+  <line x1="760" y1="412" x2="760" y2="440" class="flow-line"/>
+  <line x1="100" y1="440" x2="760" y2="440" class="flow-line"/>
+  <line x1="430" y1="440" x2="430" y2="464" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="290" y="464" width="280" height="50" rx="8" class="node-rect"/>
+  <text x="430" y="486" text-anchor="middle">推送通知到各成員</text>
+  <text x="430" y="502" text-anchor="middle" class="sub">「你的回憶錄報紙已生成，查看本次表現」</text>
+  <line x1="430" y1="514" x2="430" y2="538" class="flow-line" marker-end="url(#arr-p5)"/>
+
+  <rect x="340" y="538" width="180" height="40" rx="8" class="terminal"/>
+  <text x="430" y="563" text-anchor="middle">session 狀態 → CLOSED</text>
+</svg>
+
+<h3>7.1 排行榜實作（Redis Sorted Set）<span class="tag tag-new">v2 NEW</span></h3>
+<pre><code>// 每次 Job C 執行
+async function updateLeaderboard(uid: string, scoreDelta: number) {
+  // 全域累計
+  await redis.zincrby('leaderboard:global', scoreDelta, uid);
+
+  // 本週累計（key 含週次）
+  const weekKey = `leaderboard:weekly:${getYearWeek()}`;
+  await redis.zincrby(weekKey, scoreDelta, uid);
+  await redis.expire(weekKey, 60 * 60 * 24 * 14);  // 保留 2 週
+
+  // 情境別累計（選配，例如 study 情境的排行榜）
+  await redis.zincrby(`leaderboard:context:${session.context}`, scoreDelta, uid);
+}
+
+// 查詢排行榜
+async function getLeaderboard(scope: 'global' | 'weekly' | 'friends', uid: string) {
+  if (scope === 'friends') {
+    // 取出該使用者所有群組的成員
+    const friendUids = await getAllGroupMemberUids(uid);
+    const scores = await redis.zmscore('leaderboard:global', friendUids);
+    return sortAndRank(friendUids, scores);
+  }
+
+  const key = scope === 'global' ? 'leaderboard:global' : `leaderboard:weekly:${getYearWeek()}`;
+  return await redis.zrevrange(key, 0, 99, 'WITHSCORES');  // 取前 100
+}</code></pre>
+
+<h3>7.2 群組寵物能量 / HP 結算 <span class="tag tag-new">v2.1 NEW</span></h3>
+<pre><code>// Job B 的一部分
+async function updateGroupPet(group_id: string, quality_score: number) {
+  const group = await db.get('groups', group_id);
+  const updates: Partial&lt;Group&gt; = { pet_last_fed_at: new Date() };
+
+  // 1. 依品質計算能量變化
+  let energyDelta = 0;
+  let hpDelta = 0;
+
+  if (quality_score >= 70) {
+    // 好品質：餵食成功
+    energyDelta = Math.round((quality_score - 50) * 0.5);  // 最高 +25
+    updates.pet_status = "HAPPY";
+  } else if (quality_score >= 40) {
+    // 中等品質：不變
+    energyDelta = 0;
+    updates.pet_status = "NORMAL";
+  } else {
+    // 差品質：損失生命
+    energyDelta = -10;
+    hpDelta = -1;
+    updates.pet_status = "CRITICAL";
+  }
+
+  const newEnergy = Math.max(0, Math.min(group.pet_max_energy, group.pet_energy + energyDelta));
+  const newHp = Math.max(0, group.pet_hp + hpDelta);
+  const newAccumulated = group.pet_accumulated_score + Math.max(0, energyDelta);
+  const newLevel = computePetLevel(newAccumulated);
+
+  updates.pet_energy = newEnergy;
+  updates.pet_hp = newHp;
+  updates.pet_accumulated_score = newAccumulated;
+  updates.pet_level = newLevel;
+
+  // 2. 升級時解鎖配件
+  if (newLevel > group.pet_level) {
+    const newUnlocks = getAccessoriesForLevels(group.pet_level + 1, newLevel);
+    updates.pet_accessories = [...group.pet_accessories, ...newUnlocks];
+
+    await sendGroupNotification(group_id, {
+      type: 'PET_LEVEL_UP',
+      pet_name: group.pet_name,
+      from_level: group.pet_level,
+      to_level: newLevel,
+      unlocked: newUnlocks
+    });
+  }
+
+  // 3. HP 歸零 → 瀕死警告
+  if (newHp === 0 && group.pet_hp > 0) {
+    await sendGroupNotification(group_id, {
+      type: 'PET_CRITICAL',
+      pet_name: group.pet_name,
+      message: '寵物已瀕死！下次聚會品質需 ≥ 80 才能復活'
+    });
+  }
+
+  await db.update('groups', group_id, updates);
+
+  return { energyDelta, hpDelta, newLevel };
+}
+
+// 等級門檻
+function computePetLevel(accumulated: number): number {
+  if (accumulated &lt; 50) return 1;
+  if (accumulated &lt; 150) return 2;
+  if (accumulated &lt; 350) return 3;
+  if (accumulated &lt; 600) return 4;
+  if (accumulated &lt; 1000) return 5;
+  return 5 + Math.floor((accumulated - 1000) / 500);
+}
+
+// 長期未聚會衰減（定時任務，每天凌晨執行）
+async function dailyPetDecay() {
+  const groups = await db.query('groups', {
+    where: { pet_last_fed_at: { lt: daysAgo(14) } }
+  });
+
+  for (const group of groups) {
+    const daysSinceLastFed = daysBetween(group.pet_last_fed_at, now());
+    const decayDays = daysSinceLastFed - 14;
+    if (decayDays > 0) {
+      const newEnergy = Math.max(0, group.pet_energy - decayDays * 2);
+      await db.update('groups', group.group_id, {
+        pet_energy: newEnergy,
+        pet_status: newEnergy &lt; 20 ? "HUNGRY" : "NORMAL"
+      });
+    }
+  }
+}</code></pre>
+
+<h3>7.3 寵物顯示渲染邏輯</h3>
+<pre><code>// Client 端渲染群組寵物
+function renderGroupPet(group: Group, users: Map&lt;UUID, User&gt;): RenderInstructions {
+  // 被選為寵物的那個人的去背臉
+  const petPerson = users.get(group.pet_target_uid);
+  const headImage = petPerson?.cutout_avatar_url;
+
+  // 去頭 emoji 動物身體
+  const bodyEmoji = group.pet_body_emoji;
+
+  // 寵物狀態影響視覺
+  const statusEffects = {
+    HAPPY: { glow: true, bounce: true, sparkle: true },
+    NORMAL: { glow: false, bounce: false, sparkle: false },
+    HUNGRY: { glow: false, bounce: false, dim: true },
+    CRITICAL: { glow: false, bounce: false, dim: true, crack: true }
+  }[group.pet_status];
+
+  return {
+    head_image: headImage,               // 寵物人的去背臉
+    body_emoji: bodyEmoji,               // 去頭 emoji 動物身體
+    accessories: group.pet_accessories.map(a =&gt; accessorySprites[a]),
+    level_indicator: group.pet_level,
+    energy_bar: group.pet_energy / group.pet_max_energy,
+    hp_hearts: group.pet_hp,             // 顯示 0-5 顆心
+    pet_name: group.pet_name,
+    status_effects: statusEffects
+  };
+}</code></pre>
+
+<hr>
+
+<h2 id="s8">8. 跨階段共用邏輯</h2>
+<p class="section-intro">延續 v1 設計，此處僅列出 v2 調整部分。</p>
+
+<h3>8.1 同步與衝突</h3>
+<ul>
+<li>兩客戶端同時回報相同 <code>POSTURE_CHANGED</code>：以較晚 timestamp 為準。</li>
+<li>主持者裝置斷線：推選最早 ready 的成員代為廣播 live_state。</li>
+<li>NFC 感應失敗 3 次：自動切 QR UI。</li>
+<li>Q&A 觸發後主持者立即結束聚會：Q&A 視為提前結束，不計入當日觸發次數上限。</li>
+</ul>
+
+<h3>8.2 推播通道（v2 擴充）</h3>
+<ul>
+<li><strong>即時 state</strong>：WebSocket / Firestore snapshot listener</li>
+<li><strong>Phase 4 完成通知</strong>：FCM push</li>
+<li><strong>排行榜週更新</strong>：每週日 23:55 批次快照 + 推送周冠軍</li>
+<li><strong>寵物狀態變化</strong>：即時推播到群組所有成員（升級、瀕死警告）</li>
+</ul>
+
+<h3>8.3 冪等性要求</h3>
+<p>所有事件 API 必須支援 <code>idempotency_key</code>。排行榜更新額外需要 session-level idempotency 避免重複加分：</p>
+<pre><code>// Redis
+const key = `lb:applied:${session_id}`;
+const alreadyApplied = await redis.get(key);
+if (alreadyApplied) return;
+
+await updateLeaderboard(...);
+await redis.set(key, '1', 'EX', 60 * 60 * 24 * 7);  // 7 天防重</code></pre>
+
+<hr>
+
+<h2 id="s9">9. 資料模型與 API 契約</h2>
+
+<h3>9.1 BaaS 資料表摘要</h3>
+<pre><code>// Firestore / Supabase
+users/{uid}                              // 使用者 profile 與累計統計
+groups/{group_id}                        // 含動物狀態
+groups/{group_id}/members/{uid}          // 成員關係與群組角色
+sessions/{session_id}                    // session 主記錄
+sessions/{session_id}/live_state/{uid}   // 聚會中即時狀態（可用 Realtime DB）
+sessions/{session_id}/events/{event_id}  // 感測事件（高寫入，建議分表）
+artifacts/{session_id}                   // 回憶錄報紙（MemoryNewspaper）
+relationship_edges/{user_a}_{user_b}     // 感情積分 dyadic
+qa_bank/{question_id}                    // Q&A 系統題庫
+groups/{group_id}/custom_questions/{id}  // 群組自訂題庫
+sessions/{session_id}/photos/{photo_id}  // 聚會照片 metadata
+notifications/{uid}/{notification_id}    // 推播紀錄
+
+// Firebase Storage
+users/{uid}/avatar.jpg                   // 頭像
+users/{uid}/cutout.png                   // 去背版
+sessions/{session_id}/photos/*.jpg       // 聚會照片
+
+// Redis
+leaderboard:global                       // ZSET
+leaderboard:weekly:{YYYY-WW}             // ZSET
+leaderboard:context:{ctx}                // ZSET
+session:{id}:live                        // 聚會中快取</code></pre>
+
+<h3>9.2 核心 API 端點</h3>
+<pre><code>// Auth
+POST   /auth/signup                   Email 註冊
+POST   /auth/login                    Email 登入
+POST   /auth/oauth/:provider          OAuth 登入
+POST   /auth/anonymous                匿名登入
+
+// User
+GET    /users/me                      讀取自己 profile
+PATCH  /users/me                      更新 profile
+POST   /users/me/avatar               上傳頭像（含去背）
+
+// Group
+POST   /groups                        建立群組（含動物設定）
+GET    /groups/:id                    群組詳情
+GET    /groups/:id/pet              群組寵物當前狀態
+POST   /groups/:id/members            新增成員
+
+// Session
+POST   /sessions                      建立 session（Phase 0）
+POST   /sessions/:id/join             NFC/QR 加入
+POST   /sessions/:id/consent          同意書
+POST   /sessions/:id/ready            Face-down 就緒
+POST   /sessions/:id/events-batch     批次上傳事件
+POST   /sessions/:id/exempt           PIN 豁免
+POST   /sessions/:id/host-command     主持者命令
+POST   /sessions/:id/qa-trigger       觸發 Q&A            v2 新
+POST   /sessions/:id/qa-response      Q&A 回答            v2 新
+POST   /sessions/:id/end              手動結束
+
+// Artifact → 回憶錄報紙
+GET    /newspaper/:session_id       讀取回憶錄報紙
+POST   /newspaper/:session_id/layer2  Layer 2 問卷
+DELETE /newspaper/:session_id/topic/:keyword
+
+// 聚會照片                                                 v2.1 新
+POST   /sessions/:id/photos         上傳照片
+GET    /sessions/:id/photos         列出照片
+
+// Q&A 題庫（可編輯）                                       v2.1 更新
+GET    /qa/system                   取得系統預設題庫
+GET    /groups/:id/qa               取得群組自訂題庫
+POST   /groups/:id/qa               新增自訂題目
+DELETE /groups/:id/qa/:question_id   刪除自訂題目
+
+// Leaderboard                                              v2 新
+GET    /leaderboard/global?limit=100
+GET    /leaderboard/weekly
+GET    /leaderboard/friends
+GET    /leaderboard/context/:ctx
+
+// AI/ML                                                    v2 新
+GET    /insights/performance          個人表現分析
+GET    /insights/next-topics/:group   下次聚會話題建議
+GET    /insights/trend                長期趨勢</code></pre>
+
+<hr>
+
+<h2 id="s10">10. 實作優先序（四 Sprint 規劃）</h2>
+
+<h3>Sprint 1（3 週）· 最小可跑版本</h3>
+<ul>
+<li>Section 1 完整帳號系統（Email 登入即可，暫不做 OAuth）</li>
+<li>Phase 0 建立 session（只支援 <code>general</code> 情境、難度 <code>M</code>）</li>
+<li>Phase 1 QR 入場（NFC 暫不做）+ face-down 偵測</li>
+<li>Phase 2 基本感測 + 極簡共享螢幕（計時 + 專注數）</li>
+<li>Phase 3 僅支援主持者手動結束</li>
+<li>Phase 4 情境層 + 連結層問卷 + 基本表現積分 + 簡版回憶錄報紙（模板化）</li>
+<li>Phase 5 Job A + Job C（排行榜全域）</li>
+</ul>
+
+<h3>Sprint 2（2 週）· 群組系統</h3>
+<ul>
+<li>完整群組 CRUD + 成員頭像去背 + 寵物人選定</li>
+<li>情境預設擴充到全部 11 種</li>
+<li>Phase 5 Job B（群組卡、寵物能量/HP 初始版本）</li>
+<li>Phase 5 Job D（感情積分）</li>
+<li>排行榜好友範圍</li>
+</ul>
+
+<h3>Sprint 3（2-3 週）· 進階感測與 AI</h3>
+<ul>
+<li>NFC 入場（iOS + Android 雙平台）</li>
+<li>VAD 選配 + 二次同意</li>
+<li>錄音轉文字 on-device（Whisper）+ 高光時刻提取</li>
+<li>AI/ML pipeline（回憶錄報紙生成、LLM 摘要）</li>
+<li>可編輯 Q&A 題庫（群組自訂題目 CRUD）</li>
+<li>個人基線 ML 開始訓練</li>
+</ul>
+
+<h3>Sprint 4（2 週）· 互動擴充</h3>
+<ul>
+<li>會中 Q&A 完整實作（含題庫、三種類型）</li>
+<li>寵物升級動畫與配件系統 + 瀕死/復活流程</li>
+<li>長期儀表板（個人表現趨勢、群組活躍度）</li>
+<li>聚會照片上傳 + 報紙版面照片嵌入</li>
+<li>週排行榜通知與慶祝畫面</li>
+</ul>
+
+<div class="callout">
+<strong>實作提醒</strong><br>
+① 所有 v2 新機制建議以 feature flag 控制，便於 Alpha/Beta 階段獨立評估各功能的使用者接受度（符合 ADR 方法論）。<br>
+② BaaS 建議優先用 Firebase（生態成熟、Functions 與 Auth 整合佳）；若預算較緊或需要 Postgres 能力，Supabase 是合理替代。<br>
+③ Edge Computing 部分（VAD、Whisper）對裝置效能與電池影響較大，建議 Sprint 3 務必做好 benchmark，必要時限制只在主持者單一裝置執行。<br>
+④ 排行榜與群組動物涉及遊戲化體驗，建議邀請 2-3 位目標使用者實地測試後再決定積分公式與升級曲線。
+</div>
+
+</div>
+</body>
+</html>
