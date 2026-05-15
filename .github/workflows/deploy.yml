@@ -35,7 +35,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
 
-  # ── Backend: Cloud Run (用 gcloud run deploy --source，免 Artifact Registry) ──
+  # ── Backend: Cloud Run ──
   deploy-backend:
     runs-on: ubuntu-latest
     permissions:
