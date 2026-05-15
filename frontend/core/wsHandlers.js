@@ -7,7 +7,7 @@ import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { enterReadyPhase, startPreCountdown, showResults, cleanup67Game } from '../views/67-game/67-game.js';
+import { enterReadyPhase, startPreCountdown, showResults, cleanup67Game, handleCancelled, updateLiveScores, syncTime } from '../views/67-game/67-game.js';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -28,6 +28,9 @@ export function registerAllWsHandlers() {
     registerHandler('GAME67_STARTED', handleGame67Started);
     registerHandler('GAME67_COUNTDOWN', handleGame67Countdown);
     registerHandler('GAME67_RESULTS', handleGame67Results);
+    registerHandler('GAME67_CANCELLED', handleGame67Cancelled);
+    registerHandler('GAME67_LIVE_SCORES', handleGame67LiveScores);
+    registerHandler('GAME67_TIME_SYNC', handleGame67TimeSync);
     registerHandler('QA_ERROR', (msg) => alert('出題失敗:' + msg.message));
 }
 
@@ -235,4 +238,16 @@ function handleGame67Countdown() {
 
 function handleGame67Results(msg) {
     showResults(msg.scores || []);
+}
+
+function handleGame67Cancelled() {
+    handleCancelled();
+}
+
+function handleGame67LiveScores(msg) {
+    updateLiveScores(msg.scores || {});
+}
+
+function handleGame67TimeSync(msg) {
+    syncTime(msg.seconds_left);
 }

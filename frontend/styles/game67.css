@@ -1,56 +1,85 @@
-/* styles/game67.css — 67 挑戰遊戲 */
+/* styles/game67.css — 67 挑戰遊戲 (SOTA) */
 
-/* ===== 自拍階段 ===== */
-.selfie-preview-wrap {
-    width: 200px;
-    height: 200px;
-    margin: 20px auto;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    background: rgba(0, 0, 0, 0.3);
+/* ===== 規則卡片 ===== */
+.game67-rules-card {
+    background: var(--bg-surface, rgba(255,255,255,0.055));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
+    border-radius: var(--r-lg, 24px);
+    padding: 24px;
+    margin: 20px 0;
+    text-align: center;
+    line-height: 2;
+    font-size: 1.05rem;
 }
-.selfie-video,
-.selfie-preview {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-}
-.selfie-btn-row {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin: 12px 0;
+.game67-rules-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #8892a4);
+    margin-top: 8px;
 }
 
 /* ===== 倒數 3-2-1 ===== */
 .game67-big-num {
-    font-size: 8rem;
+    font-size: clamp(5rem, 20vw, 8rem);
     font-weight: 900;
     text-align: center;
     padding: 60px 0;
     color: #fff;
-    text-shadow: 0 0 40px rgba(99, 102, 241, 0.8);
-    animation: game67-pulse 0.8s ease-in-out infinite;
+    text-shadow: 0 0 40px rgba(255, 107, 53, 0.8);
 }
-@keyframes game67-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
+.game67-count-enter {
+    animation: count-snap 0.4s ease-out;
 }
+.game67-count-go {
+    animation: count-go 0.5s ease-out;
+    color: var(--accent-fire, #ff6b35);
+    text-shadow: 0 0 60px rgba(255, 107, 53, 0.9), 0 0 120px rgba(255, 107, 53, 0.4);
+}
+@keyframes count-snap {
+    0% { transform: scale(2); opacity: 0; filter: blur(8px); }
+    100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+@keyframes count-go {
+    0% { transform: scale(2.5); opacity: 0; filter: blur(12px); }
+    60% { transform: scale(0.95); opacity: 1; filter: blur(0); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== 即時對手分數 ===== */
+.game67-opponents {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    min-height: 28px;
+}
+.game67-opp-pill {
+    background: var(--bg-surface, rgba(255,255,255,0.055));
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
+    border-radius: var(--r-pill, 999px);
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.game67-opp-name { color: var(--text-secondary, #8892a4); }
+.game67-opp-count { font-weight: 700; color: var(--text-primary, #f0f4f8); }
 
 /* ===== 計時條 ===== */
 .game67-timer-bar {
     width: 100%;
     height: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 4px;
 }
 .game67-timer-fill {
     height: 100%;
-    background: linear-gradient(90deg, #f43f5e, #f97316, #eab308);
+    background: linear-gradient(90deg, var(--accent-fire, #ff6b35), #eab308);
     border-radius: 4px;
     transition: width 1s linear;
 }
@@ -58,8 +87,21 @@
     text-align: center;
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #8892a4);
     margin-bottom: 8px;
+    transition: color 0.3s, transform 0.3s;
+}
+
+/* B4: 最後 5 秒 */
+.urgency .game67-timer-fill { background: linear-gradient(90deg, #ef4444, #f43f5e); }
+.urgency .game67-timer-text {
+    color: #f43f5e;
+    animation: urgency-flash 0.5s ease-in-out infinite alternate;
+}
+.urgency .btn-67-tap { box-shadow: 0 6px 30px rgba(244, 63, 94, 0.6); }
+@keyframes urgency-flash {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0.6; transform: scale(1.1); }
 }
 
 /* ===== 虛擬角色 ===== */
@@ -67,10 +109,8 @@
     position: relative;
     width: 160px;
     height: 240px;
-    margin: 0 auto 16px;
+    margin: 0 auto 12px;
 }
-
-/* 頭部（即時鏡頭當頭，沒有邊框，直接長在身體上） */
 .game67-avatar {
     width: 80px;
     height: 80px;
@@ -80,6 +120,21 @@
     display: block;
     margin: 0 auto;
     background: rgba(0, 0, 0, 0.3);
+    z-index: 2;
+    position: relative;
+}
+.game67-avatar-fallback {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin: 0 auto;
+    background: linear-gradient(135deg, var(--accent-fire, #ff6b35), #e8440a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
     z-index: 2;
     position: relative;
 }
@@ -96,9 +151,9 @@
 .game67-torso {
     width: 40px;
     height: 50px;
-    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    background: var(--bg-surface, rgba(255,255,255,0.055));
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
     border-radius: 8px 8px 4px 4px;
-    position: relative;
     z-index: 1;
 }
 
@@ -109,66 +164,94 @@
     height: 70px;
     border-radius: 14px;
     z-index: 0;
-    transition: transform 0.08s ease-out;
+    transition: transform 0.04s ease-out;
     transform-origin: top center;
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    will-change: transform;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
 }
-.game67-arm-left {
-    left: 10px;
-    top: 0;
-    background: linear-gradient(180deg, #818cf8, #6366f1);
-}
-.game67-arm-right {
-    right: 10px;
-    top: 0;
-    background: linear-gradient(180deg, #818cf8, #6366f1);
-}
+.game67-arm-left { left: 10px; top: 0; }
+.game67-arm-right { right: 10px; top: 0; }
 .game67-hand {
     font-size: 1.2rem;
     font-weight: 900;
-    color: #fbbf24;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    color: var(--accent-fire, #ff6b35);
+    text-shadow: 0 1px 6px rgba(255, 107, 53, 0.5);
     margin-bottom: 4px;
 }
 
-/* 手臂上下動畫 */
-.game67-arm.arm-up {
-    transform: rotate(-45deg) translateY(-10px);
-}
-.game67-arm.arm-down {
-    transform: rotate(15deg) translateY(8px);
-}
-.game67-arm-right.arm-up {
-    transform: rotate(45deg) translateY(-10px);
-}
-.game67-arm-right.arm-down {
-    transform: rotate(-15deg) translateY(8px);
-}
+.game67-arm-left.arm-up   { transform: rotate(-50deg) translateY(-12px); }
+.game67-arm-left.arm-down { transform: rotate(15deg) translateY(8px); }
+.game67-arm-right.arm-up  { transform: rotate(50deg) translateY(-12px); }
+.game67-arm-right.arm-down { transform: rotate(-15deg) translateY(8px); }
 
 /* 腿 */
-.game67-legs {
-    display: flex;
-    gap: 8px;
-    margin-top: -2px;
-}
+.game67-legs { display: flex; gap: 8px; margin-top: -2px; }
 .game67-leg {
     width: 16px;
     height: 45px;
-    background: linear-gradient(180deg, #4338ca, #3730a3);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
     border-radius: 6px;
+    transition: transform 0.06s ease-out;
+    will-change: transform;
+}
+.game67-leg.leg-kick { transform: translateY(-4px) rotate(5deg); }
+
+/* ===== Combo ===== */
+.game67-combo {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 800;
+    height: 24px;
+    line-height: 24px;
+    color: transparent;
+    transition: opacity 0.15s;
+}
+.game67-combo-show {
+    animation: combo-pop 0.3s ease-out;
+    color: var(--accent-fire, #ff6b35);
+    text-shadow: 0 0 12px rgba(255, 107, 53, 0.6);
+}
+@keyframes combo-pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 /* ===== 點擊計數 ===== */
 .game67-tap-count {
-    font-size: 4rem;
+    font-size: clamp(2.5rem, 8vw, 4rem);
     font-weight: 900;
     text-align: center;
     color: #fbbf24;
-    text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
-    margin: 8px 0;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+    margin: 4px 0;
     line-height: 1;
+    transition: transform 0.1s ease-in, text-shadow 0.2s;
+}
+.game67-tap-count.score-pop {
+    transform: scale(1.12);
+    transition: transform 0.05s ease-out;
+}
+.game67-tap-count.combo-hot {
+    text-shadow: 0 0 25px rgba(251, 191, 36, 0.6);
+}
+.game67-tap-count.combo-fire {
+    text-shadow: 0 0 30px rgba(255, 107, 53, 0.7), 0 0 60px rgba(255, 107, 53, 0.3);
+    color: #ff9f43;
+}
+.game67-tap-count.combo-inferno {
+    text-shadow: 0 0 40px rgba(239, 68, 68, 0.8), 0 0 80px rgba(255, 107, 53, 0.4);
+    color: #ff6b6b;
+    animation: inferno-glow 0.15s ease-in-out infinite alternate;
+}
+@keyframes inferno-glow {
+    from { text-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+    to { text-shadow: 0 0 60px rgba(255, 107, 53, 0.9), 0 0 100px rgba(239, 68, 68, 0.5); }
 }
 
 /* ===== TAP 按鈕 ===== */
@@ -176,35 +259,54 @@
     display: block;
     width: 90%;
     max-width: 320px;
-    margin: 0 auto;
-    padding: 28px 0;
-    font-size: 2rem;
+    margin: 8px auto 0;
+    padding: 24px 0;
+    font-size: 1.8rem;
     font-weight: 900;
     letter-spacing: 4px;
     border: none;
-    border-radius: 20px;
+    border-radius: var(--r-lg, 24px);
     color: #fff;
-    background: linear-gradient(135deg, #f43f5e, #ec4899);
-    box-shadow: 0 6px 25px rgba(244, 63, 94, 0.5);
+    background: linear-gradient(135deg, var(--accent-fire, #ff6b35), var(--accent-fire2, #e8440a));
+    box-shadow: 0 4px 24px rgba(255, 107, 53, 0.45);
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
-    transition: transform 0.06s, box-shadow 0.06s;
+    transition: transform 0.05s, box-shadow 0.05s;
+    position: relative;
+    overflow: hidden;
 }
 .btn-67-tap:active {
-    transform: scale(0.94);
-    box-shadow: 0 2px 10px rgba(244, 63, 94, 0.4);
+    transform: scale(0.92);
+    box-shadow: 0 2px 12px rgba(255, 107, 53, 0.3);
+    background: linear-gradient(135deg, var(--accent-fire2, #e8440a), var(--accent-fire, #ff6b35));
+}
+.btn-67-tap::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s, height 0.4s, opacity 0.4s;
+    opacity: 0;
+}
+.btn-67-tap:active::after {
+    width: 300px; height: 300px;
+    opacity: 1;
+    transition: 0s;
 }
 
 /* ===== 結果排名 ===== */
 .game67-my-score {
     text-align: center;
     margin: 20px 0;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #8892a4);
 }
 .game67-score-num {
-    font-size: 4rem;
+    font-size: clamp(3rem, 10vw, 4.5rem);
     font-weight: 900;
     color: #fbbf24;
     text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
@@ -220,36 +322,36 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
+    background: var(--bg-surface, rgba(255,255,255,0.055));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border, rgba(255,255,255,0.09));
+    border-radius: var(--r-md, 16px);
     margin-bottom: 8px;
+    animation: lb-slide-in 0.35s ease-out both;
 }
-.game67-lb-rank {
-    font-size: 1.3rem;
-    width: 36px;
-    text-align: center;
-    flex-shrink: 0;
+.game67-lb-first {
+    border-color: rgba(251, 191, 36, 0.4);
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
 }
-.game67-lb-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
+@keyframes lb-slide-in {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
-.game67-lb-name {
-    flex: 1;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.game67-lb-rank { font-size: 1.3rem; width: 36px; text-align: center; flex-shrink: 0; }
+.game67-lb-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game67-lb-me { color: #fbbf24; }
+.game67-lb-score { font-weight: 800; font-size: 1.1rem; color: var(--accent-fire, #ff6b35); flex-shrink: 0; }
+.game67-result-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+
+/* ===== 響應式 ===== */
+@media (max-height: 640px) {
+    .game67-character { transform: scale(0.7); margin: 0 auto 4px; }
+    .game67-tap-count { font-size: clamp(2rem, 7vw, 3rem); }
+    .btn-67-tap { padding: 18px 0; font-size: 1.5rem; }
+    .game67-big-num { padding: 30px 0; }
 }
-.game67-lb-me {
-    color: #fbbf24;
-}
-.game67-lb-score {
-    font-weight: 800;
-    font-size: 1.1rem;
-    color: #a5b4fc;
-    flex-shrink: 0;
+@media (orientation: landscape) and (max-height: 500px) {
+    .game67-character { transform: scale(0.55); margin: 0 auto; }
+    .btn-67-tap { max-width: 240px; padding: 16px 0; }
 }
