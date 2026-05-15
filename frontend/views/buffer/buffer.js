@@ -21,11 +21,16 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        startCognitiveBuffer();
+        // 如果倒數已經在跑，不要重新開始（避免反覆切換分頁重置計時器）
+        if (!state.bufferTimerObj) {
+            startCognitiveBuffer();
+        }
         sendAction('VISIBILITY_CHANGE', { state: 'visible' });
     } else {
-        endCognitiveBuffer(true);
-        sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
+        // 倒數進行中時不要取消，讓計時器繼續跑（超時會自動記錄分心）
+        if (!state.bufferTimerObj) {
+            sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
+        }
     }
 }
 

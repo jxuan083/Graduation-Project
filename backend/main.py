@@ -2004,9 +2004,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 continue
 
             if action == "END_SESSION":
-                # 只有房主可以結束聚會
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[END_SESSION] rejected: user={user_id} is not host of room {room_id}")
+                # 任何參與者都可以結束聚會（讓所有人都能觸發紀錄寫入）
+                # 如果房間已經結束就跳過
+                if rooms[room_id].get("status") == "ENDED":
+                    print(f"[END_SESSION] skipped: room {room_id} already ENDED")
                     continue
 
                 reason = data.get("reason", "host_ended")
@@ -2437,19 +2438,111 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     "type": "TABOO_ENDED"
                 })
 
+            # 9. 房主發起 67 挑戰
+            elif action == "START_67_GAME":
+                if rooms[room_id].get("host_uid") != user_id:
+                    print(f"[START_67_GAME] rejected: user={user_id} is not host of room {room_id}")
+                    continue
+
+                rooms[room_id]["mode"] = "GAME_67"
+                rooms[room_id]["game67"] = {
+                    "ready": {},    # user_id → True
+                    "scores": {},   # user_id → count
+                    "finished": {}, # user_id → True
+                }
+
+                try:
+                    db.collection("rooms").document(room_id).update({"mode": "GAME_67"})
+                except Exception as e:
+                    print(f"Error updating 67 game state: {e}")
+
+                await manager.broadcast_to_room(room_id, {"type": "GAME67_STARTED"})
+
+            # 10. 玩家準備好了
+            elif action == "GAME67_READY":
+                g67 = rooms[room_id].get("game67")
+                if not g67:
+                    continue
+                g67["ready"][user_id] = True
+
+                # 所有連線中的成員都準備好了 → 開始倒數
+                connected = [uid for uid, info in rooms[room_id]["members"].items()
+                             if info.get("state") != "DISCONNECTED"]
+                all_ready = all(g67["ready"].get(uid) for uid in connected)
+                if all_ready and len(connected) > 0:
+                    await manager.broadcast_to_room(room_id, {"type": "GAME67_COUNTDOWN"})
+
+            # 11. 即時分數更新
+            elif action == "GAME67_TAP_UPDATE":
+                g67 = rooms[room_id].get("game67")
+                if not g67:
+                    continue
+                count = int(data.get("count", 0))
+                g67["scores"][user_id] = count
+
+            # 12. 玩家完成 67 挑戰
+            elif action == "GAME67_FINISH":
+                g67 = rooms[room_id].get("game67")
+                if not g67:
+                    continue
+                count = int(data.get("count", 0))
+                g67["scores"][user_id] = count
+                g67["finished"][user_id] = True
+
+                # 所有連線中的成員都完成 → 廣播結果
+                connected = [uid for uid, info in rooms[room_id]["members"].items()
+                             if info.get("state") != "DISCONNECTED"]
+                all_done = all(g67["finished"].get(uid) for uid in connected)
+                if all_done and len(connected) > 0:
+                    # 組排行榜
+                    leaderboard = []
+                    for uid in connected:
+                        nick = rooms[room_id]["members"].get(uid, {}).get("nickname", "???")
+                        leaderboard.append({
+                            "user_id": uid,
+                            "nickname": nick,
+                            "count": g67["scores"].get(uid, 0),
+                        })
+                    leaderboard.sort(key=lambda x: x["count"], reverse=True)
+
+                    await manager.broadcast_to_room(room_id, {
+                        "type": "GAME67_RESULTS",
+                        "scores": leaderboard,
+                    })
+
+                    # 恢復聚會模式
+                    rooms[room_id]["mode"] = "ACTIVE"
+                    rooms[room_id]["game67"] = None
+                    try:
+                        db.collection("rooms").document(room_id).update({
+                            "mode": "ACTIVE",
+                        })
+                    except Exception as e:
+                        print(f"Error resetting 67 game state: {e}")
+
     except WebSocketDisconnect:
         manager.disconnect(user_id)
         if room_id in rooms and user_id in rooms[room_id]["members"]:
-            # 從記憶體移除
-            del rooms[room_id]["members"][user_id]
+            room_status = rooms[room_id].get("status", "WAITING")
 
-            # 從 Firestore 移除該成員
-            try:
-                db.collection("rooms").document(room_id).update({
-                    f"members.{user_id}": firestore.DELETE_FIELD
-                })
-            except Exception as e:
-                print(f"Error removing member from Firestore: {e}")
+            if room_status in ("ACTIVE", "SYNCING", "ENDED"):
+                # 聚會進行中/已結束：只標記斷線狀態，保留成員資料以確保紀錄完整
+                rooms[room_id]["members"][user_id]["state"] = "DISCONNECTED"
+                try:
+                    db.collection("rooms").document(room_id).update({
+                        f"members.{user_id}.state": "DISCONNECTED"
+                    })
+                except Exception as e:
+                    print(f"Error updating member disconnect state in Firestore: {e}")
+            else:
+                # WAITING 階段：直接移除成員
+                del rooms[room_id]["members"][user_id]
+                try:
+                    db.collection("rooms").document(room_id).update({
+                        f"members.{user_id}": firestore.DELETE_FIELD
+                    })
+                except Exception as e:
+                    print(f"Error removing member from Firestore: {e}")
 
             await manager.broadcast_to_room(room_id, {
                 "type": "ROOM_UPDATE",

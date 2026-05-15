@@ -22,6 +22,13 @@ export function init() {
     const tabooBtn = document.getElementById('btn-mode-taboo');
     if (tabooBtn) tabooBtn.addEventListener('click', hostStartTabooGame);
 
+    // 房主發起 67 挑戰
+    const btn67 = document.getElementById('btn-mode-67');
+    if (btn67) btn67.addEventListener('click', () => {
+        if (!state.amIHost) return;
+        sendAction('START_67_GAME');
+    });
+
     // 參與者拍照 / 上傳
     document.getElementById('btn-meeting-camera').onclick = () => handleMeetingPhotoClick('meeting-camera-input');
     document.getElementById('btn-meeting-album').onclick = () => handleMeetingPhotoClick('meeting-album-input');
@@ -76,12 +83,13 @@ async function handleMeetingPhotoChange(e) {
 }
 
 function handleEndSession() {
-    if (state.amIHost && state.ws && state.ws.readyState === WebSocket.OPEN) {
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
         const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
-        sendAction('END_SESSION', { reason: 'host_ended', duration_minutes: mins });
+        const reason = state.amIHost ? 'host_ended' : 'member_ended';
+        sendAction('END_SESSION', { reason, duration_minutes: mins });
         return;
     }
-    // Fallback
+    // Fallback: WS 已斷線，只能本地切換
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
     const timeMs = state.sessionStartTime ? Date.now() - state.sessionStartTime : 0;
