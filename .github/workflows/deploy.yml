@@ -59,4 +59,5 @@ jobs:
             --region ${{ env.GCP_REGION }} \
             --platform managed \
             --allow-unauthenticated \
+            --clear-base-image \
             --quiet
