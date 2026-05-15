@@ -10,6 +10,7 @@ let gameTimer = null;
 let secondsLeft = 0;
 let cameraStream = null;
 let armToggle = false;
+let resultTimeout = null;
 
 // Combo 系統
 let tapTimestamps = [];
@@ -288,7 +289,9 @@ export function showResults(scores) {
     document.getElementById('btn-67-replay').style.display = state.amIHost ? '' : 'none';
     document.getElementById('game67-return-hint').textContent = state.amIHost ? '' : '等待房主決定...';
 
-    setTimeout(() => {
+    if (resultTimeout) clearTimeout(resultTimeout);
+    resultTimeout = setTimeout(() => {
+        resultTimeout = null;
         if (document.getElementById('game67-result-phase')?.style.display !== 'none') {
             returnToFocus();
         }
@@ -325,6 +328,7 @@ function stopCamera() {
 
 export function cleanup67Game() {
     if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+    if (resultTimeout) { clearTimeout(resultTimeout); resultTimeout = null; }
     stopCamera();
     tapCount = 0;
     tapTimestamps = [];
