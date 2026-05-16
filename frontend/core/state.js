@@ -48,6 +48,7 @@ export const state = {
     bufferTimerObj: null,
     bufferSecondsLeft: 30,
     hiddenTimerObj: null,   // 離開分頁計時，超時送 LOG_DEVIATION
+    hiddenAt: null,         // 離開時的時間戳，回來時算差值
 
     // === 好友 cache ===
     friendUidSet: new Set(),

@@ -21,18 +21,20 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        // 用戶回來：取消離開計時，直接回 focus（不顯示倒數）
-        clearTimeout(state.hiddenTimerObj);
-        state.hiddenTimerObj = null;
-        endCognitiveBuffer(true);
+        const away = state.hiddenAt ? Date.now() - state.hiddenAt : 0;
+        state.hiddenAt = null;
+        if (away >= 15000) {
+            // 離開超過 15 秒：顯示 buffer 倒數，按按鈕不算分心，倒數完才算
+            startCognitiveBuffer();
+        } else {
+            // 離開不到 15 秒：直接回 focus，不顯示 buffer
+            endCognitiveBuffer(true);
+        }
         sendAction('VISIBILITY_CHANGE', { state: 'visible' });
     } else {
-        // 用戶離開：在背景計時，超過 30 秒才記錄分心
+        // 用戶離開：記下離開時間
+        state.hiddenAt = Date.now();
         endCognitiveBuffer(false);
-        state.hiddenTimerObj = setTimeout(() => {
-            state.hiddenTimerObj = null;
-            sendAction('LOG_DEVIATION');
-        }, 15000);
         sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     }
 }
