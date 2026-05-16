@@ -151,8 +151,6 @@ function renderMembers(g) {
     if (countEl) countEl.textContent = members.length;
     if (!ul) return;
     ul.innerHTML = '';
-    const myUid = state.currentUser?.uid;
-    const isCreator = g.creator_uid === myUid;
 
     members.forEach(m => {
         const li = document.createElement('li');
