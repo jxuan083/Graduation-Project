@@ -1789,6 +1789,7 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
         "group_id": group_id,
         "session_params": session_params,
         "members": {},
+        "all_participants": {},  # 曾加入過的所有成員（含斷線的），不會被清除
         "sync_start_time": None,
         "deviations": 0,
         "qa_state": {"current_question": None, "answers": {}},
@@ -1944,6 +1945,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
         "state": "CONNECTED",
         "nickname": existing.get("nickname") or nickname,
     }
+    # 記錄所有曾加入的成員（斷線後也保留）
+    if "all_participants" not in rooms[room_id]:
+        rooms[room_id]["all_participants"] = {}
+    rooms[room_id]["all_participants"][user_id] = {
+        "nickname": existing.get("nickname") or nickname,
+    }
 
     # 同步更新 Firestore 中的成員清單
     try:
@@ -2020,12 +2027,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # === 把這場聚會 snapshot 寫到 meetings collection ===
                 try:
                     room_data = rooms[room_id]
-                    members = room_data.get("members", {})
+                    # 用 all_participants（含已斷線的成員）建立快照，fallback 到目前在線的 members
+                    all_ever = room_data.get("all_participants") or room_data.get("members", {})
 
                     # 用 dash 判斷是訪客 (uuid 有 dash) 還是 firebase uid (沒 dash)
                     members_snapshot = []
                     participants = []
-                    for uid, info in members.items():
+                    for uid, info in all_ever.items():
                         is_guest = "-" in uid
                         members_snapshot.append({
                             "uid": uid,

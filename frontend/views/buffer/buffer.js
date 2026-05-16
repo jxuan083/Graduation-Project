@@ -21,10 +21,18 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        startCognitiveBuffer();
+        // 用戶回來：取消離開計時，直接回 focus（不顯示倒數）
+        clearTimeout(state.hiddenTimerObj);
+        state.hiddenTimerObj = null;
+        endCognitiveBuffer(true);
         sendAction('VISIBILITY_CHANGE', { state: 'visible' });
     } else {
-        endCognitiveBuffer(true);
+        // 用戶離開：在背景計時，超過 30 秒才記錄分心
+        endCognitiveBuffer(false);
+        state.hiddenTimerObj = setTimeout(() => {
+            state.hiddenTimerObj = null;
+            sendAction('LOG_DEVIATION');
+        }, 15000);
         sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     }
 }
@@ -56,6 +64,8 @@ export function startCognitiveBuffer() {
 export function endCognitiveBuffer(safe) {
     clearInterval(state.bufferTimerObj);
     state.bufferTimerObj = null;
+    clearTimeout(state.hiddenTimerObj);
+    state.hiddenTimerObj = null;
     if (safe) {
         switchView('view-focus');
         document.body.classList.remove('mode-danger');
