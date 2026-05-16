@@ -41,6 +41,15 @@ export async function joinRoom(roomId) {
     });
 }
 
+// WS 斷線後靜默重連（不切換畫面，用於從背景回來補送訊息）
+export async function reconnectSilent() {
+    if (!state.roomId || !state.myNickname) return;
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) return;
+    await connectRoom(state.roomId, state.userId, state.myNickname, () => {
+        events.emit('session:reconnected');
+    });
+}
+
 // 同步 body class 顯示模式對應顏色
 export function updateThemeByMode(mode) {
     document.body.classList.remove('mode-gathering', 'mode-family', 'mode-meeting', 'mode-class');

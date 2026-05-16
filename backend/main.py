@@ -1432,6 +1432,19 @@ async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
         new_code = _generate_invite_code()
         doc_ref.update({"invite_code": new_code})
         data["invite_code"] = new_code
+
+    # 展開 member_uids → members（含 nickname），前端顯示成員清單用
+    member_uids = data.get("member_uids") or []
+    members = []
+    for m_uid in member_uids:
+        try:
+            u = db.collection("users").document(m_uid).get()
+            ud = u.to_dict() or {} if u.exists else {}
+            members.append({"uid": m_uid, "nickname": ud.get("nickname") or m_uid})
+        except Exception:
+            members.append({"uid": m_uid, "nickname": m_uid})
+    data["members"] = members
+
     return {"status": "success", "group": _serialize_group(data, group_id)}
 
 
@@ -2484,11 +2497,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     continue
                 rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms
 
-                rooms[room_id]["deviations"] += 1
+                # 支援前端傳入 count（長時間離開時一次記多次）
+                count = max(1, int(data.get("count", 1)))
+                rooms[room_id]["deviations"] += count
 
                 try:
                     db.collection("rooms").document(room_id).update({
-                        "deviations": firestore.Increment(1)
+                        "deviations": firestore.Increment(count)
                     })
                 except Exception as e:
                     print(f"Error logging deviation in Firestore: {e}")

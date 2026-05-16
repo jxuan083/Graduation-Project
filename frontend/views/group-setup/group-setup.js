@@ -30,6 +30,9 @@ export function init() {
     const btnRefreshInvite = document.getElementById('btn-refresh-invite');
     if (btnRefreshInvite) btnRefreshInvite.onclick = handleRefreshInvite;
 
+    const btnLeave = document.getElementById('btn-leave-group');
+    if (btnLeave) btnLeave.onclick = handleLeaveGroup;
+
     buildPetBodyGrid();
 }
 
@@ -139,7 +142,12 @@ async function handleRefreshInvite() {
 function renderMembers(g) {
     const ul = document.getElementById('group-member-list');
     const countEl = document.getElementById('group-member-count');
+    const leaveBtn = document.getElementById('btn-leave-group');
     const members = g.members || [];
+    const myUid = state.currentUser?.uid;
+    const isCreator = g.creator_uid === myUid;
+    // 非建立者才顯示退出按鈕
+    if (leaveBtn) leaveBtn.style.display = (!isCreator && myUid) ? '' : 'none';
     if (countEl) countEl.textContent = members.length;
     if (!ul) return;
     ul.innerHTML = '';
@@ -250,6 +258,19 @@ function renderPetPreview(g) {
         });
         selectedPetBody = g.pet_body_emoji;
     }
+}
+
+async function handleLeaveGroup() {
+    if (!currentGroupId) return;
+    if (!confirm('確定退出這個群組？')) return;
+    try {
+        const { removeGroupMember } = await import('../../features/groups/controller.js');
+        const myUid = state.currentUser?.uid;
+        await removeGroupMember(currentGroupId, myUid);
+        alert('已退出群組');
+        const { switchView } = await import('../../core/router.js');
+        switchView('view-groups');
+    } catch (err) { alert('退出失敗：' + (err.message || err)); }
 }
 
 async function handleSaveName() {
