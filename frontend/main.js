@@ -23,7 +23,7 @@ const VIEW_NAMES = [
     'about', 'photo-lightbox', 'question-bank', 'question-edit',
     'qa-source', 'qa-picker', 'profile', 'join',
     'waiting-room', 'host-room', 'sync-ritual', 'focus', 'qa-game',
-    'taboo-prepare', 'taboo-countdown', 'taboo-card',
+    'taboo-prepare', 'taboo-countdown', 'taboo-card', '67-game',
     'buffer', 'summary',
     'member-preview', 'invite-modal',
     'meeting-setup', 'groups', 'group-setup',
@@ -53,6 +53,7 @@ const VIEW_MODULES = {
     'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js'),
     'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js'),
     'taboo-card':        () => import('./views/taboo-card/taboo-card.js'),
+    '67-game':           () => import('./views/67-game/67-game.js'),
     'buffer':            () => import('./views/buffer/buffer.js'),
     'summary':           () => import('./views/summary/summary.js'),
     'member-preview':    () => import('./views/member-preview/member-preview.js'),
@@ -169,13 +170,13 @@ function handleGroupInviteOnBoot(code) {
         try {
             const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js');
             const { data: info } = await getGroupInviteInfo(code);
-            if (!info?.group_name) { alert('邀請碼無效或已過期'); return; }
+            if (!info?.name) { alert('邀請碼無效或已過期'); return; }
             if (info.already_member) {
-                alert(`你已經是「${info.group_name}」的成員了！`);
+                alert(`你已經是「${info.name}」的成員了！`);
                 switchView('view-groups');
                 return;
             }
-            const ok = confirm(`加入群組「${info.group_name}」（${info.member_count} 位成員）？`);
+            const ok = confirm(`加入群組「${info.name}」（${info.member_count} 位成員）？`);
             if (!ok) return;
             const { data: joinData } = await joinGroupByInviteCode(code);
             if (joinData?.status === 'success') {

@@ -7,6 +7,7 @@ import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
+import { enterReadyPhase, startPreCountdown, showResults, cleanup67Game, handleCancelled, updateLiveScores, syncTime } from '../views/67-game/67-game.js';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -24,6 +25,12 @@ export function registerAllWsHandlers() {
     registerHandler('QA_FINISHED', handleQaFinished);
     registerHandler('TABOO_STARTED', handleTabooStarted);
     registerHandler('TABOO_ENDED', handleTabooEnded);
+    registerHandler('GAME67_STARTED', handleGame67Started);
+    registerHandler('GAME67_COUNTDOWN', handleGame67Countdown);
+    registerHandler('GAME67_RESULTS', handleGame67Results);
+    registerHandler('GAME67_CANCELLED', handleGame67Cancelled);
+    registerHandler('GAME67_LIVE_SCORES', handleGame67LiveScores);
+    registerHandler('GAME67_TIME_SYNC', handleGame67TimeSync);
     registerHandler('QA_ERROR', (msg) => alert('出題失敗:' + msg.message));
 }
 
@@ -94,7 +101,8 @@ function handleSessionEnded(msg) {
         else summaryView.appendChild(hint);
     }
     if (hint) {
-        if (reason === 'host_left') hint.innerText = '⚠️ 房主已離開此聚會';
+        if (reason === 'host_left') hint.innerText = '房主已離開此聚會';
+        else if (reason === 'member_ended') hint.innerText = '有成員結束了聚會';
         else if (!state.amIHost) hint.innerText = '房主已結束聚會';
         else hint.innerText = '';
     }
@@ -224,4 +232,30 @@ function handleTabooEnded() {
     switchView('view-focus');
     document.body.classList.add('mode-flow');
     try { showToast('關鍵字遊戲結束', 'info'); } catch (e) {}
+}
+
+function handleGame67Started() {
+    state.currentPhase = 'GAME_67';
+    switchView('view-67-game');
+    enterReadyPhase();
+}
+
+function handleGame67Countdown() {
+    startPreCountdown();
+}
+
+function handleGame67Results(msg) {
+    showResults(msg.scores || []);
+}
+
+function handleGame67Cancelled() {
+    handleCancelled();
+}
+
+function handleGame67LiveScores(msg) {
+    updateLiveScores(msg.scores || {});
+}
+
+function handleGame67TimeSync(msg) {
+    syncTime(msg.seconds_left);
 }

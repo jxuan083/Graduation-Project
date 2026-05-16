@@ -1,0 +1,73 @@
+<section id="view-67-game" class="view">
+
+    <!-- Phase 0: 規則 + 準備 -->
+    <div id="game67-ready-phase">
+        <h2 class="status-title">67 挑戰</h2>
+        <div class="game67-rules-card">
+            <p>20 秒內瘋狂點擊按鈕</p>
+            <p>點越多次，排名越高</p>
+            <p class="game67-rules-hint">電腦可用空白鍵</p>
+        </div>
+        <button id="btn-67-ready" class="btn primary">了解！準備好了</button>
+        <button id="btn-67-cancel" class="btn secondary" style="display:none;">取消遊戲</button>
+        <p id="game67-waiting-hint" class="hint" style="display:none;">等待其他人準備中...</p>
+    </div>
+
+    <!-- Phase 1: 倒數 3-2-1 -->
+    <div id="game67-countdown-phase" style="display:none;">
+        <div class="game67-big-num" id="game67-pre-countdown">3</div>
+    </div>
+
+    <!-- Phase 2: 狂按遊戲 -->
+    <div id="game67-play-phase" style="display:none;">
+        <!-- 即時對手分數 -->
+        <div class="game67-opponents" id="game67-opponents"></div>
+
+        <div class="game67-timer-bar">
+            <div class="game67-timer-fill" id="game67-timer-fill"></div>
+        </div>
+        <div class="game67-timer-text"><span id="game67-seconds-left">20</span>s</div>
+
+        <!-- 虛擬角色：鏡頭當頭 + 身體做 67 動作 -->
+        <div class="game67-character" id="game67-character">
+            <video id="game67-live-cam" class="game67-avatar" autoplay playsinline muted></video>
+            <div id="game67-avatar-fallback" class="game67-avatar-fallback" style="display:none;"></div>
+            <div class="game67-body">
+                <div class="game67-arm game67-arm-left" id="game67-arm-left">
+                    <span class="game67-hand">6</span>
+                </div>
+                <div class="game67-arm game67-arm-right" id="game67-arm-right">
+                    <span class="game67-hand">7</span>
+                </div>
+                <div class="game67-torso"></div>
+                <div class="game67-legs">
+                    <div class="game67-leg game67-leg-left" id="game67-leg-left"></div>
+                    <div class="game67-leg game67-leg-right" id="game67-leg-right"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Combo 提示 -->
+        <div class="game67-combo" id="game67-combo"></div>
+
+        <div class="game67-tap-count" id="game67-tap-count">0</div>
+        <button id="btn-67-tap" class="btn-67-tap">TAP!</button>
+    </div>
+
+    <!-- Phase 3: 結果排名 -->
+    <div id="game67-result-phase" style="display:none;">
+        <h2 class="status-title">67 挑戰結果</h2>
+        <div class="game67-my-score">
+            <span>你的成績</span>
+            <div class="game67-score-num" id="game67-my-final-score">0</div>
+            <span>次</span>
+        </div>
+        <ul id="game67-leaderboard" class="game67-leaderboard"></ul>
+        <div class="game67-result-actions">
+            <button id="btn-67-replay" class="btn primary" style="display:none;">再來一局</button>
+            <button id="btn-67-back" class="btn secondary">返回聚會</button>
+        </div>
+        <p id="game67-return-hint" class="hint"></p>
+    </div>
+
+</section>

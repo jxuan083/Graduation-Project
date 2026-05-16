@@ -58,6 +58,7 @@ export function startCognitiveBuffer() {
         document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
         if (state.bufferSecondsLeft <= 0) {
             clearInterval(state.bufferTimerObj);
+            state.bufferTimerObj = null;
             handleBufferTimeout();
         }
     }, 1000);
@@ -77,6 +78,25 @@ export function endCognitiveBuffer(safe) {
 
 function handleBufferTimeout() {
     sendAction('LOG_DEVIATION');
+
+    // 如果使用者還在別的分頁，重新開始 30 秒倒數（持續累計分心次數）
+    if (document.visibilityState === 'hidden') {
+        state.bufferSecondsLeft = 30;
+        document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
+        state.bufferTimerObj = setInterval(() => {
+            state.bufferSecondsLeft--;
+            document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
+            if (state.bufferSecondsLeft <= 0) {
+                clearInterval(state.bufferTimerObj);
+                state.bufferTimerObj = null;
+                handleBufferTimeout();
+            }
+        }, 1000);
+        return;
+    }
+
+    // 使用者在當前分頁，顯示懲罰動畫後恢復
+    state.bufferTimerObj = null;
     document.getElementById('lottie-orb').style.filter = 'grayscale(100%) opacity(0.5)';
     switchView('view-focus');
     document.body.classList.remove('mode-danger');
