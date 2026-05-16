@@ -49,6 +49,14 @@ function handleRoomUpdate(msg) {
         switchView('view-focus');
         try { showToast('已加入進行中的聚會', 'success'); } catch (e) {}
     }
+    // 聚會已結束但尚未跳到結算（例如重連錯過 SESSION_ENDED）
+    if (rs.status === 'ENDED' && state.currentPhase !== 'SUMMARY') {
+        state.currentPhase = 'SUMMARY';
+        document.body.className = '';
+        if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
+        closeWs();
+        switchView('view-summary');
+    }
 }
 
 function handleRoomCancelled() {

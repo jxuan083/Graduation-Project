@@ -47,6 +47,9 @@ export const state = {
     // === Buffer (分心倒數) ===
     bufferTimerObj: null,
     bufferSecondsLeft: 30,
+    hiddenTimerObj: null,   // 離開分頁計時，超時送 LOG_DEVIATION
+    hiddenAt: null,         // 離開時的時間戳，回來時算差值
+    pendingDeviation: 0,    // WS 斷線時暫存的分心次數，重連後補送
 
     // === 好友 cache ===
     friendUidSet: new Set(),

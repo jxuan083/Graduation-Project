@@ -2,6 +2,8 @@
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
+import { events } from '../../core/events.js';
+import { reconnectSilent } from '../../core/session.js';
 
 export function init() {
     register('view-buffer', { element: document.getElementById('view-buffer') });
@@ -14,6 +16,14 @@ export function init() {
 
     // 監聽頁面可見性變化
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // WS 重連後補送暫存的分心次數
+    events.on('ws:open', () => {
+        if (state.pendingDeviation > 0 && state.currentPhase === 'ACTIVE') {
+            sendAction('LOG_DEVIATION', { count: state.pendingDeviation });
+            state.pendingDeviation = 0;
+        }
+    });
 }
 
 function handleVisibilityChange() {
@@ -21,16 +31,31 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        // 如果倒數已經在跑，不要重新開始（避免反覆切換分頁重置計時器）
-        if (!state.bufferTimerObj) {
+        const away = state.hiddenAt ? Date.now() - state.hiddenAt : 0;
+        state.hiddenAt = null;
+
+        if (away >= 15000) {
+            // 超過 15 秒：立即記分心（每多 60 秒再加一次），直接回 focus
+            const count = 1 + Math.floor((away - 15000) / 60000);
+            const sent = sendAction('LOG_DEVIATION', { count });
+            if (!sent) {
+                // WS 斷線：暫存，等重連後補送，並嘗試自動重連
+                state.pendingDeviation = (state.pendingDeviation || 0) + count;
+                reconnectSilent();
+            }
+            endCognitiveBuffer(true);
+        } else {
+            // 不到 15 秒：顯示 buffer，按按鈕不算分心，倒數完才算
             startCognitiveBuffer();
         }
-        sendAction('VISIBILITY_CHANGE', { state: 'visible' });
-    } else {
-        // 倒數進行中時不要取消，讓計時器繼續跑（超時會自動記錄分心）
-        if (!state.bufferTimerObj) {
-            sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
+        if (!state.roomId || (state.ws && state.ws.readyState === WebSocket.OPEN)) {
+            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
         }
+    } else {
+        // 用戶離開：記下離開時間
+        state.hiddenAt = Date.now();
+        endCognitiveBuffer(false);
+        sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     }
 }
 
@@ -43,7 +68,7 @@ export function startCognitiveBuffer() {
     document.body.classList.remove('mode-flow');
     document.body.classList.add('mode-danger');
 
-    state.bufferSecondsLeft = 30;
+    state.bufferSecondsLeft = 15;
     document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
 
     if (navigator.vibrate) navigator.vibrate(200);
@@ -62,6 +87,8 @@ export function startCognitiveBuffer() {
 export function endCognitiveBuffer(safe) {
     clearInterval(state.bufferTimerObj);
     state.bufferTimerObj = null;
+    clearTimeout(state.hiddenTimerObj);
+    state.hiddenTimerObj = null;
     if (safe) {
         switchView('view-focus');
         document.body.classList.remove('mode-danger');

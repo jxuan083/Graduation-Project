@@ -1432,6 +1432,19 @@ async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
         new_code = _generate_invite_code()
         doc_ref.update({"invite_code": new_code})
         data["invite_code"] = new_code
+
+    # 展開 member_uids → members（含 nickname），前端顯示成員清單用
+    member_uids = data.get("member_uids") or []
+    members = []
+    for m_uid in member_uids:
+        try:
+            u = db.collection("users").document(m_uid).get()
+            ud = u.to_dict() or {} if u.exists else {}
+            members.append({"uid": m_uid, "nickname": ud.get("nickname") or m_uid})
+        except Exception:
+            members.append({"uid": m_uid, "nickname": m_uid})
+    data["members"] = members
+
     return {"status": "success", "group": _serialize_group(data, group_id)}
 
 
@@ -1790,6 +1803,7 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
         "group_id": group_id,
         "session_params": session_params,
         "members": {},
+        "all_participants": {},  # 曾加入過的所有成員（含斷線的），不會被清除
         "sync_start_time": None,
         "deviations": 0,
         "qa_state": {"current_question": None, "answers": {}},
@@ -2039,6 +2053,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
         "state": "CONNECTED",
         "nickname": existing.get("nickname") or nickname,
     }
+    # 記錄所有曾加入的成員（斷線後也保留）
+    if "all_participants" not in rooms[room_id]:
+        rooms[room_id]["all_participants"] = {}
+    rooms[room_id]["all_participants"][user_id] = {
+        "nickname": existing.get("nickname") or nickname,
+    }
 
     # 同步更新 Firestore 中的成員清單
     try:
@@ -2116,12 +2136,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # === 把這場聚會 snapshot 寫到 meetings collection ===
                 try:
                     room_data = rooms[room_id]
-                    members = room_data.get("members", {})
+                    # 用 all_participants（含已斷線的成員）建立快照，fallback 到目前在線的 members
+                    all_ever = room_data.get("all_participants") or room_data.get("members", {})
 
                     # 用 dash 判斷是訪客 (uuid 有 dash) 還是 firebase uid (沒 dash)
                     members_snapshot = []
                     participants = []
-                    for uid, info in members.items():
+                    for uid, info in all_ever.items():
                         is_guest = "-" in uid
                         members_snapshot.append({
                             "uid": uid,
@@ -2476,11 +2497,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     continue
                 rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms
 
-                rooms[room_id]["deviations"] += 1
+                # 支援前端傳入 count（長時間離開時一次記多次）
+                count = max(1, int(data.get("count", 1)))
+                rooms[room_id]["deviations"] += count
 
                 try:
                     db.collection("rooms").document(room_id).update({
-                        "deviations": firestore.Increment(1)
+                        "deviations": firestore.Increment(count)
                     })
                 except Exception as e:
                     print(f"Error logging deviation in Firestore: {e}")

@@ -169,8 +169,11 @@ function handleGroupInviteOnBoot(code) {
         }
         try {
             const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js');
-            const { data: info } = await getGroupInviteInfo(code);
-            if (!info?.name) { alert('邀請碼無效或已過期'); return; }
+            const { res, data: info } = await getGroupInviteInfo(code);
+            if (!res.ok || !info?.name) {
+                alert('邀請碼無效或已過期：' + (info?.detail || `HTTP ${res.status}`));
+                return;
+            }
             if (info.already_member) {
                 alert(`你已經是「${info.name}」的成員了！`);
                 switchView('view-groups');
