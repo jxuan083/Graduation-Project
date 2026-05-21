@@ -58,6 +58,7 @@ async function handleJoinByInvite() {
         btn.disabled = false;
         btn.textContent = '加入';
     }
+}
 
 async function loadGroups() {
     const listEl = document.getElementById('groups-list');
