@@ -2203,6 +2203,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                         "end_reason": reason,
                         "base_score": base_score,
                         "host_score": host_score,
+                        "deviation_ranking": deviation_ranking,
                     }
                     # merge=True 保留聚會中可能已經寫入的 cover_url / cover_photo_id
                     db.collection("meetings").document(room_id).set(meeting_record, merge=True)

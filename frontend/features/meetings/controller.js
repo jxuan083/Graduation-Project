@@ -65,6 +65,8 @@ export async function openMeetingDetail(meetingId) {
     document.getElementById('md-reason').innerText = '-';
     document.getElementById('md-count').innerText = '0';
     document.getElementById('md-members').innerHTML = '';
+    document.getElementById('md-deviation-ranking-section').style.display = 'none';
+    document.getElementById('md-deviation-ranking').innerHTML = '';
     document.getElementById('md-photos-grid').innerHTML = '';
     document.getElementById('md-photo-count').innerText = '0';
     document.getElementById('md-photos-empty').style.display = 'none';
@@ -106,6 +108,8 @@ export async function openMeetingDetail(meetingId) {
             ul.appendChild(li);
         });
 
+        renderMdDeviationRanking(m.deviation_ranking || [], state.currentUser?.uid);
+
         state.currentMeetingIsHost = !!(state.currentUser && m.host_uid && state.currentUser.uid === m.host_uid);
         document.getElementById('md-photos-host-controls').style.display = 'block';
         await loadMeetingPhotos(meetingId);
@@ -113,4 +117,30 @@ export async function openMeetingDetail(meetingId) {
         console.error('openMeetingDetail failed:', err);
         document.getElementById('md-host').innerText = '讀取失敗:' + (err.message || err);
     }
+}
+
+function renderMdDeviationRanking(ranking, myUid) {
+    const section = document.getElementById('md-deviation-ranking-section');
+    const ul = document.getElementById('md-deviation-ranking');
+    if (!section || !ul || !ranking.length) return;
+
+    const medals = ['🥇', '🥈', '🥉'];
+    ranking.forEach((item, i) => {
+        const isMe = item.uid === myUid;
+        const li = document.createElement('li');
+        li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid var(--border);';
+        if (i === ranking.length - 1) li.style.borderBottom = 'none';
+        const medal = medals[i] || `${i + 1}.`;
+        const nameStyle = isMe ? 'font-weight:700; color:var(--accent-fire, #ff6b35);' : '';
+        li.innerHTML = `
+            <span style="${nameStyle}">${medal} ${escHtml(item.nickname || item.uid)}${isMe ? ' (我)' : ''}</span>
+            <span style="font-weight:700;">${item.deviations} 次</span>
+        `;
+        ul.appendChild(li);
+    });
+    section.style.display = '';
+}
+
+function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
