@@ -273,6 +273,7 @@
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     transition: transform 0.05s, box-shadow 0.05s;
     position: relative;
     overflow: hidden;
