@@ -111,11 +111,41 @@ function handleSessionEnded(msg) {
         else hint.innerText = '';
     }
 
+    renderDeviationRanking(msg.deviation_ranking || []);
+
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
     if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
     closeWs();
     switchView('view-summary');
+}
+
+function renderDeviationRanking(ranking) {
+    const section = document.getElementById('summary-deviation-ranking');
+    const ul = document.getElementById('summary-deviation-list');
+    if (!section || !ul) return;
+    if (!ranking.length) { section.style.display = 'none'; return; }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    ul.innerHTML = '';
+    ranking.forEach((item, i) => {
+        const isMe = item.uid === state.userId;
+        const li = document.createElement('li');
+        li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid var(--border);';
+        if (i === ranking.length - 1) li.style.borderBottom = 'none';
+        const medal = medals[i] || `${i + 1}.`;
+        const nameStyle = isMe ? 'font-weight:700; color:var(--accent-fire, #ff6b35);' : '';
+        li.innerHTML = `
+            <span style="${nameStyle}">${medal} ${escHtml(item.nickname || item.uid)}${isMe ? ' (我)' : ''}</span>
+            <span style="font-weight:700;">${item.deviations} 次</span>
+        `;
+        ul.appendChild(li);
+    });
+    section.style.display = '';
+}
+
+function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function handleAnchorEstablished() {

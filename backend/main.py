@@ -2140,6 +2140,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
                 print(f"[END_SESSION] room={room_id} reason={reason}")
+                # 建立分心排行榜（由多到少排序）
+                deviation_ranking = sorted(
+                    [
+                        {
+                            "uid": uid,
+                            "nickname": info.get("nickname", ""),
+                            "deviations": info.get("deviations", 0),
+                        }
+                        for uid, info in all_ever.items()
+                    ],
+                    key=lambda x: x["deviations"],
+                    reverse=True,
+                )
+
                 await manager.broadcast_to_room(room_id, {
                     "type": "SESSION_ENDED",
                     "reason": reason,
@@ -2147,6 +2161,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     "total_deviations": total_deviations,
                     "base_score": base_score,
                     "group_id": group_id_local,
+                    "deviation_ranking": deviation_ranking,
                 })
 
                 # 廣播之後才做 Firestore 寫入（慢但不影響 UX）
