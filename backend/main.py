@@ -2128,6 +2128,28 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 reason = data.get("reason", "host_ended")
                 duration_minutes = int(data.get("duration_minutes", 0))
                 rooms[room_id]["status"] = "ENDED"
+
+                # 先計算分數（廣播需要用到）
+                room_data = rooms[room_id]
+                all_ever = room_data.get("all_participants") or room_data.get("members", {})
+                host_uid_local = room_data.get("host_uid")
+                group_id_local = room_data.get("group_id")
+                total_deviations = int(room_data.get("deviations", 0) or 0)
+                base_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=False)
+                host_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=True)
+
+                # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
+                print(f"[END_SESSION] room={room_id} reason={reason}")
+                await manager.broadcast_to_room(room_id, {
+                    "type": "SESSION_ENDED",
+                    "reason": reason,
+                    "duration_minutes": duration_minutes,
+                    "total_deviations": total_deviations,
+                    "base_score": base_score,
+                    "group_id": group_id_local,
+                })
+
+                # 廣播之後才做 Firestore 寫入（慢但不影響 UX）
                 try:
                     db.collection("rooms").document(room_id).update({"status": "ENDED"})
                 except Exception as e:
@@ -2135,11 +2157,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 # === 把這場聚會 snapshot 寫到 meetings collection ===
                 try:
-                    room_data = rooms[room_id]
-                    # 用 all_participants（含已斷線的成員）建立快照，fallback 到目前在線的 members
-                    all_ever = room_data.get("all_participants") or room_data.get("members", {})
-
-                    # 用 dash 判斷是訪客 (uuid 有 dash) 還是 firebase uid (沒 dash)
                     members_snapshot = []
                     participants = []
                     for uid, info in all_ever.items():
@@ -2153,14 +2170,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                             participants.append(uid)
 
                     # 房主一定要在 participants（即使他已經斷線）
-                    host_uid_local = room_data.get("host_uid")
                     if host_uid_local and host_uid_local not in participants:
                         participants.append(host_uid_local)
-
-                    total_deviations = int(room_data.get("deviations", 0) or 0)
-                    # 計算這場聚會的「共享基礎分」（focus + participation + bonus，全員共享）
-                    base_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=False)
-                    host_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=True)
 
                     meeting_record = {
                         "room_id": room_id,
@@ -2183,7 +2194,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"[END_SESSION] meeting record saved: {room_id}")
 
                     # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
-                    # 這樣排行榜用 collection_group('meetings') query 起來很簡單
                     for p_uid in participants:
                         my_score = host_score if p_uid == host_uid_local else base_score
                         mirror = {
@@ -2205,7 +2215,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"Error saving meeting record: {e}")
 
                 # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
-                group_id_local = rooms[room_id].get("group_id")
                 if group_id_local:
                     try:
                         g_ref = db.collection("groups").document(group_id_local)
@@ -2215,19 +2224,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                             pet_hp = int(g_data.get("pet_hp", 5))
                             pet_energy = int(g_data.get("pet_energy", 50))
                             pet_max_energy = int(g_data.get("pet_max_energy", 100))
-                            # 使用共享基礎分 (0-100) 判斷餵食還是扣血
                             if base_score >= 70:
                                 energy_delta = min(10 + int((base_score - 70) / 3), 20)
                                 pet_energy = min(pet_energy + energy_delta, pet_max_energy)
-                                hp_delta = 0
-                            elif base_score >= 40:
-                                energy_delta = 0
-                                hp_delta = 0
-                            else:
-                                energy_delta = -5
-                                pet_energy = max(pet_energy + energy_delta, 0)
-                                hp_delta = -1
-                                pet_hp = max(pet_hp + hp_delta, 0)
+                            elif base_score < 40:
+                                pet_energy = max(pet_energy - 5, 0)
+                                pet_hp = max(pet_hp - 1, 0)
 
                             if pet_energy >= 80:
                                 new_status = "HAPPY"
@@ -2248,13 +2250,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     except Exception as pet_err:
                         print(f"[END_SESSION] group pet update failed: {pet_err}")
 
-                print(f"[END_SESSION] room={room_id} reason={reason}")
-                await manager.broadcast_to_room(room_id, {
-                    "type": "SESSION_ENDED",
-                    "reason": reason,
-                    "base_score": base_score,
-                    "group_id": group_id_local,
-                })
                 continue
 
             # 1. 房主切換模式 (上課、開會、聚會、問答)

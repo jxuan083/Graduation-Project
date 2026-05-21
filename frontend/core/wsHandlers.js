@@ -51,6 +51,9 @@ function handleRoomUpdate(msg) {
     }
     // 聚會已結束但尚未跳到結算（例如重連錯過 SESSION_ENDED）
     if (rs.status === 'ENDED' && state.currentPhase !== 'SUMMARY') {
+        const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
+        document.getElementById('summary-time').innerText = mins;
+        document.getElementById('summary-deviations').innerText = state.totalDeviations;
         state.currentPhase = 'SUMMARY';
         document.body.className = '';
         if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
@@ -87,9 +90,11 @@ function handleSyncStarted() {
 
 function handleSessionEnded(msg) {
     const reason = msg.reason || 'host_ended';
-    const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
+    // 優先用後端傳來的值（已同步），fallback 到前端本地計算
+    const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
+    const deviations = msg.total_deviations ?? state.totalDeviations;
     document.getElementById('summary-time').innerText = mins;
-    document.getElementById('summary-deviations').innerText = state.totalDeviations;
+    document.getElementById('summary-deviations').innerText = deviations;
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
