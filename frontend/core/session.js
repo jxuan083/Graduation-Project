@@ -12,6 +12,8 @@ export function cleanupSession() {
     state.currentPhase = 'HOME';
     state.roomHostUid = null;
     state.myNickname = '';
+    state.totalDeviations = 0;
+    state.myDeviations = 0;
     document.body.className = '';
     state.lastMeetingView = null;
     history.replaceState(null, '', window.location.pathname);

@@ -25,7 +25,8 @@ export const state = {
     currentRoomMode: 'GATHERING',
     currentPhase: 'HOME',
     sessionStartTime: null,
-    totalDeviations: 0,
+    totalDeviations: 0,        // 整個房間的分心總次數
+    myDeviations: 0,           // 我自己的分心次數
 
     // === 聚會設定 (meeting-setup) ===
     currentContext: 'general',

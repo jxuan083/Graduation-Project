@@ -53,7 +53,7 @@ function handleRoomUpdate(msg) {
     if (rs.status === 'ENDED' && state.currentPhase !== 'SUMMARY') {
         const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
         document.getElementById('summary-time').innerText = mins;
-        document.getElementById('summary-deviations').innerText = state.totalDeviations;
+        document.getElementById('summary-deviations').innerText = state.myDeviations;
         state.currentPhase = 'SUMMARY';
         document.body.className = '';
         if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
@@ -92,9 +92,8 @@ function handleSessionEnded(msg) {
     const reason = msg.reason || 'host_ended';
     // 優先用後端傳來的值（已同步），fallback 到前端本地計算
     const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
-    const deviations = msg.total_deviations ?? state.totalDeviations;
     document.getElementById('summary-time').innerText = mins;
-    document.getElementById('summary-deviations').innerText = deviations;
+    document.getElementById('summary-deviations').innerText = state.myDeviations;
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -136,7 +135,10 @@ function handleProgressUpdate(msg) {
 
 function handleDeviationRecorded(msg) {
     state.totalDeviations = msg.total_deviations;
-    document.getElementById('deviation-count').innerText = state.totalDeviations;
+    if (msg.user_id === state.userId) {
+        state.myDeviations = msg.user_deviations ?? (state.myDeviations + 1);
+    }
+    document.getElementById('deviation-count').innerText = state.myDeviations;
 }
 
 function handleModeChanged(msg) {

@@ -2196,6 +2196,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
                     for p_uid in participants:
                         my_score = host_score if p_uid == host_uid_local else base_score
+                        my_deviations = all_ever.get(p_uid, {}).get("deviations", 0)
                         mirror = {
                             "owner_uid": p_uid,
                             "room_id": room_id,
@@ -2203,7 +2204,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                             "mode": room_data.get("mode", ""),
                             "ended_at": firestore.SERVER_TIMESTAMP,
                             "duration_minutes": duration_minutes,
-                            "deviations": total_deviations,
+                            "deviations": my_deviations,
+                            "total_room_deviations": total_deviations,
                             "score": my_score,
                         }
                         try:
@@ -2496,9 +2498,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 count = max(1, int(data.get("count", 1)))
                 rooms[room_id]["deviations"] += count
 
+                # 同時記錄此用戶自己的分心次數
+                rooms[room_id]["members"][user_id]["deviations"] = \
+                    rooms[room_id]["members"][user_id].get("deviations", 0) + count
+                user_deviations = rooms[room_id]["members"][user_id]["deviations"]
+
                 try:
                     db.collection("rooms").document(room_id).update({
-                        "deviations": firestore.Increment(count)
+                        "deviations": firestore.Increment(count),
+                        f"members.{user_id}.deviations": firestore.Increment(count)
                     })
                 except Exception as e:
                     print(f"Error logging deviation in Firestore: {e}")
@@ -2506,6 +2514,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 await manager.broadcast_to_room(room_id, {
                     "type": "DEVIATION_RECORDED",
                     "user_id": user_id,
+                    "user_deviations": user_deviations,
                     "total_deviations": rooms[room_id]["deviations"]
                 })
 
