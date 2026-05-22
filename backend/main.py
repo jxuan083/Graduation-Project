@@ -2102,6 +2102,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
         rooms[room_id]["all_participants"] = {}
     rooms[room_id]["all_participants"][user_id] = {
         "nickname": existing.get("nickname") or nickname,
+        "deviations": rooms[room_id]["all_participants"].get(user_id, {}).get("deviations", 0),
     }
 
     # 同步更新 Firestore 中的成員清單
@@ -2562,6 +2563,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 rooms[room_id]["members"][user_id]["deviations"] = \
                     rooms[room_id]["members"][user_id].get("deviations", 0) + count
                 user_deviations = rooms[room_id]["members"][user_id]["deviations"]
+
+                # 同步更新 all_participants，確保 END_SESSION 排行榜能讀到正確數值
+                if user_id in rooms[room_id].get("all_participants", {}):
+                    rooms[room_id]["all_participants"][user_id]["deviations"] = user_deviations
 
                 try:
                     db.collection("rooms").document(room_id).update({
