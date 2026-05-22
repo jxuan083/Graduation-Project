@@ -20,6 +20,8 @@
     <!-- QR Code 掃描 + Lottie -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
     <div id="app-container">
@@ -37,12 +39,12 @@
                     <span class="menu-caret">▾</span>
                 </button>
                 <div id="user-menu-dropdown" class="user-menu" style="display:none;">
-                    <button id="btn-open-profile" class="user-menu-item">👤 個人資料</button>
-                    <button id="btn-open-friends" class="user-menu-item">👥 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
-                    <button id="btn-open-leaderboard" class="user-menu-item">🏆 排行榜</button>
-                    <button id="btn-open-about" class="user-menu-item">ℹ️ 關於</button>
+                    <button id="btn-open-profile" class="user-menu-item"><i data-lucide="user"></i> 個人資料</button>
+                    <button id="btn-open-friends" class="user-menu-item"><i data-lucide="users"></i> 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
+                    <button id="btn-open-leaderboard" class="user-menu-item"><i data-lucide="trophy"></i> 排行榜</button>
+                    <button id="btn-open-about" class="user-menu-item"><i data-lucide="info"></i> 關於</button>
                     <div class="user-menu-sep"></div>
-                    <button id="btn-logout" class="user-menu-item danger">🚪 登出</button>
+                    <button id="btn-logout" class="user-menu-item danger"><i data-lucide="log-out"></i> 登出</button>
                 </div>
             </div>
         </header>
@@ -59,7 +61,7 @@
         <div id="toast-container" class="toast-container"></div>
 
         <!-- 「返回聚會」浮動按鈕 -->
-        <button id="btn-resume-meeting" class="btn-resume-meeting" style="display:none;">🔵 返回聚會</button>
+        <button id="btn-resume-meeting" class="btn-resume-meeting" style="display:none;"><i data-lucide="arrow-left"></i> 返回聚會</button>
     </div>
 
     <!-- App 進入點 (ES Module) -->

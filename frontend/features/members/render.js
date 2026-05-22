@@ -70,7 +70,7 @@ export function renderMemberList(members) {
                         import('../../views/friends/friends.js').then(m => m.openFriendsView('incoming'));
                     };
                 } else {
-                    btnFriend.innerText = '➕ 加好友';
+                    btnFriend.innerHTML = '<i data-lucide="user-plus"></i> 加好友';
                     btnFriend.onclick = (e) => {
                         e.stopPropagation();
                         sendFriendRequestByUid(uid, btnFriend);

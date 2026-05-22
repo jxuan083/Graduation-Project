@@ -10,25 +10,25 @@
     </div>
 
     <button id="btn-focus-members-toggle" class="btn secondary members-toggle">
-        👥 成員 (<span id="focus-member-count">0</span>)
+        <i data-lucide="users"></i> 成員 (<span id="focus-member-count">0</span>)
     </button>
     <div id="focus-members-panel" class="members-panel" style="display:none;">
         <ul id="focus-member-list-ul" class="member-ul"></ul>
     </div>
 
     <div id="host-only-controls" style="display:none; width:100%;">
-        <button id="btn-mode-qa"    class="btn primary blue">❓ 發起團體問答</button>
-        <button id="btn-mode-taboo" class="btn primary blue">🎯 發起關鍵字遊戲</button>
-        <button id="btn-mode-67"    class="btn primary blue">💥 發起 67 挑戰</button>
+        <button id="btn-mode-qa"    class="btn primary blue"><i data-lucide="help-circle"></i> 發起團體問答</button>
+        <button id="btn-mode-taboo" class="btn primary blue"><i data-lucide="target"></i> 發起關鍵字遊戲</button>
+        <button id="btn-mode-67"    class="btn primary blue"><i data-lucide="zap"></i> 發起 67 挑戰</button>
     </div>
 
     <div id="meeting-photo-controls" style="width:100%;">
-        <button id="btn-meeting-camera" class="btn secondary">📷 開啟相機</button>
-        <button id="btn-meeting-album" class="btn secondary">🖼️ 從相簿選擇</button>
+        <button id="btn-meeting-camera" class="btn secondary"><i data-lucide="camera"></i> 開啟相機</button>
+        <button id="btn-meeting-album" class="btn secondary"><i data-lucide="image"></i> 從相簿選擇</button>
     </div>
     <input id="meeting-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
     <input id="meeting-album-input" type="file" accept="image/*" style="display:none;" />
 
-    <button id="btn-focus-invite" class="btn secondary">📤 邀請朋友加入</button>
+    <button id="btn-focus-invite" class="btn secondary"><i data-lucide="share-2"></i> 邀請朋友加入</button>
     <button id="btn-end-session"  class="btn secondary">結束聚會</button>
 </section>

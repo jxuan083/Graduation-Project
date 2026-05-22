@@ -118,22 +118,25 @@ async function boot() {
         // 2. 初始化各 view 的事件綁定 + router 註冊
         await initAllViews();
 
-        // 3. 註冊 WebSocket 訊息 handler
+        // 3. 初始化 Lucide icons（HTML 全部插入後才能跑）
+        if (window.lucide) window.lucide.createIcons();
+
+        // 4. 註冊 WebSocket 訊息 handler
         registerAllWsHandlers();
 
-        // 4. 初始化 chrome (auth bar / 浮動鈕 / 橫幅)
+        // 5. 初始化 chrome (auth bar / 浮動鈕 / 橫幅)
         initChrome();
 
-        // 5. 啟動 Firebase auth listener
+        // 6. 啟動 Firebase auth listener
         listenAuthChanges();
 
-        // 6. 載入後端版本顯示
+        // 7. 載入後端版本顯示
         loadBackendVersion();
 
-        // 7. Lottie 動畫
+        // 8. Lottie 動畫
         initLottie();
 
-        // 8. 依 URL 決定起始畫面
+        // 9. 依 URL 決定起始畫面
         const urlParams = new URLSearchParams(window.location.search);
         const roomFromUrl = urlParams.get('room');
         const groupInviteCode = urlParams.get('group_invite');

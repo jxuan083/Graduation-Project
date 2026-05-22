@@ -72,4 +72,5 @@ export function switchView(viewId) {
 
     // 廣播事件,讓「返回聚會」按鈕 / banner 可以重新刷新
     setTimeout(() => events.emit('view:changed', { viewId }), 0);
+    if (window.lucide) window.lucide.createIcons();
 }

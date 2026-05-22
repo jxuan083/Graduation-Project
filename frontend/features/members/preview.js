@@ -46,7 +46,7 @@ export function updateMemberPreviewAddBtn() {
         btn.onclick = () => import('../../views/friends/friends.js').then(m => m.openFriendsView('incoming'));
         return;
     } else {
-        btn.innerText = '➕ 加好友';
+        btn.innerHTML = '<i data-lucide="user-plus"></i> 加好友';
         btn.onclick = () => sendFriendRequestByUid(state.memberPreviewUid, btn);
     }
 }

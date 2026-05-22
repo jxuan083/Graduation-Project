@@ -407,7 +407,21 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
 }
 .home-grid-card:active { transform: scale(0.97); }
 
-.hgc-icon { font-size: 1.8rem; margin-bottom: 6px; }
+.hgc-icon { font-size: 1.8rem; margin-bottom: 6px; line-height: 1; }
+.hgc-icon .lucide { width: 1.8rem; height: 1.8rem; vertical-align: middle; }
+
+/* ── Lucide icon 全域尺寸 ── */
+.lucide {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  stroke: currentColor;
+  fill: none;
+  flex-shrink: 0;
+}
+.btn-resume-meeting .lucide { width: 1rem; height: 1rem; }
+.incoming-banner-icon .lucide { width: 2rem; height: 2rem; vertical-align: middle; }
 .hgc-title { font-size: 1rem; font-weight: 700; }
 .hgc-sub   { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
 

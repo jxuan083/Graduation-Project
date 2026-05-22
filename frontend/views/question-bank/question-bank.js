@@ -118,25 +118,26 @@ function renderQbankList(questions, kind) {
         if (kind === 'mine') {
             const editBtn = document.createElement('button');
             editBtn.className = 'qbank-mini-btn';
-            editBtn.innerText = '✏️ 編輯';
+            editBtn.innerHTML = '<i data-lucide="pencil"></i> 編輯';
             editBtn.onclick = () => openQuestionEdit('edit', q);
             actions.appendChild(editBtn);
 
             const delBtn = document.createElement('button');
             delBtn.className = 'qbank-mini-btn danger';
-            delBtn.innerText = '🗑️ 刪除';
+            delBtn.innerHTML = '<i data-lucide="trash-2"></i> 刪除';
             delBtn.onclick = () => deleteMyQuestion(q.id);
             actions.appendChild(delBtn);
         } else {
             const copyBtn = document.createElement('button');
             copyBtn.className = 'qbank-mini-btn primary';
-            copyBtn.innerText = '📥 加到我的題庫';
+            copyBtn.innerHTML = '<i data-lucide="plus-circle"></i> 加到我的題庫';
             copyBtn.onclick = () => importPublicQuestion(q.id, copyBtn);
             actions.appendChild(copyBtn);
         }
         item.appendChild(actions);
         listEl.appendChild(item);
     });
+    if (window.lucide) window.lucide.createIcons({ nodes: [listEl] });
 }
 
 async function deleteMyQuestion(qid) {
