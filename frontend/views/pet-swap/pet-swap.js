@@ -105,7 +105,10 @@ async function generatePetFace() {
 
         if (!response.ok) {
             const json = await response.json().catch(() => ({}));
-            throw new Error(json.detail || '合成失敗');
+            const detail = Array.isArray(json.detail)
+                ? json.detail.map(e => e.msg || JSON.stringify(e)).join(', ')
+                : (json.detail || '合成失敗');
+            throw new Error(detail);
         }
 
         const blob = await response.blob();

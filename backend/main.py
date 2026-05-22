@@ -13,7 +13,7 @@ import string
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth, storage as fb_storage
 from typing import Dict, Set, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -1726,7 +1726,7 @@ _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepfake_pet"))
 @app.post("/api/pet-swap")
 async def pet_swap(
     image: UploadFile = File(...),
-    animal: str = "dog",
+    animal: str = Form(default="dog"),
     decoded: dict = Depends(verify_token),
 ):
     """接收人臉圖片，回傳合成的動物臉 JPEG"""
