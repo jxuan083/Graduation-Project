@@ -27,6 +27,7 @@ const VIEW_NAMES = [
     'buffer', 'summary',
     'member-preview', 'invite-modal',
     'meeting-setup', 'groups', 'group-setup',
+    'pet-swap',
 ];
 
 // ===== view 模組(動態 import,parallel) =====
@@ -61,6 +62,7 @@ const VIEW_MODULES = {
     'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js'),
     'groups':            () => import('./views/groups/groups.js'),
     'group-setup':       () => import('./views/group-setup/group-setup.js'),
+    'pet-swap':          () => import('./views/pet-swap/pet-swap.js'),
 };
 
 async function loadAllViewHtml() {

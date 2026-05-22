@@ -1,0 +1,60 @@
+<section id="view-pet-swap" class="view">
+    <h2>🐾 寵物臉生成器</h2>
+    <p class="hint" style="text-align:center; margin-bottom:20px;">上傳一張正臉照片，合成專屬寵物臉！</p>
+
+    <div class="summary-card" style="text-align:center;">
+        <!-- 上傳區 -->
+        <div id="pet-upload-area" style="margin-bottom:16px;">
+            <div id="pet-preview-wrap" style="display:none; margin-bottom:12px;">
+                <img id="pet-preview-img" src="" alt="預覽"
+                     style="max-width:100%; max-height:260px; border-radius:12px; object-fit:contain;" />
+            </div>
+            <div id="pet-upload-placeholder"
+                 style="height:160px; border:2px dashed var(--border); border-radius:12px;
+                        display:flex; flex-direction:column; align-items:center; justify-content:center;
+                        color:var(--text-secondary); cursor:pointer; margin-bottom:12px;">
+                <span style="font-size:2.5rem;">📷</span>
+                <span style="margin-top:8px; font-size:0.9rem;">點擊選擇照片</span>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:center;">
+                <button id="btn-pet-camera" class="btn secondary" style="flex:1;">📷 相機</button>
+                <button id="btn-pet-album"  class="btn secondary" style="flex:1;">🖼️ 相簿</button>
+            </div>
+            <input id="pet-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
+            <input id="pet-album-input"  type="file" accept="image/*" style="display:none;" />
+        </div>
+
+        <!-- 動物選擇 -->
+        <div style="margin-bottom:16px;">
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">選擇動物模板</p>
+            <div id="pet-template-list" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button class="pet-template-btn active" data-animal="dog">🐕 狗</button>
+            </div>
+        </div>
+
+        <!-- 生成按鈕 -->
+        <button id="btn-pet-generate" class="btn primary" disabled style="width:100%; margin-bottom:16px;">
+            ✨ 生成寵物臉
+        </button>
+
+        <!-- 結果 -->
+        <div id="pet-result-wrap" style="display:none;">
+            <hr style="border-color:var(--border); margin-bottom:16px;" />
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">結果</p>
+            <img id="pet-result-img" src="" alt="結果"
+                 style="max-width:100%; border-radius:12px; margin-bottom:12px;" />
+            <button id="btn-pet-download" class="btn secondary" style="width:100%;">💾 儲存到相簿</button>
+        </div>
+
+        <!-- 載入中 -->
+        <div id="pet-loading" style="display:none; padding:20px 0;">
+            <div class="spinner" style="margin:0 auto 8px;"></div>
+            <p class="hint">合成中，請稍候…</p>
+        </div>
+
+        <!-- 錯誤 -->
+        <p id="pet-error" class="hint" style="display:none; color:#fca5a5;"></p>
+    </div>
+
+    <button id="btn-pet-swap-back" class="btn secondary" style="margin-top:12px;">返回</button>
+</section>

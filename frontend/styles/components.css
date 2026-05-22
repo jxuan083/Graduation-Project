@@ -728,3 +728,30 @@
   margin: 20px auto 0;
 }
 
+
+/* ── Pet Swap ─────────────────────────────────────────────────── */
+.pet-template-btn {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.pet-template-btn.active {
+    border-color: var(--accent-fire, #ff6b35);
+    background: var(--accent-fire, #ff6b35);
+    color: #fff;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent-fire, #ff6b35);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -159,9 +159,19 @@ function renderMembers(g) {
         const canRemove = isCreator || isMe;
         li.innerHTML = `
             <span class="member-name">${escHtml(m.nickname || m.uid)}${isMe ? ' (我)' : ''}${m.uid === g.creator_uid ? ' 👑' : ''}</span>
-            ${canRemove ? `<button class="btn-mini secondary btn-rm-member" data-uid="${m.uid}">移除</button>` : ''}
+            <div style="display:flex;gap:6px;align-items:center;">
+                <button class="btn-mini secondary btn-pet-gen" data-uid="${m.uid}" data-nickname="${escHtml(m.nickname || m.uid)}" title="生成寵物臉">🐾</button>
+                ${canRemove ? `<button class="btn-mini secondary btn-rm-member" data-uid="${m.uid}">移除</button>` : ''}
+            </div>
         `;
         ul.appendChild(li);
+    });
+
+    ul.querySelectorAll('.btn-pet-gen').forEach(btn => {
+        btn.onclick = () => {
+            state.petSwapTarget = { uid: btn.dataset.uid, nickname: btn.dataset.nickname };
+            switchView('view-pet-swap');
+        };
     });
 
     ul.querySelectorAll('.btn-rm-member').forEach(btn => {

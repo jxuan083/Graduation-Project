@@ -25,6 +25,7 @@ export function init() {
     const btnLb = document.getElementById('btn-home-leaderboard');
     if (btnLb) btnLb.onclick = openLeaderboardView;
 
+
     // 邀請橫幅「查看」按鈕
     const btnBannerView = document.getElementById('btn-incoming-banner-view');
     if (btnBannerView) btnBannerView.onclick = () => openFriendsView('incoming');

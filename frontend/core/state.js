@@ -39,6 +39,7 @@ export const state = {
     myGroups: [],
     currentGroupDetail: null,       // 正在查看的群組 detail
     pendingGroupInviteCode: null,   // URL ?group_invite=CODE 暫存
+    petSwapTarget: null,            // { uid, nickname } 要生成寵物臉的成員
 
     // === Sync Ritual ===
     holdInterval: null,

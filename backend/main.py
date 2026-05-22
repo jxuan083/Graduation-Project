@@ -15,6 +15,7 @@ from firebase_admin import credentials, firestore, auth as fb_auth, storage as f
 from typing import Dict, Set, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 # ===== Firebase Storage 設定 =====
@@ -1715,6 +1716,49 @@ async def get_context_defaults():
         "contexts": CONTEXT_DEFAULTS,
         "difficulty_params": DIFFICULTY_PARAMS,
     }
+
+
+# ===== Pet Face Swap =====
+import tempfile
+import sys as _sys
+_sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepfake_pet"))
+
+@app.post("/api/pet-swap")
+async def pet_swap(
+    image: UploadFile = File(...),
+    animal: str = "dog",
+    decoded: dict = Depends(verify_token),
+):
+    """接收人臉圖片，回傳合成的動物臉 JPEG"""
+    from face_swap import face_swap as run_face_swap
+
+    ANIMAL_TEMPLATES = {
+        "dog": os.path.join(os.path.dirname(__file__), "deepfake_pet", "dog_template.jpg"),
+    }
+    animal_path = ANIMAL_TEMPLATES.get(animal)
+    if not animal_path or not os.path.exists(animal_path):
+        raise HTTPException(status_code=400, detail=f"找不到動物模板：{animal}")
+
+    # 把上傳圖片存到暫存檔
+    suffix = os.path.splitext(image.filename or "img.jpg")[1] or ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_in:
+        tmp_in.write(await image.read())
+        tmp_in_path = tmp_in.name
+
+    tmp_out_path = tmp_in_path + "_result.jpg"
+    try:
+        ok = run_face_swap(tmp_in_path, animal_path, tmp_out_path)
+        if not ok or not os.path.exists(tmp_out_path):
+            raise HTTPException(status_code=422, detail="找不到人臉，請換一張正臉照片")
+
+        with open(tmp_out_path, "rb") as f:
+            result_bytes = f.read()
+    finally:
+        for p in [tmp_in_path, tmp_out_path]:
+            try: os.unlink(p)
+            except: pass
+
+    return Response(content=result_bytes, media_type="image/jpeg")
 
 
 # ===== 房間與 WebSocket 管理 =====

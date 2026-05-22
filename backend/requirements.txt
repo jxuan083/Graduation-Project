@@ -6,3 +6,6 @@ qrcode
 python-multipart
 Pillow
 pydantic
+opencv-python-headless
+dlib
+numpy
