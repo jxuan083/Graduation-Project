@@ -97,6 +97,7 @@ async function generatePetFace() {
         formData.append('animal', animal);
 
         const headers = await getAuthHeaders();
+        delete headers['Content-Type'];
         const response = await fetch(apiBase + '/api/pet-swap', {
             method: 'POST',
             headers,
