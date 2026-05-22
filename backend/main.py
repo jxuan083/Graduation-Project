@@ -1732,12 +1732,18 @@ async def pet_swap(
     """接收人臉圖片，回傳合成的動物臉 JPEG"""
     from face_swap import face_swap as run_face_swap
 
+    # 自動掃描 deepfake_pet/ 資料夾，凡是有對應 _landmarks.json 的 _template.jpg 都可用
+    pet_dir = os.path.join(os.path.dirname(__file__), "deepfake_pet")
     ANIMAL_TEMPLATES = {
-        "dog": os.path.join(os.path.dirname(__file__), "deepfake_pet", "dog_template.jpg"),
+        f[: -len("_template.jpg")]: os.path.join(pet_dir, f)
+        for f in os.listdir(pet_dir)
+        if f.endswith("_template.jpg")
+        and os.path.exists(os.path.join(pet_dir, f[: -len(".jpg")] + "_landmarks.json"))
     }
     animal_path = ANIMAL_TEMPLATES.get(animal)
     if not animal_path or not os.path.exists(animal_path):
-        raise HTTPException(status_code=400, detail=f"找不到動物模板：{animal}")
+        available = list(ANIMAL_TEMPLATES.keys())
+        raise HTTPException(status_code=400, detail=f"找不到動物模板：{animal}，可用：{available}")
 
     # 把上傳圖片存到暫存檔
     suffix = os.path.splitext(image.filename or "img.jpg")[1] or ".jpg"

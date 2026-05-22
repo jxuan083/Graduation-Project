@@ -296,17 +296,6 @@ def label_animal_landmarks(animal_path: str):
     fig.canvas.mpl_connect("button_press_event", on_click)
     fig.canvas.mpl_connect("key_press_event", on_key)
 
-    def on_key(event):
-        if event.key.lower() == 's' and len(landmarks) == 68:
-            with open(json_path, "w") as f:
-                json.dump([[float(p[0]), float(p[1])] for p in landmarks], f)
-            print(f"✅ 儲存到 {json_path}")
-            ax.set_title("已存檔！關閉視窗即可", fontsize=13, color="lime")
-            fig.canvas.draw_idle()
-
-    fig.canvas.mpl_connect("button_press_event", on_click)
-    fig.canvas.mpl_connect("key_press_event", on_key)
-
     _redraw()
     plt.tight_layout()
     plt.show()
