@@ -1213,6 +1213,328 @@ async def set_meeting_photo_cover(
     return {"status": "success"}
 
 
+# ===== 聚會逐字稿 / Newspaper API =====
+class TranscriptEntryPayload(BaseModel):
+    speaker_uid: str
+    speaker_name: Optional[str] = None
+    text: str
+    started_at_ms: Optional[int] = None
+    duration_sec: Optional[float] = None
+
+
+class TranscriptUploadPayload(BaseModel):
+    entries: List[TranscriptEntryPayload]
+
+
+def _serialize_transcript(data: dict, doc_id: str) -> dict:
+    out = dict(data)
+    out["id"] = doc_id
+    ts = out.get("created_at")
+    if ts and hasattr(ts, "isoformat"):
+        out["created_at"] = ts.isoformat()
+    elif ts:
+        out["created_at"] = str(ts)
+    return out
+
+
+def _speech_units(text: str) -> int:
+    """粗略估算發言量：英文以詞數為主，中文以非空白字元數折算。"""
+    text = (text or "").strip()
+    if not text:
+        return 0
+    words = [w for w in text.replace("\n", " ").split(" ") if w.strip()]
+    non_space_chars = len("".join(text.split()))
+    return max(len(words), int(non_space_chars / 2))
+
+
+def _clean_transcript_text(text: str, limit: int = 180) -> str:
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "..."
+
+
+def _collect_meeting_transcripts(meeting_id: str) -> list:
+    docs = list(
+        db.collection("meetings")
+        .document(meeting_id)
+        .collection("transcripts")
+        .order_by("started_at_ms")
+        .stream()
+    )
+    return [_serialize_transcript(d.to_dict() or {}, d.id) for d in docs]
+
+
+def _collect_meeting_photos(meeting_id: str) -> list:
+    docs = list(db.collection("meetings").document(meeting_id).collection("photos").stream())
+    photos = [_serialize_photo(d.to_dict() or {}, d.id) for d in docs]
+    photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
+    return photos
+
+
+def _build_participation(transcripts: list, meeting: dict) -> list:
+    stats: Dict[str, dict] = {}
+
+    for entry in transcripts:
+        uid = entry.get("speaker_uid") or "unknown"
+        row = stats.setdefault(uid, {
+            "uid": uid,
+            "nickname": entry.get("speaker_name") or uid,
+            "utterance_count": 0,
+            "speech_units": 0,
+            "talk_time_sec": 0.0,
+        })
+        row["utterance_count"] += 1
+        row["speech_units"] += _speech_units(entry.get("text", ""))
+        row["talk_time_sec"] += float(entry.get("duration_sec") or 0)
+        if entry.get("speaker_name"):
+            row["nickname"] = entry.get("speaker_name")
+
+    # 沒有逐字稿時，至少用聚會成員快照產生 baseline，前端仍可顯示 newspaper。
+    if not stats:
+        for member in meeting.get("members_snapshot") or []:
+            uid = member.get("uid") or member.get("nickname") or "unknown"
+            stats[uid] = {
+                "uid": uid,
+                "nickname": member.get("nickname") or uid,
+                "utterance_count": 0,
+                "speech_units": 0,
+                "talk_time_sec": 0.0,
+            }
+
+    max_units = max([v["speech_units"] for v in stats.values()] + [1])
+    max_utterances = max([v["utterance_count"] for v in stats.values()] + [1])
+
+    rows = []
+    for row in stats.values():
+        # 以發言內容量與發言次數混合估算參與度。
+        score = int(round(
+            (row["speech_units"] / max_units) * 70 +
+            (row["utterance_count"] / max_utterances) * 30
+        ))
+        if row["utterance_count"] == 0:
+            role = "Memory keeper"
+        elif score >= 75:
+            role = "Conversation starter"
+        elif score >= 45:
+            role = "Active participant"
+        else:
+            role = "Thoughtful listener"
+
+        rows.append({
+            **row,
+            "talk_time_sec": round(row["talk_time_sec"], 1),
+            "participation_score": score,
+            "role": role,
+        })
+
+    rows.sort(key=lambda x: x["participation_score"], reverse=True)
+    return rows
+
+
+def _extract_key_points(transcripts: list) -> list:
+    candidates = []
+    for entry in transcripts:
+        text = _clean_transcript_text(entry.get("text", ""), limit=120)
+        if len(text) >= 12:
+            candidates.append({
+                "speaker": entry.get("speaker_name") or entry.get("speaker_uid") or "",
+                "text": text,
+            })
+
+    if not candidates:
+        return [
+            {"speaker": "", "text": "這場聚會尚未加入逐字稿，系統先以照片與參與者資料產生回顧。"}
+        ]
+
+    # 優先挑較完整的句子，避免整份 newspaper 只出現零碎短句。
+    candidates.sort(key=lambda x: len(x["text"]), reverse=True)
+    return candidates[:5]
+
+
+def _extract_topics(transcripts: list) -> list:
+    stopwords = {
+        "the", "and", "that", "this", "with", "have", "just", "really",
+        "今天", "大家", "就是", "那個", "我們", "你們", "他們", "覺得", "然後", "因為", "所以"
+    }
+    counts: Dict[str, int] = {}
+    for entry in transcripts:
+        text = (entry.get("text") or "").lower()
+        tokens = []
+        for raw in text.replace("，", " ").replace("。", " ").replace(",", " ").replace(".", " ").split():
+            token = raw.strip("!?！？、:：;；()[]{}\"'")
+            if len(token) >= 2 and token not in stopwords:
+                tokens.append(token)
+        for token in tokens:
+            counts[token] = counts.get(token, 0) + 1
+
+    topics = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:6]
+    if not topics:
+        return ["聚會回顧", "照片回憶", "朋友互動"]
+    return [t for t, _ in topics]
+
+
+def _build_newspaper(meeting_id: str, meeting: dict, transcripts: list, photos: list) -> dict:
+    participation = _build_participation(transcripts, meeting)
+    key_points = _extract_key_points(transcripts)
+    topics = _extract_topics(transcripts)
+
+    title_mode = meeting.get("mode") or "Gathering"
+    member_count = meeting.get("member_count") or len(meeting.get("members_snapshot") or [])
+    duration = meeting.get("duration_minutes") or 0
+    cover = next((p for p in photos if p.get("is_cover")), photos[0] if photos else None)
+
+    lead = (
+        f"這場 {title_mode} 聚會共有 {member_count} 位成員參與，"
+        f"持續約 {duration} 分鐘。系統整理了對話重點、參與度與照片，"
+        "生成這份聚會回顧報。"
+    )
+
+    top_people = participation[:3]
+    spotlights = [
+        {
+            "uid": p["uid"],
+            "nickname": p["nickname"],
+            "role": p["role"],
+            "participation_score": p["participation_score"],
+            "summary": f"{p['nickname']} 在本次聚會中被標記為 {p['role']}，共發言 {p['utterance_count']} 次。"
+        }
+        for p in top_people
+    ]
+
+    return {
+        "id": "newspaper",
+        "meeting_id": meeting_id,
+        "style": "social_newspaper",
+        "title": "Party Newspaper",
+        "subtitle": f"{title_mode} recap",
+        "lead": lead,
+        "cover_photo": cover,
+        "photo_count": len(photos),
+        "photos": photos[:10],
+        "topics": topics,
+        "key_points": key_points,
+        "participation": participation,
+        "spotlights": spotlights,
+        "stats": {
+            "member_count": member_count,
+            "duration_minutes": duration,
+            "transcript_entries": len(transcripts),
+            "total_deviations": meeting.get("total_deviations", 0),
+        },
+        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.post("/api/meetings/{meeting_id}/transcripts")
+async def upload_meeting_transcripts(
+    meeting_id: str,
+    payload: TranscriptUploadPayload,
+    decoded: dict = Depends(verify_token),
+):
+    """儲存聚會逐字稿片段。前端錄音/STT 完成後可批次上傳。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    _get_meeting_or_403(meeting_id, uid)
+
+    if not payload.entries:
+        raise HTTPException(status_code=400, detail="entries 不能是空的")
+    if len(payload.entries) > 200:
+        raise HTTPException(status_code=400, detail="一次最多上傳 200 筆逐字稿")
+
+    col = db.collection("meetings").document(meeting_id).collection("transcripts")
+    batch = db.batch()
+    saved_count = 0
+
+    for entry in payload.entries:
+        text = (entry.text or "").strip()
+        speaker_uid = (entry.speaker_uid or "").strip()
+        if not text or not speaker_uid:
+            continue
+        doc_ref = col.document(uuid.uuid4().hex)
+        batch.set(doc_ref, {
+            "speaker_uid": speaker_uid,
+            "speaker_name": (entry.speaker_name or "").strip()[:40],
+            "text": text[:2000],
+            "started_at_ms": int(entry.started_at_ms or 0),
+            "duration_sec": float(entry.duration_sec or 0),
+            "created_by": uid,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        })
+        saved_count += 1
+
+    if saved_count == 0:
+        raise HTTPException(status_code=400, detail="沒有可儲存的逐字稿內容")
+
+    batch.commit()
+    db.collection("meetings").document(meeting_id).set({
+        "transcript_count": firestore.Increment(saved_count),
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }, merge=True)
+    return {"status": "success", "saved": saved_count}
+
+
+@app.get("/api/meetings/{meeting_id}/transcripts")
+async def list_meeting_transcripts(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """列出聚會逐字稿。只有聚會參與者可讀。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    _get_meeting_or_403(meeting_id, uid)
+    transcripts = _collect_meeting_transcripts(meeting_id)
+    return {"status": "success", "transcripts": transcripts}
+
+
+@app.post("/api/meetings/{meeting_id}/newspaper/generate")
+async def generate_meeting_newspaper(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """整合逐字稿、參與度與照片，產生社交貼文風格的聚會 newspaper。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    meeting = _get_meeting_or_403(meeting_id, uid)
+    transcripts = _collect_meeting_transcripts(meeting_id)
+    photos = _collect_meeting_photos(meeting_id)
+    newspaper = _build_newspaper(meeting_id, meeting, transcripts, photos)
+
+    db.collection("meetings").document(meeting_id).collection("artifacts").document("newspaper").set({
+        **newspaper,
+        "generated_by": uid,
+        "generated_at_server": firestore.SERVER_TIMESTAMP,
+    })
+    db.collection("meetings").document(meeting_id).set({
+        "has_newspaper": True,
+        "newspaper_generated_at": firestore.SERVER_TIMESTAMP,
+    }, merge=True)
+
+    return {"status": "success", "newspaper": newspaper}
+
+
+@app.get("/api/meetings/{meeting_id}/newspaper")
+async def get_meeting_newspaper(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """讀取已產生的 newspaper；若尚未產生，回傳 404。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    _get_meeting_or_403(meeting_id, uid)
+    ref = db.collection("meetings").document(meeting_id).collection("artifacts").document("newspaper")
+    snap = ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="這場聚會尚未產生 newspaper")
+
+    data = snap.to_dict() or {}
+    ts = data.get("generated_at_server")
+    if ts and hasattr(ts, "isoformat"):
+        data["generated_at_server"] = ts.isoformat()
+    elif ts:
+        data["generated_at_server"] = str(ts)
+    return {"status": "success", "newspaper": data}
+
+
 # ===== 系統工具函數 =====
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

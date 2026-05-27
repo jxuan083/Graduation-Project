@@ -24,6 +24,59 @@
                 </div>
                 <input id="md-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
                 <input id="md-album-input" type="file" accept="image/*" style="display:none;" />
+
+                <div class="newspaper-panel">
+                    <div class="newspaper-header">
+                        <div>
+                            <p class="newspaper-kicker">AI Party Newspaper</p>
+                            <h3>聚會回顧報</h3>
+                        </div>
+                        <button id="btn-md-generate-newspaper" class="btn primary">產生報紙</button>
+                    </div>
+
+                    <div class="transcript-box">
+                        <label for="md-transcript-input">對話逐字稿</label>
+                        <p class="hint">每行一段，例如「Amy：今天那個遊戲很好笑」。儲存後可用來分析參與度與聊天重點。</p>
+                        <textarea id="md-transcript-input" rows="5" placeholder="Amy：今天那個遊戲很好笑&#10;Kevin：大家都很投入&#10;Mia：照片可以放到回顧裡"></textarea>
+                        <div class="transcript-actions">
+                            <button id="btn-md-save-transcript" class="btn secondary">儲存逐字稿</button>
+                            <span id="md-transcript-status" class="hint"></span>
+                        </div>
+                    </div>
+
+                    <div id="md-newspaper-empty" class="newspaper-empty">
+                        尚未產生聚會回顧報。儲存逐字稿或上傳照片後，按下「產生報紙」。
+                    </div>
+
+                    <article id="md-newspaper-result" class="newspaper-result" style="display:none;">
+                        <div id="md-news-cover" class="newspaper-cover"></div>
+                        <div class="newspaper-body">
+                            <p id="md-news-subtitle" class="newspaper-kicker">Gathering recap</p>
+                            <h3 id="md-news-title">Party Newspaper</h3>
+                            <p id="md-news-lead" class="newspaper-lead"></p>
+
+                            <div class="newspaper-section">
+                                <h4>聊天重點</h4>
+                                <ul id="md-news-keypoints"></ul>
+                            </div>
+
+                            <div class="newspaper-section">
+                                <h4>熱門話題</h4>
+                                <div id="md-news-topics" class="topic-pills"></div>
+                            </div>
+
+                            <div class="newspaper-section">
+                                <h4>參與度</h4>
+                                <div id="md-news-participation" class="participation-list"></div>
+                            </div>
+
+                            <div class="newspaper-section">
+                                <h4>照片牆</h4>
+                                <div id="md-news-photos" class="newspaper-photo-strip"></div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
             </div>
             <button id="btn-meeting-detail-back" class="btn secondary">返回清單</button>
         </section>

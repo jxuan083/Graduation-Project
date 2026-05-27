@@ -64,6 +64,8 @@ export const state = {
     photoModeTimeoutObj: null,
     currentMeetingDetailId: null,
     currentMeetingIsHost: false,
+    currentMeetingMembers: [],
+    currentMeetingNewspaper: null,
     currentMeetingPhotos: [],
     lightboxPhoto: null,
 

@@ -56,6 +56,8 @@ export async function openMeetingDetail(meetingId) {
     switchView('view-meeting-detail');
     state.currentMeetingDetailId = meetingId;
     state.currentMeetingIsHost = false;
+    state.currentMeetingMembers = [];
+    state.currentMeetingNewspaper = null;
     state.currentMeetingPhotos = [];
     document.getElementById('md-host').innerText = '讀取中...';
     document.getElementById('md-mode').innerText = '-';
@@ -71,6 +73,7 @@ export async function openMeetingDetail(meetingId) {
     document.getElementById('md-photo-count').innerText = '0';
     document.getElementById('md-photos-empty').style.display = 'none';
     document.getElementById('md-photos-host-controls').style.display = 'none';
+    resetNewspaperPanel();
 
     try {
         const { data } = await apiFetch(`/api/meetings/${meetingId}`);
@@ -85,6 +88,7 @@ export async function openMeetingDetail(meetingId) {
         document.getElementById('md-reason').innerText = formatEndReason(m.end_reason);
 
         const members = m.members_snapshot || [];
+        state.currentMeetingMembers = members;
         document.getElementById('md-count').innerText = members.length;
         const ul = document.getElementById('md-members');
         ul.innerHTML = '';
@@ -113,6 +117,7 @@ export async function openMeetingDetail(meetingId) {
         state.currentMeetingIsHost = !!(state.currentUser && m.host_uid && state.currentUser.uid === m.host_uid);
         document.getElementById('md-photos-host-controls').style.display = 'block';
         await loadMeetingPhotos(meetingId);
+        await loadMeetingNewspaper(meetingId);
     } catch (err) {
         console.error('openMeetingDetail failed:', err);
         document.getElementById('md-host').innerText = '讀取失敗:' + (err.message || err);
@@ -143,4 +148,223 @@ function renderMdDeviationRanking(ranking, myUid) {
 
 function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+export async function saveMeetingTranscriptFromInput() {
+    const meetingId = state.currentMeetingDetailId;
+    const input = document.getElementById('md-transcript-input');
+    const status = document.getElementById('md-transcript-status');
+    if (!meetingId || !input) return;
+
+    const entries = parseTranscriptInput(input.value);
+    if (!entries.length) {
+        if (status) status.innerText = '請先輸入逐字稿';
+        return;
+    }
+
+    const btn = document.getElementById('btn-md-save-transcript');
+    const oldText = btn ? btn.innerText : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '儲存中...';
+    }
+    if (status) status.innerText = '';
+
+    try {
+        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/transcripts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries }),
+        });
+        if (!res.ok || !data || data.status !== 'success') {
+            throw new Error((data && data.detail) || '儲存失敗');
+        }
+        input.value = '';
+        if (status) status.innerText = `已儲存 ${data.saved} 段逐字稿`;
+    } catch (err) {
+        console.error('save transcript failed:', err);
+        if (status) status.innerText = `儲存失敗: ${err.message || err}`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = oldText;
+        }
+    }
+}
+
+export async function generateMeetingNewspaper() {
+    const meetingId = state.currentMeetingDetailId;
+    if (!meetingId) return;
+
+    const btn = document.getElementById('btn-md-generate-newspaper');
+    const oldText = btn ? btn.innerText : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '產生中...';
+    }
+
+    try {
+        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/newspaper/generate`, {
+            method: 'POST',
+        });
+        if (!res.ok || !data || data.status !== 'success') {
+            throw new Error((data && data.detail) || '產生失敗');
+        }
+        renderNewspaper(data.newspaper);
+    } catch (err) {
+        console.error('generate newspaper failed:', err);
+        alert('產生聚會回顧報失敗: ' + (err.message || err));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = oldText;
+        }
+    }
+}
+
+async function loadMeetingNewspaper(meetingId) {
+    try {
+        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/newspaper`);
+        if (res.status === 404) {
+            resetNewspaperPanel();
+            return;
+        }
+        if (!res.ok || !data || data.status !== 'success') {
+            throw new Error((data && data.detail) || '讀取 newspaper 失敗');
+        }
+        renderNewspaper(data.newspaper);
+    } catch (err) {
+        console.warn('load newspaper skipped:', err);
+        resetNewspaperPanel();
+    }
+}
+
+function parseTranscriptInput(raw) {
+    const lines = String(raw || '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    const currentUid = state.currentUser?.uid || state.userId || 'manual';
+    const currentName =
+        state.currentProfile?.nickname ||
+        state.myNickname ||
+        state.currentUser?.displayName ||
+        '我';
+
+    return lines.map((line, i) => {
+        const match = line.match(/^([^:：]{1,30})[:：]\s*(.+)$/);
+        const speakerName = match ? match[1].trim() : currentName;
+        const text = match ? match[2].trim() : line;
+        const member = findMemberByName(speakerName);
+        return {
+            speaker_uid: member?.uid || currentUid,
+            speaker_name: member?.nickname || speakerName,
+            text,
+            started_at_ms: i * 1000,
+            duration_sec: Math.max(2, Math.min(30, Math.round(text.length / 4))),
+        };
+    }).filter(entry => entry.text);
+}
+
+function findMemberByName(name) {
+    const norm = String(name || '').trim().toLowerCase();
+    if (!norm) return null;
+    return (state.currentMeetingMembers || []).find(m =>
+        String(m.nickname || '').trim().toLowerCase() === norm ||
+        String(m.uid || '').trim().toLowerCase() === norm
+    ) || null;
+}
+
+function resetNewspaperPanel() {
+    state.currentMeetingNewspaper = null;
+    const result = document.getElementById('md-newspaper-result');
+    const empty = document.getElementById('md-newspaper-empty');
+    const status = document.getElementById('md-transcript-status');
+    if (result) result.style.display = 'none';
+    if (empty) empty.style.display = '';
+    if (status) status.innerText = '';
+}
+
+function renderNewspaper(news) {
+    state.currentMeetingNewspaper = news;
+    const result = document.getElementById('md-newspaper-result');
+    const empty = document.getElementById('md-newspaper-empty');
+    if (!result || !news) return;
+
+    if (empty) empty.style.display = 'none';
+    result.style.display = '';
+
+    const cover = document.getElementById('md-news-cover');
+    const coverUrl = news.cover_photo && news.cover_photo.url;
+    if (cover) {
+        cover.style.display = coverUrl ? '' : 'none';
+        cover.style.backgroundImage = coverUrl ? `url("${coverUrl}")` : '';
+    }
+
+    setText('md-news-subtitle', news.subtitle || 'Gathering recap');
+    setText('md-news-title', news.title || 'Party Newspaper');
+    setText('md-news-lead', news.lead || '');
+
+    const keyList = document.getElementById('md-news-keypoints');
+    if (keyList) {
+        keyList.innerHTML = '';
+        (news.key_points || []).forEach(item => {
+            const li = document.createElement('li');
+            const speaker = item.speaker ? `<strong>${escHtml(item.speaker)}</strong> ` : '';
+            li.innerHTML = `${speaker}${escHtml(item.text || '')}`;
+            keyList.appendChild(li);
+        });
+    }
+
+    const topics = document.getElementById('md-news-topics');
+    if (topics) {
+        topics.innerHTML = '';
+        (news.topics || []).forEach(topic => {
+            const pill = document.createElement('span');
+            pill.className = 'topic-pill';
+            pill.innerText = topic;
+            topics.appendChild(pill);
+        });
+    }
+
+    const participation = document.getElementById('md-news-participation');
+    if (participation) {
+        participation.innerHTML = '';
+        (news.participation || []).forEach(person => {
+            const row = document.createElement('div');
+            row.className = 'participation-item';
+            const score = Number(person.participation_score || 0);
+            row.innerHTML = `
+                <div>
+                    <strong>${escHtml(person.nickname || person.uid || 'Unknown')}</strong>
+                    <span>${escHtml(person.role || '')}</span>
+                </div>
+                <div class="participation-meter" aria-label="participation">
+                    <i style="width:${Math.max(0, Math.min(100, score))}%"></i>
+                </div>
+                <b>${score}</b>
+            `;
+            participation.appendChild(row);
+        });
+    }
+
+    const photoStrip = document.getElementById('md-news-photos');
+    if (photoStrip) {
+        photoStrip.innerHTML = '';
+        (news.photos || []).forEach(photo => {
+            const tile = document.createElement('div');
+            tile.className = 'newspaper-photo';
+            tile.style.backgroundImage = `url("${photo.url}")`;
+            photoStrip.appendChild(tile);
+        });
+        if (!(news.photos || []).length) {
+            photoStrip.innerHTML = '<p class="hint">尚未上傳聚會照片</p>';
+        }
+    }
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value;
 }
