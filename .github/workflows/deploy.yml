@@ -8,6 +8,7 @@ env:
   GCP_PROJECT_ID: graduation-6ae65
   GCP_REGION: asia-east1
   CLOUD_RUN_SERVICE: phubbing-backend
+  IMAGE: asia-east1-docker.pkg.dev/graduation-6ae65/cloud-run-source-deploy/phubbing-backend
 
 jobs:
   # ── Frontend: Firebase Hosting ──
@@ -52,13 +53,27 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy to Cloud Run from source
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
-            --source ./backend \
+            --image ${{ env.IMAGE }}:latest \
             --region ${{ env.GCP_REGION }} \
             --platform managed \
             --allow-unauthenticated \
             --memory 2Gi \
-            --clear-base-image \
             --quiet
