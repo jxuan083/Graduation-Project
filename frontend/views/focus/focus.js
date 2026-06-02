@@ -69,10 +69,10 @@ async function handleMeetingPhotoChange(e) {
         : document.getElementById('btn-meeting-album');
     const origText = btn.innerText;
     btn.disabled = true;
-    btn.innerText = '⏳ 上傳中...';
+    btn.innerText = '上傳中...';
     try {
         await uploadMeetingPhoto(state.roomId, file);
-        btn.innerText = '✅ 上傳成功';
+        btn.innerText = '上傳成功';
         setTimeout(() => { btn.innerText = origText; btn.disabled = false; }, 1500);
     } catch (err) {
         console.error('upload photo failed:', err);

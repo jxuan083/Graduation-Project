@@ -95,6 +95,7 @@ async function refreshGroupDetail() {
         renderMembers(g);
         renderPetVote(g);
         renderPetPreview(g);
+        if (window.lucide) window.lucide.createIcons();
     } catch (err) {
         console.error('refresh group detail failed:', err);
     }
@@ -158,9 +159,9 @@ function renderMembers(g) {
         const isMe = m.uid === myUid;
         const canRemove = isCreator || isMe;
         li.innerHTML = `
-            <span class="member-name">${escHtml(m.nickname || m.uid)}${isMe ? ' (我)' : ''}${m.uid === g.creator_uid ? ' 👑' : ''}</span>
+            <span class="member-name">${escHtml(m.nickname || m.uid)}${isMe ? ' (我)' : ''}${m.uid === g.creator_uid ? ' <i data-lucide="crown" class="ico-crown"></i>' : ''}</span>
             <div style="display:flex;gap:6px;align-items:center;">
-                <button class="btn-mini secondary btn-pet-gen" data-uid="${m.uid}" data-nickname="${escHtml(m.nickname || m.uid)}" title="生成寵物臉">🐾</button>
+                <button class="btn-mini secondary btn-pet-gen" data-uid="${m.uid}" data-nickname="${escHtml(m.nickname || m.uid)}" title="生成寵物臉"><i data-lucide="paw-print"></i></button>
                 ${canRemove ? `<button class="btn-mini secondary btn-rm-member" data-uid="${m.uid}">移除</button>` : ''}
             </div>
         `;
@@ -212,7 +213,7 @@ function renderPetVote(g) {
         const isMyVote = myVote === m.uid;
         const isPet = m.uid === petTargetUid;
         li.innerHTML = `
-            <span class="member-name">${escHtml(m.nickname || m.uid)}${isPet ? ' 🐾' : ''}</span>
+            <span class="member-name">${escHtml(m.nickname || m.uid)}${isPet ? ' <i data-lucide="paw-print"></i>' : ''}</span>
             <span class="vote-count">${voteCount} 票</span>
             <button class="btn-mini ${isMyVote ? 'primary' : 'secondary'} btn-vote" data-uid="${m.uid}">
                 ${isMyVote ? '已投票' : '投票'}
@@ -246,7 +247,7 @@ function renderPetPreview(g) {
     const petName = g.pet_name || '寵物';
     const headHtml = g.pet_face_url
         ? `<img class="pet-head-img" src="${escHtml(g.pet_face_url)}" alt="寵物臉" />`
-        : `<div class="pet-head-placeholder">👤</div>`;
+        : `<div class="pet-head-placeholder"><i data-lucide="user"></i></div>`;
     if (previewEl) {
         previewEl.innerHTML = `
             <div class="pet-display">

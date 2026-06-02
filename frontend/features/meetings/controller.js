@@ -38,14 +38,15 @@ export async function openMeetingsList() {
                 <div class="mc-body">
                     <div class="mc-mode">${modeLabel}</div>
                     <div class="mc-meta">
-                        <span>👥 ${m.member_count || 0} 人</span>
-                        <span>⏱ ${m.duration_minutes || 0} 分鐘</span>
-                        <span>📅 ${dateLabel}</span>
+                        <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
+                        <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
+                        <span><i data-lucide="calendar"></i> ${dateLabel}</span>
                     </div>
                 </div>`;
             card.onclick = () => openMeetingDetail(m.id);
             listEl.appendChild(card);
         });
+        if (window.lucide) window.lucide.createIcons();
     } catch (err) {
         console.error('openMeetingsList failed:', err);
         listEl.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗:${err.message || err}</p>`;

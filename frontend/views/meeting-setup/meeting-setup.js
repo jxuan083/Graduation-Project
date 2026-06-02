@@ -35,10 +35,11 @@ function buildContextGrid() {
         const card = document.createElement('button');
         card.className = 'context-card' + (key === 'general' ? ' active-context' : '');
         card.dataset.context = key;
-        card.innerHTML = `<span class="ctx-icon">${cfg.icon}</span><span class="ctx-label">${cfg.label}</span>`;
+        card.innerHTML = `<span class="ctx-icon"><i data-lucide="${cfg.icon}"></i></span><span class="ctx-label">${cfg.label}</span>`;
         card.onclick = () => selectContext(key, card);
         grid.appendChild(card);
     });
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function selectContext(key, card) {

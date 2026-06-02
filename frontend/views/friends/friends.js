@@ -171,12 +171,12 @@ async function sendFriendRequestByEmail() {
             body: JSON.stringify({ target_email: email })
         });
         if (!res.ok) {
-            msgEl.innerText = '❌ ' + ((data && data.detail) || '送出失敗');
+            msgEl.innerText = ((data && data.detail) || '送出失敗');
             msgEl.className = 'hint error';
             return;
         }
         if (data.status === 'auto_accepted') {
-            msgEl.innerText = '🎉 ' + (data.message || '對方也邀請了你,你們已成為好友!');
+            msgEl.innerText = (data.message || '對方也邀請了你,你們已成為好友!');
             msgEl.className = 'hint ok';
             if (data.target_uid) {
                 state.friendUidSet.add(data.target_uid);
@@ -185,13 +185,13 @@ async function sendFriendRequestByEmail() {
             }
             refreshFriends();
         } else {
-            msgEl.innerText = '✅ 已送出邀請';
+            msgEl.innerText = '已送出邀請';
             msgEl.className = 'hint ok';
         }
         emailInput.value = '';
         refreshFriendRequests();
     } catch (err) {
-        msgEl.innerText = '❌ ' + err.message;
+        msgEl.innerText = err.message;
         msgEl.className = 'hint error';
     }
 }
