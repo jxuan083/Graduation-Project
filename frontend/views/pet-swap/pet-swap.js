@@ -114,7 +114,8 @@ async function populateCameraSelect() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(d => d.kind === 'videoinput');
-        if (cameras.length <= 1) { sel.style.display = 'none'; return; }
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        if (cameras.length <= 1 || isMobile) { sel.style.display = 'none'; return; }
         sel.innerHTML = cameras.map((d, i) =>
             `<option value="${d.deviceId}">${d.label || '相機 ' + (i + 1)}</option>`
         ).join('');
@@ -144,6 +145,7 @@ function closeCamera() {
 }
 
 async function flipCamera() {
+    _selectedDeviceId = null;   // 清掉 deviceId，改回用 facingMode
     _facingMode = _facingMode === 'user' ? 'environment' : 'user';
     await startStream();
 }
