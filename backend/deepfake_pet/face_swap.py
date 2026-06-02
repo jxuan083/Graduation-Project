@@ -45,8 +45,8 @@ def _imread_exif(path: str) -> np.ndarray | None:
 
 try:
     import face_recognition_models
-    PREDICTOR_PATH = face_recognition_models.pose_predictor_68_point_model_location()
-except ImportError:
+    PREDICTOR_PATH = face_recognition_models.pose_predictor_model_location()
+except (ImportError, AttributeError):
     # fallback：本地檔案（開發環境用）
     PREDICTOR_PATH = os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat")
 predictor = dlib.shape_predictor(PREDICTOR_PATH)
