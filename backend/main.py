@@ -52,8 +52,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v15.3-ws-hardening"
-BACKEND_BUILD_DATE = "2026-04-28"  # 每次部署手動更新
+BACKEND_VERSION = "v15.4-group-pet-avatar"
+BACKEND_BUILD_DATE = "2026-06-02"  # 每次部署手動更新
 
 
 @app.get("/api/version")
@@ -1662,7 +1662,7 @@ def _generate_invite_code() -> str:
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
     out["group_id"] = doc_id
-    for f in ("created_at", "pet_last_fed_at"):
+    for f in ("created_at", "pet_last_fed_at", "pet_face_updated_at"):
         if out.get(f) and hasattr(out[f], "isoformat"):
             out[f] = out[f].isoformat()
         elif out.get(f):
@@ -1704,6 +1704,9 @@ async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(veri
         "pet_accessories": [],
         "pet_status": "NORMAL",
         "pet_last_fed_at": None,
+        # 寵物臉（同時當群組頭像）
+        "pet_face_url": None,
+        "pet_face_path": None,
         # 寵物投票
         "pet_votes": {},   # {voter_uid: target_uid}
         # 邀請碼
@@ -1928,8 +1931,9 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
         raise HTTPException(status_code=403, detail="你不是群組成員")
 
     pet_fields = {k: v for k, v in data.items() if k.startswith("pet_")}
-    if pet_fields.get("pet_last_fed_at") and hasattr(pet_fields["pet_last_fed_at"], "isoformat"):
-        pet_fields["pet_last_fed_at"] = pet_fields["pet_last_fed_at"].isoformat()
+    for _tf in ("pet_last_fed_at", "pet_face_updated_at"):
+        if pet_fields.get(_tf) and hasattr(pet_fields[_tf], "isoformat"):
+            pet_fields[_tf] = pet_fields[_tf].isoformat()
 
     # 取得寵物人的 profile（頭像）
     pet_uid = data.get("pet_target_uid")
@@ -1952,6 +1956,71 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
         "votes": data.get("pet_votes", {}),
         "member_count": len(data.get("member_uids", [])),
     }
+
+
+@app.post("/api/groups/{group_id}/pet-face")
+async def set_group_pet_face(
+    group_id: str,
+    file: UploadFile = File(...),
+    target_uid: Optional[str] = Form(default=None),
+    decoded: dict = Depends(verify_token),
+):
+    """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。任何群組成員皆可設定。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    doc_ref = db.collection("groups").document(group_id)
+    snap = doc_ref.get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = snap.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+
+    # 🔒 content_type 白名單（沿用照片那套，排除 SVG 等可執行內容）
+    ALLOWED = {"image/jpeg", "image/png", "image/webp"}
+    if not file.content_type or file.content_type not in ALLOWED:
+        raise HTTPException(status_code=400, detail="只接受 JPEG / PNG / WebP 圖片")
+
+    content = await file.read()
+    if len(content) > PHOTO_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="檔案太大 (>10MB)")
+
+    ext_by_ct = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+    ext = ext_by_ct[file.content_type]
+    blob_name = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}.{ext}"
+
+    try:
+        bucket = fb_storage.bucket()
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string(content, content_type=file.content_type)
+        blob.make_public()
+        public_url = blob.public_url
+
+        old_path = data.get("pet_face_path")
+        doc_ref.update({
+            "pet_face_url": public_url,
+            "pet_face_path": blob_name,
+            "pet_face_updated_at": firestore.SERVER_TIMESTAMP,
+            "pet_face_target_uid": target_uid or None,
+        })
+
+        # 換圖成功後刪舊 blob（失敗不阻斷，避免殘留指向不存在檔案的 metadata）
+        if old_path and old_path != blob_name:
+            try:
+                old_blob = bucket.blob(old_path)
+                if old_blob.exists():
+                    old_blob.delete()
+            except Exception as e:
+                print(f"Warning: failed to delete old pet face blob: {e}")
+
+        return {"status": "success", "pet_face_url": public_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error setting group pet face: {e}")
+        raise HTTPException(status_code=500, detail=f"設定頭像失敗: {e}")
 
 
 class JoinByInvitePayload(BaseModel):

@@ -3,6 +3,9 @@ import { apiBase } from '../../core/api.js';
 import { getAuthHeaders } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
 
+// 最近一次合成結果的原始 blob（供「設為群組頭像」上傳，免得重跑 face_swap）
+let lastResultBlob = null;
+
 export function init() {
     register('view-pet-swap', {
         element: document.getElementById('view-pet-swap'),
@@ -52,6 +55,35 @@ export function init() {
         a.download = 'pet_face.jpg';
         a.click();
     };
+
+    const btnSetAvatar = document.getElementById('btn-pet-set-avatar');
+    if (btnSetAvatar) btnSetAvatar.onclick = setAsGroupAvatar;
+}
+
+async function setAsGroupAvatar() {
+    const groupId = state.currentGroupDetail?.group_id;
+    if (!groupId || !lastResultBlob) return;
+    const btn = document.getElementById('btn-pet-set-avatar');
+    const errorEl = document.getElementById('pet-error');
+    btn.disabled = true;
+    btn.innerHTML = '設定中…';
+    errorEl.style.display = 'none';
+    try {
+        const { setGroupPetFace } = await import('../../features/groups/controller.js');
+        const { res, data } = await setGroupPetFace(groupId, lastResultBlob, state.petSwapTarget?.uid);
+        if (!res.ok || data?.status !== 'success') {
+            throw new Error(data?.detail || `HTTP ${res.status}`);
+        }
+        // 成功 → 自動跳回群組設定頁（onShow 會重新抓 detail 並換上新頭像）
+        switchView('view-group-setup');
+    } catch (err) {
+        errorEl.textContent = '設定頭像失敗：' + (err.message || err);
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="image-up"></i> 設為群組頭像';
+        if (window.lucide?.createIcons) window.lucide.createIcons();
+    }
 }
 
 function onShow() {
@@ -72,6 +104,9 @@ function onShow() {
     document.getElementById('pet-error').style.display = 'none';
     document.getElementById('pet-album-input').value = '';
     document.getElementById('pet-camera-input').value = '';
+    lastResultBlob = null;
+    const btnSetAvatar = document.getElementById('btn-pet-set-avatar');
+    if (btnSetAvatar) btnSetAvatar.style.display = 'none';
 }
 
 async function generatePetFace() {
@@ -113,9 +148,13 @@ async function generatePetFace() {
         }
 
         const blob = await response.blob();
+        lastResultBlob = blob;
         const url = URL.createObjectURL(blob);
         document.getElementById('pet-result-img').src = url;
         resultWrap.style.display = 'block';
+        // 有群組情境才顯示「設為群組頭像」
+        const btnSetAvatar = document.getElementById('btn-pet-set-avatar');
+        if (btnSetAvatar) btnSetAvatar.style.display = state.currentGroupDetail?.group_id ? '' : 'none';
         resultWrap.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
         errorEl.textContent = '錯誤：' + (err.message || err);
