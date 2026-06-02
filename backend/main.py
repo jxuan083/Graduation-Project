@@ -2217,7 +2217,7 @@ async def pet_swap(
 
     tmp_out_path = tmp_in_path + "_result.jpg"
     try:
-        ok = run_face_swap(tmp_in_path, animal_path, tmp_out_path)
+        ok = await asyncio.to_thread(run_face_swap, tmp_in_path, animal_path, tmp_out_path)
         if not ok or not os.path.exists(tmp_out_path):
             raise HTTPException(status_code=422, detail="找不到人臉，請換一張正臉照片")
 
