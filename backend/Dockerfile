@@ -1,4 +1,5 @@
 FROM python:3.11-slim
+# v2 — 模型改由 pip face_recognition_models 提供，移除 curl 下載
 
 # dlib 需要 cmake 和 C++ 編譯工具
 RUN apt-get update && apt-get install -y --no-install-recommends \

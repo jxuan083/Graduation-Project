@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
 
+# 同 branch 同時只跑一條，新 push 會取消舊的
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   GCP_PROJECT_ID: graduation-6ae65
   GCP_REGION: asia-east1
