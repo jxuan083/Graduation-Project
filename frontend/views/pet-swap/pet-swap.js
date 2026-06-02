@@ -268,6 +268,27 @@ function onShow() {
     document.getElementById('pet-adopt-loading').style.display = 'none';
 }
 
+function compressImage(file, maxPx, quality) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            if (width > maxPx || height > maxPx) {
+                if (width > height) { height = Math.round(height * maxPx / width); width = maxPx; }
+                else                { width  = Math.round(width  * maxPx / height); height = maxPx; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
 async function generatePetFace() {
     const albumInput  = document.getElementById('pet-album-input');
     const camInput    = document.getElementById('pet-camera-input');
@@ -286,8 +307,11 @@ async function generatePetFace() {
     btnGenerate.disabled = true;
 
     try {
+        // 壓縮圖片到最大 1024px，避免 iOS 大檔導致 fetch 失敗
+        const compressed = await compressImage(file, 1024, 0.88);
+
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', compressed, 'face.jpg');
         formData.append('animal', animal);
 
         const headers = await getAuthHeaders();
