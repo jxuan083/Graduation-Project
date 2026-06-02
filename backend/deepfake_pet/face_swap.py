@@ -19,6 +19,30 @@ import os
 # ── 1. 初始化 dlib 偵測器 ──────────────────────────────────────────────────────
 detector = dlib.get_frontal_face_detector()
 
+
+def _imread_exif(path: str) -> np.ndarray | None:
+    """cv2.imread + EXIF 旋轉修正（手機拍的橫式照片常有這問題）"""
+    img = cv2.imread(path)
+    if img is None:
+        return None
+    try:
+        from PIL import Image, ExifTags
+        pil = Image.open(path)
+        exif = pil._getexif()
+        if exif:
+            for tag, val in exif.items():
+                if ExifTags.TAGS.get(tag) == 'Orientation':
+                    if val == 3:
+                        img = cv2.rotate(img, cv2.ROTATE_180)
+                    elif val == 6:
+                        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    elif val == 8:
+                        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+                    break
+    except Exception:
+        pass
+    return img
+
 PREDICTOR_PATH = os.path.join(os.path.dirname(__file__), "shape_predictor_68_face_landmarks.dat")
 predictor = dlib.shape_predictor(PREDICTOR_PATH)
 
@@ -26,7 +50,10 @@ predictor = dlib.shape_predictor(PREDICTOR_PATH)
 def get_landmarks(img: np.ndarray) -> np.ndarray | None:
     """偵測圖片中最大的人臉，回傳 68×2 的 landmark 陣列，找不到回傳 None"""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # upsample=1 先試；找不到再 upsample=2（放大兩倍，抓小臉或角度偏的臉）
     faces = detector(gray, 1)
+    if not faces:
+        faces = detector(gray, 2)
     if not faces:
         return None
     # 取最大的臉
@@ -121,7 +148,7 @@ def face_swap(human_path: str, animal_path: str, output_path: str,
     """
     feather: 邊界羽化程度（像素），越大越模糊
     """
-    human_img = cv2.imread(human_path)
+    human_img = _imread_exif(human_path)   # 含 EXIF 旋轉修正
     animal_img = cv2.imread(animal_path)
     if human_img is None or animal_img is None:
         print("讀取圖片失敗，請確認路徑")
