@@ -2023,6 +2023,68 @@ async def set_group_pet_face(
         raise HTTPException(status_code=500, detail=f"設定頭像失敗: {e}")
 
 
+class GroupPetActionPayload(BaseModel):
+    action: str  # "feed" | "play" | "wipe"
+
+
+@app.post("/api/groups/{group_id}/pet/action")
+async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decoded: dict = Depends(verify_token)):
+    """群組成員對共同寵物執行互動（餵食、玩耍、清潔）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+    if not data.get("pet_face_url"):
+        raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
+
+    energy     = int(data.get("pet_energy", 50))
+    max_energy = int(data.get("pet_max_energy", 100))
+    hp         = int(data.get("pet_hp", 5))
+    action     = payload.action
+
+    updates: dict = {"pet_last_fed_at": firestore.SERVER_TIMESTAMP}
+
+    if action == "feed":
+        energy = min(max_energy, energy + 20)
+        updates["pet_energy"] = energy
+    elif action == "play":
+        energy = min(max_energy, energy + 10)
+        updates["pet_energy"] = energy
+    elif action == "wipe":
+        energy = min(max_energy, energy + 5)
+        updates["pet_energy"] = energy
+    else:
+        raise HTTPException(status_code=400, detail=f"未知動作：{action}")
+
+    if energy >= 80:
+        new_status = "HAPPY"
+    elif energy >= 40:
+        new_status = "NORMAL"
+    elif energy >= 15:
+        new_status = "HUNGRY"
+    else:
+        new_status = "CRITICAL"
+    updates["pet_status"] = new_status
+
+    try:
+        doc_ref.update(updates)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {
+        "status": "success",
+        "pet_energy": energy,
+        "pet_status": new_status,
+    }
+
+
 class JoinByInvitePayload(BaseModel):
     code: str
 
@@ -2156,6 +2218,188 @@ async def pet_swap(
             except: pass
 
     return Response(content=result_bytes, media_type="image/jpeg")
+
+
+# ===== 個人寵物系統 (My Pet) =====
+
+class PersonalPetSetupPayload(BaseModel):
+    image_url: str
+    name: Optional[str] = ""
+    animal: Optional[str] = "dog"
+
+class PersonalPetActionPayload(BaseModel):
+    action: str  # "feed" | "wipe" | "play" | "sleep" | "wake"
+
+
+def _calc_pet_decay(data: dict) -> dict:
+    last_updated = data.get("my_pet_last_updated")
+    now = datetime.datetime.utcnow()
+    if last_updated:
+        try:
+            lu = last_updated.replace(tzinfo=None) if hasattr(last_updated, 'replace') else last_updated
+            elapsed_hours = max(0.0, (now - lu).total_seconds() / 3600)
+        except Exception:
+            elapsed_hours = 0.0
+    else:
+        elapsed_hours = 0.0
+
+    hunger      = int(data.get("my_pet_hunger",      70))
+    happiness   = int(data.get("my_pet_happiness",   70))
+    energy      = int(data.get("my_pet_energy",      80))
+    cleanliness = int(data.get("my_pet_cleanliness", 100))
+    is_sleeping = bool(data.get("my_pet_is_sleeping", False))
+    has_poop    = bool(data.get("my_pet_has_poop", False))
+    has_pee     = bool(data.get("my_pet_has_pee",  False))
+
+    if elapsed_hours > 0:
+        hunger      = max(0, min(100, hunger      - int(5 * elapsed_hours)))
+        happiness   = max(0, min(100, happiness   - int(3 * elapsed_hours)))
+        cleanliness = max(0, min(100, cleanliness - int(2 * elapsed_hours)))
+        if is_sleeping:
+            energy = max(0, min(100, energy + int(8 * elapsed_hours)))
+        else:
+            energy = max(0, min(100, energy - int(4 * elapsed_hours)))
+
+        if not has_poop and int(elapsed_hours / 4) >= 1:
+            if random.random() < 0.65:
+                has_poop = True
+        if not has_pee and int(elapsed_hours / 3) >= 1:
+            if random.random() < 0.75:
+                has_pee = True
+
+    if is_sleeping:
+        status = "SLEEPING"
+    elif has_poop or has_pee:
+        status = "DIRTY"
+    elif hunger < 20 or energy < 10:
+        status = "CRITICAL"
+    elif hunger < 40 or happiness < 30:
+        status = "HUNGRY"
+    elif hunger > 70 and happiness > 70 and energy > 60:
+        status = "HAPPY"
+    else:
+        status = "NORMAL"
+
+    return {
+        "my_pet_hunger":      hunger,
+        "my_pet_happiness":   happiness,
+        "my_pet_energy":      energy,
+        "my_pet_cleanliness": cleanliness,
+        "my_pet_is_sleeping": is_sleeping,
+        "my_pet_has_poop":    has_poop,
+        "my_pet_has_pee":     has_pee,
+        "my_pet_status":      status,
+    }
+
+
+@app.get("/api/my-pet")
+async def get_my_pet(decoded: dict = Depends(verify_token)):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    snap = db.collection("users").document(uid).get()
+    data = snap.to_dict() or {}
+    if not data.get("my_pet_image_url"):
+        return {"status": "success", "pet": None}
+
+    pet = _calc_pet_decay(data)
+    try:
+        db.collection("users").document(uid).update({
+            **pet,
+            "my_pet_last_updated": firestore.SERVER_TIMESTAMP,
+        })
+    except Exception:
+        pass
+
+    pet["my_pet_image_url"] = data.get("my_pet_image_url", "")
+    pet["my_pet_name"]      = data.get("my_pet_name", "")
+    pet["my_pet_animal"]    = data.get("my_pet_animal", "dog")
+    return {"status": "success", "pet": pet}
+
+
+@app.post("/api/my-pet/setup")
+async def setup_my_pet(payload: PersonalPetSetupPayload, decoded: dict = Depends(verify_token)):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    updates = {
+        "my_pet_image_url":   payload.image_url,
+        "my_pet_name":        (payload.name or "").strip()[:20],
+        "my_pet_animal":      payload.animal or "dog",
+        "my_pet_hunger":      70,
+        "my_pet_happiness":   70,
+        "my_pet_energy":      80,
+        "my_pet_cleanliness": 100,
+        "my_pet_is_sleeping": False,
+        "my_pet_has_poop":    False,
+        "my_pet_has_pee":     False,
+        "my_pet_status":      "NORMAL",
+        "my_pet_last_updated": firestore.SERVER_TIMESTAMP,
+    }
+    try:
+        db.collection("users").document(uid).update(updates)
+    except Exception:
+        db.collection("users").document(uid).set(updates, merge=True)
+    return {"status": "success"}
+
+
+@app.post("/api/my-pet/action")
+async def my_pet_action(payload: PersonalPetActionPayload, decoded: dict = Depends(verify_token)):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    snap = db.collection("users").document(uid).get()
+    data = snap.to_dict() or {}
+    if not data.get("my_pet_image_url"):
+        raise HTTPException(status_code=404, detail="還沒有寵物")
+
+    pet = _calc_pet_decay(data)
+    action = payload.action
+
+    if action == "feed":
+        pet["my_pet_hunger"]    = min(100, pet["my_pet_hunger"]    + 25)
+        pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 5)
+    elif action == "wipe":
+        pet["my_pet_cleanliness"] = 100
+        pet["my_pet_has_poop"]    = False
+        pet["my_pet_has_pee"]     = False
+        pet["my_pet_happiness"]   = min(100, pet["my_pet_happiness"] + 10)
+    elif action == "play":
+        pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 20)
+        pet["my_pet_energy"]    = max(0,   pet["my_pet_energy"]    - 10)
+        pet["my_pet_hunger"]    = max(0,   pet["my_pet_hunger"]    - 5)
+    elif action == "sleep":
+        pet["my_pet_is_sleeping"] = True
+    elif action == "wake":
+        pet["my_pet_is_sleeping"] = False
+    else:
+        raise HTTPException(status_code=400, detail=f"未知動作：{action}")
+
+    if pet["my_pet_is_sleeping"]:
+        pet["my_pet_status"] = "SLEEPING"
+    elif pet["my_pet_has_poop"] or pet["my_pet_has_pee"]:
+        pet["my_pet_status"] = "DIRTY"
+    elif pet["my_pet_hunger"] < 20 or pet["my_pet_energy"] < 10:
+        pet["my_pet_status"] = "CRITICAL"
+    elif pet["my_pet_hunger"] < 40 or pet["my_pet_happiness"] < 30:
+        pet["my_pet_status"] = "HUNGRY"
+    elif pet["my_pet_hunger"] > 70 and pet["my_pet_happiness"] > 70 and pet["my_pet_energy"] > 60:
+        pet["my_pet_status"] = "HAPPY"
+    else:
+        pet["my_pet_status"] = "NORMAL"
+
+    try:
+        db.collection("users").document(uid).update({
+            **pet,
+            "my_pet_last_updated": firestore.SERVER_TIMESTAMP,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    pet["my_pet_image_url"] = data.get("my_pet_image_url", "")
+    pet["my_pet_name"]      = data.get("my_pet_name", "")
+    pet["my_pet_animal"]    = data.get("my_pet_animal", "dog")
+    return {"status": "success", "pet": pet}
 
 
 # ===== 房間與 WebSocket 管理 =====

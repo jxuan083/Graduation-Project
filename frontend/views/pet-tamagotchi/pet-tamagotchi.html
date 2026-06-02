@@ -1,0 +1,118 @@
+<section id="view-pet-tamagotchi" class="view">
+
+    <!-- 尚無寵物 -->
+    <div id="pet-no-pet" class="pet-no-pet-card" style="display:none;">
+        <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
+        <h2 id="pet-no-pet-title">還沒有寵物</h2>
+        <p id="pet-no-pet-desc">先去生成一張寵物臉，再回來養它！</p>
+        <button id="btn-go-pet-swap" class="btn primary" style="width:100%; margin-bottom:10px;">
+            <i data-lucide="wand-2"></i> 去生成寵物臉
+        </button>
+        <button id="btn-pet-tama-back-nopet" class="btn secondary" style="width:100%;">返回</button>
+    </div>
+
+    <!-- 主遊戲畫面 -->
+    <div id="pet-game-wrap" class="pet-game-wrap" style="display:none;">
+
+        <!-- 群組 badge（群組模式才顯示） -->
+        <div id="pet-group-badge" class="pet-group-badge" style="display:none;">
+            <i data-lucide="users" style="width:12px;height:12px;"></i>
+            <span id="pet-group-name">群組寵物</span>
+        </div>
+
+        <!-- 名稱列 -->
+        <div class="pet-name-row">
+            <h2 id="pet-tama-name">我的寵物</h2>
+            <button id="btn-pet-rename" style="display:none;">✏️ 改名</button>
+        </div>
+
+        <!-- 舞台 -->
+        <div class="pet-stage">
+            <div id="pet-speech" class="pet-speech">汪汪！</div>
+            <div class="pet-zzz" id="pet-zzz">
+                <span>Z</span><span>z</span><span>z</span>
+            </div>
+            <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
+                <img id="pet-avatar-img" src="" alt="寵物" />
+            </div>
+            <div class="pet-poop-wrap">
+                <span id="pet-poop-icon" class="pet-poop-icon">💩</span>
+                <span id="pet-pee-icon"  class="pet-pee-icon">💦</span>
+            </div>
+        </div>
+
+        <!-- 個人模式數值條 -->
+        <div id="pet-personal-stats" class="pet-stats">
+            <div class="stat-row">
+                <span class="stat-label">🍖 飢餓</span>
+                <div class="stat-bar"><div id="fill-hunger"    class="stat-fill hunger-fill"    style="width:0%"></div></div>
+                <span class="stat-val" id="val-hunger">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">😊 快樂</span>
+                <div class="stat-bar"><div id="fill-happiness" class="stat-fill happiness-fill" style="width:0%"></div></div>
+                <span class="stat-val" id="val-happiness">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚡ 精力</span>
+                <div class="stat-bar"><div id="fill-energy"    class="stat-fill energy-fill"    style="width:0%"></div></div>
+                <span class="stat-val" id="val-energy">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🛁 清潔</span>
+                <div class="stat-bar"><div id="fill-clean"     class="stat-fill clean-fill"     style="width:0%"></div></div>
+                <span class="stat-val" id="val-clean">0</span>
+            </div>
+        </div>
+
+        <!-- 群組模式數值條 -->
+        <div id="pet-group-stats" class="pet-stats" style="display:none;">
+            <div class="pet-hp-row">
+                <span class="stat-label" style="width:auto; margin-right:6px;">❤️ HP</span>
+                <div class="pet-hp-hearts" id="pet-hp-hearts"></div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚡ 精力</span>
+                <div class="stat-bar"><div id="fill-group-energy" class="stat-fill energy-fill" style="width:0%"></div></div>
+                <span class="stat-val" id="val-group-energy">0</span>
+            </div>
+        </div>
+
+        <!-- 動作按鈕 -->
+        <div class="pet-actions">
+            <button id="btn-pet-feed"  class="pet-action-btn">
+                <span class="action-icon">🍖</span><span>餵食</span>
+            </button>
+            <button id="btn-pet-wipe"  class="pet-action-btn">
+                <span class="action-icon">🧹</span><span>擦屁股</span>
+            </button>
+            <button id="btn-pet-play"  class="pet-action-btn">
+                <span class="action-icon">🎮</span><span>玩耍</span>
+            </button>
+            <button id="btn-pet-sleep" class="pet-action-btn">
+                <span class="action-icon">😴</span><span>睡覺</span>
+            </button>
+        </div>
+
+        <button id="btn-pet-tama-back" class="btn secondary" style="width:100%; margin-top:4px;">返回</button>
+    </div>
+
+    <!-- 載入中 -->
+    <div id="pet-tama-loading" style="text-align:center; padding:60px 0;">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        <p class="hint">載入寵物中…</p>
+    </div>
+
+    <!-- 改名 Overlay（個人模式） -->
+    <div id="pet-rename-overlay" class="pet-rename-overlay" style="display:none;">
+        <div class="pet-rename-box">
+            <h3>幫寵物改名</h3>
+            <input id="pet-rename-input" type="text" maxlength="20" placeholder="輸入名字（最多 20 字）" />
+            <div style="display:flex; gap:8px;">
+                <button id="btn-rename-confirm" class="btn primary" style="flex:1;">確認</button>
+                <button id="btn-rename-cancel"  class="btn secondary" style="flex:1;">取消</button>
+            </div>
+        </div>
+    </div>
+
+</section>

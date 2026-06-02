@@ -16,6 +16,11 @@
         <div class="campfire-scene">
             <div class="campfire-bubbles" id="campfire-bubbles"></div>
             <div class="campfire-fire"><svg class="fire-svg" viewBox="0 0 48 60" aria-hidden="true"><defs><linearGradient id="fireG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e8530f"/><stop offset=".55" stop-color="#ff7a3c"/><stop offset="1" stop-color="#f0b454"/></linearGradient></defs><path fill="url(#fireG)" d="M24 2c5 10 13 14 13 27 0 11-7 17-13 17S11 53 11 42c0-6 3-9 5-13 1 5 4 6 4 1 0-7-2-11 4-28z"/><path fill="#ffe0a3" opacity=".92" d="M24 31c3 4 5 6 5 10 0 4-2 7-5 7s-5-3-5-7c0-4 2-6 5-10z"/></svg></div>
+            <!-- 群組寵物（有設定才顯示，圍爐旁） -->
+            <div id="campfire-pet-wrap" class="campfire-pet-wrap" style="display:none;" title="點我互動！">
+                <img id="campfire-pet-img" src="" alt="群組寵物" class="campfire-pet-img" />
+                <span id="campfire-pet-badge" class="campfire-pet-status-badge">😊</span>
+            </div>
         </div>
         <div class="campfire-bar">
             <span class="campfire-online" id="home-campfire-hint">等朋友一起聚會</span>
@@ -34,7 +39,7 @@
     <p id="home-login-hint" class="hint" style="display:none; text-align:center; margin-bottom:12px;">※ 發起聚會需要先登入 Google 帳號</p>
     <button id="btn-scan-qr" class="btn secondary btn-qr"><i data-lucide="scan-line"></i> 掃描 QR Code 加入</button>
 
-    <!-- 功能 2×2 Grid（登入後顯示） -->
+    <!-- 功能 Grid（登入後顯示） -->
     <div class="home-grid" id="home-feature-grid">
         <button id="btn-open-groups" class="home-grid-card">
             <span class="hgc-icon"><i data-lucide="users"></i></span>
@@ -55,6 +60,11 @@
             <span class="hgc-icon"><i data-lucide="trophy"></i></span>
             <span class="hgc-title">排行榜</span>
             <span class="hgc-sub">查看本週排名</span>
+        </button>
+        <button id="btn-open-my-pet" class="home-grid-card">
+            <span class="hgc-icon"><i data-lucide="paw-print"></i></span>
+            <span class="hgc-title">我的寵物</span>
+            <span class="hgc-sub" id="hgc-pet-sub">陪伴你的小可愛</span>
         </button>
     </div>
 

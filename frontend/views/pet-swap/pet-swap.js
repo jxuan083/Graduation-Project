@@ -1,10 +1,14 @@
 import { register, switchView } from '../../core/router.js';
-import { apiBase } from '../../core/api.js';
-import { getAuthHeaders } from '../../core/firebase.js';
+import { apiBase, apiFetch } from '../../core/api.js';
+import { getAuthHeaders, storage } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
 
 // 最近一次合成結果的原始 blob（供「設為群組頭像」上傳，免得重跑 face_swap）
 let lastResultBlob = null;
+
+// 相機狀態
+let _cameraStream = null;
+let _facingMode   = 'user';  // 預設前鏡頭（拍臉用）
 
 function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,11 +18,11 @@ export function init() {
     register('view-pet-swap', {
         element: document.getElementById('view-pet-swap'),
         onShow: onShow,
+        onHide: closeCamera,
     });
 
     document.getElementById('btn-pet-swap-back').onclick = () => switchView('view-group-setup');
 
-    const cameraInput = document.getElementById('pet-camera-input');
     const albumInput  = document.getElementById('pet-album-input');
     const previewImg  = document.getElementById('pet-preview-img');
     const previewWrap = document.getElementById('pet-preview-wrap');
@@ -36,11 +40,17 @@ export function init() {
         document.getElementById('pet-error').style.display = 'none';
     }
 
-    document.getElementById('btn-pet-camera').onclick = () => cameraInput.click();
+    document.getElementById('btn-pet-camera').onclick = openCamera;
     document.getElementById('btn-pet-album').onclick  = () => albumInput.click();
     placeholder.onclick = () => albumInput.click();
-    cameraInput.onchange = e => handleFile(e.target.files[0]);
-    albumInput.onchange  = e => handleFile(e.target.files[0]);
+    albumInput.onchange = e => handleFile(e.target.files[0]);
+    const cameraInput = document.getElementById('pet-camera-input');
+    if (cameraInput) cameraInput.onchange = e => handleFile(e.target.files[0]);
+
+    // 相機 Modal 按鈕
+    document.getElementById('btn-camera-close').onclick = closeCamera;
+    document.getElementById('btn-camera-flip').onclick  = flipCamera;
+    document.getElementById('btn-camera-snap').onclick  = snapPhoto;
 
     document.querySelectorAll('.pet-template-btn').forEach(btn => {
         btn.onclick = () => {
@@ -62,6 +72,84 @@ export function init() {
 
     const btnSetAvatar = document.getElementById('btn-pet-set-avatar');
     if (btnSetAvatar) btnSetAvatar.onclick = setAsGroupAvatar;
+
+    document.getElementById('btn-pet-adopt').onclick = adoptPet;
+}
+
+// ── 相機 Modal ──
+async function openCamera() {
+    const modal = document.getElementById('pet-camera-modal');
+    modal.style.display = 'flex';
+    await startStream();
+}
+
+async function startStream() {
+    stopStream();
+    try {
+        _cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: _facingMode, width: { ideal: 1280 }, height: { ideal: 960 } },
+            audio: false,
+        });
+        const video = document.getElementById('pet-camera-video');
+        video.srcObject = _cameraStream;
+        // 前鏡頭水平翻轉，看起來像鏡子
+        video.style.transform = _facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+    } catch (err) {
+        closeCamera();
+        // getUserMedia 不可用（HTTP 環境）→ fallback 到 capture input
+        const camInput = document.getElementById('pet-camera-input');
+        if (camInput) { camInput.click(); return; }
+        alert('無法開啟相機：' + (err.message || err) + '\n\n請改用相簿上傳照片。');
+    }
+}
+
+function stopStream() {
+    if (_cameraStream) {
+        _cameraStream.getTracks().forEach(t => t.stop());
+        _cameraStream = null;
+    }
+}
+
+function closeCamera() {
+    stopStream();
+    document.getElementById('pet-camera-modal').style.display = 'none';
+    document.getElementById('pet-camera-video').srcObject = null;
+}
+
+async function flipCamera() {
+    _facingMode = _facingMode === 'user' ? 'environment' : 'user';
+    await startStream();
+}
+
+function snapPhoto() {
+    const video  = document.getElementById('pet-camera-video');
+    const canvas = document.getElementById('pet-camera-canvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    // 前鏡頭要水平翻回來再存（顯示時是鏡像，儲存要正確方向）
+    if (_facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+        if (!blob) return;
+        closeCamera();
+        // 把 blob 當作選好的檔案處理
+        const file = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
+        const url = URL.createObjectURL(file);
+        document.getElementById('pet-preview-img').src = url;
+        document.getElementById('pet-preview-wrap').style.display = 'block';
+        document.getElementById('pet-upload-placeholder').style.display = 'none';
+        document.getElementById('btn-pet-generate').disabled = false;
+        document.getElementById('pet-result-wrap').style.display = 'none';
+        document.getElementById('pet-error').style.display = 'none';
+        // 把 file 暫存到 album input，讓 generatePetFace 可以取到
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        document.getElementById('pet-album-input').files = dt.files;
+    }, 'image/jpeg', 0.92);
 }
 
 async function setAsGroupAvatar() {
@@ -78,7 +166,6 @@ async function setAsGroupAvatar() {
         if (!res.ok || data?.status !== 'success') {
             throw new Error(data?.detail || `HTTP ${res.status}`);
         }
-        // 成功 → 自動跳回群組設定頁（onShow 會重新抓 detail 並換上新頭像）
         switchView('view-group-setup');
     } catch (err) {
         errorEl.textContent = '設定頭像失敗：' + (err.message || err);
@@ -87,6 +174,42 @@ async function setAsGroupAvatar() {
         btn.disabled = false;
         btn.innerHTML = '<i data-lucide="image-up"></i> 設為群組頭像';
         if (window.lucide?.createIcons) window.lucide.createIcons();
+    }
+}
+
+async function adoptPet() {
+    if (!state.currentUser) {
+        alert('請先登入才能養寵物');
+        return;
+    }
+    if (!lastResultBlob) {
+        alert('請先生成寵物臉再養它！');
+        return;
+    }
+
+    const adoptBtn  = document.getElementById('btn-pet-adopt');
+    const adoptLoad = document.getElementById('pet-adopt-loading');
+    adoptBtn.disabled = true;
+    adoptLoad.style.display = 'block';
+
+    try {
+        const uid = state.currentUser.uid;
+        const ref = storage.ref().child(`pet-images/${uid}/pet.jpg`);
+        const snap = await ref.put(lastResultBlob, { contentType: 'image/jpeg' });
+        const imageUrl = await snap.ref.getDownloadURL();
+
+        const animal = document.querySelector('.pet-template-btn.active')?.dataset.animal || 'dog';
+        await apiFetch('/api/my-pet/setup', {
+            method: 'POST',
+            body: JSON.stringify({ image_url: imageUrl, animal, name: '' }),
+        });
+
+        switchView('view-pet-tamagotchi');
+    } catch (err) {
+        alert('上傳失敗：' + (err.message || err));
+    } finally {
+        adoptBtn.disabled = false;
+        adoptLoad.style.display = 'none';
     }
 }
 
@@ -107,16 +230,19 @@ function onShow() {
     document.getElementById('pet-result-wrap').style.display = 'none';
     document.getElementById('pet-error').style.display = 'none';
     document.getElementById('pet-album-input').value = '';
-    document.getElementById('pet-camera-input').value = '';
+    const _ci = document.getElementById('pet-camera-input');
+    if (_ci) _ci.value = '';
     lastResultBlob = null;
     const btnSetAvatar = document.getElementById('btn-pet-set-avatar');
     if (btnSetAvatar) btnSetAvatar.style.display = 'none';
+    document.getElementById('btn-pet-adopt').disabled = false;
+    document.getElementById('pet-adopt-loading').style.display = 'none';
 }
 
 async function generatePetFace() {
-    const cameraInput = document.getElementById('pet-camera-input');
     const albumInput  = document.getElementById('pet-album-input');
-    const file = cameraInput.files[0] || albumInput.files[0];
+    const camInput    = document.getElementById('pet-camera-input');
+    const file = albumInput.files[0] || camInput?.files[0];
     if (!file) return;
 
     const animal = document.querySelector('.pet-template-btn.active')?.dataset.animal || 'dog';

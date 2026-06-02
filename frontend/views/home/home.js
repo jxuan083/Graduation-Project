@@ -7,11 +7,22 @@ import { openMeetingsList } from '../../features/meetings/controller.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
 import { openLeaderboardView } from '../../features/leaderboard/controller.js';
+import { apiFetch } from '../../core/api.js';
+
+const STATUS_BADGE = {
+    HAPPY:    '😊',
+    NORMAL:   '🐾',
+    HUNGRY:   '😟',
+    CRITICAL: '😰',
+};
 
 export function init() {
     register('view-home', {
         element: document.getElementById('view-home'),
-        onShow: () => events.emit('home:show')
+        onShow: () => {
+            events.emit('home:show');
+            if (state.currentUser) loadGroupPet();
+        }
     });
 
     document.getElementById('btn-create-room').onclick = handleCreateRoom;
@@ -25,10 +36,44 @@ export function init() {
     const btnLb = document.getElementById('btn-home-leaderboard');
     if (btnLb) btnLb.onclick = openLeaderboardView;
 
+    const btnMyPet = document.getElementById('btn-open-my-pet');
+    if (btnMyPet) btnMyPet.onclick = () => {
+        state.tamagotchiGroupId = null;
+        switchView('view-pet-tamagotchi');
+    };
+
+    // 群組寵物點擊 → 進入群組寵物 tamagotchi
+    const petWrap = document.getElementById('campfire-pet-wrap');
+    if (petWrap) petWrap.onclick = () => {
+        if (state._campfireGroupId) {
+            state.tamagotchiGroupId = state._campfireGroupId;
+            switchView('view-pet-tamagotchi');
+        }
+    };
 
     // 邀請橫幅「查看」按鈕
     const btnBannerView = document.getElementById('btn-incoming-banner-view');
     if (btnBannerView) btnBannerView.onclick = () => openFriendsView('incoming');
+}
+
+async function loadGroupPet() {
+    try {
+        const { data } = await apiFetch('/api/groups');
+        if (!data?.groups) return;
+        const groupWithPet = data.groups.find(g => g.pet_face_url);
+        const wrap = document.getElementById('campfire-pet-wrap');
+        if (!wrap) return;
+        if (!groupWithPet) {
+            wrap.style.display = 'none';
+            state._campfireGroupId = null;
+            return;
+        }
+        state._campfireGroupId = groupWithPet.group_id;
+        document.getElementById('campfire-pet-img').src = groupWithPet.pet_face_url;
+        document.getElementById('campfire-pet-badge').textContent =
+            STATUS_BADGE[groupWithPet.pet_status] || '🐾';
+        wrap.style.display = 'flex';
+    } catch (_) {}
 }
 
 function handleCreateRoom() {
