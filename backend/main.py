@@ -2189,6 +2189,23 @@ import tempfile
 import sys as _sys
 _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepfake_pet"))
 
+@app.get("/api/pet-swap-health")
+async def pet_swap_health():
+    """不需要 auth，測試 face_swap 模組是否正常載入"""
+    def _check():
+        import sys as _s, os as _o, traceback as _tb
+        _s.path.insert(0, _o.path.join(_o.path.dirname(__file__), "deepfake_pet"))
+        try:
+            import face_swap as _fs
+            return {"status": "ok", "predictor_loaded": hasattr(_fs, 'predictor')}
+        except Exception as e:
+            return {"status": "error", "error": str(e), "traceback": _tb.format_exc()}
+    try:
+        result = await asyncio.to_thread(_check)
+        return result
+    except Exception as e:
+        return {"status": "crash", "error": str(e)}
+
 @app.post("/api/pet-swap-echo")
 async def pet_swap_echo(
     image: UploadFile = File(...),
