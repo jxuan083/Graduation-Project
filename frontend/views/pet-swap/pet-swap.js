@@ -77,22 +77,27 @@ export function init() {
 }
 
 // ── 相機 Modal ──
+let _selectedDeviceId = null;
+
 async function openCamera() {
     const modal = document.getElementById('pet-camera-modal');
     modal.style.display = 'flex';
     await startStream();
+    await populateCameraSelect();
 }
 
 async function startStream() {
     stopStream();
     try {
+        const constraint = _selectedDeviceId
+            ? { deviceId: { exact: _selectedDeviceId } }
+            : { facingMode: _facingMode };
         _cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: _facingMode, width: { ideal: 1280 }, height: { ideal: 960 } },
+            video: { ...constraint, width: { ideal: 1280 }, height: { ideal: 960 } },
             audio: false,
         });
         const video = document.getElementById('pet-camera-video');
         video.srcObject = _cameraStream;
-        // 前鏡頭水平翻轉，看起來像鏡子
         video.style.transform = _facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
     } catch (err) {
         closeCamera();
@@ -101,6 +106,28 @@ async function startStream() {
         if (camInput) { camInput.click(); return; }
         alert('無法開啟相機：' + (err.message || err) + '\n\n請改用相簿上傳照片。');
     }
+}
+
+async function populateCameraSelect() {
+    const sel = document.getElementById('pet-camera-select');
+    if (!sel) return;
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === 'videoinput');
+        if (cameras.length <= 1) { sel.style.display = 'none'; return; }
+        sel.innerHTML = cameras.map((d, i) =>
+            `<option value="${d.deviceId}">${d.label || '相機 ' + (i + 1)}</option>`
+        ).join('');
+        // 預設選目前正在用的設備
+        const activeId = _cameraStream?.getVideoTracks()[0]?.getSettings()?.deviceId;
+        if (activeId) sel.value = activeId;
+        sel.style.display = 'block';
+        sel.onchange = async () => {
+            _selectedDeviceId = sel.value;
+            _facingMode = 'user';
+            await startStream();
+        };
+    } catch (_) { sel.style.display = 'none'; }
 }
 
 function stopStream() {

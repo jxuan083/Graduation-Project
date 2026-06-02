@@ -76,6 +76,11 @@
         <div style="position:absolute; width:200px; height:200px; border:2px solid rgba(255,255,255,0.6);
                     border-radius:50%; pointer-events:none;
                     box-shadow:0 0 0 9999px rgba(0,0,0,0.35);"></div>
+        <!-- 相機選擇（有多個設備時才顯示） -->
+        <select id="pet-camera-select" style="
+            display:none; position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+            background:rgba(0,0,0,0.6); color:#fff; border:1px solid rgba(255,255,255,0.3);
+            border-radius:8px; padding:6px 10px; font-size:0.85rem; max-width:80%;"></select>
     </div>
     <div style="padding:24px 20px 32px; background:#111; display:flex; align-items:center; justify-content:space-around;">
         <button id="btn-camera-close" style="background:rgba(255,255,255,0.12); border:none; border-radius:50%;
