@@ -56,24 +56,41 @@ export function init() {
     if (btnBannerView) btnBannerView.onclick = () => openFriendsView('incoming');
 }
 
+let _petCacheTs = 0;
+
 async function loadGroupPet() {
+    const wrap = document.getElementById('campfire-pet-wrap');
+    if (!wrap) return;
+
+    // 先用快取立刻顯示（30 秒內不重打 API）
+    if (state._campfirePetCache && Date.now() - _petCacheTs < 30_000) {
+        applyGroupPet(state._campfirePetCache, wrap);
+        return;
+    }
+
+    // 背景靜默更新
     try {
         const { data } = await apiFetch('/api/groups');
         if (!data?.groups) return;
-        const groupWithPet = data.groups.find(g => g.pet_face_url);
-        const wrap = document.getElementById('campfire-pet-wrap');
-        if (!wrap) return;
-        if (!groupWithPet) {
-            wrap.style.display = 'none';
-            state._campfireGroupId = null;
-            return;
-        }
-        state._campfireGroupId = groupWithPet.group_id;
-        document.getElementById('campfire-pet-img').src = groupWithPet.pet_face_url;
-        document.getElementById('campfire-pet-badge').textContent =
-            STATUS_BADGE[groupWithPet.pet_status] || '🐾';
-        wrap.style.display = 'flex';
+        const groupWithPet = data.groups.find(g => g.pet_face_url) || null;
+        state._campfirePetCache = groupWithPet;
+        _petCacheTs = Date.now();
+        applyGroupPet(groupWithPet, wrap);
     } catch (_) {}
+}
+
+function applyGroupPet(groupWithPet, wrap) {
+    if (!groupWithPet) {
+        wrap.style.display = 'none';
+        state._campfireGroupId = null;
+        return;
+    }
+    state._campfireGroupId = groupWithPet.group_id;
+    const img = document.getElementById('campfire-pet-img');
+    if (img.src !== groupWithPet.pet_face_url) img.src = groupWithPet.pet_face_url;
+    document.getElementById('campfire-pet-badge').textContent =
+        STATUS_BADGE[groupWithPet.pet_status] || '🐾';
+    wrap.style.display = 'flex';
 }
 
 function handleCreateRoom() {

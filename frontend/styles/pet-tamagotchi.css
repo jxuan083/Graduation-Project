@@ -3,8 +3,9 @@
 /* ── 篝火旁寵物（首頁） ── */
 .campfire-pet-wrap {
   position: absolute;
-  bottom: 8px;
-  right: 16px;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-60%);
   display: flex;
   flex-direction: column;
   align-items: center;
