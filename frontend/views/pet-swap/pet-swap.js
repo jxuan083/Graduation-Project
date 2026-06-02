@@ -308,7 +308,12 @@ async function generatePetFace() {
 
     try {
         // 壓縮圖片到最大 1024px，避免 iOS 大檔導致 fetch 失敗
-        const compressed = await compressImage(file, 1024, 0.88);
+        let compressed;
+        try {
+            compressed = await compressImage(file, 1024, 0.88);
+        } catch (compErr) {
+            throw new Error(`壓縮圖片失敗: ${compErr.message}`);
+        }
 
         const formData = new FormData();
         formData.append('image', compressed, 'face.jpg');
@@ -329,7 +334,7 @@ async function generatePetFace() {
             });
         } catch (fetchErr) {
             if (fetchErr.name === 'AbortError') throw new Error('合成超時（90秒），請再試一次');
-            throw new Error('網路連線失敗，請確認網路後再試');
+            throw new Error(`網路錯誤 [${fetchErr.name}] ${fetchErr.message}`);
         } finally {
             clearTimeout(timer);
         }
