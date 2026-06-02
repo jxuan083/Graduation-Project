@@ -227,7 +227,7 @@ function handleQaFinished(msg) {
                 div.style.background = 'rgba(16, 185, 129, 0.25)';
                 div.style.borderColor = '#34d399';
                 div.style.color = '#a7f3d0';
-                div.innerText = `✅ ${opt}  —  ${count} 票(正解)`;
+                div.innerText = `${opt}  —  ${count} 票(正解)`;
             } else {
                 div.innerText = `${opt}  —  ${count} 票`;
             }
@@ -237,9 +237,9 @@ function handleQaFinished(msg) {
 
     if (questionEl) {
         if (msg.has_answer && msg.correct_option) {
-            questionEl.innerText = `📊 正解:${msg.correct_option}(${msg.correct_count || 0} 人答對)`;
+            questionEl.innerText = `正解:${msg.correct_option}(${msg.correct_count || 0} 人答對)`;
         } else {
-            questionEl.innerText = '📊 結果統計';
+            questionEl.innerText = '結果統計';
         }
     }
     if (statusEl) statusEl.innerText = '5 秒後返回聚會畫面...';

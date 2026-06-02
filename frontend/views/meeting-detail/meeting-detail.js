@@ -40,7 +40,7 @@ async function handleDetailPhotoChange(e) {
         : document.getElementById('btn-md-album-photo');
     const orig = btn.innerText;
     btn.disabled = true;
-    btn.innerText = '⏳ 上傳中...';
+    btn.innerText = '上傳中...';
     try {
         await uploadMeetingPhoto(state.currentMeetingDetailId, file);
         await loadMeetingPhotos(state.currentMeetingDetailId);

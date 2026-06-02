@@ -6,6 +6,10 @@ import { state } from '../../core/state.js';
 // 最近一次合成結果的原始 blob（供「設為群組頭像」上傳，免得重跑 face_swap）
 let lastResultBlob = null;
 
+function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 export function init() {
     register('view-pet-swap', {
         element: document.getElementById('view-pet-swap'),
@@ -91,10 +95,10 @@ function onShow() {
     const titleEl = document.querySelector('#view-pet-swap h2');
     const hintEl  = document.querySelector('#view-pet-swap p.hint');
     if (target?.nickname) {
-        if (titleEl) titleEl.textContent = `🐾 ${target.nickname} 的寵物臉`;
+        if (titleEl) titleEl.innerHTML = `<i data-lucide="paw-print"></i> ${escHtml(target.nickname)} 的寵物臉`;
         if (hintEl)  hintEl.textContent  = `上傳 ${target.nickname} 的正臉照片，合成專屬動物臉！`;
     } else {
-        if (titleEl) titleEl.textContent = '🐾 寵物臉生成器';
+        if (titleEl) titleEl.innerHTML = '<i data-lucide="paw-print"></i> 寵物臉生成器';
         if (hintEl)  hintEl.textContent  = '上傳一張正臉照片，合成專屬寵物臉！';
     }
     document.getElementById('pet-preview-wrap').style.display = 'none';

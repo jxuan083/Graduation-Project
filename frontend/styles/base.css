@@ -4,36 +4,48 @@
    TOKENS
    ============================================================ */
 :root {
-  /* Backgrounds */
-  --bg:           #0d1117;
-  --bg-surface:   rgba(255,255,255,0.055);
-  --bg-surface-2: rgba(255,255,255,0.09);
+  /* Backgrounds — warm campfire (solid material surfaces, not glass) */
+  --bg:           #1c1714;
+  --bg-surface:   #241c17;
+  --bg-surface-2: #2e2520;
 
-  /* Borders */
-  --border:       rgba(255,255,255,0.09);
-  --border-2:     rgba(255,255,255,0.16);
+  /* Borders — warm */
+  --border:       rgba(255,180,120,0.11);
+  --border-2:     rgba(255,190,130,0.22);
 
-  /* Text */
-  --text-primary:   #f0f4f8;
-  --text-secondary: #8892a4;
+  /* Text — cream / warm taupe */
+  --text-primary:   #f3e9dc;
+  --text-secondary: #b8a892;
 
-  /* Accents */
-  --accent-fire:  #ff6b35;
-  --accent-fire2: #e8440a;
-  --accent-color: #3b82f6;   /* keep for backward compat */
-  --accent-hover: #2563eb;
+  /* Accents — ember + gold */
+  --accent-fire:  #ff7a3c;
+  --accent-fire2: #e8530f;
+  --gold:         #f0b454;
+  --accent-color: #ff7a3c;   /* backward compat: was cold blue, now ember */
+  --accent-hover: #e8530f;
 
   /* Radius */
-  --r-sm:   10px;
-  --r-md:   16px;
-  --r-lg:   24px;
+  --r-sm:   12px;
+  --r-md:   18px;
+  --r-lg:   26px;
   --r-pill: 999px;
 
+  /* Depth system — de-flatten */
+  --shadow-1:    0 1px 2px rgba(0,0,0,.40), 0 4px 12px rgba(0,0,0,.35);
+  --shadow-2:    0 2px 6px rgba(0,0,0,.42), 0 14px 36px rgba(0,0,0,.48);
+  --glow-ember:  0 0 24px rgba(255,122,60,.22);
+  --edge-top:    inset 0 1px 0 rgba(255,236,210,.07);   /* top highlight = extruded */
+  --inset-carve: inset 0 2px 5px rgba(0,0,0,.45), inset 0 1px 0 rgba(0,0,0,.28);
+
   /* legacy compat */
-  --bg-color-dark:   #0d1117;
-  --bg-color-flow:   #064e3b;
-  --bg-color-danger: #7f1d1d;
-  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --bg-color-dark:   #1c1714;
+  --bg-color-flow:   #14331f;
+  --bg-color-danger: #3a1410;
+
+  /* Typography — 台北黑體 Taipei Sans TC（去 Inter，去 AI 感的台味黑體） */
+  --font-family:  'TaipeiSansTC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'TaipeiSansTC', system-ui, sans-serif;
+  --font-hand:    'TaipeiSansTC', system-ui, sans-serif;
 }
 
 /* ============================================================
@@ -48,6 +60,12 @@
 body {
   font-family: var(--font-family);
   background-color: var(--bg);
+  /* radial ember glow rising from the bottom — the campfire */
+  background-image: radial-gradient(125% 75% at 50% 100%,
+    rgba(255,122,60,0.11) 0%,
+    rgba(255,122,60,0.035) 30%,
+    transparent 58%);
+  background-attachment: fixed;
   color: var(--text-primary);
   display: flex;
   justify-content: center;
@@ -57,12 +75,24 @@ body {
   transition: background-color 1s ease;
 }
 
+/* paper / film grain overlay — kills the clean "AI plastic" feel */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 body.mode-flow    { background-color: var(--bg-color-flow);   }
 body.mode-danger  { background-color: var(--bg-color-danger); }
-body.mode-gathering { background-color: #1a0d2e !important; }
-body.mode-family    { background-color: #1a0a00 !important; }
-body.mode-meeting   { background-color: #0d1117 !important; }
-body.mode-class     { background-color: #053520 !important; }
+body.mode-gathering { background-color: #271826 !important; }
+body.mode-family    { background-color: #221103 !important; }
+body.mode-meeting   { background-color: #1c1714 !important; }
+body.mode-class     { background-color: #14331f !important; }
 
 /* ============================================================
    APP SHELL
@@ -144,9 +174,10 @@ body.mode-class     { background-color: #053520 !important; }
 /* ============================================================
    TYPOGRAPHY
    ============================================================ */
-h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 8px; }
-h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 12px; }
+h1 { font-family: var(--font-display); font-size: 2.4rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.01em; }
+h2 { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.01em; }
 p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
+.page-title { font-family: var(--font-display); }
 
 /* ============================================================
    BUTTONS
@@ -164,22 +195,25 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   margin-bottom: 12px;
   letter-spacing: 0.01em;
 }
-.btn:active { transform: scale(0.97); }
+.btn:active { transform: translateY(1px) scale(0.995); }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent-fire), var(--accent-fire2));
+  background: linear-gradient(145deg, #ff8e54 0%, var(--accent-fire) 45%, var(--accent-fire2) 100%);
   color: #fff;
-  box-shadow: 0 4px 20px rgba(255,107,53,0.4);
+  text-shadow: 0 1px 1px rgba(120,40,0,0.35);
+  box-shadow: var(--shadow-1), var(--glow-ember), inset 0 1px 0 rgba(255,255,255,0.30);
 }
-.btn.primary:hover { box-shadow: 0 6px 24px rgba(255,107,53,0.55); }
+.btn.primary:hover { box-shadow: var(--shadow-2), 0 0 30px rgba(255,122,60,0.38), inset 0 1px 0 rgba(255,255,255,0.32); }
+.btn.primary:active { box-shadow: var(--shadow-1), inset 0 2px 7px rgba(120,40,0,0.40); }
 
 .btn.secondary {
   background: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border);
-  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-1), var(--edge-top);
 }
 .btn.secondary:hover { background: var(--bg-surface-2); border-color: var(--border-2); }
+.btn.secondary:active { box-shadow: var(--inset-carve); }
 
 .btn.disabled, .btn:disabled {
   opacity: 0.4;
@@ -237,7 +271,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
    ============================================================ */
 .campfire-card {
   width: 100%;
-  background: linear-gradient(180deg, #151c30 0%, #0d1117 100%);
+  background: linear-gradient(180deg, #2c1e15 0%, #1c1714 100%);
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -279,6 +313,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   animation: fireFlicker 2s ease-in-out infinite;
   z-index: 2;
 }
+.fire-svg { width: 1em; height: 1em; display: block; }
 
 @keyframes fireFlicker {
   0%,100% { transform: scale(1)    rotate(-1deg); filter: drop-shadow(0 0 18px rgba(255,107,53,0.9)); }
@@ -446,17 +481,19 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   width: 100%;
   padding: 12px 14px;
   border-radius: var(--r-sm);
-  background: rgba(0,0,0,0.3);
+  background: rgba(0,0,0,0.26);
   border: 1px solid var(--border);
+  box-shadow: var(--inset-carve);
   color: var(--text-primary);
   font-size: 1rem;
   font-family: inherit;
   resize: vertical;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .text-input:focus, .profile-input:focus, .qedit-input:focus {
   outline: none;
   border-color: var(--accent-fire);
+  box-shadow: var(--inset-carve), 0 0 0 3px rgba(255,122,60,0.16);
 }
 
 select.text-input {
@@ -794,6 +831,27 @@ select.text-input {
 }
 .invite-actions { display: flex; gap: 10px; margin-top: 6px; }
 .invite-actions .btn { flex: 1; margin-bottom: 0; border-radius: var(--r-sm); }
+
+/* ============================================================
+   WARM CAMPFIRE — material depth pass (de-flatten)
+   propagates real elevation + top-edge highlight to every card
+   ============================================================ */
+.card, .section-card, .setup-section, .summary-card, .mode-controls,
+.qa-card, .group-card, .home-grid-card, .campfire-card {
+  box-shadow: var(--shadow-2), var(--edge-top);
+}
+
+/* round avatars get a soft ember halo (ties into Task 1 pet face) */
+.group-avatar-img, .pet-head-img {
+  box-shadow: var(--glow-ember);
+  border-color: var(--border-2);
+}
+
+/* warm up the buffer overlay (was cold #0d1117) */
+.overlay { background: rgba(28,23,20,0.96); }
+
+/* hand-written kai warmth for pet name + footer version */
+.pet-name, #footer-version { font-family: var(--font-hand); }
 
 /* PET BODY GRID */
 .pet-body-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

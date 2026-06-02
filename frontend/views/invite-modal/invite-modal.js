@@ -75,7 +75,7 @@ export async function copyInviteLink() {
     if (navigator.clipboard && window.isSecureContext) {
         try {
             await navigator.clipboard.writeText(url);
-            showToast('🔗 聚會連結已複製到剪貼簿', 'success');
+            showToast('聚會連結已複製到剪貼簿', 'success');
             return;
         } catch (err) {
             console.warn('clipboard.writeText failed, fallback:', err);
@@ -91,7 +91,7 @@ export async function copyInviteLink() {
         ta.select();
         const ok = document.execCommand('copy');
         document.body.removeChild(ta);
-        if (ok) showToast('🔗 聚會連結已複製到剪貼簿', 'success');
+        if (ok) showToast('聚會連結已複製到剪貼簿', 'success');
         else prompt('請手動複製連結:', url);
     } catch (err) {
         prompt('請手動複製連結:', url);

@@ -94,7 +94,7 @@ function renderQbankList(questions, kind) {
         } else if (kind === 'mine' && q.has_answer) {
             const meta = document.createElement('div');
             meta.className = 'qbank-item-meta';
-            meta.innerText = '✅ 有正解';
+            meta.innerText = '有正解';
             item.appendChild(meta);
         }
 
@@ -163,12 +163,12 @@ async function importPublicQuestion(publicId, btn) {
         });
         if (data.status !== 'success') {
             alert('加入失敗:' + (data.detail || ''));
-            if (btn) { btn.disabled = false; btn.innerText = '📥 加到我的題庫'; }
+            if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
             return;
         }
         if (btn) btn.innerText = '✓ 已加入';
     } catch (err) {
         alert('加入失敗:' + (err.message || err));
-        if (btn) { btn.disabled = false; btn.innerText = '📥 加到我的題庫'; }
+        if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
     }
 }

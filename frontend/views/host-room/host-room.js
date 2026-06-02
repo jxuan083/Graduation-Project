@@ -38,7 +38,7 @@ function updateContextBadge() {
     const ctx = state.currentContext || 'general';
     const diff = state.currentDifficulty || 'M';
     const cfg = CONTEXT_CONFIGS[ctx] || CONTEXT_CONFIGS.general;
-    if (ctxLabel) ctxLabel.textContent = `${cfg.icon} ${cfg.label}`;
+    if (ctxLabel) ctxLabel.innerHTML = `<i data-lucide="${cfg.icon}"></i> ${cfg.label}`;
     if (diffBadge) {
         diffBadge.textContent = DIFFICULTY_LABELS[diff] || diff;
         diffBadge.className = `diff-badge diff-${diff.toLowerCase()}`;

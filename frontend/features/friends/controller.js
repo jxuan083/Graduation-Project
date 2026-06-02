@@ -55,7 +55,7 @@ export async function sendFriendRequestByUid(targetUid, btnEl) {
                 btnEl.classList.remove('pending');
                 btnEl.classList.add('done');
             }
-            showToast(data.message || '🎉 對方也邀請了你,你們已成為好友!');
+            showToast(data.message || '對方也邀請了你,你們已成為好友!');
             events.emit('friends:auto-accepted', { uid: targetUid });
         } else {
             state.outgoingPendingSet.add(targetUid);
@@ -78,7 +78,7 @@ export async function acceptFriendRequest(reqId) {
             method: 'POST'
         });
         if (!res.ok) { alert('接受失敗:' + ((data && data.detail) || '')); return; }
-        showToast('🎉 已接受好友邀請');
+        showToast('已接受好友邀請');
         events.emit('friends:changed');
     } catch (err) { alert('網路錯誤:' + err.message); }
 }

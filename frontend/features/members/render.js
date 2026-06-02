@@ -48,7 +48,7 @@ export function renderMemberList(members) {
 
                 const btnView = document.createElement('button');
                 btnView.className = 'member-action-btn';
-                btnView.innerText = '👤 查看';
+                btnView.innerText = '查看';
                 btnView.onclick = (e) => { e.stopPropagation(); openMemberPreview(uid); };
                 actions.appendChild(btnView);
 

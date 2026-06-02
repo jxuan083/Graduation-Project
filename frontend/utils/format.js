@@ -1,12 +1,12 @@
 // utils/format.js — 通用格式化函式
 export function formatModeLabel(mode) {
     return ({
-        "GATHERING": "🎉 朋友聚會",
-        "FAMILY": "🏠 家庭聚會",
-        "MEETING": "💼 嚴肅開會",
-        "CLASS": "📚 上課模式",
-        "QA_GAME": "❓ 團體問答",
-        "ACTIVE": "🎉 朋友聚會"
+        "GATHERING": "朋友聚會",
+        "FAMILY": "家庭聚會",
+        "MEETING": "嚴肅開會",
+        "CLASS": "上課模式",
+        "QA_GAME": "團體問答",
+        "ACTIVE": "朋友聚會"
     })[mode] || (mode || '聚會');
 }
 
