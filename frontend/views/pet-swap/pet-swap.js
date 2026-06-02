@@ -223,8 +223,11 @@ async function adoptPet() {
 
     try {
         const uid = state.currentUser.uid;
+        const toUpload = await compressImage(
+            new File([lastResultBlob], 'pet.jpg', { type: 'image/jpeg' }), 512, 0.85
+        );
         const ref = storage.ref().child(`pet-images/${uid}/pet.jpg`);
-        const snap = await ref.put(lastResultBlob, { contentType: 'image/jpeg' });
+        const snap = await ref.put(toUpload, { contentType: 'image/jpeg' });
         const imageUrl = await snap.ref.getDownloadURL();
 
         const animal = document.querySelector('.pet-template-btn.active')?.dataset.animal || 'dog';
