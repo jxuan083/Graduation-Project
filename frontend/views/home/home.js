@@ -22,6 +22,11 @@ export function init() {
         onShow: () => {
             events.emit('home:show');
             if (state.currentUser) loadGroupPet();
+            else {
+                // 未登入時隱藏寵物、清快取
+                const wrap = document.getElementById('campfire-pet-wrap');
+                if (wrap) wrap.style.display = 'none';
+            }
         }
     });
 
@@ -42,13 +47,11 @@ export function init() {
         switchView('view-pet-tamagotchi');
     };
 
-    // 群組寵物點擊 → 進入群組寵物 tamagotchi
+    // 寵物點擊：群組寵物 → 群組 tamagotchi；個人寵物 → 個人 tamagotchi
     const petWrap = document.getElementById('campfire-pet-wrap');
     if (petWrap) petWrap.onclick = () => {
-        if (state._campfireGroupId) {
-            state.tamagotchiGroupId = state._campfireGroupId;
-            switchView('view-pet-tamagotchi');
-        }
+        state.tamagotchiGroupId = state._campfireGroupId || null;
+        switchView('view-pet-tamagotchi');
     };
 
     // 邀請橫幅「查看」按鈕
@@ -56,40 +59,60 @@ export function init() {
     if (btnBannerView) btnBannerView.onclick = () => openFriendsView('incoming');
 }
 
+const LS_PET_KEY = 'campfire_pet_v1';
 let _petCacheTs = 0;
+
+// 登入後立刻預載（不等首頁 onShow）
+events.on('auth:logged-in', () => { _petCacheTs = 0; loadGroupPet(); });
 
 async function loadGroupPet() {
     const wrap = document.getElementById('campfire-pet-wrap');
     if (!wrap) return;
 
-    // 先用快取立刻顯示（30 秒內不重打 API）
-    if (state._campfirePetCache && Date.now() - _petCacheTs < 30_000) {
-        applyGroupPet(state._campfirePetCache, wrap);
-        return;
+    // 1. localStorage 快取 → 立刻顯示（跨 session）
+    if (!state._campfirePetCache) {
+        try {
+            const stored = JSON.parse(localStorage.getItem(LS_PET_KEY) || 'null');
+            if (stored) { state._campfirePetCache = stored; applyPet(stored, wrap); }
+        } catch (_) {}
+    } else {
+        applyPet(state._campfirePetCache, wrap);
     }
 
-    // 背景靜默更新
+    // 2. 30 秒內不重打 API
+    if (Date.now() - _petCacheTs < 30_000) return;
+
+    // 3. 背景更新：先試群組寵物，沒有則 fallback 個人寵物
     try {
-        const { data } = await apiFetch('/api/groups');
-        if (!data?.groups) return;
-        const groupWithPet = data.groups.find(g => g.pet_face_url) || null;
-        state._campfirePetCache = groupWithPet;
+        const [grpRes, myRes] = await Promise.all([
+            apiFetch('/api/groups'),
+            apiFetch('/api/my-pet'),
+        ]);
+        const groupWithPet = grpRes.data?.groups?.find(g => g.pet_face_url) || null;
+        const myPet = myRes.data?.pet;
+        const myPetUrl = myPet?.my_pet_image_url || null;
+
+        let petData = null;
+        if (groupWithPet) {
+            petData = { type: 'group', group_id: groupWithPet.group_id, pet_face_url: groupWithPet.pet_face_url, pet_status: groupWithPet.pet_status };
+        } else if (myPetUrl) {
+            petData = { type: 'my', pet_face_url: myPetUrl, pet_status: myPet.my_pet_status || 'NORMAL' };
+        }
+
+        state._campfirePetCache = petData;
         _petCacheTs = Date.now();
-        applyGroupPet(groupWithPet, wrap);
+        try { localStorage.setItem(LS_PET_KEY, JSON.stringify(petData)); } catch (_) {}
+        applyPet(petData, wrap);
     } catch (_) {}
 }
 
-function applyGroupPet(groupWithPet, wrap) {
-    if (!groupWithPet) {
-        wrap.style.display = 'none';
-        state._campfireGroupId = null;
-        return;
-    }
-    state._campfireGroupId = groupWithPet.group_id;
+function applyPet(petData, wrap) {
+    if (!petData) { wrap.style.display = 'none'; state._campfireGroupId = null; return; }
+    state._campfireGroupId = petData.type === 'group' ? petData.group_id : null;
     const img = document.getElementById('campfire-pet-img');
-    if (img.src !== groupWithPet.pet_face_url) img.src = groupWithPet.pet_face_url;
+    if (img.src !== petData.pet_face_url) img.src = petData.pet_face_url;
     document.getElementById('campfire-pet-badge').textContent =
-        STATUS_BADGE[groupWithPet.pet_status] || '🐾';
+        STATUS_BADGE[petData.pet_status] || '🐾';
     wrap.style.display = 'flex';
 }
 
