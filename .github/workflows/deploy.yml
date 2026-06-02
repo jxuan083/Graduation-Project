@@ -81,4 +81,5 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --memory 2Gi \
+            --min-instances 1 \
             --quiet
