@@ -79,9 +79,12 @@ async function loadGroups() {
             const petEmoji = g.pet_body_emoji || '🐾';
             const petStatus = g.pet_status || 'NORMAL';
             const statusLabel = { HAPPY: '😊 很開心', NORMAL: '😐 普通', HUNGRY: '😟 肚子餓', CRITICAL: '💀 危急' }[petStatus] || '';
+            const avatarHtml = g.pet_face_url
+                ? `<img class="group-avatar-img" src="${escHtml(g.pet_face_url)}" alt="" />`
+                : `<span class="group-pet-icon">${petEmoji}</span>`;
             card.innerHTML = `
                 <div class="group-card-main">
-                    <span class="group-pet-icon">${petEmoji}</span>
+                    ${avatarHtml}
                     <div>
                         <div class="group-name">${escHtml(g.name)}</div>
                         <div class="group-meta">${g.member_count} 人 · 寵物：${statusLabel}</div>

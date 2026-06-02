@@ -1,5 +1,6 @@
 // features/groups/controller.js — 群組 API 封裝
-import { apiFetch } from '../../core/api.js';
+import { apiFetch, apiBase } from '../../core/api.js';
+import { getAuthHeaders } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
 
 export async function fetchMyGroups() {
@@ -71,4 +72,22 @@ export async function joinGroupByInviteCode(code) {
 
 export async function refreshGroupInviteCode(groupId) {
     return apiFetch(`/api/groups/${groupId}/invite_code/refresh`, { method: 'POST' });
+}
+
+// 把生成好的寵物臉 blob 設為群組頭像（multipart，需自行移除 Content-Type 讓瀏覽器帶 boundary）
+export async function setGroupPetFace(groupId, blob, targetUid) {
+    const formData = new FormData();
+    formData.append('file', blob, 'pet_face.jpg');
+    if (targetUid) formData.append('target_uid', targetUid);
+
+    const headers = await getAuthHeaders();
+    delete headers['Content-Type'];
+    const res = await fetch(`${apiBase}/api/groups/${groupId}/pet-face`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) { /* not json */ }
+    return { res, data };
 }

@@ -244,10 +244,13 @@ function renderPetPreview(g) {
     if (section) section.style.display = '';
     const body = g.pet_body_emoji || '🐾';
     const petName = g.pet_name || '寵物';
+    const headHtml = g.pet_face_url
+        ? `<img class="pet-head-img" src="${escHtml(g.pet_face_url)}" alt="寵物臉" />`
+        : `<div class="pet-head-placeholder">👤</div>`;
     if (previewEl) {
         previewEl.innerHTML = `
             <div class="pet-display">
-                <div class="pet-head-placeholder">👤</div>
+                ${headHtml}
                 <div class="pet-body-emoji">${body}</div>
                 <div class="pet-name">${escHtml(petName)}</div>
             </div>
