@@ -42,6 +42,17 @@ db = firestore.client()
 
 app = FastAPI()
 
+# ── 啟動時預載 dlib 模型，避免第一個請求冷啟動 timeout ──
+@app.on_event("startup")
+async def preload_face_swap():
+    try:
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepfake_pet"))
+        import face_swap  # noqa: F401 — 執行 module-level dlib 初始化
+        print("[startup] face_swap 模型預載完成")
+    except Exception as e:
+        print(f"[startup] face_swap 預載失敗（不影響其他 API）: {e}")
+
 # ===== CORS FOR FRONTEND SEPARATION =====
 # Allow frontend domains (e.g. from Vite dev server port 5173 or simple HTTP server 3000)
 app.add_middleware(

@@ -316,11 +316,23 @@ async function generatePetFace() {
 
         const headers = await getAuthHeaders();
         delete headers['Content-Type'];
-        const response = await fetch(apiBase + '/api/pet-swap', {
-            method: 'POST',
-            headers,
-            body: formData,
-        });
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 90_000);
+        let response;
+        try {
+            response = await fetch(apiBase + '/api/pet-swap', {
+                method: 'POST',
+                headers,
+                body: formData,
+                signal: controller.signal,
+            });
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') throw new Error('合成超時（90秒），請再試一次');
+            throw new Error('網路連線失敗，請確認網路後再試');
+        } finally {
+            clearTimeout(timer);
+        }
 
         if (!response.ok) {
             const json = await response.json().catch(() => ({}));
