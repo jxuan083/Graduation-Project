@@ -6,13 +6,16 @@ import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/fo
 import { loadMeetingPhotos } from '../photos/controller.js';
 
 const MEETINGS_DISPLAY_LIMIT = 10;
-let _allMeetings = [];  // 從 API 拿到的全量資料（含 is_hidden / is_favorited）
+let _allMeetings = [];
+let _showFavoritesOnly = false;
 
 export async function openMeetingsList() {
     if (!state.currentUser) {
         alert('請先登入才能查看聚會紀錄');
         return;
     }
+    _showFavoritesOnly = false;
+    _updateMeetingsHeader();
     switchView('view-meetings');
     const listEl = document.getElementById('meetings-list');
     const emptyEl = document.getElementById('meetings-empty');
@@ -27,6 +30,26 @@ export async function openMeetingsList() {
     } catch (err) {
         console.error('openMeetingsList failed:', err);
         listEl.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗:${err.message || err}</p>`;
+    }
+}
+
+export function openFavoritesList() {
+    _showFavoritesOnly = true;
+    _updateMeetingsHeader();
+    _renderMeetingsList();
+}
+
+function _updateMeetingsHeader() {
+    const title = document.getElementById('meetings-page-title');
+    const btn = document.getElementById('btn-meetings-favorites');
+    const backBtn = document.getElementById('btn-meetings-back');
+    if (_showFavoritesOnly) {
+        if (title) title.textContent = '收藏的聚會';
+        if (btn) btn.style.display = 'none';
+        if (backBtn) backBtn.onclick = () => { _showFavoritesOnly = false; _updateMeetingsHeader(); _renderMeetingsList(); };
+    } else {
+        if (title) title.textContent = '聚會紀錄';
+        if (btn) btn.style.display = '';
     }
 }
 
@@ -71,39 +94,24 @@ function _buildCard(m) {
     return card;
 }
 
-function _sectionHeader(text, isFav = false) {
-    const h = document.createElement('div');
-    h.className = 'meetings-section-header' + (isFav ? ' fav-header' : '');
-    h.textContent = text;
-    return h;
-}
-
 function _renderMeetingsList() {
     const listEl = document.getElementById('meetings-list');
     const emptyEl = document.getElementById('meetings-empty');
     if (!listEl) return;
 
     listEl.innerHTML = '';
-    const displayed = _getDisplayedMeetings();
+    const displayed = _showFavoritesOnly
+        ? _allMeetings.filter(m => m.is_favorited)
+        : _getDisplayedMeetings();
 
     if (displayed.length === 0) {
         emptyEl.style.display = 'block';
+        emptyEl.textContent = _showFavoritesOnly ? '還沒有收藏任何聚會' : '還沒有任何聚會紀錄，去發起一場吧！';
         return;
     }
     emptyEl.style.display = 'none';
 
-    const favorites = displayed.filter(m => m.is_favorited);
-    const regular = displayed.filter(m => !m.is_favorited);
-
-    if (favorites.length > 0) {
-        listEl.appendChild(_sectionHeader('♥ 收藏的聚會', true));
-        favorites.forEach(m => listEl.appendChild(_buildCard(m)));
-    }
-    if (regular.length > 0) {
-        if (favorites.length > 0) listEl.appendChild(_sectionHeader('最近的聚會'));
-        regular.forEach(m => listEl.appendChild(_buildCard(m)));
-    }
-
+    displayed.forEach(m => listEl.appendChild(_buildCard(m)));
     if (window.lucide) window.lucide.createIcons();
 }
 

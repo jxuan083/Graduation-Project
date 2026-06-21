@@ -277,17 +277,21 @@
 .btn-mc-fav.active { color: #f87171; }
 .btn-mc-delete:hover { color: #fca5a5; background: rgba(252,165,165,0.12); }
 
-.meetings-section-header {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  padding: 4px 2px 2px;
-  margin-top: 4px;
-}
-.meetings-section-header.fav-header {
+.btn-fav-filter {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(248,113,113,0.4);
   color: #f87171;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.btn-fav-filter:hover {
+  background: rgba(248,113,113,0.12);
 }
 
 /* =========================================
