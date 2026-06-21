@@ -371,19 +371,22 @@ async function loadMeetingNewspaper(meetingId) {
 
 async function loadMeetingTranscripts(meetingId) {
     const input = document.getElementById('md-transcript-input');
+    const status = document.getElementById('md-transcript-status');
     if (!input) return;
     try {
         const { res, data } = await apiFetch(`/api/meetings/${meetingId}/transcripts`);
         if (!res.ok || !data || data.status !== 'success') {
-            throw new Error((data && data.detail) || '讀取逐字稿失敗');
+            throw new Error((data && data.detail) || `HTTP ${res.status}`);
         }
         const lines = (data.transcripts || []).map(entry => {
             const speaker = entry.speaker_name || entry.speaker_uid || 'Speaker';
             return `${speaker}：${entry.text || ''}`;
         });
         input.value = lines.join('\n');
+        if (status && lines.length === 0) status.innerText = '這次聚會沒有逐字稿記錄';
     } catch (err) {
         console.warn('load transcripts skipped:', err);
+        if (status) status.innerText = `逐字稿載入失敗: ${err.message || err}`;
     }
 }
 

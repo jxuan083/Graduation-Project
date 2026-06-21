@@ -242,6 +242,7 @@ function startBrowserLivePreview() {
         if (finalText.trim()) {
             appendLivePreviewEntry(finalText.trim());
             clearLiveTranscriptPreview();
+            _saveSpeechPreviewText(finalText.trim());
         }
     };
 
@@ -460,4 +461,31 @@ function handleEndSession() {
 
 function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 把瀏覽器 SpeechRecognition 確認的文字同步存進 Firestore，
+// 確保即使 Whisper 無法辨識音訊，聚會紀錄仍有逐字稿。
+async function _saveSpeechPreviewText(text) {
+    if (!text || !state.roomId) return;
+    const uid = state.currentUser?.uid || state.userId;
+    if (!uid || uid.includes('-')) return; // 訪客不儲存
+    const name = state.currentProfile?.nickname || state.myNickname
+        || state.currentUser?.displayName || '我';
+    try {
+        await apiFetch(`/api/meetings/${state.roomId}/transcripts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entries: [{
+                    speaker_uid: uid,
+                    speaker_name: name,
+                    text,
+                    started_at_ms: state.liveTranscript?.startedAtMs
+                        ? Date.now() - state.liveTranscript.startedAtMs
+                        : 0,
+                    duration_sec: 0,
+                }],
+            }),
+        });
+    } catch (_) { /* best effort，不影響錄音流程 */ }
 }
