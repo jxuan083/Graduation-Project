@@ -10,3 +10,5 @@ opencv-python-headless
 dlib
 numpy
 face_recognition_models
+openai-whisper
+whisperx

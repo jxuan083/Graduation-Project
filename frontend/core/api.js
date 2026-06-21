@@ -7,9 +7,14 @@ export const apiBase = `${HTTP_PROTOCOL}${BACKEND_HOST}`;
 // 統一 fetch 封裝,加上 auth header 並 parse JSON
 export async function apiFetch(path, options = {}) {
     const headers = await getAuthHeaders();
+    const mergedHeaders = { ...headers, ...(options.headers || {}) };
+    if (options.body instanceof FormData) {
+        delete mergedHeaders['Content-Type'];
+        delete mergedHeaders['content-type'];
+    }
     const res = await fetch(apiBase + path, {
         ...options,
-        headers: { ...headers, ...(options.headers || {}) }
+        headers: mergedHeaders
     });
     let data = null;
     try { data = await res.json(); } catch (_) { /* not json */ }

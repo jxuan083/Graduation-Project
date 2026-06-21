@@ -69,6 +69,24 @@ export const state = {
     currentMeetingPhotos: [],
     lightboxPhoto: null,
 
+    // === 即時語音轉文字 ===
+    liveTranscript: {
+        active: false,
+        mediaRecorder: null,
+        stream: null,
+        speechRecognition: null,
+        speechPreviewActive: false,
+        chunkTimer: null,
+        currentChunks: [],
+        mimeType: '',
+        queue: [],
+        processing: false,
+        startedAtMs: 0,
+        nextOffsetMs: 0,
+        chunkMs: 8000,
+        segments: [],
+    },
+
     // === 題庫 ===
     qbankCurrentTab: 'mine',
     qbankMyQuestions: [],

@@ -285,6 +285,100 @@
 }
 
 /* =========================================
+   Live Transcript
+========================================= */
+
+.live-transcript-panel {
+  width: 100%;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  text-align: left;
+}
+
+.live-transcript-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.live-transcript-header h3 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.live-transcript-kicker {
+  color: var(--accent, #60a5fa);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-transcript-options {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 88px;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.live-transcript-preview {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(96,165,250,0.35);
+  border-radius: 8px;
+  background: rgba(96,165,250,0.12);
+  line-height: 1.45;
+}
+
+.live-transcript-preview strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #bfdbfe;
+  font-size: 0.82rem;
+}
+
+.live-transcript-preview span {
+  overflow-wrap: anywhere;
+}
+
+.live-transcript-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.live-transcript-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.08);
+  line-height: 1.45;
+}
+
+.live-transcript-item-preview {
+  opacity: 0.78;
+}
+
+.live-transcript-item strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.82rem;
+  color: #bfdbfe;
+}
+
+.live-transcript-item span {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* =========================================
    Party Newspaper
 ========================================= */
 
@@ -350,6 +444,12 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 10px;
+}
+
+.transcript-actions input[type="file"] {
+  max-width: 220px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
 }
 
 .newspaper-empty {

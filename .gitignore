@@ -43,6 +43,7 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+firebase-debug.log*
 serviceAccountKey.json
 
 # Firebase 金鑰 (極度重要！)

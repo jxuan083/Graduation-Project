@@ -1,5 +1,8 @@
 // core/config.js — 全域常數
-export const BACKEND_HOST = 'phubbing-backend-798458690617.asia-east1.run.app';
+const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const BACKEND_HOST = isLocalFrontend
+    ? '127.0.0.1:8080'
+    : 'phubbing-backend-798458690617.asia-east1.run.app';
 
 export const isSecure = window.location.protocol === 'https:';
 export const HTTP_PROTOCOL = isSecure ? 'https://' : 'http://';

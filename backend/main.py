@@ -10,8 +10,9 @@ import time
 import os
 import random
 import string
+import tempfile
 import firebase_admin
-from firebase_admin import credentials, firestore, auth as fb_auth, storage as fb_storage
+from firebase_admin import credentials, firestore, auth as fb_auth
 from typing import Dict, Set, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,20 +23,39 @@ from pydantic import BaseModel
 # 預設指向這個專案的 bucket；可以透過環境變數覆寫
 STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "graduation-6ae65.firebasestorage.app")
 
+# ===== Speech-to-text 設定 =====
+# STT_ENGINE=openai-whisper 適合先做本機測試；STT_ENGINE=whisperx 可搭配 pyannote 做說話者分離。
+STT_ENGINE = os.environ.get("STT_ENGINE", "openai-whisper").strip().lower()
+STT_MODEL = os.environ.get("STT_MODEL", "small").strip()
+STT_DEVICE = os.environ.get("STT_DEVICE", "cpu").strip()
+STT_COMPUTE_TYPE = os.environ.get("STT_COMPUTE_TYPE", "int8").strip()
+STT_BATCH_SIZE = int(os.environ.get("STT_BATCH_SIZE", "8"))
+HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN") or os.environ.get("HF_TOKEN")
+MAX_AUDIO_TRANSCRIPT_BYTES = int(os.environ.get("MAX_AUDIO_TRANSCRIPT_BYTES", str(50 * 1024 * 1024)))
+ALLOWED_AUDIO_TYPES = {
+    "audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/wav",
+    "audio/webm", "audio/ogg", "video/webm", "video/mp4",
+}
+ALLOWED_AUDIO_EXTS = {".mp3", ".m4a", ".mp4", ".wav", ".webm", ".ogg"}
+_STT_MODEL_CACHE: Dict[str, object] = {}
+
 # 檢查是否已經有初始化的 Firebase App
 if not firebase_admin._apps:
-    try:
-        # 在 Cloud Run 環境中，不需要 serviceAccountKey.json，它會自動抓取環境權限
-        firebase_admin.initialize_app(options={"storageBucket": STORAGE_BUCKET})
-        print(f"Firebase initialized with default credentials. Bucket: {STORAGE_BUCKET}")
-    except Exception as e:
-        # 只有在本地環境找不到預設權限時，才嘗試讀取 JSON 檔案
-        print(f"Default auth failed, trying local JSON: {e}")
+    local_key_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+    if os.path.exists(local_key_path):
         try:
-            cred = credentials.Certificate("serviceAccountKey.json")
+            cred = credentials.Certificate(local_key_path)
             firebase_admin.initialize_app(cred, options={"storageBucket": STORAGE_BUCKET})
-        except Exception as inner_e:
-            print(f"Critical Error: Could not initialize Firebase: {inner_e}")
+            print(f"Firebase initialized with local service account. Bucket: {STORAGE_BUCKET}")
+        except Exception as e:
+            print(f"Critical Error: Could not initialize Firebase with local JSON: {e}")
+    else:
+        try:
+            # 在 Cloud Run 環境中，不需要 serviceAccountKey.json，它會自動抓取環境權限
+            firebase_admin.initialize_app(options={"storageBucket": STORAGE_BUCKET})
+            print(f"Firebase initialized with default credentials. Bucket: {STORAGE_BUCKET}")
+        except Exception as e:
+            print(f"Critical Error: Could not initialize Firebase with default credentials: {e}")
 
 # 取得 Firestore 實例
 db = firestore.client()
@@ -83,6 +103,11 @@ def make_qr_base64(data: str) -> str:
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+def _storage_bucket():
+    from firebase_admin import storage as fb_storage
+    return fb_storage.bucket()
 
 
 @app.get("/api/qrcode")
@@ -1088,7 +1113,7 @@ async def upload_meeting_photo(
         photo_id = uuid.uuid4().hex
         blob_name = f"meeting-photos/{meeting_id}/{photo_id}.{ext}"
 
-        bucket = fb_storage.bucket()
+        bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
         # 讓檔案可以透過 URL 讀取（URL 只有透過我們 API 回傳才拿得到，所以只有參與者能看到）
@@ -1161,7 +1186,7 @@ async def delete_meeting_photo(
     try:
         blob_name = photo_data.get("storage_path")
         if blob_name:
-            bucket = fb_storage.bucket()
+            bucket = _storage_bucket()
             blob = bucket.blob(blob_name)
             if blob.exists():
                 blob.delete()
@@ -1283,6 +1308,227 @@ def _collect_meeting_photos(meeting_id: str) -> list:
     photos = [_serialize_photo(d.to_dict() or {}, d.id) for d in docs]
     photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
     return photos
+
+
+def _speaker_display_name(raw_speaker: str, speaker_map: dict) -> str:
+    if raw_speaker in speaker_map:
+        return speaker_map[raw_speaker]
+    label = f"Speaker {len(speaker_map) + 1}"
+    speaker_map[raw_speaker] = label
+    return label
+
+
+def _is_low_confidence_whisper_segment(segment: dict, text: str) -> bool:
+    """Filter common Whisper hallucinations from short/silent meeting chunks."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    duration = float(segment.get("end") or 0) - float(segment.get("start") or 0)
+    no_speech_prob = segment.get("no_speech_prob")
+    avg_logprob = segment.get("avg_logprob")
+    compression_ratio = segment.get("compression_ratio")
+    if no_speech_prob is not None and float(no_speech_prob) >= 0.55:
+        return True
+    if avg_logprob is not None and float(avg_logprob) < -1.0:
+        return True
+    if compression_ratio is not None and float(compression_ratio) > 2.4:
+        return True
+    if duration < 1.0 and len(stripped) <= 4:
+        return True
+    return False
+
+
+def _normalize_stt_segments(segments: list, engine: str, language: str = "") -> list:
+    speaker_map = {}
+    entries = []
+    for idx, seg in enumerate(segments or []):
+        text = " ".join((seg.get("text") or "").split())
+        if engine == "openai-whisper" and _is_low_confidence_whisper_segment(seg, text):
+            print(f"[stt] dropped low-confidence segment: {text}")
+            continue
+        if not text:
+            continue
+        raw_speaker = (
+            seg.get("speaker")
+            or seg.get("speaker_id")
+            or seg.get("speaker_uid")
+            or "SPEAKER_1"
+        )
+        start = float(seg.get("start") or 0)
+        end = float(seg.get("end") or start)
+        speaker_name = _speaker_display_name(str(raw_speaker), speaker_map)
+        entries.append({
+            "speaker_uid": str(raw_speaker)[:80],
+            "speaker_name": speaker_name,
+            "text": text,
+            "started_at_ms": int(start * 1000),
+            "duration_sec": max(0.0, round(end - start, 2)),
+            "source": "audio",
+            "transcription_engine": engine,
+            "language": language,
+            "segment_index": idx,
+        })
+    return entries
+
+
+def _save_transcript_entries(meeting_id: str, uid: str, entries: list, source: str = "manual") -> int:
+    col = db.collection("meetings").document(meeting_id).collection("transcripts")
+    batch = db.batch()
+    saved_count = 0
+
+    for entry in entries:
+        text = (entry.get("text") or "").strip()
+        speaker_uid = (entry.get("speaker_uid") or "").strip()
+        if not text or not speaker_uid:
+            continue
+        doc_ref = col.document(uuid.uuid4().hex)
+        batch.set(doc_ref, {
+            "speaker_uid": speaker_uid[:80],
+            "speaker_name": (entry.get("speaker_name") or "").strip()[:40],
+            "text": text[:2000],
+            "started_at_ms": int(entry.get("started_at_ms") or 0),
+            "duration_sec": float(entry.get("duration_sec") or 0),
+            "source": (entry.get("source") or source)[:30],
+            "transcription_engine": (entry.get("transcription_engine") or "")[:40],
+            "language": (entry.get("language") or "")[:20],
+            "created_by": uid,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        })
+        saved_count += 1
+
+    if saved_count:
+        batch.commit()
+        db.collection("meetings").document(meeting_id).set({
+            "transcript_count": firestore.Increment(saved_count),
+            "updated_at": firestore.SERVER_TIMESTAMP,
+        }, merge=True)
+    return saved_count
+
+
+def _get_cached_whisperx_model():
+    import whisperx
+
+    key = f"whisperx:{STT_MODEL}:{STT_DEVICE}:{STT_COMPUTE_TYPE}"
+    if key not in _STT_MODEL_CACHE:
+        _STT_MODEL_CACHE[key] = whisperx.load_model(
+            STT_MODEL,
+            STT_DEVICE,
+            compute_type=STT_COMPUTE_TYPE,
+        )
+    return _STT_MODEL_CACHE[key]
+
+
+def _transcribe_with_whisperx(
+    audio_path: str,
+    language: Optional[str],
+    min_speakers: Optional[int],
+    max_speakers: Optional[int],
+) -> dict:
+    import whisperx
+
+    model = _get_cached_whisperx_model()
+    audio = whisperx.load_audio(audio_path)
+    kwargs = {}
+    if language:
+        kwargs["language"] = language
+    result = model.transcribe(audio, batch_size=STT_BATCH_SIZE, **kwargs)
+    detected_language = result.get("language") or language or ""
+
+    try:
+        align_model, metadata = whisperx.load_align_model(
+            language_code=detected_language,
+            device=STT_DEVICE,
+        )
+        result = whisperx.align(
+            result.get("segments", []),
+            align_model,
+            metadata,
+            audio,
+            STT_DEVICE,
+            return_char_alignments=False,
+        )
+    except Exception as e:
+        print(f"[stt] WhisperX alignment skipped: {e}")
+
+    diarization_enabled = False
+    if HUGGINGFACE_TOKEN:
+        try:
+            diarize_model = whisperx.DiarizationPipeline(
+                use_auth_token=HUGGINGFACE_TOKEN,
+                device=STT_DEVICE,
+            )
+            diarize_kwargs = {}
+            if min_speakers:
+                diarize_kwargs["min_speakers"] = int(min_speakers)
+            if max_speakers:
+                diarize_kwargs["max_speakers"] = int(max_speakers)
+            diarize_segments = diarize_model(audio, **diarize_kwargs)
+            result = whisperx.assign_word_speakers(diarize_segments, result)
+            diarization_enabled = True
+        except Exception as e:
+            print(f"[stt] WhisperX diarization skipped: {e}")
+    else:
+        print("[stt] HUGGINGFACE_TOKEN not set; diarization skipped")
+
+    entries = _normalize_stt_segments(
+        result.get("segments", []),
+        "whisperx",
+        detected_language,
+    )
+    return {
+        "engine": "whisperx",
+        "language": detected_language,
+        "diarization": diarization_enabled,
+        "entries": entries,
+    }
+
+
+def _get_cached_openai_whisper_model():
+    import whisper
+
+    key = f"openai-whisper:{STT_MODEL}:{STT_DEVICE}"
+    if key not in _STT_MODEL_CACHE:
+        _STT_MODEL_CACHE[key] = whisper.load_model(STT_MODEL, device=STT_DEVICE)
+    return _STT_MODEL_CACHE[key]
+
+
+def _transcribe_with_openai_whisper(audio_path: str, language: Optional[str]) -> dict:
+    model = _get_cached_openai_whisper_model()
+    kwargs = {
+        "fp16": STT_DEVICE != "cpu",
+        "temperature": 0,
+        "condition_on_previous_text": False,
+        "no_speech_threshold": 0.55,
+        "logprob_threshold": -1.0,
+        "compression_ratio_threshold": 2.4,
+        "initial_prompt": "以下是繁體中文的聚會對話逐字稿。",
+    }
+    if language:
+        kwargs["language"] = language
+    result = model.transcribe(audio_path, **kwargs)
+    detected_language = result.get("language") or language or ""
+    entries = _normalize_stt_segments(
+        result.get("segments", []),
+        "openai-whisper",
+        detected_language,
+    )
+    return {
+        "engine": "openai-whisper",
+        "language": detected_language,
+        "diarization": False,
+        "entries": entries,
+    }
+
+
+def _transcribe_audio_file(
+    audio_path: str,
+    language: Optional[str],
+    min_speakers: Optional[int],
+    max_speakers: Optional[int],
+) -> dict:
+    if STT_ENGINE == "whisperx":
+        return _transcribe_with_whisperx(audio_path, language, min_speakers, max_speakers)
+    return _transcribe_with_openai_whisper(audio_path, language)
 
 
 def _build_participation(transcripts: list, meeting: dict) -> list:
@@ -1457,36 +1703,114 @@ async def upload_meeting_transcripts(
     if len(payload.entries) > 200:
         raise HTTPException(status_code=400, detail="一次最多上傳 200 筆逐字稿")
 
-    col = db.collection("meetings").document(meeting_id).collection("transcripts")
-    batch = db.batch()
-    saved_count = 0
-
-    for entry in payload.entries:
-        text = (entry.text or "").strip()
-        speaker_uid = (entry.speaker_uid or "").strip()
-        if not text or not speaker_uid:
-            continue
-        doc_ref = col.document(uuid.uuid4().hex)
-        batch.set(doc_ref, {
-            "speaker_uid": speaker_uid,
-            "speaker_name": (entry.speaker_name or "").strip()[:40],
-            "text": text[:2000],
-            "started_at_ms": int(entry.started_at_ms or 0),
-            "duration_sec": float(entry.duration_sec or 0),
-            "created_by": uid,
-            "created_at": firestore.SERVER_TIMESTAMP,
-        })
-        saved_count += 1
+    entries = [
+        {
+            "speaker_uid": entry.speaker_uid,
+            "speaker_name": entry.speaker_name,
+            "text": entry.text,
+            "started_at_ms": entry.started_at_ms,
+            "duration_sec": entry.duration_sec,
+            "source": "manual",
+        }
+        for entry in payload.entries
+    ]
+    saved_count = _save_transcript_entries(meeting_id, uid, entries, source="manual")
 
     if saved_count == 0:
         raise HTTPException(status_code=400, detail="沒有可儲存的逐字稿內容")
-
-    batch.commit()
-    db.collection("meetings").document(meeting_id).set({
-        "transcript_count": firestore.Increment(saved_count),
-        "updated_at": firestore.SERVER_TIMESTAMP,
-    }, merge=True)
     return {"status": "success", "saved": saved_count}
+
+
+@app.post("/api/meetings/{meeting_id}/transcripts/audio")
+async def transcribe_meeting_audio(
+    meeting_id: str,
+    file: UploadFile = File(...),
+    language: Optional[str] = Form(None),
+    min_speakers: Optional[int] = Form(None),
+    max_speakers: Optional[int] = Form(None),
+    started_at_ms_offset: Optional[int] = Form(0),
+    decoded: dict = Depends(verify_token),
+):
+    """上傳聚會錄音，使用 WhisperX / Whisper 轉文字並寫入逐字稿集合。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    _get_meeting_or_403(meeting_id, uid)
+
+    filename = file.filename or ""
+    _, ext = os.path.splitext(filename.lower())
+    content_type = (file.content_type or "").lower()
+    if content_type not in ALLOWED_AUDIO_TYPES and ext not in ALLOWED_AUDIO_EXTS:
+        raise HTTPException(status_code=400, detail="只接受 mp3 / m4a / wav / webm / ogg / mp4 音檔")
+    if min_speakers is not None and (min_speakers < 1 or min_speakers > 12):
+        raise HTTPException(status_code=400, detail="min_speakers 必須介於 1 到 12")
+    if max_speakers is not None and (max_speakers < 1 or max_speakers > 12):
+        raise HTTPException(status_code=400, detail="max_speakers 必須介於 1 到 12")
+    if min_speakers and max_speakers and min_speakers > max_speakers:
+        raise HTTPException(status_code=400, detail="min_speakers 不能大於 max_speakers")
+
+    suffix = ext if ext in ALLOWED_AUDIO_EXTS else ".audio"
+    tmp_path = None
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="音檔不能是空的")
+        if len(content) > MAX_AUDIO_TRANSCRIPT_BYTES:
+            limit_mb = MAX_AUDIO_TRANSCRIPT_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=400, detail=f"音檔太大，請壓縮到 {limit_mb}MB 以下")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        result = await asyncio.to_thread(
+            _transcribe_audio_file,
+            tmp_path,
+            (language or "").strip() or None,
+            min_speakers,
+            max_speakers,
+        )
+        entries = result.get("entries") or []
+        if not entries:
+            raise HTTPException(status_code=422, detail="轉錄完成，但沒有辨識到可儲存的語音內容")
+
+        offset_ms = max(0, int(started_at_ms_offset or 0))
+        if offset_ms:
+            for entry in entries:
+                entry["started_at_ms"] = int(entry.get("started_at_ms") or 0) + offset_ms
+
+        saved_count = _save_transcript_entries(meeting_id, uid, entries, source="audio")
+        db.collection("meetings").document(meeting_id).set({
+            "last_audio_transcript": {
+                "filename": filename,
+                "content_type": content_type,
+                "engine": result.get("engine"),
+                "language": result.get("language"),
+                "diarization": bool(result.get("diarization")),
+                "saved": saved_count,
+                "created_at": firestore.SERVER_TIMESTAMP,
+            }
+        }, merge=True)
+        return {
+            "status": "success",
+            "saved": saved_count,
+            "engine": result.get("engine"),
+            "language": result.get("language"),
+            "diarization": bool(result.get("diarization")),
+            "entries": entries,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[stt] audio transcription failed: {e}")
+        raise HTTPException(status_code=500, detail=f"音檔轉錄失敗: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 @app.get("/api/meetings/{meeting_id}/transcripts")
@@ -2005,7 +2329,7 @@ async def set_group_pet_face(
     blob_name = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}.{ext}"
 
     try:
-        bucket = fb_storage.bucket()
+        bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
         blob.make_public()

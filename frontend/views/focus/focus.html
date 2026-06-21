@@ -29,6 +29,32 @@
     <input id="meeting-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
     <input id="meeting-album-input" type="file" accept="image/*" style="display:none;" />
 
+    <div class="live-transcript-panel">
+        <div class="live-transcript-header">
+            <div>
+                <span class="live-transcript-kicker">Live Transcript</span>
+                <h3>即時語音轉文字</h3>
+            </div>
+            <button id="btn-live-transcript-toggle" class="btn secondary" type="button">
+                <i data-lucide="mic"></i> 開始
+            </button>
+        </div>
+        <div class="live-transcript-options">
+            <select id="live-transcript-language" class="compact-select" aria-label="語音語言">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="">自動偵測</option>
+            </select>
+            <input id="live-transcript-speakers" class="compact-number" type="number" min="1" max="12" placeholder="人數" aria-label="說話者人數" />
+        </div>
+        <p id="live-transcript-status" class="hint">開始後會即時顯示預覽，並每 8 秒用 Whisper 轉錄一次。</p>
+        <div id="live-transcript-preview" class="live-transcript-preview" style="display:none;">
+            <strong>即時預覽</strong>
+            <span id="live-transcript-preview-text"></span>
+        </div>
+        <div id="live-transcript-list" class="live-transcript-list"></div>
+    </div>
+
     <button id="btn-focus-invite" class="btn secondary"><i data-lucide="share-2"></i> 邀請朋友加入</button>
     <button id="btn-end-session"  class="btn secondary">結束聚會</button>
 </section>

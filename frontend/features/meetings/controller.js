@@ -118,6 +118,7 @@ export async function openMeetingDetail(meetingId) {
         state.currentMeetingIsHost = !!(state.currentUser && m.host_uid && state.currentUser.uid === m.host_uid);
         document.getElementById('md-photos-host-controls').style.display = 'block';
         await loadMeetingPhotos(meetingId);
+        await loadMeetingTranscripts(meetingId);
         await loadMeetingNewspaper(meetingId);
     } catch (err) {
         console.error('openMeetingDetail failed:', err);
@@ -193,6 +194,50 @@ export async function saveMeetingTranscriptFromInput() {
     }
 }
 
+export async function transcribeMeetingAudio() {
+    const meetingId = state.currentMeetingDetailId;
+    const input = document.getElementById('md-audio-input');
+    const status = document.getElementById('md-transcript-status');
+    const file = input?.files?.[0];
+    if (!meetingId || !file) {
+        if (status) status.innerText = '請先選擇音檔';
+        return;
+    }
+
+    const btn = document.getElementById('btn-md-transcribe-audio');
+    const oldText = btn ? btn.innerText : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '轉錄中...';
+    }
+    if (status) status.innerText = '正在轉錄音檔，第一次載入模型會比較久';
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('language', 'zh');
+
+    try {
+        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/transcripts/audio`, {
+            method: 'POST',
+            body: form,
+        });
+        if (!res.ok || !data || data.status !== 'success') {
+            throw new Error((data && data.detail) || '音檔轉錄失敗');
+        }
+        if (status) status.innerText = `已轉錄並儲存 ${data.saved} 段（${data.engine}）`;
+        await loadMeetingTranscripts(meetingId);
+        await loadMeetingNewspaper(meetingId);
+    } catch (err) {
+        console.error('audio transcript failed:', err);
+        if (status) status.innerText = `音檔轉錄失敗: ${err.message || err}`;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = oldText;
+        }
+    }
+}
+
 export async function generateMeetingNewspaper() {
     const meetingId = state.currentMeetingDetailId;
     if (!meetingId) return;
@@ -237,6 +282,24 @@ async function loadMeetingNewspaper(meetingId) {
     } catch (err) {
         console.warn('load newspaper skipped:', err);
         resetNewspaperPanel();
+    }
+}
+
+async function loadMeetingTranscripts(meetingId) {
+    const input = document.getElementById('md-transcript-input');
+    if (!input) return;
+    try {
+        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/transcripts`);
+        if (!res.ok || !data || data.status !== 'success') {
+            throw new Error((data && data.detail) || '讀取逐字稿失敗');
+        }
+        const lines = (data.transcripts || []).map(entry => {
+            const speaker = entry.speaker_name || entry.speaker_uid || 'Speaker';
+            return `${speaker}：${entry.text || ''}`;
+        });
+        input.value = lines.join('\n');
+    } catch (err) {
+        console.warn('load transcripts skipped:', err);
     }
 }
 
