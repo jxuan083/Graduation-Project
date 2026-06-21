@@ -41,6 +41,43 @@ function _getDisplayedMeetings() {
     return combined;
 }
 
+function _buildCard(m) {
+    const card = document.createElement('div');
+    card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
+    const modeLabel = formatModeLabel(m.mode);
+    const dateLabel = formatDateTime(m.ended_at);
+    const coverHtml = m.cover_url
+        ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
+        : '';
+    card.innerHTML = `
+        ${coverHtml}
+        <div class="mc-body">
+            <div class="mc-top">
+                <div class="mc-mode">${modeLabel}</div>
+                <div class="mc-actions">
+                    <button class="btn-mc-fav${m.is_favorited ? ' active' : ''}" title="${m.is_favorited ? '取消收藏' : '收藏'}">♥</button>
+                    <button class="btn-mc-delete" title="刪除紀錄">✕</button>
+                </div>
+            </div>
+            <div class="mc-meta">
+                <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
+                <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
+                <span><i data-lucide="calendar"></i> ${dateLabel}</span>
+            </div>
+        </div>`;
+    card.onclick = () => openMeetingDetail(m.id);
+    card.querySelector('.btn-mc-fav').onclick = (e) => { e.stopPropagation(); _toggleFavorite(m.id); };
+    card.querySelector('.btn-mc-delete').onclick = (e) => { e.stopPropagation(); _hideMeeting(m.id); };
+    return card;
+}
+
+function _sectionHeader(text, isFav = false) {
+    const h = document.createElement('div');
+    h.className = 'meetings-section-header' + (isFav ? ' fav-header' : '');
+    h.textContent = text;
+    return h;
+}
+
 function _renderMeetingsList() {
     const listEl = document.getElementById('meetings-list');
     const emptyEl = document.getElementById('meetings-empty');
@@ -55,37 +92,18 @@ function _renderMeetingsList() {
     }
     emptyEl.style.display = 'none';
 
-    displayed.forEach(m => {
-        const card = document.createElement('div');
-        card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
-        const modeLabel = formatModeLabel(m.mode);
-        const dateLabel = formatDateTime(m.ended_at);
-        const coverHtml = m.cover_url
-            ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
-            : '';
-        card.innerHTML = `
-            ${coverHtml}
-            <div class="mc-body">
-                <div class="mc-top">
-                    <div class="mc-mode">${modeLabel}</div>
-                    <div class="mc-actions">
-                        <button class="btn-mc-fav${m.is_favorited ? ' active' : ''}" title="${m.is_favorited ? '取消收藏' : '收藏'}">♥</button>
-                        <button class="btn-mc-delete" title="刪除紀錄">✕</button>
-                    </div>
-                </div>
-                <div class="mc-meta">
-                    <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
-                    <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
-                    <span><i data-lucide="calendar"></i> ${dateLabel}</span>
-                </div>
-            </div>`;
+    const favorites = displayed.filter(m => m.is_favorited);
+    const regular = displayed.filter(m => !m.is_favorited);
 
-        // 點卡片主體開啟詳情，但按鈕不觸發
-        card.onclick = () => openMeetingDetail(m.id);
-        card.querySelector('.btn-mc-fav').onclick = (e) => { e.stopPropagation(); _toggleFavorite(m.id); };
-        card.querySelector('.btn-mc-delete').onclick = (e) => { e.stopPropagation(); _hideMeeting(m.id); };
-        listEl.appendChild(card);
-    });
+    if (favorites.length > 0) {
+        listEl.appendChild(_sectionHeader('♥ 收藏的聚會', true));
+        favorites.forEach(m => listEl.appendChild(_buildCard(m)));
+    }
+    if (regular.length > 0) {
+        if (favorites.length > 0) listEl.appendChild(_sectionHeader('最近的聚會'));
+        regular.forEach(m => listEl.appendChild(_buildCard(m)));
+    }
+
     if (window.lucide) window.lucide.createIcons();
 }
 

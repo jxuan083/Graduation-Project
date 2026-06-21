@@ -732,12 +732,6 @@ async def toggle_meeting_favorite(meeting_id: str, decoded: dict = Depends(verif
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     try:
-        doc = db.collection("meetings").document(meeting_id).get()
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail="找不到聚會")
-        if uid not in (doc.to_dict() or {}).get("participants", []):
-            raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
-
         user_ref = db.collection("users").document(uid)
         user_doc = user_ref.get()
         favorited = list((user_doc.to_dict() or {}).get("favorited_meetings", [])) if user_doc.exists else []
@@ -751,8 +745,6 @@ async def toggle_meeting_favorite(meeting_id: str, decoded: dict = Depends(verif
 
         user_ref.set({"favorited_meetings": favorited}, merge=True)
         return {"status": "success", "is_favorited": is_favorited}
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"Error toggling favorite: {e}")
         raise HTTPException(status_code=500, detail=f"切換收藏失敗: {e}")
@@ -765,20 +757,12 @@ async def hide_meeting(meeting_id: str, decoded: dict = Depends(verify_token)):
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     try:
-        doc = db.collection("meetings").document(meeting_id).get()
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail="找不到聚會")
-        if uid not in (doc.to_dict() or {}).get("participants", []):
-            raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
-
         user_ref = db.collection("users").document(uid)
         user_ref.set({
             "hidden_meetings": firestore.ArrayUnion([meeting_id]),
             "favorited_meetings": firestore.ArrayRemove([meeting_id]),
         }, merge=True)
         return {"status": "success"}
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"Error hiding meeting: {e}")
         raise HTTPException(status_code=500, detail=f"刪除聚會失敗: {e}")

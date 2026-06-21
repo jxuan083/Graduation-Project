@@ -277,6 +277,19 @@
 .btn-mc-fav.active { color: #f87171; }
 .btn-mc-delete:hover { color: #fca5a5; background: rgba(252,165,165,0.12); }
 
+.meetings-section-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  padding: 4px 2px 2px;
+  margin-top: 4px;
+}
+.meetings-section-header.fav-header {
+  color: #f87171;
+}
+
 /* =========================================
    聚會照片 (Meeting Photos)
 ========================================= */
