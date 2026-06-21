@@ -66,7 +66,25 @@ export function initChrome() {
     events.on('home:show', () => refreshIncomingBanner());
     events.on('friends:changed', () => refreshIncomingBanner());
 
+    // 聚會中隱藏個人資料列
+    events.on('view:changed', ({ viewId }) => refreshAuthBarVisibility(viewId));
+
     renderAuthBar();
+}
+
+function refreshAuthBarVisibility(viewId) {
+    const loggedIn = document.getElementById('auth-logged-in');
+    if (!loggedIn) return;
+    if (isMeetingViewId(viewId)) {
+        loggedIn.style.display = 'none';
+        const dd = document.getElementById('user-menu-dropdown');
+        if (dd) dd.style.display = 'none';
+    } else {
+        // 只在已登入時才顯示
+        if (state.currentUser && state.currentProfile) {
+            loggedIn.style.display = 'flex';
+        }
+    }
 }
 
 function renderAuthBar() {

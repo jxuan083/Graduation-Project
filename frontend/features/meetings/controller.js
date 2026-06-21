@@ -5,6 +5,9 @@ import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
 
+const MEETINGS_DISPLAY_LIMIT = 10;
+let _allMeetings = [];  // 從 API 拿到的全量資料（含 is_hidden / is_favorited）
+
 export async function openMeetingsList() {
     if (!state.currentUser) {
         alert('請先登入才能查看聚會紀錄');
@@ -19,37 +22,100 @@ export async function openMeetingsList() {
     try {
         const { data } = await apiFetch('/api/meetings');
         if (!data || data.status !== 'success') throw new Error((data && data.detail) || '讀取失敗');
-
-        listEl.innerHTML = '';
-        if (!data.meetings || data.meetings.length === 0) {
-            emptyEl.style.display = 'block';
-            return;
-        }
-        data.meetings.forEach(m => {
-            const card = document.createElement('div');
-            card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
-            const modeLabel = formatModeLabel(m.mode);
-            const dateLabel = formatDateTime(m.ended_at);
-            const coverHtml = m.cover_url
-                ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
-                : '';
-            card.innerHTML = `
-                ${coverHtml}
-                <div class="mc-body">
-                    <div class="mc-mode">${modeLabel}</div>
-                    <div class="mc-meta">
-                        <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
-                        <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
-                        <span><i data-lucide="calendar"></i> ${dateLabel}</span>
-                    </div>
-                </div>`;
-            card.onclick = () => openMeetingDetail(m.id);
-            listEl.appendChild(card);
-        });
-        if (window.lucide) window.lucide.createIcons();
+        _allMeetings = data.meetings || [];
+        _renderMeetingsList();
     } catch (err) {
         console.error('openMeetingsList failed:', err);
         listEl.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗:${err.message || err}</p>`;
+    }
+}
+
+function _getDisplayedMeetings() {
+    const visible = _allMeetings.filter(m => !m.is_hidden);
+    const favorites = visible.filter(m => m.is_favorited);
+    const nonFavorites = visible.filter(m => !m.is_favorited);
+    const slots = Math.max(0, MEETINGS_DISPLAY_LIMIT - favorites.length);
+    const combined = [...favorites, ...nonFavorites.slice(0, slots)];
+    // 依日期新→舊排序
+    combined.sort((a, b) => (b.ended_at || '') > (a.ended_at || '') ? 1 : -1);
+    return combined;
+}
+
+function _renderMeetingsList() {
+    const listEl = document.getElementById('meetings-list');
+    const emptyEl = document.getElementById('meetings-empty');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    const displayed = _getDisplayedMeetings();
+
+    if (displayed.length === 0) {
+        emptyEl.style.display = 'block';
+        return;
+    }
+    emptyEl.style.display = 'none';
+
+    displayed.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
+        const modeLabel = formatModeLabel(m.mode);
+        const dateLabel = formatDateTime(m.ended_at);
+        const coverHtml = m.cover_url
+            ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
+            : '';
+        card.innerHTML = `
+            ${coverHtml}
+            <div class="mc-body">
+                <div class="mc-top">
+                    <div class="mc-mode">${modeLabel}</div>
+                    <div class="mc-actions">
+                        <button class="btn-mc-fav${m.is_favorited ? ' active' : ''}" title="${m.is_favorited ? '取消收藏' : '收藏'}">♥</button>
+                        <button class="btn-mc-delete" title="刪除紀錄">✕</button>
+                    </div>
+                </div>
+                <div class="mc-meta">
+                    <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
+                    <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
+                    <span><i data-lucide="calendar"></i> ${dateLabel}</span>
+                </div>
+            </div>`;
+
+        // 點卡片主體開啟詳情，但按鈕不觸發
+        card.onclick = () => openMeetingDetail(m.id);
+        card.querySelector('.btn-mc-fav').onclick = (e) => { e.stopPropagation(); _toggleFavorite(m.id); };
+        card.querySelector('.btn-mc-delete').onclick = (e) => { e.stopPropagation(); _hideMeeting(m.id); };
+        listEl.appendChild(card);
+    });
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function _toggleFavorite(meetingId) {
+    const m = _allMeetings.find(x => x.id === meetingId);
+    if (!m) return;
+    const prev = m.is_favorited;
+    m.is_favorited = !prev;
+    _renderMeetingsList();
+    try {
+        const { data } = await apiFetch(`/api/meetings/${meetingId}/favorite`, { method: 'PATCH' });
+        if (!data || data.status !== 'success') throw new Error();
+    } catch {
+        m.is_favorited = prev;  // revert
+        _renderMeetingsList();
+    }
+}
+
+async function _hideMeeting(meetingId) {
+    const m = _allMeetings.find(x => x.id === meetingId);
+    if (!m) return;
+    m.is_hidden = true;
+    m.is_favorited = false;
+    _renderMeetingsList();
+    try {
+        const { res } = await apiFetch(`/api/meetings/${meetingId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+    } catch {
+        m.is_hidden = false;  // revert
+        _renderMeetingsList();
     }
 }
 

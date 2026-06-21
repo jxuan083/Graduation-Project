@@ -699,22 +699,89 @@ def _serialize_meeting(data: dict, doc_id: str) -> dict:
 
 @app.get("/api/meetings")
 async def list_meetings(decoded: dict = Depends(verify_token)):
-    """回傳目前使用者參與過的聚會清單（按結束時間倒序）"""
+    """回傳目前使用者參與過的聚會清單（按結束時間倒序），含收藏與隱藏狀態"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
 
     try:
-        # 註：array_contains + order_by 會需要組合索引；先省略 order_by，回傳後在 Python 排序
+        user_doc = db.collection("users").document(uid).get()
+        user_data = (user_doc.to_dict() or {}) if user_doc.exists else {}
+        favorited_set = set(user_data.get("favorited_meetings", []))
+        hidden_set = set(user_data.get("hidden_meetings", []))
+
         query = db.collection("meetings").where("participants", "array_contains", uid).limit(100)
         docs = list(query.stream())
         meetings = [_serialize_meeting(d.to_dict() or {}, d.id) for d in docs]
-        # 依 ended_at 倒序排列（沒有的放最後）
         meetings.sort(key=lambda m: m.get("ended_at") or "", reverse=True)
+
+        for m in meetings:
+            m["is_favorited"] = m["id"] in favorited_set
+            m["is_hidden"] = m["id"] in hidden_set
+
         return {"status": "success", "meetings": meetings}
     except Exception as e:
         print(f"Error listing meetings: {e}")
         raise HTTPException(status_code=500, detail=f"列出聚會失敗: {e}")
+
+
+@app.patch("/api/meetings/{meeting_id}/favorite")
+async def toggle_meeting_favorite(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """切換聚會的收藏狀態"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    try:
+        doc = db.collection("meetings").document(meeting_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="找不到聚會")
+        if uid not in (doc.to_dict() or {}).get("participants", []):
+            raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+
+        user_ref = db.collection("users").document(uid)
+        user_doc = user_ref.get()
+        favorited = list((user_doc.to_dict() or {}).get("favorited_meetings", [])) if user_doc.exists else []
+
+        if meeting_id in favorited:
+            favorited.remove(meeting_id)
+            is_favorited = False
+        else:
+            favorited.append(meeting_id)
+            is_favorited = True
+
+        user_ref.set({"favorited_meetings": favorited}, merge=True)
+        return {"status": "success", "is_favorited": is_favorited}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error toggling favorite: {e}")
+        raise HTTPException(status_code=500, detail=f"切換收藏失敗: {e}")
+
+
+@app.delete("/api/meetings/{meeting_id}")
+async def hide_meeting(meeting_id: str, decoded: dict = Depends(verify_token)):
+    """將聚會從使用者的列表中移除（隱藏，不刪除 Firestore 資料）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    try:
+        doc = db.collection("meetings").document(meeting_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="找不到聚會")
+        if uid not in (doc.to_dict() or {}).get("participants", []):
+            raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+
+        user_ref = db.collection("users").document(uid)
+        user_ref.set({
+            "hidden_meetings": firestore.ArrayUnion([meeting_id]),
+            "favorited_meetings": firestore.ArrayRemove([meeting_id]),
+        }, merge=True)
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error hiding meeting: {e}")
+        raise HTTPException(status_code=500, detail=f"刪除聚會失敗: {e}")
 
 
 @app.get("/api/meetings/{meeting_id}")

@@ -246,6 +246,37 @@
   min-width: 0;
 }
 
+.meeting-card .mc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.meeting-card .mc-top .mc-mode {
+  margin-bottom: 0;
+}
+.meeting-card .mc-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.btn-mc-fav,
+.btn-mc-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  color: rgba(255,255,255,0.35);
+}
+.btn-mc-fav:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+.btn-mc-fav.active { color: #f87171; }
+.btn-mc-delete:hover { color: #fca5a5; background: rgba(252,165,165,0.12); }
+
 /* =========================================
    聚會照片 (Meeting Photos)
 ========================================= */
