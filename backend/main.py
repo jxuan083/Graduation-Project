@@ -89,6 +89,15 @@ BACKEND_VERSION = "v15.4-group-pet-avatar"
 BACKEND_BUILD_DATE = "2026-06-02"  # 每次部署手動更新
 
 
+def _is_guest_user_id(user_id: str) -> bool:
+    """Guest ids are generated as uuid4; Firebase UIDs must not be inferred by punctuation."""
+    try:
+        uuid.UUID(str(user_id), version=4)
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 @app.get("/api/version")
 async def get_version():
     """回傳後端版本 + 建置日期，前端 footer 會顯示這個"""
@@ -713,6 +722,43 @@ async def list_meetings(decoded: dict = Depends(verify_token)):
         query = db.collection("meetings").where("participants", "array_contains", uid).limit(100)
         docs = list(query.stream())
         meetings = [_serialize_meeting(d.to_dict() or {}, d.id) for d in docs]
+        seen_ids = {m["id"] for m in meetings}
+
+        # Fallback: END_SESSION 同時會寫 users/{uid}/meetings/{room_id} 鏡像。
+        # 若主 meeting 文件因舊資料或 participants 欄位異常沒被 array_contains 查到，
+        # 仍用鏡像補回列表，避免使用者明明有結束聚會卻看不到紀錄。
+        try:
+            mirror_docs = list(db.collection("users").document(uid).collection("meetings").limit(100).stream())
+            for mirror_doc in mirror_docs:
+                room_id = mirror_doc.id
+                if room_id in seen_ids:
+                    continue
+                mirror_data = mirror_doc.to_dict() or {}
+                main_doc = db.collection("meetings").document(room_id).get()
+                if main_doc.exists:
+                    data = main_doc.to_dict() or {}
+                    data.setdefault("participants", [uid])
+                    data.setdefault("duration_minutes", mirror_data.get("duration_minutes", 0))
+                    data.setdefault("total_deviations", mirror_data.get("total_room_deviations", 0))
+                    data.setdefault("ended_at", mirror_data.get("ended_at"))
+                    data.setdefault("mode", mirror_data.get("mode", ""))
+                else:
+                    data = {
+                        "room_id": room_id,
+                        "participants": [uid],
+                        "ended_at": mirror_data.get("ended_at"),
+                        "duration_minutes": mirror_data.get("duration_minutes", 0),
+                        "total_deviations": mirror_data.get("total_room_deviations", 0),
+                        "mode": mirror_data.get("mode", ""),
+                        "end_reason": mirror_data.get("end_reason", "host_ended"),
+                        "member_count": 0,
+                    }
+                meetings.append(_serialize_meeting(data, room_id))
+                seen_ids.add(room_id)
+        except Exception as mirror_err:
+            print(f"[meetings] mirror fallback failed for {uid}: {mirror_err}")
+
+        # 依 ended_at 倒序排列（沒有的放最後）
         meetings.sort(key=lambda m: m.get("ended_at") or "", reverse=True)
 
         for m in meetings:
@@ -1120,9 +1166,7 @@ def _resolve_photo_upload_uid(authorization: Optional[str], guest_uid: Optional[
 
     guest_uid = (guest_uid or "").strip()
     if guest_uid:
-        try:
-            uuid.UUID(guest_uid, version=4)
-        except (ValueError, AttributeError):
+        if not _is_guest_user_id(guest_uid):
             raise HTTPException(status_code=401, detail="訪客身份無效")
         return guest_uid
 
@@ -2888,6 +2932,97 @@ class CreateRoomRequest(BaseModel):
     group_id: Optional[str] = None
 
 
+class EndRoomRequest(BaseModel):
+    reason: Optional[str] = "host_ended"
+    duration_minutes: Optional[int] = 0
+
+
+def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, duration_minutes: int) -> dict:
+    all_ever = room_data.get("all_participants") or room_data.get("members") or {}
+    host_uid_local = room_data.get("host_uid")
+    total_deviations = int(room_data.get("deviations", 0) or 0)
+    base_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=False)
+    host_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=True)
+
+    deviation_ranking = sorted(
+        [
+            {
+                "uid": uid,
+                "nickname": info.get("nickname", ""),
+                "deviations": info.get("deviations", 0),
+            }
+            for uid, info in all_ever.items()
+        ],
+        key=lambda x: x["deviations"],
+        reverse=True,
+    )
+
+    members_snapshot = []
+    participants = []
+    for uid, info in all_ever.items():
+        is_guest = _is_guest_user_id(uid)
+        members_snapshot.append({
+            "uid": uid,
+            "nickname": info.get("nickname", ""),
+            "is_guest": is_guest
+        })
+        if not is_guest:
+            participants.append(uid)
+
+    if host_uid_local:
+        if host_uid_local not in participants:
+            participants.append(host_uid_local)
+        if not any(m.get("uid") == host_uid_local for m in members_snapshot):
+            members_snapshot.append({
+                "uid": host_uid_local,
+                "nickname": room_data.get("host_nickname", ""),
+                "is_guest": False,
+            })
+
+    meeting_record = {
+        "room_id": room_id,
+        "host_uid": host_uid_local,
+        "host_nickname": room_data.get("host_nickname", ""),
+        "mode": room_data.get("mode", ""),
+        "ended_at": firestore.SERVER_TIMESTAMP,
+        "started_at_ms": room_data.get("started_at", 0),
+        "duration_minutes": duration_minutes,
+        "total_deviations": total_deviations,
+        "member_count": len(members_snapshot),
+        "members_snapshot": members_snapshot,
+        "participants": participants,
+        "end_reason": reason,
+        "base_score": base_score,
+        "host_score": host_score,
+        "deviation_ranking": deviation_ranking,
+    }
+
+    db.collection("rooms").document(room_id).set({"status": "ENDED"}, merge=True)
+    db.collection("meetings").document(room_id).set(meeting_record, merge=True)
+
+    for p_uid in participants:
+        my_score = host_score if p_uid == host_uid_local else base_score
+        my_deviations = all_ever.get(p_uid, {}).get("deviations", 0)
+        mirror = {
+            "owner_uid": p_uid,
+            "room_id": room_id,
+            "is_host": (p_uid == host_uid_local),
+            "mode": room_data.get("mode", ""),
+            "ended_at": firestore.SERVER_TIMESTAMP,
+            "duration_minutes": duration_minutes,
+            "deviations": my_deviations,
+            "total_room_deviations": total_deviations,
+            "score": my_score,
+            "end_reason": reason,
+        }
+        try:
+            db.collection("users").document(p_uid).collection("meetings").document(room_id).set(mirror, merge=True)
+        except Exception as mm_err:
+            print(f"[meeting finalize] mirror write failed for {p_uid}: {mm_err}")
+
+    return meeting_record
+
+
 @app.post("/api/create_room")
 async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_token)):
     """
@@ -2961,6 +3096,33 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
         "group_id": group_id,
         "session_params": session_params,
         "backend_ip": "",
+    }
+
+
+@app.post("/api/rooms/{room_id}/end")
+async def end_room_http(room_id: str, body: EndRoomRequest, decoded: dict = Depends(verify_token)):
+    """HTTP fallback for ending a meeting when the WebSocket END_SESSION message is lost."""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    snap = db.collection("rooms").document(room_id).get()
+    if not snap.exists:
+        raise HTTPException(status_code=404, detail="找不到房間")
+
+    room_data = snap.to_dict() or {}
+    members = room_data.get("members") or {}
+    all_participants = room_data.get("all_participants") or {}
+    if uid != room_data.get("host_uid") and uid not in members and uid not in all_participants:
+        raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+
+    reason = (body.reason or "host_ended").strip()[:40] or "host_ended"
+    duration_minutes = max(0, int(body.duration_minutes or 0))
+    meeting_record = _save_room_meeting_record(room_id, room_data, reason, duration_minutes)
+    return {
+        "status": "success",
+        "room_id": room_id,
+        "participants_count": len(meeting_record.get("participants") or []),
     }
 
 
@@ -3077,7 +3239,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
     # ============================================================
     await websocket.accept()
 
-    is_guest_uid = "-" in user_id  # uuid4 含 dash;firebase uid 不含 dash
+    is_guest_uid = _is_guest_user_id(user_id)
     token = None
     nickname = nickname_q
     try:
@@ -3104,12 +3266,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             print(f"[ws-auth] reject: guest uid {user_id!r} should not carry token")
             await websocket.close(code=4400, reason="Guest cannot have token")
             return
-        try:
-            uuid.UUID(user_id, version=4)
-        except (ValueError, AttributeError):
-            print(f"[ws-auth] reject: invalid guest uuid {user_id!r}")
-            await websocket.close(code=4401, reason="Invalid guest id")
-            return
+        # Already validated by _is_guest_user_id above.
     else:
         if not token:
             print(f"[ws-auth] reject: non-guest uid {user_id!r} missing token")
@@ -3190,7 +3347,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
     # 同步更新 Firestore 中的成員清單
     try:
         db.collection("rooms").document(room_id).update({
-            f"members.{user_id}": rooms[room_id]["members"][user_id]
+            f"members.{user_id}": rooms[room_id]["members"][user_id],
+            f"all_participants.{user_id}": rooms[room_id]["all_participants"][user_id],
         })
     except Exception as e:
         print(f"Error updating member in Firestore: {e}")
@@ -3302,7 +3460,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     members_snapshot = []
                     participants = []
                     for uid, info in all_ever.items():
-                        is_guest = "-" in uid
+                        is_guest = _is_guest_user_id(uid)
                         members_snapshot.append({
                             "uid": uid,
                             "nickname": info.get("nickname", ""),

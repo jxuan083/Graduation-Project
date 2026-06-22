@@ -441,14 +441,48 @@ async function handleMeetingPhotoChange(e) {
     }
 }
 
-function handleEndSession() {
+async function handleEndSession() {
     if (state.liveTranscript.active) stopLiveTranscript('聚會結束，已停止即時轉文字');
+    const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
+    const reason = state.amIHost ? 'host_ended' : 'member_ended';
+    const roomId = state.roomId;
+    let sentByWs = false;
+
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-        const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
-        const reason = state.amIHost ? 'host_ended' : 'member_ended';
-        sendAction('END_SESSION', { reason, duration_minutes: mins });
+        sentByWs = sendAction('END_SESSION', { reason, duration_minutes: mins });
+    }
+
+    const fallbackPromise = finalizeEndSessionViaHttp(roomId, reason, mins);
+    if (sentByWs) {
+        fallbackPromise.catch(err => console.warn('HTTP end-session fallback failed:', err));
+        setTimeout(() => {
+            if (state.currentPhase !== 'SUMMARY') showLocalSummary();
+        }, 2500);
         return;
     }
+
+    try {
+        await fallbackPromise;
+    } catch (err) {
+        console.error('end session fallback failed:', err);
+        alert('聚會紀錄寫入失敗:' + (err.message || err));
+    }
+    showLocalSummary();
+}
+
+async function finalizeEndSessionViaHttp(roomId, reason, mins) {
+    if (!roomId || !state.currentUser) return;
+    const { res, data } = await apiFetch(`/api/rooms/${roomId}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, duration_minutes: mins }),
+    });
+    if (!res.ok || !data || data.status !== 'success') {
+        throw new Error((data && data.detail) || '結束聚會失敗');
+    }
+}
+
+function showLocalSummary() {
     // Fallback: WS 已斷線，只能本地切換
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
