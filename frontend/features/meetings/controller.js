@@ -12,7 +12,7 @@ let _showFavoritesOnly = false;
 
 export async function openMeetingsList() {
     if (!state.currentUser) {
-        alert('請先登入才能查看聚會紀錄');
+        alert(t('請先登入才能查看聚會紀錄'));
         return;
     }
     _showFavoritesOnly = false;
@@ -352,7 +352,7 @@ export async function generateMeetingNewspaper() {
         renderNewspaper(data.newspaper);
     } catch (err) {
         console.error('generate newspaper failed:', err);
-        alert('產生聚會回顧報失敗: ' + (err.message || err));
+        alert(t('產生聚會回顧報失敗:') + ' ' + (err.message || err));
     } finally {
         if (btn) {
             btn.disabled = false;

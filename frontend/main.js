@@ -174,7 +174,7 @@ async function boot() {
 function handleGroupInviteOnBoot(code) {
     async function tryJoin() {
         if (!state.currentUser) {
-            alert('請先登入 Google 帳號，才能透過邀請碼加入群組');
+            alert(t('請先登入 Google 帳號，才能透過邀請碼加入群組'));
             state.pendingGroupInviteCode = code;
             return;
         }
@@ -182,7 +182,7 @@ function handleGroupInviteOnBoot(code) {
             const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js');
             const { res, data: info } = await getGroupInviteInfo(code);
             if (!res.ok || !info?.name) {
-                alert('邀請碼無效或已過期：' + (info?.detail || `HTTP ${res.status}`));
+                alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
                 return;
             }
             if (info.already_member) {
@@ -194,13 +194,13 @@ function handleGroupInviteOnBoot(code) {
             if (!ok) return;
             const { data: joinData } = await joinGroupByInviteCode(code);
             if (joinData?.status === 'success') {
-                alert('成功加入群組！');
+                alert(t('成功加入群組！'));
                 switchView('view-groups');
             } else {
-                alert('加入失敗：' + (joinData?.detail || JSON.stringify(joinData)));
+                alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
             }
         } catch (err) {
-            alert('加入失敗：' + (err.message || err));
+            alert(t('加入失敗：') + (err.message || err));
         } finally {
             state.pendingGroupInviteCode = null;
         }

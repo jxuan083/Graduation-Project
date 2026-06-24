@@ -3,6 +3,7 @@ import { state } from '../../core/state.js';
 import { switchView } from '../../core/router.js';
 import { sendAction } from '../../core/ws.js';
 import { gameLibrary } from './library.js';
+import { t } from '../../core/i18n.js';
 
 // 進入「準備抽卡」畫面 (所有人都會看到)
 export function enterTabooPrepare() {
@@ -70,7 +71,7 @@ export function showTabooCard() {
 export function hostStartTabooGame() {
     if (!state.amIHost) return;
     if (!sendAction('START_TABOO_GAME')) {
-        alert('連線中斷,無法發起遊戲');
+        alert(t('連線中斷,無法發起遊戲'));
     }
 }
 

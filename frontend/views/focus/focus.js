@@ -411,7 +411,7 @@ function updateLiveTranscriptButton(active) {
 
 function handleMeetingPhotoClick(inputId) {
     if (!state.roomId) {
-        alert('聚會尚未建立');
+        alert(t('聚會尚未建立'));
         return;
     }
     startPhotoMode();
@@ -436,7 +436,7 @@ async function handleMeetingPhotoChange(e) {
         setTimeout(() => { btn.innerText = origText; btn.disabled = false; }, 1500);
     } catch (err) {
         console.error('upload photo failed:', err);
-        alert('照片上傳失敗:' + (err.message || err));
+        alert(t('照片上傳失敗:') + (err.message || err));
         btn.innerText = origText;
         btn.disabled = false;
     }
@@ -466,7 +466,7 @@ async function handleEndSession() {
         await fallbackPromise;
     } catch (err) {
         console.error('end session fallback failed:', err);
-        alert('聚會紀錄寫入失敗:' + (err.message || err));
+        alert(t('聚會紀錄寫入失敗:') + (err.message || err));
     }
     showLocalSummary();
 }

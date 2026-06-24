@@ -105,7 +105,7 @@ async function startStream() {
         // getUserMedia 不可用（HTTP 環境）→ fallback 到 capture input
         const camInput = document.getElementById('pet-camera-input');
         if (camInput) { camInput.click(); return; }
-        alert('無法開啟相機：' + (err.message || err) + '\n\n請改用相簿上傳照片。');
+        alert(t('無法開啟相機：{msg}\n\n請改用相簿上傳照片。', { msg: err.message || err }));
     }
 }
 
@@ -209,11 +209,11 @@ async function setAsGroupAvatar() {
 
 async function adoptPet() {
     if (!state.currentUser) {
-        alert('請先登入才能養寵物');
+        alert(t('請先登入才能養寵物'));
         return;
     }
     if (!lastResultBlob) {
-        alert('請先生成寵物臉再養它！');
+        alert(t('請先生成寵物臉再養它！'));
         return;
     }
 
@@ -239,7 +239,7 @@ async function adoptPet() {
 
         switchView('view-pet-tamagotchi');
     } catch (err) {
-        alert('上傳失敗：' + (err.message || err));
+        alert(t('上傳失敗：') + (err.message || err));
     } finally {
         adoptBtn.disabled = false;
         adoptLoad.style.display = 'none';

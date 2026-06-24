@@ -25,8 +25,8 @@ export function init() {
 async function handleJoinByInvite() {
     const input = document.getElementById('group-invite-input');
     const code = input?.value?.trim();
-    if (!code) { alert('請輸入邀請碼'); return; }
-    if (!state.currentUser) { alert('請先登入 Google 帳號，才能加入群組'); return; }
+    if (!code) { alert(t('請輸入邀請碼')); return; }
+    if (!state.currentUser) { alert(t('請先登入 Google 帳號，才能加入群組')); return; }
 
     const btn = document.getElementById('btn-join-by-invite');
     btn.disabled = true;
@@ -35,7 +35,7 @@ async function handleJoinByInvite() {
         const { getGroupInviteInfo, joinGroupByInviteCode } = await import('../../features/groups/controller.js');
         const { res, data: info } = await getGroupInviteInfo(code);
         if (!res.ok || !info?.name) {
-            alert('邀請碼無效或已過期：' + (info?.detail || `HTTP ${res.status}`));
+            alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
             return;
         }
         if (info.already_member) {
@@ -48,13 +48,13 @@ async function handleJoinByInvite() {
         const { data: joinData } = await joinGroupByInviteCode(code);
         if (joinData?.status === 'success') {
             if (input) input.value = '';
-            alert('成功加入群組！');
+            alert(t('成功加入群組！'));
             await loadGroups();
         } else {
-            alert('加入失敗：' + (joinData?.detail || JSON.stringify(joinData)));
+            alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
         }
     } catch (err) {
-        alert('加入失敗：' + (err.message || err));
+        alert(t('加入失敗：') + (err.message || err));
     } finally {
         btn.disabled = false;
         btn.textContent = '加入';

@@ -5,6 +5,7 @@ import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js';
 import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
+import { t } from '../../core/i18n.js';
 
 const DIFF_HINTS = {
     L: '寬鬆模式：較長的緩衝時間，適合輕鬆聚會',
@@ -111,7 +112,7 @@ async function onSetupShow() {
 
 async function handleConfirm() {
     if (!state.currentUser) {
-        alert('請先用 Google 登入才能發起聚會');
+        alert(t('請先用 Google 登入才能發起聚會'));
         return;
     }
 
@@ -144,7 +145,7 @@ async function handleConfirm() {
         });
 
         if (res.status === 401) {
-            alert('登入狀態失效，請重新登入');
+            alert(t('登入狀態失效，請重新登入'));
             await doSignOut();
             return;
         }
@@ -162,7 +163,7 @@ async function handleConfirm() {
         joinRoom(data.room_id);
     } catch (err) {
         console.error('create_room failed:', err);
-        alert('建立房間失敗：' + (err.message || err));
+        alert(t('建立房間失敗：') + (err.message || err));
         state.amIHost = false;
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '建立房間'; }

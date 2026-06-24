@@ -26,7 +26,7 @@ export function init() {
 
 export async function openQuestionBank() {
     if (!state.currentUser) {
-        alert('請先登入 Google 帳號');
+        alert(t('請先登入 Google 帳號'));
         return;
     }
     state.qbankCurrentTab = 'mine';
@@ -142,16 +142,16 @@ function renderQbankList(questions, kind) {
 }
 
 async function deleteMyQuestion(qid) {
-    if (!confirm('確定要刪除這題?')) return;
+    if (!confirm(t('確定要刪除這題?'))) return;
     try {
         const { data } = await apiFetch(`/api/questions/${qid}`, { method: 'DELETE' });
         if (data.status !== 'success') {
-            alert('刪除失敗:' + (data.detail || ''));
+            alert(t('刪除失敗:') + (data.detail || ''));
             return;
         }
         await refreshQuestionBank();
     } catch (err) {
-        alert('刪除失敗:' + (err.message || err));
+        alert(t('刪除失敗:') + (err.message || err));
     }
 }
 
@@ -163,13 +163,13 @@ async function importPublicQuestion(publicId, btn) {
             body: JSON.stringify({ public_id: publicId })
         });
         if (data.status !== 'success') {
-            alert('加入失敗:' + (data.detail || ''));
+            alert(t('加入失敗:') + (data.detail || ''));
             if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
             return;
         }
         if (btn) btn.innerText = '✓ 已加入';
     } catch (err) {
-        alert('加入失敗:' + (err.message || err));
+        alert(t('加入失敗:') + (err.message || err));
         if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
     }
 }

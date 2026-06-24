@@ -32,7 +32,7 @@ export function registerAllWsHandlers() {
     registerHandler('GAME67_CANCELLED', handleGame67Cancelled);
     registerHandler('GAME67_LIVE_SCORES', handleGame67LiveScores);
     registerHandler('GAME67_TIME_SYNC', handleGame67TimeSync);
-    registerHandler('QA_ERROR', (msg) => alert('出題失敗:' + msg.message));
+    registerHandler('QA_ERROR', (msg) => alert(t('出題失敗:') + msg.message));
 }
 
 function handleRoomUpdate(msg) {
@@ -66,7 +66,7 @@ function handleRoomUpdate(msg) {
 function handleRoomCancelled() {
     if (!state.amIHost) {
         try { showToast('聚會已被房主取消', 'warn'); }
-        catch (e) { alert('聚會已被房主取消'); }
+        catch (e) { alert(t('聚會已被房主取消')); }
     }
     cleanupSession();
     switchView('view-home');
