@@ -16,6 +16,7 @@ import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
 import { events } from './core/events.js';
+import { initI18n } from './core/i18n.js';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -122,6 +123,9 @@ async function boot() {
 
         // 3. 初始化 Lucide icons（HTML 全部插入後才能跑）
         if (window.lucide) window.lucide.createIcons();
+
+        // 3.5 初始化 i18n（HTML 已插入、icons 已建立後）
+        initI18n();
 
         // 4. 註冊 WebSocket 訊息 handler
         registerAllWsHandlers();
