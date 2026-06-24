@@ -278,6 +278,7 @@ export const dict = {
     '登入 Google 帳號可自動使用你的頭像和暱稱': 'Sign in with Google to automatically use your avatar and nickname',
 
     // --- friends ---
+    '還沒有好友，到「加好友」頁面邀請別人加入吧！': 'No friends yet. Go to "Add Friend" to invite someone!',
     '我的好友 (': 'My Friends (',
     '收到邀請 (': 'Received Invitations (',
     '新增好友': 'Add Friend',
@@ -343,6 +344,8 @@ export const dict = {
     '啟動相機中...': 'Starting camera...',
 
     // --- about / footer ---
+    '當大家約好見面時，本來是想好好聊天、互動、享受當下的相聚，但總是會不自覺地滑起手機——結果人到了，心卻沒到。': 'When everyone plans to meet, the idea is to chat, interact, and enjoy the moment together — but phones always end up slipping out, and even though everyone shows up, their minds are elsewhere.',
+    '回到首頁': 'Go Home',
     '專案介紹': 'Project Introduction',
     '隱私政策': 'Privacy Policy',
     '版本更新': 'Version Updates',
@@ -376,6 +379,7 @@ export const dict = {
     '載入中…': 'Loading...',
     '載入寵物中…': 'Loading pet...',
     '上傳中...': 'Uploading...',
+    '上傳中…': 'Uploading...',
     '上傳成功': 'Upload successful',
     '上傳失敗': 'Upload failed',
     '上傳頭像中...': 'Uploading avatar...',
@@ -394,6 +398,7 @@ export const dict = {
     '加入中…': 'Joining...',
     '加入失敗:': 'Join failed:',
     '加入失敗：': 'Join failed:',
+    '載入失敗': 'Load failed',
     '讀取中...': 'Loading...',
     '讀取失敗': 'Load failed',
     '讀取失敗:': 'Load failed:',
@@ -482,7 +487,6 @@ export const dict = {
     'QR Code 產生失敗，請改用複製連結': 'Failed to generate QR Code, please copy the link instead',
     '掃描函式庫載入失敗,請重新整理頁面': 'Scan library failed to load, please refresh the page',
     '無法啟動相機:': 'Unable to start camera:',
-    '無法開啟相機：': 'Unable to open camera:',
     '無法開啟麥克風:': 'Unable to open microphone:',
     '無法讀取圖片': 'Unable to read image',
     '照片上傳失敗:': 'Photo upload failed:',
@@ -518,6 +522,12 @@ export const dict = {
     '輸入邀請碼…': 'Enter invite code...',
     'Email 或 UID': 'Email or UID',
     '人數': 'Number of people',
+
+    // --- meeting setup ---
+    '預計時長（分鐘）': 'Expected Duration (min)',
+
+    // --- language toggle ---
+    '中': 'ZH',
 
     // --- meeting scenarios (UI dropdown labels) ---
     '一般聚會': 'General Gathering',
@@ -562,6 +572,7 @@ export const dict = {
     '— 前端模組化重構:把 3000 行的 app.js / 1700 行的 style.css / 450 行的 index.html 拆成 60+ 個小檔(core/ + utils/ + features/ + views/ + styles/),維護更輕鬆,功能完全沒變': '— Frontend modular refactor: split the 3000-line app.js / 1700-line style.css / 450-line index.html into 60+ small files (core/ + utils/ + features/ + views/ + styles/), easier to maintain, no change in functionality',
     '— 聚會照片上傳／刪除／設封面，聚會中拍照不會觸發分心倒數': '— Meeting photo upload/delete/set cover; taking photos during meetings no longer triggers distraction countdown',
     '— 安全修正:(1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— Security fixes: (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
+    '— (1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
     '（可選）': '(optional)',
 
     // --- 其他 JS 字串 ---
