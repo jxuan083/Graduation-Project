@@ -52,6 +52,7 @@ export const dict = {
     '儲存失敗: {error}': 'Save failed: {error}',
     '已轉錄並儲存 {saved} 段（{engine}）': 'Transcribed and saved {saved} segment(s) ({engine})',
     '音檔轉錄失敗: {error}': 'Audio transcription failed: {error}',
+    '某段轉錄失敗: {error}': 'A transcript segment failed: {error}',
     '逐字稿載入失敗: {error}': 'Failed to load transcript: {error}',
     '來自 {name}': 'From {name}',
     '來自 {name} 等 {count} 人': 'From {name} and {count} others',

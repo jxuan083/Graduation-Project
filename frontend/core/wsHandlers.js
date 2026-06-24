@@ -243,7 +243,7 @@ function handleQaFinished(msg) {
             questionEl.innerText = '結果統計';
         }
     }
-    if (statusEl) statusEl.innerText = '5 秒後返回聚會畫面...';
+    if (statusEl) statusEl.innerText = t('5 秒後返回聚會畫面...');
 
     let countdown = 5;
     const intv = setInterval(() => {

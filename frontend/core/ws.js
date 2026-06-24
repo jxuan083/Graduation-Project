@@ -89,7 +89,7 @@ export async function connectRoom(roomId, userId, nickname, onOpen) {
         if (e.code === 4401 || e.code === 4403) {
             try {
                 import('../utils/toast.js').then(({ showToast }) =>
-                    showToast(t('連線被拒絕:{reason}', { reason: e.reason || '身份驗證失敗' }), 'warn')
+                    showToast(t('連線被拒絕:{reason}', { reason: e.reason || t('身份驗證失敗') }), 'warn')
                 );
             } catch (_) {}
         }

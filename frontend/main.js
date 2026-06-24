@@ -16,7 +16,7 @@ import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
 import { events } from './core/events.js';
-import { initI18n } from './core/i18n.js';
+import { initI18n, t } from './core/i18n.js';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -186,11 +186,11 @@ function handleGroupInviteOnBoot(code) {
                 return;
             }
             if (info.already_member) {
-                alert(`你已經是「${info.name}」的成員了！`);
+                alert(t('你已經是「{name}」的成員了！', { name: info.name }));
                 switchView('view-groups');
                 return;
             }
-            const ok = confirm(`加入群組「${info.name}」（${info.member_count} 位成員）？`);
+            const ok = confirm(t('加入群組「{name}」（{count} 位成員）？', { name: info.name, count: info.member_count }));
             if (!ok) return;
             const { data: joinData } = await joinGroupByInviteCode(code);
             if (joinData?.status === 'success') {

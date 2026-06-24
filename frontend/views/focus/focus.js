@@ -359,7 +359,7 @@ async function transcribeLiveChunk(chunk) {
         setLiveTranscriptStatus(t('已儲存 {saved} 段（{engine}，{diarization}）', { saved: data.saved, engine: data.engine, diarization }));
     } catch (err) {
         console.error('live chunk transcript failed:', err);
-        setLiveTranscriptStatus('某段轉錄失敗: ' + (err.message || err));
+        setLiveTranscriptStatus(t('某段轉錄失敗: {error}', { error: err.message || err }));
     }
 }
 
