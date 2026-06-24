@@ -4,6 +4,7 @@ import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { goHomeFromMenu } from '../../core/session.js';
 import { openQuestionEdit } from '../question-edit/question-edit.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-question-bank', { element: document.getElementById('view-question-bank') });
@@ -89,7 +90,7 @@ function renderQbankList(questions, kind) {
         if (kind === 'public' && q.category) {
             const meta = document.createElement('div');
             meta.className = 'qbank-item-meta';
-            meta.innerText = `分類:${q.category}` + (q.has_answer ? ' · 有正解' : '');
+            meta.innerText = t('分類:{category}', { category: q.category }) + (q.has_answer ? ' · 有正解' : '');
             item.appendChild(meta);
         } else if (kind === 'mine' && q.has_answer) {
             const meta = document.createElement('div');

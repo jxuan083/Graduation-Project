@@ -2,6 +2,7 @@ import { register, switchView } from '../../core/router.js';
 import { apiBase, apiFetch } from '../../core/api.js';
 import { getAuthHeaders, storage } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
+import { t } from '../../core/i18n.js';
 
 // 最近一次合成結果的原始 blob（供「設為群組頭像」上傳，免得重跑 face_swap）
 let lastResultBlob = null;
@@ -251,7 +252,7 @@ function onShow() {
     const hintEl  = document.querySelector('#view-pet-swap p.hint');
     if (target?.nickname) {
         if (titleEl) titleEl.innerHTML = `<i data-lucide="paw-print"></i> ${escHtml(target.nickname)} 的寵物臉`;
-        if (hintEl)  hintEl.textContent  = `上傳 ${target.nickname} 的正臉照片，合成專屬動物臉！`;
+        if (hintEl)  hintEl.textContent  = t('上傳 {name} 的正臉照片，合成專屬動物臉！', { name: target.nickname });
     } else {
         if (titleEl) titleEl.innerHTML = '<i data-lucide="paw-print"></i> 寵物臉生成器';
         if (hintEl)  hintEl.textContent  = '上傳一張正臉照片，合成專屬寵物臉！';
@@ -315,7 +316,7 @@ async function generatePetFace() {
         try {
             compressed = await compressImage(file, 1024, 0.88);
         } catch (compErr) {
-            throw new Error(`壓縮圖片失敗: ${compErr.message}`);
+            throw new Error(t('壓縮圖片失敗: {message}', { message: compErr.message }));
         }
 
         const formData = new FormData();
@@ -337,7 +338,7 @@ async function generatePetFace() {
             });
         } catch (fetchErr) {
             if (fetchErr.name === 'AbortError') throw new Error('合成超時（90秒），請再試一次');
-            throw new Error(`網路錯誤 [${fetchErr.name}] ${fetchErr.message}`);
+            throw new Error(t('網路錯誤 [{name}] {message}', { name: fetchErr.name, message: fetchErr.message }));
         } finally {
             clearTimeout(timer);
         }

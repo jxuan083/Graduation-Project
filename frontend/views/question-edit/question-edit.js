@@ -3,6 +3,7 @@ import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-question-edit', { element: document.getElementById('view-question-edit') });
@@ -42,7 +43,7 @@ function renderEditOptions(options, correctIndex) {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'qedit-option-input';
-        input.placeholder = `選項 ${idx + 1}`;
+        input.placeholder = t('選項 {num}', { num: idx + 1 });
         input.maxLength = 40;
         input.value = text;
         row.appendChild(input);
@@ -96,7 +97,7 @@ function addQeditOption() {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'qedit-option-input';
-    input.placeholder = `選項 ${idx + 1}`;
+    input.placeholder = t('選項 {num}', { num: idx + 1 });
     input.maxLength = 40;
     row.appendChild(input);
     const removeBtn = document.createElement('button');

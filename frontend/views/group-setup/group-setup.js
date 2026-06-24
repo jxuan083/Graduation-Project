@@ -2,6 +2,7 @@
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { PET_BODY_OPTIONS } from '../../core/config.js';
+import { t } from '../../core/i18n.js';
 
 let currentGroupId = null;
 let selectedPetBody = null;
@@ -200,10 +201,10 @@ function renderPetVote(g) {
 
     if (petTargetUid) {
         const target = members.find(m => m.uid === petTargetUid);
-        if (statusEl) statusEl.textContent = `已選定：${target?.nickname || petTargetUid} 為群組寵物`;
+        if (statusEl) statusEl.textContent = t('已選定：{name} 為群組寵物', { name: target?.nickname || petTargetUid });
     } else {
         const voteCount = Object.keys(votes).length;
-        if (statusEl) statusEl.textContent = `已投票 ${voteCount}/${members.length} 人`;
+        if (statusEl) statusEl.textContent = t('已投票 {count}/{total} 人', { count: voteCount, total: members.length });
     }
 
     members.forEach(m => {
@@ -262,7 +263,7 @@ function renderPetPreview(g) {
         const energy = g.pet_energy ?? 50;
         const maxEnergy = g.pet_max_energy ?? 100;
         const status = { HAPPY: '😊 很開心', NORMAL: '😐 普通', HUNGRY: '😟 肚子餓', CRITICAL: '💀 危急' }[g.pet_status] || '';
-        statsEl.textContent = `HP: ${'❤️'.repeat(Math.max(0, hp))} | 能量: ${energy}/${maxEnergy} | ${status}`;
+        statsEl.textContent = t('HP: {hp} | 能量: {energy}/{maxEnergy} | {status}', { hp: '❤️'.repeat(Math.max(0, hp)), energy, maxEnergy, status });
     }
     if (g.pet_body_emoji) {
         document.querySelectorAll('.pet-body-btn').forEach(b => {

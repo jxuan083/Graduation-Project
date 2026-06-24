@@ -1,6 +1,7 @@
 // views/groups/groups.js
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-groups', {
@@ -38,11 +39,11 @@ async function handleJoinByInvite() {
             return;
         }
         if (info.already_member) {
-            alert(`你已經是「${info.name}」的成員了！`);
+            alert(t('你已經是「{name}」的成員了！', { name: info.name }));
             if (input) input.value = '';
             return;
         }
-        const ok = confirm(`加入群組「${info.name}」（${info.member_count} 位成員）？`);
+        const ok = confirm(t('加入群組「{name}」（{count} 位成員）？', { name: info.name, count: info.member_count }));
         if (!ok) return;
         const { data: joinData } = await joinGroupByInviteCode(code);
         if (joinData?.status === 'success') {
