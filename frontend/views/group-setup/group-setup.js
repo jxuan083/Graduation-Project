@@ -229,7 +229,7 @@ function renderPetVote(g) {
                 const { voteForPet } = await import('../../features/groups/controller.js');
                 const { data } = await voteForPet(currentGroupId, btn.dataset.uid);
                 if (data?.status === 'success') await refreshGroupDetail();
-                else alert(data?.detail || t('投票失敗'));
+                else alert(t('投票失敗') + (data?.detail ? ': ' + data.detail : ''));
             } catch (err) { alert(t('投票失敗：') + (err.message || err)); }
         };
     });
