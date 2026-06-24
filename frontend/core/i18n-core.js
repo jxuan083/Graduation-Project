@@ -3,7 +3,7 @@
 
 /** 將 "你好 {name}" + {name:'A'} → "你好 A"；缺少的參數保留原樣 {key}。 */
 export function interpolate(template, params) {
-  if (!params) return template;
+  if (!params) return String(template);
   return String(template).replace(/\{(\w+)\}/g, (m, k) =>
     (k in params && params[k] != null) ? String(params[k]) : m
   );

@@ -14,6 +14,11 @@ test('interpolate with no params returns template unchanged', () => {
   assert.equal(interpolate('plain text'), 'plain text');
 });
 
+test('interpolate coerces non-string template (no params) to string', () => {
+  assert.equal(interpolate(0), '0');
+  assert.equal(typeof interpolate('plain'), 'string');
+});
+
 const dict = {
   en: {
     '聚會時間': 'Meeting Time',
