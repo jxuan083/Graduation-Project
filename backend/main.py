@@ -2714,6 +2714,56 @@ async def setup_my_pet(payload: PersonalPetSetupPayload, decoded: dict = Depends
     return {"status": "success"}
 
 
+class PersonalPetUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    animal: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+@app.patch("/api/my-pet")
+async def update_my_pet(payload: PersonalPetUpdatePayload, decoded: dict = Depends(verify_token)):
+    """更新寵物的名字／動物／照片，但不重置養成數值（setup 會重置，這個不會）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    ref = db.collection("users").document(uid)
+    data = ref.get().to_dict() or {}
+    if not data.get("my_pet_image_url"):
+        raise HTTPException(status_code=404, detail="還沒有寵物")
+
+    updates = {}
+    if payload.name is not None:
+        updates["my_pet_name"] = payload.name.strip()[:20]
+    if payload.animal is not None:
+        updates["my_pet_animal"] = payload.animal or "dog"
+    if payload.image_url is not None:
+        updates["my_pet_image_url"] = payload.image_url
+    if not updates:
+        raise HTTPException(status_code=400, detail="沒有要更新的欄位")
+
+    updates["my_pet_last_updated"] = firestore.SERVER_TIMESTAMP
+    ref.update(updates)
+    return {"status": "success", "updated": [k for k in updates if k != "my_pet_last_updated"]}
+
+
+@app.delete("/api/my-pet")
+async def delete_my_pet(decoded: dict = Depends(verify_token)):
+    """刪除目前使用者的寵物（清掉所有 my_pet_* 欄位）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    fields = [
+        "image_url", "name", "animal", "hunger", "happiness", "energy",
+        "cleanliness", "is_sleeping", "has_poop", "has_pee", "status", "last_updated",
+    ]
+    clear = {f"my_pet_{f}": firestore.DELETE_FIELD for f in fields}
+    try:
+        db.collection("users").document(uid).update(clear)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "success"}
+
+
 @app.post("/api/my-pet/action")
 async def my_pet_action(payload: PersonalPetActionPayload, decoded: dict = Depends(verify_token)):
     uid = decoded.get("uid") or decoded.get("user_id")

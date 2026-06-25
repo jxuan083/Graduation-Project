@@ -39,6 +39,10 @@ export function init() {
     document.getElementById('btn-pet-rename').onclick    = openRenameDialog;
     document.getElementById('btn-rename-confirm').onclick = confirmRename;
     document.getElementById('btn-rename-cancel').onclick  = closeRenameDialog;
+
+    document.getElementById('btn-pet-delete').onclick     = openDeleteDialog;
+    document.getElementById('btn-delete-confirm').onclick  = confirmDelete;
+    document.getElementById('btn-delete-cancel').onclick   = closeDeleteDialog;
     document.getElementById('pet-rename-input').addEventListener('keydown', e => {
         if (e.key === 'Enter') confirmRename();
         if (e.key === 'Escape') closeRenameDialog();
@@ -135,6 +139,7 @@ function renderGroupMode() {
     document.getElementById('pet-group-name').textContent    = _groupPet._groupName || '群組';
     document.getElementById('pet-tama-name').textContent     = _groupPet.pet_name || '群組寵物';
     document.getElementById('btn-pet-rename').style.display  = 'none';
+    document.getElementById('btn-pet-delete').style.display  = 'none';
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
@@ -178,6 +183,7 @@ function renderPersonalMode() {
     document.getElementById('pet-group-badge').style.display   = 'none';
     document.getElementById('pet-tama-name').textContent       = _pet.my_pet_name || '我的寵物';
     document.getElementById('btn-pet-rename').style.display    = '';
+    document.getElementById('btn-pet-delete').style.display    = '';
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _pet.my_pet_image_url) img.src = _pet.my_pet_image_url;
@@ -272,13 +278,32 @@ async function confirmRename() {
     closeRenameDialog();
     if (!name) return;
     try {
-        await apiFetch('/api/my-pet/setup', {
-            method: 'POST',
-            body: JSON.stringify({ image_url: _pet.my_pet_image_url, name, animal: _pet.my_pet_animal || 'dog' }),
+        // 用 PATCH 只改名字，不會像 setup 那樣把養成數值重置
+        await apiFetch('/api/my-pet', {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
         });
         _pet.my_pet_name = name;
         document.getElementById('pet-tama-name').textContent = name;
     } catch (e) { console.error('rename error', e); }
+}
+
+function openDeleteDialog() {
+    if (isGroupMode()) return;
+    document.getElementById('pet-delete-overlay').style.display = 'flex';
+}
+function closeDeleteDialog() {
+    document.getElementById('pet-delete-overlay').style.display = 'none';
+}
+async function confirmDelete() {
+    if (!_pet || isGroupMode()) return;
+    closeDeleteDialog();
+    try {
+        await apiFetch('/api/my-pet', { method: 'DELETE' });
+        stopPolling();
+        _pet = null;
+        switchView('view-home');
+    } catch (e) { console.error('delete error', e); }
 }
 
 function startPolling() {
