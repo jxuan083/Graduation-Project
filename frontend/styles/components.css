@@ -1075,50 +1075,25 @@
 }
 
 
-/* Pet Filter */
-.pet-filter-subtitle {
-  text-align: center;
-  margin-bottom: 20px;
+/* ── Pet Camera (IG/Spark AR 風格全螢幕相機) ── */
+.pet-cam-view {
+  padding: 0 !important;
+  max-width: none;
 }
 
-.pet-filter-card {
-  text-align: center;
-}
-
-#view-pet-swap h2 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-#view-pet-swap h2 svg {
-  width: 1.4rem;
-  height: 1.4rem;
-}
-
-.pet-filter-stage {
+.pet-cam-stage {
   position: relative;
   width: 100%;
-  min-height: 260px;
-  margin-bottom: 14px;
+  height: 74dvh;
+  min-height: 460px;
+  border-radius: 18px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
-    rgba(0,0,0,0.2);
+  background: #000;
+  user-select: none;
+  touch-action: manipulation;
 }
 
-.pet-filter-canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 260px;
-  object-fit: contain;
-}
-
-.pet-camera-video {
+.pet-cam-video {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1126,86 +1101,278 @@
   pointer-events: none;
 }
 
-.pet-upload-placeholder {
+.pet-cam-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #0b0b0f;
+}
+
+.pet-cam-placeholder,
+.pet-cam-loading {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  color: var(--text-secondary);
-  cursor: pointer;
+  gap: 12px;
+  color: #e5e7eb;
+  text-align: center;
+  padding: 24px;
+  z-index: 3;
 }
 
-.pet-upload-placeholder svg {
-  width: 2.8rem;
-  height: 2.8rem;
-  stroke-width: 1.5;
+.pet-cam-placeholder svg {
+  width: 3rem;
+  height: 3rem;
+  stroke-width: 1.4;
+  opacity: 0.9;
 }
 
-.pet-filter-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--text-primary);
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(8px);
-}
-
-.pet-filter-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-
-.pet-filter-actions .btn {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.pet-template-section {
-  margin-bottom: 14px;
-}
-
-.pet-filter-label {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.pet-template-list {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.pet-template-btn {
-  min-height: 40px;
-  padding: 8px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.04);
-  color: var(--text-primary);
+.pet-cam-placeholder span {
   font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  color: #cbd5e1;
 }
 
-.pet-template-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.08);
-}
-
-.pet-template-btn.active {
-  border-color: var(--accent-fire, #ff6b35);
-  background: rgba(255,107,53,0.18);
+.pet-cam-cta {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-fire, #ff6b35);
   color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pet-cam-loading {
+  background: rgba(8, 10, 18, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.pet-cam-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  z-index: 4;
+}
+
+.pet-cam-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.38);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s, transform 0.12s;
+}
+
+.pet-cam-icon:hover { background: rgba(0, 0, 0, 0.55); }
+.pet-cam-icon:active { transform: scale(0.92); }
+.pet-cam-icon svg { width: 1.25rem; height: 1.25rem; }
+
+.pet-cam-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.38);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.pet-cam-pill svg { width: 1rem; height: 1rem; }
+.pet-cam-pill:active { transform: scale(0.96); }
+
+.pet-cam-toast {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pet-cam-status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.32);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.pet-cam-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #fff;
+  background: rgba(220, 38, 38, 0.8);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.pet-cam-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 18px;
+  z-index: 4;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+.pet-cam-corner { flex: 0 0 auto; }
+
+.pet-filter-carousel {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 6px 0;
+}
+.pet-filter-carousel::-webkit-scrollbar { display: none; }
+
+.pet-carousel-pad {
+  flex: 0 0 calc(50% - 32px);
+}
+
+.pet-filter-dot {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: center;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+  padding: 0;
+}
+
+.pet-filter-dot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.pet-filter-dot svg { width: 1.4rem; height: 1.4rem; }
+
+.pet-filter-dot.active {
+  width: 68px;
+  height: 68px;
+  border-color: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
+}
+
+.pet-filter-add {
+  border-style: dashed;
+}
+
+/* ── 底部彈出 sheet（拍照動作 / 預約聚會） ── */
+.pet-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  background: var(--surface, #1b1f2a);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+  animation: pet-sheet-up 0.22s ease;
+  max-height: 80dvh;
+  overflow-y: auto;
+}
+
+@keyframes pet-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.pet-sheet-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  margin: 10px auto 4px;
+}
+
+.pet-sheet-body { padding: 8px 16px 22px; }
+
+.pet-sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+  font-size: 1.05rem;
+}
+.pet-sheet-title svg { width: 1.2rem; height: 1.2rem; }
+
+.pet-sheet-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.pet-sheet-actions .btn { flex: 1; margin-bottom: 0; }
+
+.pet-field {
+  display: block;
+  margin-bottom: 12px;
+}
+.pet-field span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+.pet-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 0.92rem;
 }
 
 .pet-filter-controls {
@@ -1213,16 +1380,11 @@
   gap: 10px;
   margin-bottom: 14px;
   padding: 12px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  background: rgba(0,0,0,0.16);
+  background: rgba(0, 0, 0, 0.16);
 }
-
-.pet-filter-controls.is-disabled {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
+.pet-filter-controls.is-disabled { opacity: 0.45; pointer-events: none; }
 .pet-filter-controls label {
   display: grid;
   grid-template-columns: 42px 1fr;
@@ -1231,34 +1393,11 @@
   color: var(--text-secondary);
   font-size: 0.84rem;
 }
-
 .pet-filter-controls input[type="range"] {
   width: 100%;
   accent-color: var(--accent-fire, #ff6b35);
 }
 
-.pet-filter-status {
-  margin-top: 4px;
-}
-
-.pet-filter-error {
-  color: #fca5a5;
-  margin-top: 6px;
-}
-
-@media (max-width: 420px) {
-  .pet-filter-actions {
-    flex-wrap: wrap;
-  }
-
-  .pet-filter-actions .btn {
-    flex-basis: calc(50% - 4px);
-  }
-
-  .pet-template-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 
 .spinner {
     width: 32px;

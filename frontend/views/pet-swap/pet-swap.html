@@ -1,75 +1,98 @@
-<section id="view-pet-swap" class="view">
-    <h2><i data-lucide="paw-print"></i> 寵物貼紙濾鏡</h2>
-    <p class="hint pet-filter-subtitle">照片先在瀏覽器本機處理；只有你按「設為群組頭像」或「養它」時才會上傳。</p>
+<section id="view-pet-swap" class="view pet-cam-view">
+    <div class="pet-cam-stage" id="pet-cam-stage">
+        <video id="pet-camera-video" class="pet-cam-video" autoplay muted playsinline></video>
+        <canvas id="pet-filter-canvas" class="pet-cam-canvas" aria-label="寵物濾鏡預覽"></canvas>
 
-    <div class="summary-card pet-filter-card">
-        <div class="pet-filter-stage" id="pet-filter-stage">
-            <video id="pet-camera-video" class="pet-camera-video" autoplay muted playsinline></video>
-            <canvas id="pet-filter-canvas" class="pet-filter-canvas" aria-label="寵物貼紙濾鏡預覽"></canvas>
-            <div id="pet-upload-placeholder" class="pet-upload-placeholder">
-                <i data-lucide="image-plus"></i>
-                <span>選擇照片開始</span>
-            </div>
-            <div id="pet-loading" class="pet-filter-loading" style="display:none;">
-                <div class="spinner"></div>
-                <span>定位臉部中…</span>
-            </div>
+        <!-- 上傳佔位（沒開鏡頭、沒選照片時） -->
+        <div id="pet-upload-placeholder" class="pet-cam-placeholder">
+            <i data-lucide="scan-face"></i>
+            <span>開啟鏡頭，或左下角上傳照片</span>
+            <button id="btn-pet-camera" class="pet-cam-cta"><i data-lucide="video"></i> 開啟鏡頭</button>
         </div>
 
-        <div class="pet-filter-actions">
-            <button id="btn-pet-camera" class="btn secondary"><i data-lucide="video"></i> 即時鏡頭</button>
-            <button id="btn-pet-album" class="btn secondary"><i data-lucide="image"></i> 相簿</button>
-            <button id="btn-pet-stop-camera" class="btn secondary" style="display:none;"><i data-lucide="video-off"></i> 停止</button>
+        <!-- 載入中 -->
+        <div id="pet-loading" class="pet-cam-loading" style="display:none;">
+            <div class="spinner"></div>
+            <span>定位臉部中…</span>
         </div>
+
+        <!-- 頂部列 -->
+        <div class="pet-cam-top">
+            <button id="btn-pet-swap-back" class="pet-cam-icon" aria-label="返回"><i data-lucide="chevron-down"></i></button>
+            <button id="btn-pet-schedule" class="pet-cam-pill"><i data-lucide="calendar-plus"></i> 預約聚會</button>
+            <button id="btn-pet-flip" class="pet-cam-icon" aria-label="翻轉鏡頭"><i data-lucide="refresh-cw"></i></button>
+        </div>
+
+        <!-- 提示／錯誤 -->
+        <div class="pet-cam-toast">
+            <p id="pet-status" class="pet-cam-status">開啟鏡頭，左右滑選濾鏡，點中間圓圈拍照。</p>
+            <p id="pet-error" class="pet-cam-error" style="display:none;"></p>
+        </div>
+
+        <!-- 底部：上傳 / 濾鏡輪盤(中間=快門) / 收藏 -->
+        <div class="pet-cam-bottom">
+            <button id="btn-pet-album" class="pet-cam-icon pet-cam-corner" aria-label="上傳照片"><i data-lucide="image"></i></button>
+
+            <div class="pet-filter-carousel" id="pet-filter-carousel">
+                <div class="pet-carousel-pad"></div>
+                <button class="pet-filter-dot" data-animal="none" title="無濾鏡"><i data-lucide="ban"></i></button>
+                <button class="pet-filter-dot active" data-animal="dog" title="狗"><img src="" data-asset="dog" alt="狗" /></button>
+                <button class="pet-filter-dot" data-animal="cat" title="貓"><img src="" data-asset="cat" alt="貓" /></button>
+                <button class="pet-filter-dot" data-animal="rabbit" title="兔"><img src="" data-asset="rabbit" alt="兔" /></button>
+                <button class="pet-filter-dot" data-animal="fox" title="狐"><img src="" data-asset="fox" alt="狐" /></button>
+                <button class="pet-filter-dot pet-filter-add" data-animal="add" title="新增 / 上傳"><i data-lucide="plus"></i></button>
+                <div class="pet-carousel-pad"></div>
+            </div>
+
+            <button id="btn-pet-fav" class="pet-cam-icon pet-cam-corner" aria-label="收藏"><i data-lucide="heart"></i></button>
+        </div>
+
         <input id="pet-album-input" type="file" accept="image/*" style="display:none;" />
-
-        <div class="pet-template-section">
-            <p class="pet-filter-label">模板</p>
-            <div id="pet-template-list" class="pet-template-list">
-                <button class="pet-template-btn active" data-animal="dog">狗</button>
-                <button class="pet-template-btn" data-animal="cat">貓</button>
-                <button class="pet-template-btn" data-animal="rabbit">兔</button>
-                <button class="pet-template-btn" data-animal="fox">狐</button>
-            </div>
-        </div>
-
-        <div class="pet-filter-controls" id="pet-filter-controls" aria-label="濾鏡微調">
-            <label>
-                <span>大小</span>
-                <input id="pet-control-scale" type="range" min="70" max="145" value="100" />
-            </label>
-            <label>
-                <span>左右</span>
-                <input id="pet-control-x" type="range" min="-120" max="120" value="0" />
-            </label>
-            <label>
-                <span>上下</span>
-                <input id="pet-control-y" type="range" min="-120" max="120" value="0" />
-            </label>
-            <label>
-                <span>旋轉</span>
-                <input id="pet-control-rotation" type="range" min="-30" max="30" value="0" />
-            </label>
-        </div>
-
-        <div class="pet-filter-actions">
-            <button id="btn-pet-generate" class="btn primary" disabled><i data-lucide="scan-face"></i> 自動定位</button>
-            <button id="btn-pet-reset" class="btn secondary" disabled><i data-lucide="rotate-ccw"></i> 重設</button>
-            <button id="btn-pet-download" class="btn secondary" disabled><i data-lucide="download"></i> 下載</button>
-        </div>
-
-        <div class="pet-filter-actions">
-            <button id="btn-pet-set-avatar" class="btn primary" style="display:none;" disabled><i data-lucide="image-up"></i> 設為群組頭像</button>
-            <button id="btn-pet-adopt" class="btn primary" disabled><i data-lucide="heart"></i> 養它！</button>
-        </div>
-        <div id="pet-adopt-loading" style="display:none; padding:8px 0; text-align:center;">
-            <div class="spinner" style="margin:0 auto 4px; width:20px; height:20px;"></div>
-            <p class="hint" style="font-size:0.8rem;">上傳中…</p>
-        </div>
-
-        <p id="pet-status" class="hint pet-filter-status">請選擇一張正臉照片。</p>
-        <p id="pet-error" class="hint pet-filter-error" style="display:none;"></p>
+        <input id="pet-custom-input" type="file" accept="image/*" style="display:none;" />
     </div>
 
-    <button id="btn-pet-swap-back" class="btn secondary" style="margin-top:12px;">返回</button>
+    <!-- 拍照後動作（底部彈出） -->
+    <div id="pet-result-sheet" class="pet-sheet" hidden>
+        <div class="pet-sheet-grip"></div>
+        <div class="pet-sheet-body">
+            <div class="pet-filter-controls" id="pet-filter-controls" aria-label="濾鏡微調">
+                <label><span>大小</span><input id="pet-control-scale" type="range" min="70" max="160" value="100" /></label>
+                <label><span>左右</span><input id="pet-control-x" type="range" min="-160" max="160" value="0" /></label>
+                <label><span>上下</span><input id="pet-control-y" type="range" min="-160" max="160" value="0" /></label>
+                <label><span>旋轉</span><input id="pet-control-rotation" type="range" min="-30" max="30" value="0" /></label>
+            </div>
+            <div class="pet-sheet-actions">
+                <button id="btn-pet-generate" class="btn secondary" disabled><i data-lucide="scan-face"></i> 自動定位</button>
+                <button id="btn-pet-reset" class="btn secondary" disabled><i data-lucide="rotate-ccw"></i> 重設</button>
+                <button id="btn-pet-download" class="btn secondary" disabled><i data-lucide="download"></i> 下載</button>
+            </div>
+            <div class="pet-sheet-actions">
+                <button id="btn-pet-set-avatar" class="btn primary" style="display:none;" disabled><i data-lucide="image-up"></i> 設為群組頭像</button>
+                <button id="btn-pet-adopt" class="btn primary" disabled><i data-lucide="heart"></i> 養它！</button>
+            </div>
+            <div id="pet-adopt-loading" style="display:none; padding:8px 0; text-align:center;">
+                <div class="spinner" style="margin:0 auto 4px; width:20px; height:20px;"></div>
+                <p class="hint" style="font-size:0.8rem;">上傳中…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 預約聚會（底部彈出） -->
+    <div id="pet-schedule-sheet" class="pet-sheet" hidden>
+        <div class="pet-sheet-grip"></div>
+        <div class="pet-sheet-body">
+            <h3 class="pet-sheet-title"><i data-lucide="calendar-plus"></i> 預約聚會</h3>
+            <label class="pet-field"><span>聚會名稱</span>
+                <input id="pet-sch-title" type="text" placeholder="例如：週五放下手機聚一聚" maxlength="40" /></label>
+            <label class="pet-field"><span>時間</span>
+                <input id="pet-sch-time" type="datetime-local" /></label>
+            <label class="pet-field"><span>地點（選填）</span>
+                <input id="pet-sch-place" type="text" placeholder="例如：路易莎信義店" maxlength="60" /></label>
+            <div class="pet-sheet-actions">
+                <button id="btn-sch-cancel" class="btn secondary">取消</button>
+                <button id="btn-sch-ics" class="btn primary"><i data-lucide="calendar-check"></i> 加入行事曆並邀請</button>
+            </div>
+            <p class="hint" style="font-size:0.78rem; margin-top:6px;">會產生一個 .ics 邀請檔，可加進行事曆、傳給朋友。</p>
+        </div>
+    </div>
 </section>
