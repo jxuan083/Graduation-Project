@@ -16,6 +16,7 @@ import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
 import { events } from './core/events.js';
+import { initI18n, t } from './core/i18n.js?v=27';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -123,6 +124,9 @@ async function boot() {
         // 3. 初始化 Lucide icons（HTML 全部插入後才能跑）
         if (window.lucide) window.lucide.createIcons();
 
+        // 3.5 初始化 i18n（HTML 已插入、icons 已建立後）
+        initI18n();
+
         // 4. 註冊 WebSocket 訊息 handler
         registerAllWsHandlers();
 
@@ -170,7 +174,7 @@ async function boot() {
 function handleGroupInviteOnBoot(code) {
     async function tryJoin() {
         if (!state.currentUser) {
-            alert('請先登入 Google 帳號，才能透過邀請碼加入群組');
+            alert(t('請先登入 Google 帳號，才能透過邀請碼加入群組'));
             state.pendingGroupInviteCode = code;
             return;
         }
@@ -178,25 +182,25 @@ function handleGroupInviteOnBoot(code) {
             const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js');
             const { res, data: info } = await getGroupInviteInfo(code);
             if (!res.ok || !info?.name) {
-                alert('邀請碼無效或已過期：' + (info?.detail || `HTTP ${res.status}`));
+                alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
                 return;
             }
             if (info.already_member) {
-                alert(`你已經是「${info.name}」的成員了！`);
+                alert(t('你已經是「{name}」的成員了！', { name: info.name }));
                 switchView('view-groups');
                 return;
             }
-            const ok = confirm(`加入群組「${info.name}」（${info.member_count} 位成員）？`);
+            const ok = confirm(t('加入群組「{name}」（{count} 位成員）？', { name: info.name, count: info.member_count }));
             if (!ok) return;
             const { data: joinData } = await joinGroupByInviteCode(code);
             if (joinData?.status === 'success') {
-                alert('成功加入群組！');
+                alert(t('成功加入群組！'));
                 switchView('view-groups');
             } else {
-                alert('加入失敗：' + (joinData?.detail || JSON.stringify(joinData)));
+                alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
             }
         } catch (err) {
-            alert('加入失敗：' + (err.message || err));
+            alert(t('加入失敗：') + (err.message || err));
         } finally {
             state.pendingGroupInviteCode = null;
         }

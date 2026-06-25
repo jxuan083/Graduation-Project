@@ -2,9 +2,10 @@
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { sendFriendRequestByUid } from '../friends/controller.js';
+import { t } from '../../core/i18n.js';
 
 export async function openMemberPreview(targetUid) {
-    if (!state.currentUser) { alert('請先登入才能查看'); return; }
+    if (!state.currentUser) { alert(t('請先登入才能查看')); return; }
     state.memberPreviewUid = targetUid;
     document.getElementById('member-preview-nickname').innerText = '載入中...';
     document.getElementById('member-preview-bio').innerText = '';
@@ -16,7 +17,7 @@ export async function openMemberPreview(targetUid) {
     if (modal) modal.classList.remove('hidden');
     try {
         const { res, data } = await apiFetch(`/api/users/${encodeURIComponent(targetUid)}/public`);
-        if (!res.ok) { alert('讀取資料失敗:' + ((data && data.detail) || '')); return; }
+        if (!res.ok) { alert(t('讀取資料失敗:') + ((data && data.detail) || '')); return; }
         const p = (data && data.profile) || {};
         document.getElementById('member-preview-nickname').innerText = p.nickname || '(無名)';
         document.getElementById('member-preview-bio').innerText = p.bio || '(這個人還沒寫 bio)';

@@ -3,6 +3,7 @@ import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { apiFetch } from '../../core/api.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-qa-picker', { element: document.getElementById('view-qa-picker') });
@@ -70,7 +71,7 @@ async function refreshQaPickerList() {
 
             item.onclick = () => {
                 if (!sendAction('START_QA', { source: 'specific', question_id: q.id })) {
-                    alert('連線中斷');
+                    alert(t('連線中斷'));
                 }
             };
             listEl.appendChild(item);

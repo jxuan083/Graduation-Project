@@ -4,6 +4,7 @@
 import { firebaseConfig, HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
 import { state } from './state.js';
 import { events } from './events.js';
+import { t } from './i18n.js';
 
 firebase.initializeApp(firebaseConfig);
 
@@ -71,7 +72,7 @@ export async function doGoogleLogin() {
         await auth.signInWithPopup(googleProvider);
     } catch (err) {
         console.error('Google sign-in failed:', err);
-        alert('Google 登入失敗:' + (err.message || err));
+        alert(t('Google 登入失敗:') + (err.message || err));
     }
 }
 

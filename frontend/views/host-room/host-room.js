@@ -5,6 +5,7 @@ import { sendAction } from '../../core/ws.js';
 import { cleanupSession } from '../../core/session.js';
 import { copyInviteLink } from '../invite-modal/invite-modal.js';
 import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-host-room', {
@@ -55,7 +56,7 @@ async function handleCancelHostRoom(e) {
     const raw = memberCountEl ? (memberCountEl.innerText || memberCountEl.textContent || '0') : '0';
     const memberCount = parseInt(raw, 10) || 0;
     if (memberCount > 1) {
-        if (!confirm(`目前已有 ${memberCount} 人加入,確定取消聚會嗎?`)) return;
+        if (!confirm(t('目前已有 {count} 人加入，確定取消聚會嗎？', { count: memberCount }))) return;
     }
 
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {

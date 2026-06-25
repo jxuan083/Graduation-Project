@@ -1408,3 +1408,30 @@
     animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== 語言切換 toggle ===== */
+.lang-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-right: 8px;
+  flex: 0 0 auto;
+}
+.lang-toggle .lang-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 4px 10px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.lang-toggle .lang-btn.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a1a1a;
+  opacity: 1;
+  font-weight: 700;
+}

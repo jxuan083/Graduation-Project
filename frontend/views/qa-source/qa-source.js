@@ -3,6 +3,7 @@ import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { openQaManualPicker } from '../qa-picker/qa-picker.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-qa-source', { element: document.getElementById('view-qa-source') });
@@ -15,7 +16,7 @@ export function init() {
 
 export function openQaSourcePicker() {
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-        alert('連線中斷,無法出題');
+        alert(t('連線中斷,無法出題'));
         return;
     }
     switchView('view-qa-source');
@@ -23,7 +24,7 @@ export function openQaSourcePicker() {
 
 function startQaFromSource(source) {
     if (!sendAction('START_QA', { source })) {
-        alert('連線中斷');
+        alert(t('連線中斷'));
     }
     // 不切 view,讓 QA_STARTED 廣播回來時統一處理
 }

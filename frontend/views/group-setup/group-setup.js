@@ -2,6 +2,7 @@
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { PET_BODY_OPTIONS } from '../../core/config.js';
+import { t } from '../../core/i18n.js';
 
 let currentGroupId = null;
 let selectedPetBody = null;
@@ -113,7 +114,7 @@ function renderInviteCode(g) {
 async function handleCopyInvite() {
     const g = state.currentGroupDetail;
     const code = g?.invite_code;
-    if (!code) { alert('邀請碼尚未生成，請稍後再試'); return; }
+    if (!code) { alert(t('邀請碼尚未生成，請稍後再試')); return; }
     const link = `${window.location.protocol}//${window.location.host}/?group_invite=${code}`;
     try {
         await navigator.clipboard.writeText(link);
@@ -126,7 +127,7 @@ async function handleCopyInvite() {
 
 async function handleRefreshInvite() {
     if (!currentGroupId) return;
-    if (!confirm('確定重新產生邀請碼？舊的邀請碼將立即失效。')) return;
+    if (!confirm(t('確定重新產生邀請碼？舊的邀請碼將立即失效。'))) return;
     try {
         const { refreshGroupInviteCode } = await import('../../features/groups/controller.js');
         const { data } = await refreshGroupInviteCode(currentGroupId);
@@ -135,9 +136,9 @@ async function handleRefreshInvite() {
             const codeEl = document.getElementById('invite-code-display');
             if (codeEl) codeEl.textContent = data.invite_code;
         } else {
-            alert('重新產生失敗：' + (data?.detail || JSON.stringify(data)));
+            alert(t('重新產生失敗：') + (data?.detail || JSON.stringify(data)));
         }
-    } catch (err) { alert('重新產生失敗：' + (err.message || err)); }
+    } catch (err) { alert(t('重新產生失敗：') + (err.message || err)); }
 }
 
 function renderMembers(g) {
@@ -177,12 +178,12 @@ function renderMembers(g) {
 
     ul.querySelectorAll('.btn-rm-member').forEach(btn => {
         btn.onclick = async () => {
-            if (!confirm('確定移除？')) return;
+            if (!confirm(t('確定移除？'))) return;
             try {
                 const { removeGroupMember } = await import('../../features/groups/controller.js');
                 await removeGroupMember(currentGroupId, btn.dataset.uid);
                 await refreshGroupDetail();
-            } catch (err) { alert('移除失敗：' + (err.message || err)); }
+            } catch (err) { alert(t('移除失敗：') + (err.message || err)); }
         };
     });
 }
@@ -200,10 +201,10 @@ function renderPetVote(g) {
 
     if (petTargetUid) {
         const target = members.find(m => m.uid === petTargetUid);
-        if (statusEl) statusEl.textContent = `已選定：${target?.nickname || petTargetUid} 為群組寵物`;
+        if (statusEl) statusEl.textContent = t('已選定：{name} 為群組寵物', { name: target?.nickname || petTargetUid });
     } else {
         const voteCount = Object.keys(votes).length;
-        if (statusEl) statusEl.textContent = `已投票 ${voteCount}/${members.length} 人`;
+        if (statusEl) statusEl.textContent = t('已投票 {count}/{total} 人', { count: voteCount, total: members.length });
     }
 
     members.forEach(m => {
@@ -228,8 +229,8 @@ function renderPetVote(g) {
                 const { voteForPet } = await import('../../features/groups/controller.js');
                 const { data } = await voteForPet(currentGroupId, btn.dataset.uid);
                 if (data?.status === 'success') await refreshGroupDetail();
-                else alert(data?.detail || '投票失敗');
-            } catch (err) { alert('投票失敗：' + (err.message || err)); }
+                else alert(t('投票失敗') + (data?.detail ? ': ' + data.detail : ''));
+            } catch (err) { alert(t('投票失敗：') + (err.message || err)); }
         };
     });
 }
@@ -262,7 +263,7 @@ function renderPetPreview(g) {
         const energy = g.pet_energy ?? 50;
         const maxEnergy = g.pet_max_energy ?? 100;
         const status = { HAPPY: '😊 很開心', NORMAL: '😐 普通', HUNGRY: '😟 肚子餓', CRITICAL: '💀 危急' }[g.pet_status] || '';
-        statsEl.textContent = `HP: ${'❤️'.repeat(Math.max(0, hp))} | 能量: ${energy}/${maxEnergy} | ${status}`;
+        statsEl.textContent = t('HP: {hp} | 能量: {energy}/{maxEnergy} | {status}', { hp: '❤️'.repeat(Math.max(0, hp)), energy, maxEnergy, status });
     }
     if (g.pet_body_emoji) {
         document.querySelectorAll('.pet-body-btn').forEach(b => {
@@ -274,21 +275,21 @@ function renderPetPreview(g) {
 
 async function handleLeaveGroup() {
     if (!currentGroupId) return;
-    if (!confirm('確定退出這個群組？')) return;
+    if (!confirm(t('確定退出這個群組？'))) return;
     try {
         const { removeGroupMember } = await import('../../features/groups/controller.js');
         const myUid = state.currentUser?.uid;
         await removeGroupMember(currentGroupId, myUid);
-        alert('已退出群組');
+        alert(t('已退出群組'));
         const { switchView } = await import('../../core/router.js');
         switchView('view-groups');
-    } catch (err) { alert('退出失敗：' + (err.message || err)); }
+    } catch (err) { alert(t('退出失敗：') + (err.message || err)); }
 }
 
 async function handleSaveName() {
     const nameInput = document.getElementById('group-name-input');
     const name = nameInput?.value?.trim();
-    if (!name) { alert('請輸入群組名稱'); return; }
+    if (!name) { alert(t('請輸入群組名稱')); return; }
 
     try {
         const { createGroup, updateGroupName } = await import('../../features/groups/controller.js');
@@ -302,22 +303,22 @@ async function handleSaveName() {
                 if (titleEl) titleEl.textContent = '群組設定';
                 showExistingGroupSections();
                 await refreshGroupDetail();
-                alert('群組已建立！');
+                alert(t('群組已建立！'));
             } else {
-                alert('建立失敗：' + (data?.detail || JSON.stringify(data)));
+                alert(t('建立失敗：') + (data?.detail || JSON.stringify(data)));
             }
         } else {
             await updateGroupName(currentGroupId, name);
-            alert('名稱已更新');
+            alert(t('名稱已更新'));
         }
-    } catch (err) { alert('操作失敗：' + (err.message || err)); }
+    } catch (err) { alert(t('操作失敗：') + (err.message || err)); }
 }
 
 async function handleAddMember() {
     const input = document.getElementById('add-member-input');
     const identifier = input?.value?.trim();
-    if (!identifier) { alert('請輸入 Email 或 UID'); return; }
-    if (!currentGroupId) { alert('請先儲存群組名稱'); return; }
+    if (!identifier) { alert(t('請輸入 Email 或 UID')); return; }
+    if (!currentGroupId) { alert(t('請先儲存群組名稱')); return; }
     try {
         const { addGroupMember } = await import('../../features/groups/controller.js');
         const { data } = await addGroupMember(currentGroupId, identifier);
@@ -325,24 +326,24 @@ async function handleAddMember() {
             if (input) input.value = '';
             await refreshGroupDetail();
         } else {
-            alert('新增失敗：' + (data?.detail || JSON.stringify(data)));
+            alert(t('新增失敗：') + (data?.detail || JSON.stringify(data)));
         }
-    } catch (err) { alert('新增失敗：' + (err.message || err)); }
+    } catch (err) { alert(t('新增失敗：') + (err.message || err)); }
 }
 
 async function handleSavePetBody() {
-    if (!selectedPetBody) { alert('請選擇一個動物身體'); return; }
+    if (!selectedPetBody) { alert(t('請選擇一個動物身體')); return; }
     if (!currentGroupId) return;
     try {
         const { updatePet } = await import('../../features/groups/controller.js');
         const { data } = await updatePet(currentGroupId, { pet_body_emoji: selectedPetBody });
         if (data?.status === 'success') {
             await refreshGroupDetail();
-            alert('身體造型已更新！');
+            alert(t('身體造型已更新！'));
         } else {
-            alert('更新失敗：' + (data?.detail || JSON.stringify(data)));
+            alert(t('更新失敗：') + (data?.detail || JSON.stringify(data)));
         }
-    } catch (err) { alert('更新失敗：' + (err.message || err)); }
+    } catch (err) { alert(t('更新失敗：') + (err.message || err)); }
 }
 
 function escHtml(s) {

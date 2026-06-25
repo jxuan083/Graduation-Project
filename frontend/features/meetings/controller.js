@@ -4,6 +4,7 @@ import { apiFetch } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
+import { t } from '../../core/i18n.js';
 
 const MEETINGS_DISPLAY_LIMIT = 10;
 let _allMeetings = [];
@@ -11,7 +12,7 @@ let _showFavoritesOnly = false;
 
 export async function openMeetingsList() {
     if (!state.currentUser) {
-        alert('請先登入才能查看聚會紀錄');
+        alert(t('請先登入才能查看聚會紀錄'));
         return;
     }
     _showFavoritesOnly = false;
@@ -274,10 +275,10 @@ export async function saveMeetingTranscriptFromInput() {
             throw new Error((data && data.detail) || '儲存失敗');
         }
         input.value = '';
-        if (status) status.innerText = `已儲存 ${data.saved} 段逐字稿`;
+        if (status) status.innerText = t('已儲存 {saved} 段逐字稿', { saved: data.saved });
     } catch (err) {
         console.error('save transcript failed:', err);
-        if (status) status.innerText = `儲存失敗: ${err.message || err}`;
+        if (status) status.innerText = t('儲存失敗: {error}', { error: err.message || err });
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -316,12 +317,12 @@ export async function transcribeMeetingAudio() {
         if (!res.ok || !data || data.status !== 'success') {
             throw new Error((data && data.detail) || '音檔轉錄失敗');
         }
-        if (status) status.innerText = `已轉錄並儲存 ${data.saved} 段（${data.engine}）`;
+        if (status) status.innerText = t('已轉錄並儲存 {saved} 段（{engine}）', { saved: data.saved, engine: data.engine });
         await loadMeetingTranscripts(meetingId);
         await loadMeetingNewspaper(meetingId);
     } catch (err) {
         console.error('audio transcript failed:', err);
-        if (status) status.innerText = `音檔轉錄失敗: ${err.message || err}`;
+        if (status) status.innerText = t('音檔轉錄失敗: {error}', { error: err.message || err });
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -351,7 +352,7 @@ export async function generateMeetingNewspaper() {
         renderNewspaper(data.newspaper);
     } catch (err) {
         console.error('generate newspaper failed:', err);
-        alert('產生聚會回顧報失敗: ' + (err.message || err));
+        alert(t('產生聚會回顧報失敗:') + ' ' + (err.message || err));
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -394,7 +395,7 @@ async function loadMeetingTranscripts(meetingId) {
         if (status && lines.length === 0) status.innerText = '這次聚會沒有逐字稿記錄';
     } catch (err) {
         console.warn('load transcripts skipped:', err);
-        if (status) status.innerText = `逐字稿載入失敗: ${err.message || err}`;
+        if (status) status.innerText = t('逐字稿載入失敗: {error}', { error: err.message || err });
     }
 }
 

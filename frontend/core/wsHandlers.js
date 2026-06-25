@@ -5,6 +5,7 @@ import { switchView } from './router.js';
 import { registerHandler, sendAction, closeWs } from './ws.js';
 import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
+import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
 import { enterReadyPhase, startPreCountdown, showResults, cleanup67Game, handleCancelled, updateLiveScores, syncTime } from '../views/67-game/67-game.js';
@@ -31,7 +32,7 @@ export function registerAllWsHandlers() {
     registerHandler('GAME67_CANCELLED', handleGame67Cancelled);
     registerHandler('GAME67_LIVE_SCORES', handleGame67LiveScores);
     registerHandler('GAME67_TIME_SYNC', handleGame67TimeSync);
-    registerHandler('QA_ERROR', (msg) => alert('出題失敗:' + msg.message));
+    registerHandler('QA_ERROR', (msg) => alert(t('出題失敗:') + msg.message));
 }
 
 function handleRoomUpdate(msg) {
@@ -65,7 +66,7 @@ function handleRoomUpdate(msg) {
 function handleRoomCancelled() {
     if (!state.amIHost) {
         try { showToast('聚會已被房主取消', 'warn'); }
-        catch (e) { alert('聚會已被房主取消'); }
+        catch (e) { alert(t('聚會已被房主取消')); }
     }
     cleanupSession();
     switchView('view-home');
@@ -206,7 +207,7 @@ function handleQaStarted(msg) {
 function handleQaProgress(msg) {
     const statusEl = document.getElementById('qa-status');
     if (statusEl && statusEl.innerText.includes('等待其他人')) {
-        statusEl.innerText = `你已送出答案,等待其他人... (${msg.answered_count}/${msg.total_count})`;
+        statusEl.innerText = t('你已送出答案,等待其他人... ({answered}/{total})', { answered: msg.answered_count, total: msg.total_count });
     }
 }
 
@@ -227,9 +228,9 @@ function handleQaFinished(msg) {
                 div.style.background = 'rgba(16, 185, 129, 0.25)';
                 div.style.borderColor = '#34d399';
                 div.style.color = '#a7f3d0';
-                div.innerText = `${opt}  —  ${count} 票(正解)`;
+                div.innerText = t('{option}  —  {count} 票(正解)', { option: opt, count });
             } else {
-                div.innerText = `${opt}  —  ${count} 票`;
+                div.innerText = t('{option}  —  {count} 票', { option: opt, count });
             }
             container.appendChild(div);
         });
@@ -237,17 +238,17 @@ function handleQaFinished(msg) {
 
     if (questionEl) {
         if (msg.has_answer && msg.correct_option) {
-            questionEl.innerText = `正解:${msg.correct_option}(${msg.correct_count || 0} 人答對)`;
+            questionEl.innerText = t('正解:{option}({count} 人答對)', { option: msg.correct_option, count: msg.correct_count || 0 });
         } else {
             questionEl.innerText = '結果統計';
         }
     }
-    if (statusEl) statusEl.innerText = '5 秒後返回聚會畫面...';
+    if (statusEl) statusEl.innerText = t('5 秒後返回聚會畫面...');
 
     let countdown = 5;
     const intv = setInterval(() => {
         countdown--;
-        if (statusEl) statusEl.innerText = `${countdown} 秒後返回聚會畫面...`;
+        if (statusEl) statusEl.innerText = t('{countdown} 秒後返回聚會畫面...', { countdown });
         if (countdown <= 0) {
             clearInterval(intv);
             state.currentPhase = 'ACTIVE';

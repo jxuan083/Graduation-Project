@@ -3,6 +3,7 @@ import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { getDisplayNickname } from '../../core/firebase.js';
 import { joinRoom } from '../../core/session.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-join', { element: document.getElementById('view-join') });
@@ -33,7 +34,7 @@ function confirmJoinRoom() {
     const input = document.getElementById('join-nickname');
     const name = (input.value || '').trim();
     if (!name) {
-        alert('請先輸入暱稱才能加入聚會');
+        alert(t('請先輸入暱稱才能加入聚會'));
         input.focus();
         return;
     }

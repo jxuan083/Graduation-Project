@@ -2,6 +2,7 @@
 import { state } from '../../core/state.js';
 import { apiFetch, apiBase } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
+import { t } from '../../core/i18n.js';
 
 // === photoMode 旗標 — 拍照時暫停分心偵測 ===
 export function startPhotoMode() {
@@ -160,13 +161,13 @@ export async function lightboxSetCover() {
         closePhotoLightbox();
         await loadMeetingPhotos(state.currentMeetingDetailId);
     } catch (err) {
-        alert('設定封面失敗:' + (err.message || err));
+        alert(t('設定封面失敗:') + (err.message || err));
     }
 }
 
 export async function lightboxDelete() {
     if (!state.lightboxPhoto || !state.currentMeetingDetailId) return;
-    if (!confirm('確定刪除這張照片?')) return;
+    if (!confirm(t('確定刪除這張照片?'))) return;
     try {
         const { res, data } = await apiFetch(
             `/api/meetings/${state.currentMeetingDetailId}/photos/${state.lightboxPhoto.id}`,
@@ -176,6 +177,6 @@ export async function lightboxDelete() {
         closePhotoLightbox();
         await loadMeetingPhotos(state.currentMeetingDetailId);
     } catch (err) {
-        alert('刪除照片失敗:' + (err.message || err));
+        alert(t('刪除照片失敗:') + (err.message || err));
     }
 }

@@ -8,6 +8,7 @@ import {
     generateMeetingNewspaper,
 } from '../../features/meetings/controller.js';
 import { startPhotoMode, endPhotoMode, uploadMeetingPhoto, loadMeetingPhotos } from '../../features/photos/controller.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-meeting-detail', { element: document.getElementById('view-meeting-detail') });
@@ -24,7 +25,7 @@ export function init() {
 function handleDetailPhotoClick(inputId) {
     if (!state.currentMeetingDetailId) return;
     if (state.currentMeetingPhotos.length >= 10) {
-        alert('每場聚會最多 10 張照片');
+        alert(t('每場聚會最多 10 張照片'));
         return;
     }
     startPhotoMode();
@@ -47,7 +48,7 @@ async function handleDetailPhotoChange(e) {
         await uploadMeetingPhoto(state.currentMeetingDetailId, file);
         await loadMeetingPhotos(state.currentMeetingDetailId);
     } catch (err) {
-        alert('照片上傳失敗:' + (err.message || err));
+        alert(t('照片上傳失敗:') + (err.message || err));
     } finally {
         btn.disabled = false;
         btn.innerText = orig;
