@@ -2,6 +2,7 @@ import { register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { storage } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
+import { t } from '../../core/i18n.js';
 
 const MEDIAPIPE_VERSION = '0.10.35';
 const MEDIAPIPE_BUNDLE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/vision_bundle.mjs`;
@@ -750,7 +751,7 @@ function setStatus(message) {
 }
 function showError(message) {
     const el = document.getElementById('pet-error');
-    el.textContent = `錯誤：${message}`;
+    el.textContent = t('錯誤：{message}', { message });
     el.style.display = 'block';
 }
 function hideError() {
