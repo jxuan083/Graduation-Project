@@ -2,9 +2,10 @@
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
+import { t } from '../../core/i18n.js';
 
 export function openLeaderboardView() {
-    if (!state.currentUser) { alert('請先登入'); return; }
+    if (!state.currentUser) { alert(t('請先登入')); return; }
     switchView('view-leaderboard');
     switchLeaderboardTab(state.currentLeaderboardTab || 'global');
 }
@@ -30,7 +31,7 @@ export async function refreshLeaderboard() {
         if (data && data.period_start) {
             const d = new Date(data.period_start);
             const pad = (n) => String(n).padStart(2, '0');
-            hintEl.innerText = `本週(從 ${pad(d.getMonth()+1)}/${pad(d.getDate())} 週一 00:00 起,台北時區)`;
+            hintEl.innerText = t('本週(從 {month}/{day} 週一 00:00 起,台北時區)', { month: pad(d.getMonth()+1), day: pad(d.getDate()) });
         }
         listEl.innerHTML = '';
         if (entries.length === 0) {
@@ -72,7 +73,7 @@ function buildLeaderboardRow(e, index, meUid) {
     info.appendChild(name);
     const sub = document.createElement('div');
     sub.className = 'lb-sub';
-    sub.innerText = `本週 ${e.meetings_count || 0} 場`;
+    sub.innerText = t('本週 {count} 場', { count: e.meetings_count || 0 });
     info.appendChild(sub);
     row.appendChild(info);
 

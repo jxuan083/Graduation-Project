@@ -5,6 +5,7 @@ import { storage } from '../../core/firebase.js';
 import { apiFetch } from '../../core/api.js';
 import { goHomeFromMenu } from '../../core/session.js';
 import { events } from '../../core/events.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-profile', { element: document.getElementById('view-profile') });
@@ -23,7 +24,7 @@ export function init() {
 
 export function openProfileView() {
     if (!state.currentUser) {
-        alert('請先登入 Google 帳號');
+        alert(t('請先登入 Google 帳號'));
         return;
     }
     document.getElementById('profile-avatar-preview').src =

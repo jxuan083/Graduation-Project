@@ -1,6 +1,7 @@
 // views/groups/groups.js
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-groups', {
@@ -24,8 +25,8 @@ export function init() {
 async function handleJoinByInvite() {
     const input = document.getElementById('group-invite-input');
     const code = input?.value?.trim();
-    if (!code) { alert('請輸入邀請碼'); return; }
-    if (!state.currentUser) { alert('請先登入 Google 帳號，才能加入群組'); return; }
+    if (!code) { alert(t('請輸入邀請碼')); return; }
+    if (!state.currentUser) { alert(t('請先登入 Google 帳號，才能加入群組')); return; }
 
     const btn = document.getElementById('btn-join-by-invite');
     btn.disabled = true;
@@ -34,26 +35,26 @@ async function handleJoinByInvite() {
         const { getGroupInviteInfo, joinGroupByInviteCode } = await import('../../features/groups/controller.js');
         const { res, data: info } = await getGroupInviteInfo(code);
         if (!res.ok || !info?.name) {
-            alert('邀請碼無效或已過期：' + (info?.detail || `HTTP ${res.status}`));
+            alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
             return;
         }
         if (info.already_member) {
-            alert(`你已經是「${info.name}」的成員了！`);
+            alert(t('你已經是「{name}」的成員了！', { name: info.name }));
             if (input) input.value = '';
             return;
         }
-        const ok = confirm(`加入群組「${info.name}」（${info.member_count} 位成員）？`);
+        const ok = confirm(t('加入群組「{name}」（{count} 位成員）？', { name: info.name, count: info.member_count }));
         if (!ok) return;
         const { data: joinData } = await joinGroupByInviteCode(code);
         if (joinData?.status === 'success') {
             if (input) input.value = '';
-            alert('成功加入群組！');
+            alert(t('成功加入群組！'));
             await loadGroups();
         } else {
-            alert('加入失敗：' + (joinData?.detail || JSON.stringify(joinData)));
+            alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
         }
     } catch (err) {
-        alert('加入失敗：' + (err.message || err));
+        alert(t('加入失敗：') + (err.message || err));
     } finally {
         btn.disabled = false;
         btn.textContent = '加入';

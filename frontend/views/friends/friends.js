@@ -4,6 +4,7 @@ import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { goHomeFromMenu } from '../../core/session.js';
 import { events } from '../../core/events.js';
+import { t } from '../../core/i18n.js';
 import {
     sendFriendRequestByUid,
     acceptFriendRequest,
@@ -34,7 +35,7 @@ export function init() {
 }
 
 export function openFriendsView(initialTab) {
-    if (!state.currentUser) { alert('請先登入'); return; }
+    if (!state.currentUser) { alert(t('請先登入')); return; }
     switchView('view-friends');
     const tab = FRIEND_TABS.includes(initialTab) ? initialTab : 'list';
     switchFriendTab(tab);

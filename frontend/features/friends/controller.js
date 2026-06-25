@@ -3,6 +3,7 @@ import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { showToast } from '../../utils/toast.js';
 import { events } from '../../core/events.js';
+import { t } from '../../core/i18n.js';
 
 // === Cache 載入 ===
 export async function loadFriendUidCache() {
@@ -32,7 +33,7 @@ export async function loadFriendRequestsCache() {
 
 // === 加好友 (by email or uid) ===
 export async function sendFriendRequestByUid(targetUid, btnEl) {
-    if (!state.currentUser) { alert('請先登入'); return; }
+    if (!state.currentUser) { alert(t('請先登入')); return; }
     const originalText = btnEl ? btnEl.innerText : '';
     if (btnEl) { btnEl.innerText = '送出中...'; btnEl.disabled = true; }
     try {
@@ -41,7 +42,7 @@ export async function sendFriendRequestByUid(targetUid, btnEl) {
             body: JSON.stringify({ target_uid: targetUid })
         });
         if (!res.ok) {
-            alert('送出邀請失敗:' + ((data && data.detail) || res.status));
+            alert(t('送出邀請失敗:') + ((data && data.detail) || res.status));
             if (btnEl) { btnEl.innerText = originalText; btnEl.disabled = false; }
             return;
         }
@@ -67,7 +68,7 @@ export async function sendFriendRequestByUid(targetUid, btnEl) {
         }
         events.emit('friends:changed');
     } catch (err) {
-        alert('網路錯誤:' + err.message);
+        alert(t('網路錯誤:') + err.message);
         if (btnEl) { btnEl.innerText = originalText; btnEl.disabled = false; }
     }
 }
@@ -77,10 +78,10 @@ export async function acceptFriendRequest(reqId) {
         const { res, data } = await apiFetch(`/api/friend_requests/${encodeURIComponent(reqId)}/accept`, {
             method: 'POST'
         });
-        if (!res.ok) { alert('接受失敗:' + ((data && data.detail) || '')); return; }
+        if (!res.ok) { alert(t('接受失敗:') + ((data && data.detail) || '')); return; }
         showToast('已接受好友邀請');
         events.emit('friends:changed');
-    } catch (err) { alert('網路錯誤:' + err.message); }
+    } catch (err) { alert(t('網路錯誤:') + err.message); }
 }
 
 export async function declineFriendRequest(reqId) {
@@ -88,19 +89,19 @@ export async function declineFriendRequest(reqId) {
         const { res, data } = await apiFetch(`/api/friend_requests/${encodeURIComponent(reqId)}/decline`, {
             method: 'POST'
         });
-        if (!res.ok) { alert('拒絕失敗:' + ((data && data.detail) || '')); return; }
+        if (!res.ok) { alert(t('拒絕失敗:') + ((data && data.detail) || '')); return; }
         events.emit('friends:changed');
-    } catch (err) { alert('網路錯誤:' + err.message); }
+    } catch (err) { alert(t('網路錯誤:') + err.message); }
 }
 
 export async function removeFriend(friendUid) {
-    if (!confirm('確定要解除好友關係嗎?')) return;
+    if (!confirm(t('確定要解除好友關係嗎?'))) return;
     try {
         const { res, data } = await apiFetch(`/api/friends/${encodeURIComponent(friendUid)}`, {
             method: 'DELETE'
         });
-        if (!res.ok) { alert('解除失敗:' + ((data && data.detail) || '')); return; }
+        if (!res.ok) { alert(t('解除失敗:') + ((data && data.detail) || '')); return; }
         state.friendUidSet.delete(friendUid);
         events.emit('friends:changed');
-    } catch (err) { alert('網路錯誤:' + err.message); }
+    } catch (err) { alert(t('網路錯誤:') + err.message); }
 }

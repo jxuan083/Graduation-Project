@@ -8,6 +8,7 @@ import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
 import { openLeaderboardView } from '../../features/leaderboard/controller.js';
 import { apiFetch } from '../../core/api.js';
+import { t } from '../../core/i18n.js';
 
 const STATUS_BADGE = {
     HAPPY:    '😊',
@@ -122,7 +123,7 @@ function applyPet(petData, wrap) {
 
 function handleCreateRoom() {
     if (!state.currentUser) {
-        alert('請先用 Google 登入才能發起聚會');
+        alert(t('請先用 Google 登入才能發起聚會'));
         return;
     }
     switchView('view-meeting-setup');

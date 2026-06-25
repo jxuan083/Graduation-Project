@@ -12,6 +12,7 @@ import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends
 import { openProfileView } from '../views/profile/profile.js';
 import { openFriendsView } from '../views/friends/friends.js';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
+import { t } from './i18n.js';
 
 export function initChrome() {
     // ===== Auth bar =====
@@ -167,8 +168,8 @@ async function refreshIncomingBanner() {
             if (incoming.length > 0) {
                 const firstName = incoming[0].other_nickname || '匿名';
                 subEl.innerText = incoming.length === 1
-                    ? `來自 ${firstName}`
-                    : `來自 ${firstName} 等 ${incoming.length} 人`;
+                    ? t('來自 {name}', { name: firstName })
+                    : t('來自 {name} 等 {count} 人', { name: firstName, count: incoming.length });
             } else {
                 subEl.innerText = '';
             }

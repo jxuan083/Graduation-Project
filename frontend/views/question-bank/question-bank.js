@@ -4,6 +4,7 @@ import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { goHomeFromMenu } from '../../core/session.js';
 import { openQuestionEdit } from '../question-edit/question-edit.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-question-bank', { element: document.getElementById('view-question-bank') });
@@ -25,7 +26,7 @@ export function init() {
 
 export async function openQuestionBank() {
     if (!state.currentUser) {
-        alert('請先登入 Google 帳號');
+        alert(t('請先登入 Google 帳號'));
         return;
     }
     state.qbankCurrentTab = 'mine';
@@ -89,7 +90,7 @@ function renderQbankList(questions, kind) {
         if (kind === 'public' && q.category) {
             const meta = document.createElement('div');
             meta.className = 'qbank-item-meta';
-            meta.innerText = `分類:${q.category}` + (q.has_answer ? ' · 有正解' : '');
+            meta.innerText = t('分類:{category}', { category: q.category }) + (q.has_answer ? ' · 有正解' : '');
             item.appendChild(meta);
         } else if (kind === 'mine' && q.has_answer) {
             const meta = document.createElement('div');
@@ -141,16 +142,16 @@ function renderQbankList(questions, kind) {
 }
 
 async function deleteMyQuestion(qid) {
-    if (!confirm('確定要刪除這題?')) return;
+    if (!confirm(t('確定要刪除這題?'))) return;
     try {
         const { data } = await apiFetch(`/api/questions/${qid}`, { method: 'DELETE' });
         if (data.status !== 'success') {
-            alert('刪除失敗:' + (data.detail || ''));
+            alert(t('刪除失敗:') + (data.detail || ''));
             return;
         }
         await refreshQuestionBank();
     } catch (err) {
-        alert('刪除失敗:' + (err.message || err));
+        alert(t('刪除失敗:') + (err.message || err));
     }
 }
 
@@ -162,13 +163,13 @@ async function importPublicQuestion(publicId, btn) {
             body: JSON.stringify({ public_id: publicId })
         });
         if (data.status !== 'success') {
-            alert('加入失敗:' + (data.detail || ''));
+            alert(t('加入失敗:') + (data.detail || ''));
             if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
             return;
         }
         if (btn) btn.innerText = '✓ 已加入';
     } catch (err) {
-        alert('加入失敗:' + (err.message || err));
+        alert(t('加入失敗:') + (err.message || err));
         if (btn) { btn.disabled = false; btn.innerText = '加到我的題庫'; }
     }
 }
