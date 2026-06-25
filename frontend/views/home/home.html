@@ -38,6 +38,7 @@
     <button id="btn-create-room" class="btn primary btn-fire"><i data-lucide="flame"></i> 發起聚會</button>
     <p id="home-login-hint" class="hint" style="display:none; text-align:center; margin-bottom:12px;">※ 發起聚會需要先登入 Google 帳號</p>
     <button id="btn-scan-qr" class="btn secondary btn-qr"><i data-lucide="scan-line"></i> 掃描 QR Code 加入</button>
+    <button id="btn-home-schedule" class="btn secondary"><i data-lucide="calendar-plus"></i> 預約聚會</button>
 
     <!-- 功能 Grid（登入後顯示） -->
     <div class="home-grid" id="home-feature-grid">
@@ -69,5 +70,24 @@
     </div>
 
     <p class="hint footer-hint">也可以直接用手機相機掃 QR Code 加入</p>
+
+    <!-- 預約聚會（底部彈出） -->
+    <div id="home-schedule-sheet" class="pet-sheet" hidden>
+        <div class="pet-sheet-grip"></div>
+        <div class="pet-sheet-body">
+            <h3 class="pet-sheet-title"><i data-lucide="calendar-plus"></i> 預約聚會</h3>
+            <label class="pet-field"><span>聚會名稱</span>
+                <input id="sch-title" type="text" placeholder="例如：週五放下手機聚一聚" maxlength="40" /></label>
+            <label class="pet-field"><span>時間</span>
+                <input id="sch-time" type="datetime-local" /></label>
+            <label class="pet-field"><span>地點（選填）</span>
+                <input id="sch-place" type="text" placeholder="例如：路易莎信義店" maxlength="60" /></label>
+            <div class="pet-sheet-actions">
+                <button id="btn-sch-cancel" class="btn secondary">取消</button>
+                <button id="btn-sch-ics" class="btn primary"><i data-lucide="calendar-check"></i> 加入行事曆並邀請</button>
+            </div>
+            <p class="hint" style="font-size:0.78rem; margin-top:6px;">會產生一個 .ics 邀請檔，可加進行事曆、傳給朋友。</p>
+        </div>
+    </div>
 
 </section>

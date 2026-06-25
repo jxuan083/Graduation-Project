@@ -71,11 +71,6 @@ export function init() {
         document.getElementById(id).addEventListener('input', renderFilter);
     });
 
-    // 預約聚會 sheet
-    document.getElementById('btn-pet-schedule').onclick = () => openSheet('pet-schedule-sheet');
-    document.getElementById('btn-sch-cancel').onclick = () => closeSheet('pet-schedule-sheet');
-    document.getElementById('btn-sch-ics').onclick = createScheduleIcs;
-
     // 預載動物素材，並把縮圖塞進輪盤
     ANIMALS.forEach(name => {
         const img = getAnimalImage(name);
@@ -376,7 +371,8 @@ function getAnimalImage(name) {
 }
 
 function isMirrored() {
-    return sourceMode === 'video' && facingMode === 'user';
+    // 不做自拍鏡像：所見即所拍，避免桌機/手機畫面左右相反
+    return false;
 }
 
 function landmarkPoints(landmarks) {
@@ -619,45 +615,6 @@ function compressImage(file, maxPx, quality) {
     });
 }
 
-// ── 預約聚會：產生 .ics 邀請檔 ──
-function createScheduleIcs() {
-    const title = (document.getElementById('pet-sch-title').value || '放下手機聚一聚').trim();
-    const timeVal = document.getElementById('pet-sch-time').value;
-    const place = (document.getElementById('pet-sch-place').value || '').trim();
-    if (!timeVal) { showError('請先選聚會時間。'); return; }
-    const start = new Date(timeVal);
-    if (isNaN(start.getTime())) { showError('時間格式不正確。'); return; }
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-    const ics = [
-        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//phubbing//pet-swap//TW', 'CALSCALE:GREGORIAN',
-        'BEGIN:VEVENT',
-        `UID:${Date.now()}@phubbing`,
-        `DTSTAMP:${toIcsUtc(new Date())}`,
-        `DTSTART:${toIcsUtc(start)}`,
-        `DTEND:${toIcsUtc(end)}`,
-        `SUMMARY:${icsEscape(title)}`,
-        place ? `LOCATION:${icsEscape(place)}` : '',
-        'DESCRIPTION:來自 Phubbing：放下手機，好好相聚 🐾',
-        'END:VEVENT', 'END:VCALENDAR',
-    ].filter(Boolean).join('\r\n');
-
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${title}.ics`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    closeSheet('pet-schedule-sheet');
-    setStatus('已產生聚會邀請（.ics），可加進行事曆或傳給朋友。');
-}
-
-function toIcsUtc(d) {
-    return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-}
-function icsEscape(s) {
-    return String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
-}
-
 // ── sheet 開關 ──
 function openSheet(id) {
     document.getElementById(id).hidden = false;
@@ -682,7 +639,6 @@ function syncResultButtons() {
 function resetView() {
     stopLiveCamera();
     closeSheet('pet-result-sheet');
-    closeSheet('pet-schedule-sheet');
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     sourceUrl = '';
     sourceImage = null;
@@ -699,12 +655,6 @@ function resetView() {
     setStatus('開啟鏡頭，左右滑選濾鏡，點中間圓圈拍照。');
     document.getElementById('pet-adopt-loading').style.display = 'none';
     document.getElementById('pet-album-input').value = '';
-    // 預設時間填 1 小時後，方便預約
-    const t = new Date(Date.now() + 60 * 60 * 1000);
-    t.setSeconds(0, 0);
-    const local = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    const timeInput = document.getElementById('pet-sch-time');
-    if (timeInput) timeInput.value = local;
 }
 
 function setLoading(loading) {

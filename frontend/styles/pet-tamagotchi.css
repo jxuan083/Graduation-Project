@@ -108,6 +108,16 @@
   cursor: pointer;
 }
 #btn-pet-rename:hover { color: var(--text-primary); border-color: var(--border-2); }
+#btn-pet-delete {
+  background: none;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  border-radius: var(--r-sm);
+  color: #f87171;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+#btn-pet-delete:hover { color: #fff; background: #dc2626; border-color: #dc2626; }
 
 /* ── 舞台區 ── */
 .pet-stage {
