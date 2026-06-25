@@ -1,14 +1,24 @@
 // views/buffer/buffer.js — 分心倒數提醒
+//
+// 計時模型：以「絕對時間戳 deviationDeadline」為唯一基準。
+//   - 離開頁面 → 起算 15 秒截止時間（若尚未起算）
+//   - 截止時間一到 → 分心 +1，截止時間往後推 15 秒
+// 背景分頁的 setTimeout/setInterval 會被瀏覽器凍結或限流，因此「不」依賴
+// 背景計時器累計分心；而是在使用者「回到頁面」時，依離開總時長一次補算
+// 應記的分心次數（reconcileDeviations）。前景（頁面可見）時則用 setInterval
+// 即時倒數，兩者都以同一個 deviationDeadline 為準，互不衝突。
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
 
+const GRACE_MS = 15000; // 每 15 秒未回到頁面記一次分心
+
 export function init() {
     register('view-buffer', { element: document.getElementById('view-buffer') });
 
-    // 「我回來專心了」按鈕 — 清除計時，回 focus，不計分心
+    // 「我回來專心了」按鈕 — 清除計時，回 focus，不再額外計分心
     document.getElementById('btn-buffer-back').onclick = () => {
         endCognitiveBuffer(true);
     };
@@ -29,88 +39,90 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        // 停止背景計時器
-        clearTimeout(state.hiddenTimerObj);
-        state.hiddenTimerObj = null;
         state.hiddenAt = null;
 
+        // 沒有進行中的截止時間（理論上不會發生於回來時），保險起見直接回 focus
         if (!state.deviationDeadline) {
-            // 首次回來：起算 15 秒截止時間
-            state.deviationDeadline = Date.now() + 15000;
-            startCognitiveBuffer(15);
-        } else {
-            const remaining = state.deviationDeadline - Date.now();
-            if (remaining <= 0) {
-                // 背景計時器已觸發並計分心，直接回 focus
-                endCognitiveBuffer(true);
-            } else {
-                // 繼續顯示剩餘倒數
-                startCognitiveBuffer(Math.ceil(remaining / 1000));
-            }
+            endCognitiveBuffer(true);
+            return;
         }
 
+        // 依離開總時長一次補算所有應記的分心
+        reconcileDeviations();
+
+        // 補算後 deviationDeadline 一定 > now，顯示本輪剩餘倒數
+        startCognitiveBuffer();
         sendAction('VISIBILITY_CHANGE', { state: 'visible' });
     } else {
-        // 用戶離開
+        // 用戶離開：若尚未起算，現在起算 15 秒截止時間
         state.hiddenAt = Date.now();
-
-        // 若尚未有截止時間，現在起算 15 秒
         if (!state.deviationDeadline) {
-            state.deviationDeadline = Date.now() + 15000;
+            state.deviationDeadline = Date.now() + GRACE_MS;
         }
-
-        // 把前景倒數轉為背景計時器（繼承剩餘時間）
+        // 停掉前景倒數（背景不依賴計時器，回來時再補算）
         clearInterval(state.bufferTimerObj);
         state.bufferTimerObj = null;
-
-        const remaining = Math.max(state.deviationDeadline - Date.now(), 0);
-        state.hiddenTimerObj = setTimeout(deviationFired, remaining);
+        clearTimeout(state.hiddenTimerObj);
+        state.hiddenTimerObj = null;
 
         sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     }
 }
 
-export function startCognitiveBuffer(seconds = 15) {
+// 依目前時間與 deviationDeadline 補算應記的分心次數，並把截止時間往後推。
+// 回傳這次補算的次數（0 表示還在本輪 15 秒內）。
+function reconcileDeviations() {
+    if (!state.deviationDeadline) return 0;
+    const now = Date.now();
+    if (now < state.deviationDeadline) return 0;
+
+    const overdue = now - state.deviationDeadline;
+    const count = Math.floor(overdue / GRACE_MS) + 1;
+    logDeviation(count);
+    state.deviationDeadline += count * GRACE_MS; // 推進後必定 > now
+    return count;
+}
+
+function logDeviation(count) {
+    if (count <= 0) return;
+    if (!sendAction('LOG_DEVIATION', { count })) {
+        // WS 斷線：暫存，重連後補送，並嘗試自動重連
+        state.pendingDeviation = (state.pendingDeviation || 0) + count;
+        reconnectSilent();
+    }
+}
+
+// 前景倒數：顯示 buffer 畫面並每秒依 deviationDeadline 重算剩餘秒數。
+// 倒數歸零（使用者停在警告頁卻不點按鈕）時，記一次分心並進入下一輪。
+export function startCognitiveBuffer() {
     clearInterval(state.bufferTimerObj);
     state.bufferTimerObj = null;
+
+    if (!state.deviationDeadline) {
+        state.deviationDeadline = Date.now() + GRACE_MS;
+    }
 
     switchView('view-buffer');
     document.body.classList.remove('mode-flow');
     document.body.classList.add('mode-danger');
 
-    state.bufferSecondsLeft = seconds;
-    document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
-
+    renderRemaining();
     if (navigator.vibrate) navigator.vibrate(200);
 
     state.bufferTimerObj = setInterval(() => {
-        state.bufferSecondsLeft--;
-        document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
-        if (state.bufferSecondsLeft <= 0) {
-            clearInterval(state.bufferTimerObj);
-            state.bufferTimerObj = null;
-            deviationFired();
+        if (Date.now() >= state.deviationDeadline) {
+            // 倒數歸零：補算（至少 +1）並進入下一輪，繼續顯示倒數
+            reconcileDeviations();
         }
+        renderRemaining();
     }, 1000);
 }
 
-// 統一處理分心事件：前景倒數歸零 或 背景計時器到期，都走這裡
-function deviationFired() {
-    if (!sendAction('LOG_DEVIATION', { count: 1 })) {
-        state.pendingDeviation = (state.pendingDeviation || 0) + 1;
-        reconnectSilent();
-    }
-
-    // 設定下一輪 15 秒截止時間
-    state.deviationDeadline = Date.now() + 15000;
-
-    if (document.visibilityState === 'hidden') {
-        // 仍在背景：繼續 15 秒計時
-        state.hiddenTimerObj = setTimeout(deviationFired, 15000);
-    } else {
-        // 在頁面上（前景倒數歸零）：重設 15 秒倒數
-        startCognitiveBuffer(15);
-    }
+function renderRemaining() {
+    const remainingMs = Math.max(state.deviationDeadline - Date.now(), 0);
+    state.bufferSecondsLeft = Math.ceil(remainingMs / 1000);
+    const el = document.getElementById('buffer-timer');
+    if (el) el.innerText = state.bufferSecondsLeft;
 }
 
 export function endCognitiveBuffer(safe) {
@@ -119,6 +131,7 @@ export function endCognitiveBuffer(safe) {
     clearTimeout(state.hiddenTimerObj);
     state.hiddenTimerObj = null;
     state.deviationDeadline = null;
+    state.hiddenAt = null;
 
     if (safe) {
         switchView('view-focus');
