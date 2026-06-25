@@ -8,6 +8,7 @@ import { openQaSourcePicker } from '../qa-source/qa-source.js';
 import { hostStartTabooGame } from '../../features/taboo/controller.js';
 import { startPhotoMode, endPhotoMode, uploadMeetingPhoto } from '../../features/photos/controller.js';
 import { openInviteModal } from '../invite-modal/invite-modal.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-focus', { element: document.getElementById('view-focus') });
@@ -251,7 +252,7 @@ function startBrowserLivePreview() {
         console.warn('speech preview failed:', event.error || event);
         const message = event.error === 'not-allowed'
             ? '瀏覽器擋住即時預覽麥克風權限；請允許麥克風或改用 Chrome'
-            : `即時預覽暫停（${event.error || 'unknown'}），Whisper 仍會每 8 秒轉錄`;
+            : t('即時預覽暫停（{error}），Whisper 仍會每 8 秒轉錄', { error: event.error || 'unknown' });
         setLiveTranscriptStatus(message);
     };
 
@@ -344,7 +345,7 @@ async function transcribeLiveChunk(chunk) {
         form.append('max_speakers', String(speakerCount));
     }
 
-    setLiveTranscriptStatus(`轉錄中... 佇列 ${state.liveTranscript.queue.length} 段，請稍等`);
+    setLiveTranscriptStatus(t('轉錄中... 佇列 {count} 段，請稍等', { count: state.liveTranscript.queue.length }));
     try {
         const { res, data } = await apiFetch(`/api/meetings/${state.roomId}/transcripts/audio`, {
             method: 'POST',
@@ -355,10 +356,10 @@ async function transcribeLiveChunk(chunk) {
         }
         appendLiveTranscriptEntries(data.entries || []);
         const diarization = data.diarization ? '已分辨說話者' : '未啟用說話者分離';
-        setLiveTranscriptStatus(`已儲存 ${data.saved} 段（${data.engine}，${diarization}）`);
+        setLiveTranscriptStatus(t('已儲存 {saved} 段（{engine}，{diarization}）', { saved: data.saved, engine: data.engine, diarization }));
     } catch (err) {
         console.error('live chunk transcript failed:', err);
-        setLiveTranscriptStatus('某段轉錄失敗: ' + (err.message || err));
+        setLiveTranscriptStatus(t('某段轉錄失敗: {error}', { error: err.message || err }));
     }
 }
 
@@ -410,7 +411,7 @@ function updateLiveTranscriptButton(active) {
 
 function handleMeetingPhotoClick(inputId) {
     if (!state.roomId) {
-        alert('聚會尚未建立');
+        alert(t('聚會尚未建立'));
         return;
     }
     startPhotoMode();
@@ -435,7 +436,7 @@ async function handleMeetingPhotoChange(e) {
         setTimeout(() => { btn.innerText = origText; btn.disabled = false; }, 1500);
     } catch (err) {
         console.error('upload photo failed:', err);
-        alert('照片上傳失敗:' + (err.message || err));
+        alert(t('照片上傳失敗:') + (err.message || err));
         btn.innerText = origText;
         btn.disabled = false;
     }
@@ -465,7 +466,7 @@ async function handleEndSession() {
         await fallbackPromise;
     } catch (err) {
         console.error('end session fallback failed:', err);
-        alert('聚會紀錄寫入失敗:' + (err.message || err));
+        alert(t('聚會紀錄寫入失敗:') + (err.message || err));
     }
     showLocalSummary();
 }

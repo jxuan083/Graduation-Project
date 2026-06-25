@@ -12,6 +12,9 @@ export const state = {
     roomId: null,
     pendingRoomId: null,           // 掃 QR 進來但還沒輸入暱稱
 
+    // === i18n ===
+    lang: localStorage.getItem('phubbing_lang') === 'en' ? 'en' : 'zh',
+
     // === 使用者 ===
     currentUser: null,             // Firebase user 物件
     currentProfile: null,          // /api/me 回傳的 profile
