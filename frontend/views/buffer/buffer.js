@@ -13,7 +13,8 @@ import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
 
-const GRACE_MS = 15000; // 每 15 秒未回到頁面記一次分心
+const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
+const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
 
 export function init() {
     register('view-buffer', { element: document.getElementById('view-buffer') });
@@ -57,7 +58,7 @@ function handleVisibilityChange() {
         // 用戶離開：若尚未起算，現在起算 15 秒截止時間
         state.hiddenAt = Date.now();
         if (!state.deviationDeadline) {
-            state.deviationDeadline = Date.now() + GRACE_MS;
+            state.deviationDeadline = Date.now() + getGraceMs();
         }
         // 停掉前景倒數（背景不依賴計時器，回來時再補算）
         clearInterval(state.bufferTimerObj);
@@ -77,9 +78,9 @@ function reconcileDeviations() {
     if (now < state.deviationDeadline) return 0;
 
     const overdue = now - state.deviationDeadline;
-    const count = Math.floor(overdue / GRACE_MS) + 1;
+    const count = Math.floor(overdue / getGraceMs()) + 1;
     logDeviation(count);
-    state.deviationDeadline += count * GRACE_MS; // 推進後必定 > now
+    state.deviationDeadline += count * getGraceMs(); // 推進後必定 > now
     return count;
 }
 
@@ -99,7 +100,7 @@ export function startCognitiveBuffer() {
     state.bufferTimerObj = null;
 
     if (!state.deviationDeadline) {
-        state.deviationDeadline = Date.now() + GRACE_MS;
+        state.deviationDeadline = Date.now() + getGraceMs();
     }
 
     switchView('view-buffer');
