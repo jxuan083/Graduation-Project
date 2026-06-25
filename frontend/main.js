@@ -16,7 +16,7 @@ import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
 import { events } from './core/events.js';
-import { initI18n, t } from './core/i18n.js';
+import { initI18n, t } from './core/i18n.js?v=27';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [

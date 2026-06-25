@@ -8,6 +8,7 @@ const ATTRS = ['placeholder', 'title', 'alt', 'aria-label'];
 const SKIP_SELECTOR = '#lang-toggle';      // 不翻譯切換鈕自身（中 / EN）
 const origText = new WeakMap();            // Text node -> 原始繁中
 let observer = null;
+let applying = false;                       // 引擎自身正在改 DOM 時，忽略 observer（避免自我觸發迴圈）
 
 export function getLang() {
   return state.lang === 'en' ? 'en' : 'zh';
@@ -44,7 +45,11 @@ function translateTextNode(node, lang) {
 
   if (lang === 'en') {
     const translated = translate(dict, 'en', key);
-    if (translated !== key) node.nodeValue = original.replace(key, translated);
+    if (translated !== key) {
+      const newVal = original.replace(key, translated);
+      // 只在值真的改變時才賦值，避免重複賦同值再次觸發 MutationObserver → 無限迴圈
+      if (node.nodeValue !== newVal) node.nodeValue = newVal;
+    }
   } else if (node.nodeValue !== original) {
     node.nodeValue = original;
   }
@@ -61,8 +66,11 @@ function translateAttrs(el, lang) {
     if (!key) continue;
     if (lang === 'en') {
       const translated = translate(dict, 'en', key);
-      if (translated !== key) el.setAttribute(attr, original.replace(key, translated));
-    } else {
+      if (translated !== key) {
+        const newVal = original.replace(key, translated);
+        if (el.getAttribute(attr) !== newVal) el.setAttribute(attr, newVal);
+      }
+    } else if (el.getAttribute(attr) !== original) {
       el.setAttribute(attr, original);
     }
   }
@@ -88,12 +96,19 @@ export function applyTo(root) {
 }
 
 function applyAll() {
-  for (const r of roots()) walk(r, getLang());
+  applying = true;
+  try {
+    for (const r of roots()) walk(r, getLang());
+  } finally {
+    if (observer) observer.takeRecords();  // 丟棄本次自產的 mutation 記錄
+    applying = false;
+  }
 }
 
 function startObserver() {
   if (observer) return;
   observer = new MutationObserver((mutations) => {
+    if (applying) return;             // 引擎自身造成的變更，不回應（避免自我觸發迴圈）
     if (getLang() !== 'en') return;   // zh 模式：DOM 本就是繁中，無需處理
     for (const m of mutations) {
       if (m.type === 'characterData') {
