@@ -1,94 +1,66 @@
 <section id="view-pet-swap" class="view">
-    <h2><i data-lucide="paw-print"></i> 寵物臉生成器</h2>
-    <p class="hint" style="text-align:center; margin-bottom:20px;">上傳一張正臉照片，合成專屬寵物臉！</p>
+    <h2><i data-lucide="paw-print"></i> 寵物貼紙濾鏡</h2>
+    <p class="hint pet-filter-subtitle">照片只在瀏覽器本機處理，不會上傳到後端。</p>
 
-    <div class="summary-card" style="text-align:center;">
-        <!-- 上傳區 -->
-        <div id="pet-upload-area" style="margin-bottom:16px;">
-            <div id="pet-preview-wrap" style="display:none; margin-bottom:12px;">
-                <img id="pet-preview-img" src="" alt="預覽"
-                     style="max-width:100%; max-height:260px; border-radius:12px; object-fit:contain;" />
+    <div class="summary-card pet-filter-card">
+        <div class="pet-filter-stage" id="pet-filter-stage">
+            <video id="pet-camera-video" class="pet-camera-video" autoplay muted playsinline></video>
+            <canvas id="pet-filter-canvas" class="pet-filter-canvas" aria-label="寵物貼紙濾鏡預覽"></canvas>
+            <div id="pet-upload-placeholder" class="pet-upload-placeholder">
+                <i data-lucide="image-plus"></i>
+                <span>選擇照片開始</span>
             </div>
-            <div id="pet-upload-placeholder"
-                 style="height:160px; border:2px dashed var(--border); border-radius:12px;
-                        display:flex; flex-direction:column; align-items:center; justify-content:center;
-                        color:var(--text-secondary); cursor:pointer; margin-bottom:12px;">
-                <i data-lucide="image-plus" style="width:2.5rem;height:2.5rem;stroke-width:1.5;"></i>
-                <span style="margin-top:8px; font-size:0.9rem;">點擊選擇照片</span>
-            </div>
-            <div style="display:flex; gap:8px; justify-content:center;">
-                <button id="btn-pet-camera" class="btn secondary" style="flex:1;"><i data-lucide="camera"></i> 相機</button>
-                <button id="btn-pet-album"  class="btn secondary" style="flex:1;"><i data-lucide="image"></i> 相簿</button>
-            </div>
-            <input id="pet-album-input"  type="file" accept="image/*" style="display:none;" />
-            <input id="pet-camera-input" type="file" accept="image/*" capture="user" style="display:none;" />
-        </div>
-
-        <!-- 動物選擇 -->
-        <div style="margin-bottom:16px;">
-            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">選擇動物模板</p>
-            <div id="pet-template-list" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-                <button class="pet-template-btn active" data-animal="dog">🐕 狗</button>
+            <div id="pet-loading" class="pet-filter-loading" style="display:none;">
+                <div class="spinner"></div>
+                <span>定位臉部中…</span>
             </div>
         </div>
 
-        <!-- 生成按鈕 -->
-        <button id="btn-pet-generate" class="btn primary" disabled style="width:100%; margin-bottom:16px;">
-            <i data-lucide="wand-2"></i> 生成寵物臉
-        </button>
+        <div class="pet-filter-actions">
+            <button id="btn-pet-camera" class="btn secondary"><i data-lucide="video"></i> 即時鏡頭</button>
+            <button id="btn-pet-album" class="btn secondary"><i data-lucide="image"></i> 相簿</button>
+            <button id="btn-pet-stop-camera" class="btn secondary" style="display:none;"><i data-lucide="video-off"></i> 停止</button>
+        </div>
+        <input id="pet-album-input" type="file" accept="image/*" style="display:none;" />
 
-        <!-- 結果 -->
-        <div id="pet-result-wrap" style="display:none;">
-            <hr style="border-color:var(--border); margin-bottom:16px;" />
-            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">結果</p>
-            <img id="pet-result-img" src="" alt="結果"
-                 style="max-width:100%; border-radius:12px; margin-bottom:12px;" />
-            <button id="btn-pet-set-avatar" class="btn primary" style="width:100%; margin-bottom:8px; display:none;"><i data-lucide="image-up"></i> 設為群組頭像</button>
-            <button id="btn-pet-download" class="btn secondary" style="width:100%; margin-bottom:8px;"><i data-lucide="download"></i> 儲存到相簿</button>
-            <button id="btn-pet-adopt" class="btn primary" style="width:100%;"><i data-lucide="heart"></i> 養它！</button>
-            <div id="pet-adopt-loading" style="display:none; padding:8px 0; text-align:center;">
-                <div class="spinner" style="margin:0 auto 4px; width:20px; height:20px;"></div>
-                <p class="hint" style="font-size:0.8rem;">上傳中…</p>
+        <div class="pet-template-section">
+            <p class="pet-filter-label">模板</p>
+            <div id="pet-template-list" class="pet-template-list">
+                <button class="pet-template-btn active" data-animal="dog">狗</button>
+                <button class="pet-template-btn" data-animal="cat">貓</button>
+                <button class="pet-template-btn" data-animal="rabbit">兔</button>
+                <button class="pet-template-btn" data-animal="fox">狐</button>
             </div>
         </div>
 
-        <!-- 載入中 -->
-        <div id="pet-loading" style="display:none; padding:20px 0;">
-            <div class="spinner" style="margin:0 auto 8px;"></div>
-            <p class="hint">合成中，請稍候…</p>
+        <div class="pet-filter-controls" id="pet-filter-controls" aria-label="濾鏡微調">
+            <label>
+                <span>大小</span>
+                <input id="pet-control-scale" type="range" min="70" max="145" value="100" />
+            </label>
+            <label>
+                <span>左右</span>
+                <input id="pet-control-x" type="range" min="-120" max="120" value="0" />
+            </label>
+            <label>
+                <span>上下</span>
+                <input id="pet-control-y" type="range" min="-120" max="120" value="0" />
+            </label>
+            <label>
+                <span>旋轉</span>
+                <input id="pet-control-rotation" type="range" min="-30" max="30" value="0" />
+            </label>
         </div>
 
-        <!-- 錯誤 -->
-        <p id="pet-error" class="hint" style="display:none; color:#fca5a5;"></p>
+        <div class="pet-filter-actions">
+            <button id="btn-pet-generate" class="btn primary" disabled><i data-lucide="scan-face"></i> 自動定位</button>
+            <button id="btn-pet-reset" class="btn secondary" disabled><i data-lucide="rotate-ccw"></i> 重設</button>
+            <button id="btn-pet-download" class="btn secondary" disabled><i data-lucide="download"></i> 下載</button>
+        </div>
+
+        <p id="pet-status" class="hint pet-filter-status">請選擇一張正臉照片。</p>
+        <p id="pet-error" class="hint pet-filter-error" style="display:none;"></p>
     </div>
 
     <button id="btn-pet-swap-back" class="btn secondary" style="margin-top:12px;">返回</button>
 </section>
-
-<!-- 相機 Modal（全螢幕，用 getUserMedia） -->
-<div id="pet-camera-modal" style="
-    display:none; position:fixed; inset:0; z-index:9999;
-    background:#000; flex-direction:column;">
-    <div style="position:relative; flex:1; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-        <video id="pet-camera-video" autoplay playsinline muted
-               style="width:100%; height:100%; object-fit:cover;"></video>
-        <!-- 對焦框 -->
-        <div style="position:absolute; width:200px; height:200px; border:2px solid rgba(255,255,255,0.6);
-                    border-radius:50%; pointer-events:none;
-                    box-shadow:0 0 0 9999px rgba(0,0,0,0.35);"></div>
-        <!-- 相機選擇（有多個設備時才顯示） -->
-        <select id="pet-camera-select" style="
-            display:none; position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
-            background:rgba(0,0,0,0.6); color:#fff; border:1px solid rgba(255,255,255,0.3);
-            border-radius:8px; padding:6px 10px; font-size:0.85rem; max-width:80%;"></select>
-    </div>
-    <div style="padding:24px 20px 32px; background:#111; display:flex; align-items:center; justify-content:space-around;">
-        <button id="btn-camera-close" style="background:rgba(255,255,255,0.12); border:none; border-radius:50%;
-                width:48px; height:48px; color:#fff; font-size:1.2rem; cursor:pointer;">✕</button>
-        <button id="btn-camera-snap" style="background:#fff; border:none; border-radius:50%;
-                width:68px; height:68px; font-size:2rem; cursor:pointer; box-shadow:0 0 0 4px rgba(255,255,255,0.3);">📷</button>
-        <button id="btn-camera-flip" style="background:rgba(255,255,255,0.12); border:none; border-radius:50%;
-                width:48px; height:48px; color:#fff; font-size:1.2rem; cursor:pointer;">🔄</button>
-    </div>
-    <canvas id="pet-camera-canvas" style="display:none;"></canvas>
-</div>
