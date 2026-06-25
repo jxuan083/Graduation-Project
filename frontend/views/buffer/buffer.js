@@ -8,13 +8,11 @@ import { reconnectSilent } from '../../core/session.js';
 export function init() {
     register('view-buffer', { element: document.getElementById('view-buffer') });
 
-    // 「我回來專心了」按鈕 — 不計分心
+    // 「我回來專心了」按鈕 — 清除計時，回 focus，不計分心
     document.getElementById('btn-buffer-back').onclick = () => {
         endCognitiveBuffer(true);
-        sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     };
 
-    // 監聽頁面可見性變化
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // WS 重連後補送暫存的分心次數
@@ -31,44 +29,56 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
-        const away = state.hiddenAt ? Date.now() - state.hiddenAt : 0;
+        // 停止背景計時器
+        clearTimeout(state.hiddenTimerObj);
+        state.hiddenTimerObj = null;
         state.hiddenAt = null;
 
-        if (away >= 15000) {
-            // 超過 15 秒：立即記分心（每多 60 秒再加一次），直接回 focus
-            const count = 1 + Math.floor((away - 15000) / 60000);
-            const sent = sendAction('LOG_DEVIATION', { count });
-            if (!sent) {
-                // WS 斷線：暫存，等重連後補送，並嘗試自動重連
-                state.pendingDeviation = (state.pendingDeviation || 0) + count;
-                reconnectSilent();
-            }
-            endCognitiveBuffer(true);
+        if (!state.deviationDeadline) {
+            // 首次回來：起算 15 秒截止時間
+            state.deviationDeadline = Date.now() + 15000;
+            startCognitiveBuffer(15);
         } else {
-            // 不到 15 秒：顯示 buffer，按按鈕不算分心，倒數完才算
-            startCognitiveBuffer();
+            const remaining = state.deviationDeadline - Date.now();
+            if (remaining <= 0) {
+                // 背景計時器已觸發並計分心，直接回 focus
+                endCognitiveBuffer(true);
+            } else {
+                // 繼續顯示剩餘倒數
+                startCognitiveBuffer(Math.ceil(remaining / 1000));
+            }
         }
-        if (!state.roomId || (state.ws && state.ws.readyState === WebSocket.OPEN)) {
-            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
-        }
+
+        sendAction('VISIBILITY_CHANGE', { state: 'visible' });
     } else {
-        // 用戶離開：記下離開時間
+        // 用戶離開
         state.hiddenAt = Date.now();
-        endCognitiveBuffer(false);
+
+        // 若尚未有截止時間，現在起算 15 秒
+        if (!state.deviationDeadline) {
+            state.deviationDeadline = Date.now() + 15000;
+        }
+
+        // 把前景倒數轉為背景計時器（繼承剩餘時間）
+        clearInterval(state.bufferTimerObj);
+        state.bufferTimerObj = null;
+
+        const remaining = Math.max(state.deviationDeadline - Date.now(), 0);
+        state.hiddenTimerObj = setTimeout(deviationFired, remaining);
+
         sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
     }
 }
 
-export function startCognitiveBuffer() {
-    if (state.bufferTimerObj) {
-        clearInterval(state.bufferTimerObj);
-        state.bufferTimerObj = null;
-    }
+export function startCognitiveBuffer(seconds = 15) {
+    clearInterval(state.bufferTimerObj);
+    state.bufferTimerObj = null;
+
     switchView('view-buffer');
     document.body.classList.remove('mode-flow');
     document.body.classList.add('mode-danger');
 
-    state.bufferSecondsLeft = 15;
+    state.bufferSecondsLeft = seconds;
     document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
 
     if (navigator.vibrate) navigator.vibrate(200);
@@ -79,9 +89,28 @@ export function startCognitiveBuffer() {
         if (state.bufferSecondsLeft <= 0) {
             clearInterval(state.bufferTimerObj);
             state.bufferTimerObj = null;
-            handleBufferTimeout();
+            deviationFired();
         }
     }, 1000);
+}
+
+// 統一處理分心事件：前景倒數歸零 或 背景計時器到期，都走這裡
+function deviationFired() {
+    if (!sendAction('LOG_DEVIATION', { count: 1 })) {
+        state.pendingDeviation = (state.pendingDeviation || 0) + 1;
+        reconnectSilent();
+    }
+
+    // 設定下一輪 15 秒截止時間
+    state.deviationDeadline = Date.now() + 15000;
+
+    if (document.visibilityState === 'hidden') {
+        // 仍在背景：繼續 15 秒計時
+        state.hiddenTimerObj = setTimeout(deviationFired, 15000);
+    } else {
+        // 在頁面上（前景倒數歸零）：重設 15 秒倒數
+        startCognitiveBuffer(15);
+    }
 }
 
 export function endCognitiveBuffer(safe) {
@@ -89,39 +118,11 @@ export function endCognitiveBuffer(safe) {
     state.bufferTimerObj = null;
     clearTimeout(state.hiddenTimerObj);
     state.hiddenTimerObj = null;
+    state.deviationDeadline = null;
+
     if (safe) {
         switchView('view-focus');
         document.body.classList.remove('mode-danger');
         document.body.classList.add('mode-flow');
     }
-}
-
-function handleBufferTimeout() {
-    sendAction('LOG_DEVIATION');
-
-    // 如果使用者還在別的分頁，重新開始 30 秒倒數（持續累計分心次數）
-    if (document.visibilityState === 'hidden') {
-        state.bufferSecondsLeft = 30;
-        document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
-        state.bufferTimerObj = setInterval(() => {
-            state.bufferSecondsLeft--;
-            document.getElementById('buffer-timer').innerText = state.bufferSecondsLeft;
-            if (state.bufferSecondsLeft <= 0) {
-                clearInterval(state.bufferTimerObj);
-                state.bufferTimerObj = null;
-                handleBufferTimeout();
-            }
-        }, 1000);
-        return;
-    }
-
-    // 使用者在當前分頁，顯示懲罰動畫後恢復
-    state.bufferTimerObj = null;
-    document.getElementById('lottie-orb').style.filter = 'grayscale(100%) opacity(0.5)';
-    switchView('view-focus');
-    document.body.classList.remove('mode-danger');
-    setTimeout(() => {
-        document.getElementById('lottie-orb').style.filter = 'none';
-        document.body.classList.add('mode-flow');
-    }, 5000);
 }

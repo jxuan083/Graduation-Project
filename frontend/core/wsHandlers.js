@@ -57,6 +57,8 @@ function handleRoomUpdate(msg) {
         state.currentPhase = 'SUMMARY';
         document.body.className = '';
         if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
+        if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
+        state.deviationDeadline = null;
         closeWs();
         switchView('view-summary');
     }
@@ -116,6 +118,8 @@ function handleSessionEnded(msg) {
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
     if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
+    if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
+    state.deviationDeadline = null;
     closeWs();
     switchView('view-summary');
 }
