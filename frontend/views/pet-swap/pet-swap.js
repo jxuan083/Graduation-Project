@@ -36,6 +36,45 @@ let videoLoopId = null;
 let facingMode = 'user';
 let lastTapAt = 0;
 
+// 抖動平滑（One-Euro filter）：大廠濾鏡不抖的關鍵，去 jitter 但不延遲
+let euro = null;
+let maskCanvas = null;
+let faceCanvas = null;
+
+function makeOneEuro({ minCutoff = 1.6, beta = 0.015, dCutoff = 1.0 } = {}) {
+    let xPrev = null, dxPrev = 0, tPrev = null;
+    const alpha = (cutoff, dt) => { const r = 2 * Math.PI * cutoff * dt; return r / (r + 1); };
+    return (x, t) => {
+        if (xPrev === null) { xPrev = x; tPrev = t; return x; }
+        const dt = Math.max(1e-3, (t - tPrev) / 1000);
+        tPrev = t;
+        const dx = (x - xPrev) / dt;
+        const aD = alpha(dCutoff, dt);
+        dxPrev = aD * dx + (1 - aD) * dxPrev;
+        const cutoff = minCutoff + beta * Math.abs(dxPrev);
+        const a = alpha(cutoff, dt);
+        xPrev = a * x + (1 - a) * xPrev;
+        return xPrev;
+    };
+}
+
+function resetSmoothing() {
+    euro = {
+        cx: makeOneEuro(), cy: makeOneEuro(),
+        w: makeOneEuro(), h: makeOneEuro(),
+        angle: makeOneEuro({ minCutoff: 2.2 }),
+    };
+}
+
+function smoothAnchor(a, t) {
+    if (!euro) resetSmoothing();
+    return {
+        cx: euro.cx(a.cx, t), cy: euro.cy(a.cy, t),
+        w: euro.w(a.w, t), h: euro.h(a.h, t),
+        angle: euro.angle(a.angle, t),
+    };
+}
+
 export function init() {
     register('view-pet-swap', {
         element: document.getElementById('view-pet-swap'),
@@ -206,6 +245,7 @@ async function startLiveCamera() {
     sourceMode = 'video';
     currentLandmarks = null;
     liveTask = null;
+    resetSmoothing();
     resetControlValues();
     setLoading(true);
     setStatus('正在開啟鏡頭…');
@@ -416,6 +456,9 @@ function renderFilter() {
         } catch { liveTask = null; }
     }
 
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
     if (!sourceReady()) {
         ctx.fillStyle = '#0b0b0f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -429,17 +472,30 @@ function renderFilter() {
         return;
     }
 
-    // 動物濾鏡：白底 → 動物身體（錨定臉、跟著動）→ 臉去背蓋上
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 動物濾鏡：柔和漸層底 → 動物身體（錨定臉、跟著動）→ 臉去背羽化蓋上
+    paintBackground(ctx, canvas);
 
     const pts = currentLandmarks ? landmarkPoints(currentLandmarks) : null;
     if (!pts) { drawSourceFrame(ctx, canvas); return; }
 
-    const anchor = anchorFromPoints(pts);
+    const raw = anchorFromPoints(pts);
+    // 即時鏡頭才平滑（照片是靜態不需要）
+    const anchor = sourceMode === 'video' ? smoothAnchor(raw, performance.now()) : raw;
     const controls = readControls();
     drawAnimalBody(ctx, selectedAnimal, anchor, controls);
-    drawFaceCutout(ctx, pts);
+    drawFaceCutout(ctx, pts, anchor);
+}
+
+// 柔和徑向漸層底，取代死白（少一個廉價破綻）
+function paintBackground(ctx, canvas) {
+    const g = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height * 0.42, canvas.height * 0.08,
+        canvas.width / 2, canvas.height / 2, canvas.height * 0.78,
+    );
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(1, '#e7ecf3');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function sourceReady() {
@@ -459,21 +515,50 @@ function drawAnimalBody(ctx, animal, anchor, controls) {
     ctx.save();
     ctx.translate(anchor.cx + controls.x, anchor.cy + controls.y);
     ctx.rotate(anchor.angle + controls.rotation);
+    // 陰影：讓動物接地、不再像浮貼
+    ctx.shadowColor = 'rgba(20, 24, 35, 0.32)';
+    ctx.shadowBlur = size * 0.06;
+    ctx.shadowOffsetY = size * 0.04;
     ctx.drawImage(img, -size / 2, -size / 2, size, size);
     ctx.restore();
 }
 
-function drawFaceCutout(ctx, pts) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(pts[FACE_OVAL[0]].x, pts[FACE_OVAL[0]].y);
-    for (let i = 1; i < FACE_OVAL.length; i++) {
-        ctx.lineTo(pts[FACE_OVAL[i]].x, pts[FACE_OVAL[i]].y);
+// 臉部去背 + 羽化軟邊（用離屏 canvas 做 mask，邊緣模糊 → 不再像紙剪）
+function drawFaceCutout(ctx, pts, anchor) {
+    const canvas = getCanvas();
+    const w = canvas.width, h = canvas.height;
+    if (!maskCanvas) { maskCanvas = document.createElement('canvas'); faceCanvas = document.createElement('canvas'); }
+    if (maskCanvas.width !== w || maskCanvas.height !== h) {
+        maskCanvas.width = faceCanvas.width = w;
+        maskCanvas.height = faceCanvas.height = h;
     }
-    ctx.closePath();
-    ctx.clip();
-    drawSourceFrame(ctx, getCanvas());
-    ctx.restore();
+    const mctx = maskCanvas.getContext('2d');
+    const fctx = faceCanvas.getContext('2d');
+
+    // 1. 在 mask 上畫臉形多邊形，並用 blur 把邊緣羽化
+    mctx.clearRect(0, 0, w, h);
+    mctx.save();
+    const feather = Math.max(4, (anchor ? Math.max(anchor.w, anchor.h) : Math.min(w, h)) * 0.05);
+    mctx.filter = `blur(${feather}px)`;
+    mctx.fillStyle = '#fff';
+    mctx.beginPath();
+    mctx.moveTo(pts[FACE_OVAL[0]].x, pts[FACE_OVAL[0]].y);
+    for (let i = 1; i < FACE_OVAL.length; i++) mctx.lineTo(pts[FACE_OVAL[i]].x, pts[FACE_OVAL[i]].y);
+    mctx.closePath();
+    mctx.fill();
+    mctx.restore();
+
+    // 2. 在 face canvas 畫原始畫面，再用 mask 的 alpha 切出羽化後的臉
+    fctx.clearRect(0, 0, w, h);
+    fctx.imageSmoothingQuality = 'high';
+    drawSourceFrame(fctx, faceCanvas);
+    fctx.save();
+    fctx.globalCompositeOperation = 'destination-in';
+    fctx.drawImage(maskCanvas, 0, 0);
+    fctx.restore();
+
+    // 3. 疊回主畫面
+    ctx.drawImage(faceCanvas, 0, 0);
 }
 
 function drawSourceFrame(ctx, canvas) {
