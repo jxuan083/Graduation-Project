@@ -19,6 +19,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+# Qwen 文案生成（失敗時 _build_newspaper 會 fallback 回規則版，故 import 失敗也不致命）
+try:
+    import llm
+except Exception as _llm_err:  # noqa: BLE001
+    llm = None
+    print(f"[main] llm 模組載入失敗，newspaper 將只用規則版：{_llm_err}")
+
 # ===== Firebase Storage 設定 =====
 # 預設指向這個專案的 bucket；可以透過環境變數覆寫
 STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "graduation-6ae65.firebasestorage.app")
@@ -1743,13 +1750,14 @@ def _build_newspaper(meeting_id: str, meeting: dict, transcripts: list, photos: 
         for p in top_people
     ]
 
-    return {
+    newspaper = {
         "id": "newspaper",
         "meeting_id": meeting_id,
         "style": "social_newspaper",
         "title": "Party Newspaper",
         "subtitle": f"{title_mode} recap",
         "lead": lead,
+        "highlights": [],
         "cover_photo": cover,
         "photo_count": len(photos),
         "photos": photos[:10],
@@ -1763,8 +1771,56 @@ def _build_newspaper(meeting_id: str, meeting: dict, transcripts: list, photos: 
             "transcript_entries": len(transcripts),
             "total_deviations": meeting.get("total_deviations", 0),
         },
+        "generated_by": "rules",
         "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
     }
+
+    # ── 用 Qwen 生成更自然的文案疊加上去；任何失敗都保留上面的規則版 ──
+    _enrich_newspaper_with_llm(newspaper)
+    return newspaper
+
+
+def _enrich_newspaper_with_llm(newspaper: dict) -> None:
+    """呼叫 Qwen 生成文案並就地覆蓋 newspaper 的文字欄位。
+
+    只覆蓋 title / subtitle / lead / highlights，以及 spotlights 的 summary（按 uid 對應）；
+    參與度分數、統計數字、照片一律不動，確保數據正確。失敗則原封不動（=規則版）。
+    """
+    if llm is None:
+        return
+    context = {
+        "mode": newspaper.get("subtitle", "").replace(" recap", "") or "聚會",
+        "member_count": newspaper["stats"]["member_count"],
+        "duration_minutes": newspaper["stats"]["duration_minutes"],
+        "topics": newspaper.get("topics") or [],
+        "photo_count": newspaper.get("photo_count") or 0,
+        "participation": newspaper.get("participation") or [],
+        "key_points": newspaper.get("key_points") or [],
+    }
+    try:
+        copy = llm.generate_newspaper_copy(context)
+    except Exception as e:  # noqa: BLE001
+        print(f"[main] Qwen enrich 例外，保留規則版：{e}")
+        return
+    if not copy:
+        return
+
+    if copy.get("title"):
+        newspaper["title"] = copy["title"]
+    if copy.get("subtitle"):
+        newspaper["subtitle"] = copy["subtitle"]
+    if copy.get("lead"):
+        newspaper["lead"] = copy["lead"]
+    if copy.get("highlights"):
+        newspaper["highlights"] = copy["highlights"]
+
+    ai_spotlights = copy.get("spotlights") or {}
+    for sp in newspaper.get("spotlights") or []:
+        ai_text = ai_spotlights.get(sp.get("uid"))
+        if ai_text:
+            sp["summary"] = ai_text
+
+    newspaper["generated_by"] = "qwen-plus"
 
 
 @app.post("/api/meetings/{meeting_id}/transcripts")

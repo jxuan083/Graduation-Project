@@ -466,6 +466,21 @@ function renderNewspaper(news) {
     setText('md-news-title', news.title || 'Party Newspaper');
     setText('md-news-lead', news.lead || '');
 
+    const highlightsSection = document.getElementById('md-news-highlights-section');
+    const highlightList = document.getElementById('md-news-highlights');
+    if (highlightList) {
+        highlightList.innerHTML = '';
+        const highlights = news.highlights || [];
+        highlights.forEach(item => {
+            const li = document.createElement('li');
+            li.innerText = item;
+            highlightList.appendChild(li);
+        });
+        if (highlightsSection) {
+            highlightsSection.style.display = highlights.length ? '' : 'none';
+        }
+    }
+
     const keyList = document.getElementById('md-news-keypoints');
     if (keyList) {
         keyList.innerHTML = '';

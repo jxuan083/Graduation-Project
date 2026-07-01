@@ -50,6 +50,11 @@ serviceAccountKey.json
 serviceAccountKey.json
 backend/serviceAccountKey.json
 
+# Qwen / LLM API 金鑰 (極度重要！絕對不要 commit)
+qwenAPIKey
+backend/qwenAPIKey
+*.apikey
+
 # 本地備份檔
 *.bak.v*
 
