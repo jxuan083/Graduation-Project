@@ -6,7 +6,7 @@
 [![Live Demo](https://img.shields.io/badge/demo-graduation--6ae65.web.app-4285F4?logo=firebase&logoColor=white)](https://graduation-6ae65.web.app)
 [![Backend](https://img.shields.io/badge/backend-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)](https://phubbing-backend-798458690617.asia-east1.run.app/api/version)
 [![Branch](https://img.shields.io/badge/branch-we1n-orange)](#)
-[![Version](https://img.shields.io/badge/version-v15.3-green)](#-版本歷程)
+[![Version](https://img.shields.io/badge/version-v15.4-green)](#-版本歷程)
 
 ---
 
@@ -73,6 +73,25 @@ firebase emulators:start --only hosting
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### 🐾 群組 & 共同寵物
+- **群組管理**：建立群組、命名、加入成員（by uid／email）
+- **邀請碼**：每個群組有專屬邀請碼，可分享連結 `?group_invite=` 一鍵加入、房主可重新產生
+- **共同寵物**：全員投票選出「寵物人」，用 emoji 自訂造型、上傳合成寵物臉當群組頭像
+- **養成互動**：餵食／玩耍／清潔累積能量，狀態隨能量在 HAPPY／NORMAL／HUNGRY／CRITICAL 間變化
+
+</td>
+<td valign="top">
+
+### 🌐 雙語介面（i18n）
+- **中 / EN 一鍵切換**：右上角語言鈕，選擇存 `localStorage`
+- **DOM 翻譯引擎**：MutationObserver 自動翻譯動態插入的內容，無需在每個 view 手動標記
+- **變數樣板**：`t('加入群組「{name}」', { name })` 支援插值訊息
+
+</td>
+</tr>
 </table>
 
 ---
@@ -110,22 +129,29 @@ frontend/
 │   ├── session.js           ← 聚會 session 狀態機
 │   ├── state.js             ← 全域 reactive state
 │   ├── ws.js                ← WebSocket 連線管理（含 first-msg AUTH）
-│   └── wsHandlers.js        ← 所有 WS 訊息 handler 集中註冊
+│   ├── wsHandlers.js        ← 所有 WS 訊息 handler 集中註冊
+│   ├── i18n.js              ← DOM 翻譯引擎（MutationObserver + 語言切換）
+│   ├── i18n-core.js         ← 純函式 translate()（字典查表 + {var} 插值）
+│   └── i18n-dict.js         ← 中→英字典（key = 繁中原字串，逐字相符）
 │
 ├── features/            ← 跨 view 的業務功能模組
-│   └── friends · leaderboard · meetings · members · photos · taboo
+│   └── friends · groups · leaderboard · meetings · members · photos · taboo
 │
-├── views/               ← 每個畫面（25+ 個獨立 HTML + JS 對）
+├── views/               ← 每個畫面（30+ 個獨立 HTML + JS 對）
 │   └── home · join · waiting-room · host-room · sync-ritual
 │       focus · qa-game · qa-source · qa-picker · question-bank
 │       question-edit · taboo-prepare · taboo-countdown · taboo-card
-│       buffer · summary · meetings · meeting-detail · profile
-│       friends · leaderboard · scanner · about · photo-lightbox
-│       member-preview · invite-modal
+│       buffer · summary · meetings · meeting-detail · meeting-setup
+│       profile · friends · leaderboard · scanner · about · photo-lightbox
+│       member-preview · invite-modal · 67-game
+│       groups · group-setup · pet-swap · pet-tamagotchi
 │
 ├── utils/               ← dom · format · toast · uuid
-└── styles/              ← base · components · social · taboo
+└── styles/              ← base · components · social · taboo · game67 · pet-tamagotchi
 ```
+
+> **i18n 設計文件**：`docs/superpowers/specs/2026-06-24-frontend-i18n-zh-en-design.md`（設計）與
+> `docs/superpowers/plans/2026-06-24-frontend-i18n-zh-en.md`（實作計畫）；單元測試見 `tests/i18n-core.test.js`、`tests/i18n-dict.test.js`。
 
 ### 後端 API 概覽
 
@@ -152,6 +178,30 @@ frontend/
 | POST | `/api/friend_requests/{id}/decline` | 拒絕邀請 |
 | GET | `/api/friends` | 我的好友列表 |
 | DELETE | `/api/friends/{uid}` | 解除好友 |
+</details>
+
+<details>
+<summary><b>群組 & 共同寵物</b></summary>
+
+| Method | Path | 說明 |
+|--------|------|------|
+| POST | `/api/groups` | 建立群組（自動產生 invite_code） |
+| GET | `/api/groups` | 我加入的群組列表 |
+| GET | `/api/groups/{id}` | 群組詳情（成員 + 邀請碼） |
+| PATCH | `/api/groups/{id}` | 改群組名稱 |
+| POST | `/api/groups/{id}/members` | 加入成員（by uid 或 email） |
+| DELETE | `/api/groups/{id}/members/{uid}` | 移除成員 |
+| POST | `/api/groups/{id}/pet/vote` | 投票選出「寵物人」 |
+| PATCH | `/api/groups/{id}/pet` | 設定寵物（emoji／名字／寵物人） |
+| GET | `/api/groups/{id}/pet` | 取得寵物狀態 + 票數 |
+| POST | `/api/groups/{id}/pet-face` | 上傳合成寵物臉當群組頭像 |
+| POST | `/api/groups/{id}/pet/action` | 養成互動（feed／play／wipe，累積能量） |
+| GET | `/api/group_invite/{code}` | 用邀請碼預覽群組（加入前確認） |
+| POST | `/api/group_invite/join` | 用邀請碼加入群組 |
+| POST | `/api/groups/{id}/invite_code/refresh` | 重新產生邀請碼 |
+
+**寵物能量狀態**：`≥80 HAPPY`／`≥40 NORMAL`／`≥15 HUNGRY`／`<15 CRITICAL`；
+造型 emoji 白名單 `PET_BODY_OPTIONS`（🐰🐻🐱🐶🦊🐸🐧🐼🐨🐯）。
 </details>
 
 <details>
@@ -228,6 +278,7 @@ client ↔ server   正常 message loop
 
 | 版本 | 日期 | 主要內容 |
 |:---:|:---:|---|
+| **v15.4** | 2026-06-24 | 🐾 群組系統（邀請碼加入）+ 共同寵物（投票選寵物人、emoji 造型、合成寵物臉頭像、餵養互動）；🌐 中英雙語 i18n（DOM 翻譯引擎 + 語言切換） |
 | **v15.3** | 2026-04-28 | 🔒 WS 改 first-message handshake；LOG_DEVIATION 加 phase + rate-limit；SUBMIT_ANSWER 嚴格驗證；SVG 上傳擋掉；avatar 改 placeholder |
 | **v15.2** | 2026-04-26 | 🔒 收緊 Firestore 讀取規則（其他人 email 不再可被任意登入者讀）；好友系統 + 排行榜 API |
 | **v15** | — | 🏗 前端模組化重構：3000 行 app.js 拆成 60+ 個小檔 |
@@ -369,6 +420,8 @@ allow_origins=[
 | 加新 API | `backend/main.py`、（可選）對應 `firestore.rules` |
 | 改外觀 | `frontend/styles/{base,components,social,taboo}.css` |
 | 加遊戲 / 模式 | 新 view + 新 WS action + 後端 ALLOWED_MODES 白名單 |
+| 加群組功能 | `backend/main.py` groups API、`frontend/features/groups/controller.js`、`views/groups`·`group-setup` |
+| 加翻譯字串 | 在 `frontend/core/i18n-dict.js` 補 `繁中原字串: 'English'`（含變數用 `{name}` 佔位） |
 
 ### Commit 訊息規範
 
