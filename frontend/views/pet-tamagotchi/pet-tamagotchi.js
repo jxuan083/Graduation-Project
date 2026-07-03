@@ -42,6 +42,13 @@ let _groupPet  = null;
 let _groupId   = null;
 let _pollTimer = null;
 let _actionLock = false;
+let _clickIdx   = 0;
+
+const CLICK_CYCLE = [
+    { anim: 'happy',   status: 'HAPPY'   },
+    { anim: 'playing', status: 'NORMAL'  },
+    { anim: 'idle',    status: 'NORMAL'  },
+];
 
 function isGroupMode() { return !!_groupId; }
 function isPersonalSleeping() { return !isGroupMode() && !!_pet?.my_pet_is_sleeping; }
@@ -61,6 +68,14 @@ export function init() {
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
     document.getElementById('btn-pet-sleep').onclick = () => doAction(isPersonalSleeping() ? 'wake' : 'sleep');
+
+    document.getElementById('pet-avatar-wrap').addEventListener('click', () => {
+        if (_actionLock) return;
+        const s = CLICK_CYCLE[_clickIdx % CLICK_CYCLE.length];
+        _clickIdx++;
+        applyAvatarState(s.anim);
+        setSpeech(s.status);
+    });
 
     document.getElementById('btn-pet-rename').onclick    = openRenameDialog;
     document.getElementById('btn-rename-confirm').onclick = confirmRename;
@@ -166,7 +181,7 @@ async function doAction(action) {
         console.error('pet action error', e);
     }
 
-    await delay(tempAnim ? 800 : 0);
+    await delay(tempAnim ? 680 : 0);
     renderAll();
     setAllButtonsDisabled(false);
     _actionLock = false;

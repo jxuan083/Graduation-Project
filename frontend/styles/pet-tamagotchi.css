@@ -258,25 +258,72 @@
 }
 
 /* 狀態動畫 */
-.pet-avatar-wrap.state-idle    { animation: anim-idle 3s ease-in-out infinite; }
-.pet-avatar-wrap.state-happy   { animation: anim-happy 0.6s ease-in-out infinite; border-color: #fde68a; box-shadow: 0 0 24px rgba(251,191,36,0.5); }
-.pet-avatar-wrap.state-sleeping{ animation: anim-sleep 4s ease-in-out infinite; filter: brightness(0.75) saturate(0.6); }
-.pet-avatar-wrap.state-hungry  { animation: anim-hungry 2s ease-in-out infinite; border-color: #fca5a5; }
-.pet-avatar-wrap.state-dirty   { animation: anim-dirty 1.8s ease-in-out infinite; border-color: #a78bfa; }
-.pet-avatar-wrap.state-critical{ animation: anim-critical 0.4s ease-in-out infinite; border-color: #ef4444; box-shadow: 0 0 24px rgba(239,68,68,0.6); }
-.pet-avatar-wrap.state-eating  { animation: anim-eat 0.3s ease-in-out infinite; }
-.pet-avatar-wrap.state-playing { animation: anim-play 0.5s ease-in-out infinite; border-color: #34d399; box-shadow: 0 0 24px rgba(52,211,153,0.4); }
-.pet-avatar-wrap.state-wiping  { animation: anim-wipe 0.4s ease-in-out infinite; }
+.pet-avatar-wrap.state-idle     { animation: anim-idle 3.2s ease-in-out infinite; }
+.pet-avatar-wrap.state-happy    { animation: anim-happy 0.7s cubic-bezier(.36,.07,.19,.97) infinite; border-color: #fde68a; box-shadow: 0 0 24px rgba(251,191,36,0.5); }
+.pet-avatar-wrap.state-sleeping { animation: anim-sleep 4s ease-in-out infinite; filter: brightness(0.75) saturate(0.6); }
+.pet-avatar-wrap.state-hungry   { animation: anim-hungry 2.4s ease-in-out infinite; border-color: #fca5a5; }
+.pet-avatar-wrap.state-dirty    { animation: anim-dirty 2s ease-in-out infinite; border-color: #a78bfa; }
+.pet-avatar-wrap.state-critical { animation: anim-critical 0.55s ease-in-out infinite; border-color: #ef4444; box-shadow: 0 0 24px rgba(239,68,68,0.6); }
 
-@keyframes anim-idle    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-@keyframes anim-happy   { 0%,100%{transform:translateY(0) scale(1) rotate(-3deg)} 50%{transform:translateY(-18px) scale(1.05) rotate(3deg)} }
-@keyframes anim-sleep   { 0%,100%{transform:rotate(-4deg) translateY(0)} 50%{transform:rotate(4deg) translateY(4px)} }
-@keyframes anim-hungry  { 0%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} 60%{transform:translateY(3px)} }
-@keyframes anim-dirty   { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-4deg)} 75%{transform:rotate(4deg)} }
-@keyframes anim-critical{ 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-@keyframes anim-eat     { 0%,100%{transform:scale(1) translateY(0)} 50%{transform:scale(1.08) translateY(-4px)} }
-@keyframes anim-play    { 0%,100%{transform:translateY(0) rotate(0)} 25%{transform:translateY(-22px) rotate(-5deg)} 75%{transform:translateY(-12px) rotate(5deg)} }
-@keyframes anim-wipe    { 0%,100%{transform:rotate(0)} 33%{transform:rotate(-8deg)} 66%{transform:rotate(8deg)} }
+/* action 動畫：固定次數讓動畫乾淨結束，不硬截 */
+.pet-avatar-wrap.state-eating  { animation: anim-eat  0.32s ease-in-out 2 forwards; }
+.pet-avatar-wrap.state-playing { animation: anim-play 0.38s ease-out   2 forwards; border-color: #34d399; box-shadow: 0 0 24px rgba(52,211,153,0.4); }
+.pet-avatar-wrap.state-wiping  { animation: anim-wipe 0.22s ease-in-out 3 forwards; }
+
+/* 常駐狀態 keyframes */
+@keyframes anim-idle {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%     { transform: translateY(-9px) scale(1.015); }
+}
+@keyframes anim-happy {
+  0%      { transform: translateY(0)    scale(1)    rotate(0deg); }
+  25%     { transform: translateY(-18px) scale(1.07) rotate(-4deg); }
+  50%     { transform: translateY(-22px) scale(1.09) rotate(3deg); }
+  75%     { transform: translateY(-10px) scale(1.04) rotate(-1deg); }
+  100%    { transform: translateY(0)    scale(1)    rotate(0deg); }
+}
+@keyframes anim-sleep {
+  0%,100% { transform: rotate(-3deg) scale(0.97); }
+  50%     { transform: rotate(3deg)  scale(0.99); }
+}
+@keyframes anim-hungry {
+  0%,100% { transform: translateY(0)   scale(1);    }
+  20%     { transform: translateY(-5px) scale(1.01); }
+  50%     { transform: translateY(3px)  scale(0.99); }
+  75%     { transform: translateY(-2px) scale(1);    }
+}
+@keyframes anim-dirty {
+  0%,100% { transform: rotate(0deg);  }
+  30%     { transform: rotate(-4deg); }
+  70%     { transform: rotate(4deg);  }
+}
+@keyframes anim-critical {
+  0%,100% { transform: translateX(0)   scale(1);    }
+  20%     { transform: translateX(-5px) scale(0.98); }
+  50%     { transform: translateX(5px)  scale(1.02); }
+  80%     { transform: translateX(-3px) scale(0.99); }
+}
+
+/* action keyframes：流暢、有起伏 */
+@keyframes anim-eat {
+  0%   { transform: scale(1)    translateY(0);    }
+  35%  { transform: scale(1.1)  translateY(-7px); }
+  65%  { transform: scale(1.06) translateY(-4px); }
+  100% { transform: scale(1)    translateY(0);    }
+}
+@keyframes anim-play {
+  0%   { transform: translateY(0)    rotate(0deg)  scale(1);    }
+  30%  { transform: translateY(-26px) rotate(-6deg) scale(1.06); }
+  60%  { transform: translateY(-16px) rotate(5deg)  scale(1.03); }
+  85%  { transform: translateY(-5px)  rotate(-1deg) scale(1.01); }
+  100% { transform: translateY(0)    rotate(0deg)  scale(1);    }
+}
+@keyframes anim-wipe {
+  0%,100% { transform: rotate(0deg)   translateX(0);   }
+  25%     { transform: rotate(-9deg)  translateX(-5px); }
+  50%     { transform: rotate(9deg)   translateX(5px);  }
+  75%     { transform: rotate(-6deg)  translateX(-3px); }
+}
 
 /* 💩 💦 */
 .pet-poop-wrap {
