@@ -2,6 +2,8 @@ import { register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 
+// ── 背景 ─────────────────────────────────────────────────────────────────────
+
 const BG_PRESETS = ['default','meadow','night','beach','forest','sunset','snow'];
 const BG_KEY     = 'pet_bg';
 const BG_IMG_KEY = 'pet_bg_img';
@@ -26,10 +28,9 @@ function applyBackground(key, customUrl) {
     if (!stage) return;
     BG_PRESETS.forEach(p => stage.classList.remove(`bg-${p}`));
     stage.classList.remove('bg-custom');
-    stage.style.backgroundImage   = '';
+    stage.style.backgroundImage    = '';
     stage.style.backgroundPosition = '';
     stage.style.cursor = '';
-
     if (key === 'custom' && customUrl) {
         stage.classList.add('bg-custom');
         stage.style.backgroundImage    = `url(${customUrl})`;
@@ -40,18 +41,12 @@ function applyBackground(key, customUrl) {
         stage.classList.add(`bg-${key}`);
     }
     localStorage.setItem(BG_KEY, key);
-    _updateDragHint(key === 'custom');
-}
-
-function _updateDragHint(show) {
-    let hint = document.getElementById('pet-bg-drag-hint');
-    if (!hint) return;
-    hint.style.display = show ? 'flex' : 'none';
+    const hint = document.getElementById('pet-bg-drag-hint');
+    if (hint) hint.style.display = key === 'custom' ? 'flex' : 'none';
 }
 
 function setupCustomBgDrag() {
     const stage = document.getElementById('pet-stage');
-
     stage.addEventListener('pointerdown', e => {
         if (!stage.classList.contains('bg-custom')) return;
         if (e.target.closest('.pet-avatar-wrap,.pet-bg-btn,.pet-speech,.pet-zzz,.pet-poop-wrap')) return;
@@ -63,17 +58,13 @@ function setupCustomBgDrag() {
         stage.style.cursor = 'grabbing';
         stage.setPointerCapture(e.pointerId);
     });
-
     stage.addEventListener('pointermove', e => {
         if (!_bgDrag.active) return;
         const rect = stage.getBoundingClientRect();
-        const dx   = e.clientX - _bgDrag.startX;
-        const dy   = e.clientY - _bgDrag.startY;
-        _bgPosX = Math.max(0, Math.min(100, _bgDrag.basePosX - (dx / rect.width)  * 120));
-        _bgPosY = Math.max(0, Math.min(100, _bgDrag.basePosY - (dy / rect.height) * 120));
+        _bgPosX = Math.max(0, Math.min(100, _bgDrag.basePosX - (e.clientX - _bgDrag.startX) / rect.width  * 120));
+        _bgPosY = Math.max(0, Math.min(100, _bgDrag.basePosY - (e.clientY - _bgDrag.startY) / rect.height * 120));
         stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
     });
-
     stage.addEventListener('pointerup', () => {
         if (!_bgDrag.active) return;
         _bgDrag.active     = false;
@@ -81,6 +72,8 @@ function setupCustomBgDrag() {
         localStorage.setItem(BG_POS_KEY, JSON.stringify([_bgPosX, _bgPosY]));
     });
 }
+
+// ── 台詞 ─────────────────────────────────────────────────────────────────────
 
 const SPEECHES = {
     NORMAL:   ['汪汪！你好！', '今天天氣很好～', '陪我玩嘛～', '我在這裡！'],
@@ -91,21 +84,27 @@ const SPEECHES = {
     CRITICAL: ['嗚嗚... 快撐不住了...', '求求你快救我... 💔', '好難受...'],
 };
 
-let _pet       = null;
-let _groupPet  = null;
-let _groupId   = null;
-let _pollTimer = null;
+const STATUS_TEXT = { NORMAL:'正常', HAPPY:'開心', HUNGRY:'飢餓', DIRTY:'需清潔', CRITICAL:'危急', SLEEPING:'睡覺' };
+const STATUS_EMOJI = { NORMAL:'😊', HAPPY:'🎉', HUNGRY:'😢', DIRTY:'😷', CRITICAL:'💔', SLEEPING:'😴' };
+
+// ── 狀態 ─────────────────────────────────────────────────────────────────────
+
+let _groupPet   = null;
+let _groupId    = null;
+let _isCreator  = false;
+let _entryMode  = 'list';   // 'list' | 'direct'
+let _myPets     = [];
+let _pollTimer  = null;
 let _actionLock = false;
 let _clickIdx   = 0;
 
 const CLICK_CYCLE = [
-    { anim: 'happy',   status: 'HAPPY'   },
-    { anim: 'playing', status: 'NORMAL'  },
-    { anim: 'idle',    status: 'NORMAL'  },
+    { anim: 'happy',   status: 'HAPPY'  },
+    { anim: 'playing', status: 'NORMAL' },
+    { anim: 'idle',    status: 'NORMAL' },
 ];
 
-function isGroupMode() { return !!_groupId; }
-function isPersonalSleeping() { return !isGroupMode() && !!_pet?.my_pet_is_sleeping; }
+// ── 初始化 ───────────────────────────────────────────────────────────────────
 
 export function init() {
     register('view-pet-tamagotchi', {
@@ -114,14 +113,24 @@ export function init() {
         onHide,
     });
 
-    document.getElementById('btn-go-pet-swap').onclick         = () => switchView('view-pet-swap');
-    document.getElementById('btn-pet-tama-back-nopet').onclick = () => switchView('view-home');
-    document.getElementById('btn-pet-tama-back').onclick       = () => switchView('view-home');
+    // 列表畫面
+    document.getElementById('btn-pet-list-back').onclick = () => switchView('view-home');
+
+    // 遊戲畫面
+    document.getElementById('btn-pet-tama-back').onclick = () => {
+        stopPolling();
+        _groupId  = null;
+        _groupPet = null;
+        if (_entryMode === 'direct') {
+            switchView('view-home');
+        } else {
+            showScreen('list');
+        }
+    };
 
     document.getElementById('btn-pet-feed').onclick  = () => doAction('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
-    document.getElementById('btn-pet-sleep').onclick = () => doAction(isPersonalSleeping() ? 'wake' : 'sleep');
 
     document.getElementById('pet-avatar-wrap').addEventListener('click', () => {
         if (_actionLock) return;
@@ -131,17 +140,17 @@ export function init() {
         setSpeech(s.status);
     });
 
-    document.getElementById('btn-pet-rename').onclick    = openRenameDialog;
-    document.getElementById('btn-rename-confirm').onclick = confirmRename;
-    document.getElementById('btn-rename-cancel').onclick  = closeRenameDialog;
+    document.getElementById('btn-pet-rename').onclick     = openRenameDialog;
+    document.getElementById('btn-rename-confirm').onclick  = confirmRename;
+    document.getElementById('btn-rename-cancel').onclick   = closeRenameDialog;
+    document.getElementById('pet-rename-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter')  confirmRename();
+        if (e.key === 'Escape') closeRenameDialog();
+    });
 
     document.getElementById('btn-pet-delete').onclick     = openDeleteDialog;
     document.getElementById('btn-delete-confirm').onclick  = confirmDelete;
     document.getElementById('btn-delete-cancel').onclick   = closeDeleteDialog;
-    document.getElementById('pet-rename-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') confirmRename();
-        if (e.key === 'Escape') closeRenameDialog();
-    });
 
     // 背景切換
     document.getElementById('btn-change-bg').onclick = () => {
@@ -172,89 +181,173 @@ export function init() {
     setupCustomBgDrag();
 }
 
+// ── 進入 / 離開 ───────────────────────────────────────────────────────────────
+
 async function onShow() {
-    _groupId  = state.tamagotchiGroupId || null;
-    _pet      = null;
-    _groupPet = null;
-    showLoading(true);
     loadBackground();
-    await loadPet();
-    startPolling();
+    const directGroupId = state.tamagotchiGroupId || null;
+
+    if (directGroupId) {
+        state.tamagotchiGroupId = null;
+        _entryMode  = 'direct';
+        _groupId    = directGroupId;
+        _isCreator  = false;
+        _groupPet   = null;
+        showLoading(true);
+        await loadGroupPet();
+        startPolling();
+    } else {
+        _entryMode = 'list';
+        _groupId   = null;
+        _groupPet  = null;
+        showLoading(true);
+        await loadPetList();
+    }
 }
 
 function onHide() { stopPolling(); }
 
-async function loadPet() {
+// ── 列表模式 ─────────────────────────────────────────────────────────────────
+
+async function loadPetList() {
     try {
-        if (isGroupMode()) {
-            const [petRes, grpRes] = await Promise.all([
-                apiFetch(`/api/groups/${_groupId}/pet`),
-                apiFetch(`/api/groups/${_groupId}`),
-            ]);
-            _groupPet = petRes.data?.pet || null;
-            if (_groupPet) {
-                _groupPet._groupName = grpRes.data?.group?.name || '群組';
-            }
-        } else {
-            const { data } = await apiFetch('/api/my-pet');
-            _pet = data?.pet || null;
+        const { data } = await apiFetch('/api/my-pets');
+        _myPets = data?.pets || [];
+    } catch (e) {
+        _myPets = [];
+        console.error('load my-pets error', e);
+    }
+    renderPetList();
+    showLoading(false);
+}
+
+function renderPetList() {
+    const listEl  = document.getElementById('pet-list-cards');
+    const emptyEl = document.getElementById('pet-list-empty');
+    listEl.innerHTML = '';
+
+    if (!_myPets.length) {
+        emptyEl.style.display = 'block';
+        showScreen('list');
+        return;
+    }
+    emptyEl.style.display = 'none';
+
+    _myPets.forEach(({ group_id, group_name, is_creator, pet }) => {
+        const energy = pet.pet_energy ?? 50;
+        const maxE   = pet.pet_max_energy ?? 100;
+        const hp     = pet.pet_hp ?? 5;
+        const status = pet.pet_status || 'NORMAL';
+
+        const card = document.createElement('div');
+        card.className = 'pet-list-card';
+        card.innerHTML = `
+            <img class="pet-list-avatar" src="${pet.pet_face_url}" alt="寵物頭像">
+            <div class="pet-list-info">
+                <div class="pet-list-name">${pet.pet_name || '群組寵物'}</div>
+                <div class="pet-list-group">${group_name}</div>
+                <div class="pet-list-status">
+                    <span>${STATUS_EMOJI[status] || '😊'} ${STATUS_TEXT[status] || '正常'}</span>
+                    <span class="pet-list-energy">⚡ ${energy}/${maxE}</span>
+                </div>
+                <div class="pet-list-hp">${
+                    Array.from({length: 5}, (_, i) =>
+                        `<span class="pet-hp-heart${i < hp ? '' : ' empty'}">❤️</span>`
+                    ).join('')
+                }</div>
+            </div>
+            <div class="pet-list-btns">
+                <button class="btn-care-pet">照顧</button>
+                ${is_creator ? `<button class="btn-del-list-pet" title="刪除寵物"><i data-lucide="trash-2"></i></button>` : ''}
+            </div>
+        `;
+
+        card.querySelector('.btn-care-pet').onclick = () => enterGroupPet(group_id, is_creator);
+        if (is_creator) {
+            card.querySelector('.btn-del-list-pet').onclick = (e) => {
+                e.stopPropagation();
+                _groupId   = group_id;
+                _isCreator = true;
+                openDeleteDialog();
+            };
+        }
+
+        listEl.appendChild(card);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+    showScreen('list');
+}
+
+// ── 單一寵物模式 ──────────────────────────────────────────────────────────────
+
+async function enterGroupPet(groupId, isCreator) {
+    stopPolling();
+    _groupId   = groupId;
+    _isCreator = isCreator;
+    _groupPet  = null;
+    showLoading(true);
+    await loadGroupPet();
+    startPolling();
+}
+
+async function loadGroupPet() {
+    try {
+        const [petRes, grpRes] = await Promise.all([
+            apiFetch(`/api/groups/${_groupId}/pet`),
+            apiFetch(`/api/groups/${_groupId}`),
+        ]);
+        _groupPet = petRes.data?.pet || null;
+        if (_groupPet) {
+            _groupPet._groupName = grpRes.data?.group?.name || '群組';
+        }
+        // 若 direct entry 尚未確認是否為建立者，從群組資料補上
+        if (_entryMode === 'direct') {
+            const myUid = state.uid || state.user?.uid;
+            _isCreator  = myUid && grpRes.data?.group?.creator_uid === myUid;
         }
     } catch (e) {
-        console.error('load pet error', e);
+        console.error('load group pet error', e);
     }
-    renderAll();
+    renderGroupMode();
     showLoading(false);
 }
 
 async function doAction(action) {
-    if (_actionLock) return;
-    const hasContent = isGroupMode() ? !!_groupPet?.pet_face_url : !!_pet;
-    if (!hasContent) return;
+    if (_actionLock || !_groupId) return;
+    if (!_groupPet?.pet_face_url) return;
     _actionLock = true;
     setAllButtonsDisabled(true);
 
-    const animMap = { feed: 'eating', wipe: 'wiping', play: 'playing' };
+    const animMap  = { feed: 'eating', wipe: 'wiping', play: 'playing' };
     const tempAnim = animMap[action];
     if (tempAnim) applyAvatarState(tempAnim);
 
     try {
-        if (isGroupMode()) {
-            const { data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
-                method: 'POST',
-                body: JSON.stringify({ action }),
-            });
-            if (data?.pet_energy !== undefined && _groupPet) {
-                _groupPet.pet_energy = data.pet_energy;
-                _groupPet.pet_status = data.pet_status;
-            }
-        } else {
-            const { data } = await apiFetch('/api/my-pet/action', {
-                method: 'POST',
-                body: JSON.stringify({ action }),
-            });
-            if (data?.pet) _pet = data.pet;
+        const { data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        });
+        if (data?.pet_energy !== undefined && _groupPet) {
+            _groupPet.pet_energy = data.pet_energy;
+            _groupPet.pet_status = data.pet_status;
         }
     } catch (e) {
         console.error('pet action error', e);
     }
 
     await delay(tempAnim ? 680 : 0);
-    renderAll();
+    renderGroupMode();
     setAllButtonsDisabled(false);
     _actionLock = false;
 }
 
-function renderAll() {
-    if (isGroupMode()) renderGroupMode();
-    else renderPersonalMode();
-}
-
 function renderGroupMode() {
     if (!_groupPet?.pet_face_url) {
+        showScreen('no-pet');
         document.getElementById('pet-no-pet-title').textContent  = '群組還沒有設定寵物臉';
         document.getElementById('pet-no-pet-desc').textContent   = '請先在群組設定頁生成並設定寵物臉！';
         document.getElementById('btn-go-pet-swap').style.display = 'none';
-        showScreen('no-pet');
         return;
     }
     showScreen('game');
@@ -262,8 +355,11 @@ function renderGroupMode() {
     document.getElementById('pet-group-badge').style.display = 'inline-flex';
     document.getElementById('pet-group-name').textContent    = _groupPet._groupName || '群組';
     document.getElementById('pet-tama-name').textContent     = _groupPet.pet_name || '群組寵物';
-    document.getElementById('btn-pet-rename').style.display  = 'none';
-    document.getElementById('btn-pet-delete').style.display  = 'none';
+
+    // 改名：群組建立者才能改
+    document.getElementById('btn-pet-rename').style.display = _isCreator ? '' : 'none';
+    // 刪除：群組建立者才能刪
+    document.getElementById('btn-pet-delete').style.display = _isCreator ? '' : 'none';
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
@@ -288,67 +384,95 @@ function renderGroupMode() {
 
     toggleIcon('pet-poop-icon', false);
     toggleIcon('pet-pee-icon',  false);
-    document.getElementById('pet-zzz').style.display   = 'none';
-    document.getElementById('btn-pet-sleep').style.display = 'none';
+    document.getElementById('pet-zzz').style.display        = 'none';
+    document.getElementById('btn-pet-sleep').style.display  = 'none';
 
     const status = _groupPet.pet_status || 'NORMAL';
     applyAvatarState(statusToAnimClass(status));
     setSpeech(status);
 }
 
-function renderPersonalMode() {
-    document.getElementById('btn-go-pet-swap').style.display   = '';
-    document.getElementById('pet-no-pet-title').textContent    = '還沒有寵物';
-    document.getElementById('pet-no-pet-desc').textContent     = '先去生成一張寵物臉，再回來養它！';
+// ── 改名 ──────────────────────────────────────────────────────────────────────
 
-    if (!_pet) { showScreen('no-pet'); return; }
-    showScreen('game');
-
-    document.getElementById('pet-group-badge').style.display   = 'none';
-    document.getElementById('pet-tama-name').textContent       = _pet.my_pet_name || '我的寵物';
-    document.getElementById('btn-pet-rename').style.display    = '';
-    document.getElementById('btn-pet-delete').style.display    = '';
-
-    const img = document.getElementById('pet-avatar-img');
-    if (img.src !== _pet.my_pet_image_url) img.src = _pet.my_pet_image_url;
-
-    document.getElementById('pet-personal-stats').style.display = 'block';
-    document.getElementById('pet-group-stats').style.display    = 'none';
-
-    setBar('hunger',    _pet.my_pet_hunger);
-    setBar('happiness', _pet.my_pet_happiness);
-    setBar('energy',    _pet.my_pet_energy);
-    setBar('clean',     _pet.my_pet_cleanliness);
-
-    toggleIcon('pet-poop-icon', _pet.my_pet_has_poop);
-    toggleIcon('pet-pee-icon',  _pet.my_pet_has_pee);
-
-    const sleeping = _pet.my_pet_is_sleeping;
-    document.getElementById('pet-zzz').style.display      = sleeping ? 'flex' : 'none';
-    const btnSleep = document.getElementById('btn-pet-sleep');
-    btnSleep.style.display = '';
-    btnSleep.querySelector('.icon-sleep').style.display = sleeping ? 'none' : '';
-    btnSleep.querySelector('.icon-wake').style.display  = sleeping ? '' : 'none';
-    btnSleep.querySelector('span').textContent = sleeping ? '叫醒' : '睡覺';
-    if (sleeping) btnSleep.classList.add('active-toggle');
-    else          btnSleep.classList.remove('active-toggle');
-
-    const status = _pet.my_pet_status || 'NORMAL';
-    applyAvatarState(statusToAnimClass(status));
-    setSpeech(status);
+function openRenameDialog() {
+    document.getElementById('pet-rename-input').value = _groupPet?.pet_name || '';
+    document.getElementById('pet-rename-overlay').style.display = 'flex';
+    document.getElementById('pet-rename-input').focus();
 }
+function closeRenameDialog() {
+    document.getElementById('pet-rename-overlay').style.display = 'none';
+}
+async function confirmRename() {
+    const name = document.getElementById('pet-rename-input').value.trim().slice(0, 20);
+    closeRenameDialog();
+    if (!name || !_groupId) return;
+    try {
+        await apiFetch(`/api/groups/${_groupId}/pet`, {
+            method: 'PATCH',
+            body: JSON.stringify({ pet_name: name }),
+        });
+        if (_groupPet) _groupPet.pet_name = name;
+        document.getElementById('pet-tama-name').textContent = name;
+    } catch (e) { console.error('rename error', e); }
+}
+
+// ── 刪除 ──────────────────────────────────────────────────────────────────────
+
+function openDeleteDialog() {
+    document.getElementById('pet-delete-overlay').style.display = 'flex';
+}
+function closeDeleteDialog() {
+    document.getElementById('pet-delete-overlay').style.display = 'none';
+}
+async function confirmDelete() {
+    const targetId = _groupId;
+    closeDeleteDialog();
+    if (!targetId) return;
+    try {
+        await apiFetch(`/api/groups/${targetId}/pet`, { method: 'DELETE' });
+        stopPolling();
+        _groupPet = null;
+        _groupId  = null;
+        // 回到列表並重新載入
+        showLoading(true);
+        await loadPetList();
+    } catch (e) {
+        console.error('delete pet error', e);
+    }
+}
+
+// ── 輪詢 ──────────────────────────────────────────────────────────────────────
+
+function startPolling() {
+    _pollTimer = setInterval(async () => {
+        if (_actionLock || !_groupId) return;
+        try {
+            const { data } = await apiFetch(`/api/groups/${_groupId}/pet`);
+            if (data?.pet) { _groupPet = { ..._groupPet, ...data.pet }; renderGroupMode(); }
+        } catch (_) {}
+    }, 60_000);
+}
+function stopPolling() { clearInterval(_pollTimer); _pollTimer = null; }
+
+// ── 畫面切換 ─────────────────────────────────────────────────────────────────
 
 function showScreen(which) {
-    document.getElementById('pet-tama-loading').style.display = 'none';
-    document.getElementById('pet-no-pet').style.display       = which === 'no-pet' ? 'block' : 'none';
-    document.getElementById('pet-game-wrap').style.display    = which === 'game'   ? 'flex'  : 'none';
+    document.getElementById('pet-tama-loading').style.display  = 'none';
+    document.getElementById('pet-list-screen').style.display   = which === 'list'   ? 'block' : 'none';
+    document.getElementById('pet-no-pet').style.display        = which === 'no-pet' ? 'block' : 'none';
+    document.getElementById('pet-game-wrap').style.display     = which === 'game'   ? 'flex'  : 'none';
 }
 
-function setBar(key, value) {
-    const v = Math.max(0, Math.min(100, value ?? 0));
-    document.getElementById(`fill-${key}`).style.width = v + '%';
-    document.getElementById(`val-${key}`).textContent  = v;
+function showLoading(show) {
+    document.getElementById('pet-tama-loading').style.display = show ? 'block' : 'none';
+    if (show) {
+        document.getElementById('pet-list-screen').style.display = 'none';
+        document.getElementById('pet-no-pet').style.display      = 'none';
+        document.getElementById('pet-game-wrap').style.display   = 'none';
+    }
 }
+
+// ── 小工具 ───────────────────────────────────────────────────────────────────
 
 function toggleIcon(id, show) {
     const el = document.getElementById(id);
@@ -361,7 +485,7 @@ function applyAvatarState(cls) {
 }
 
 function statusToAnimClass(status) {
-    return { NORMAL: 'idle', HAPPY: 'happy', SLEEPING: 'sleeping', HUNGRY: 'hungry', DIRTY: 'dirty', CRITICAL: 'critical' }[status] || 'idle';
+    return { NORMAL:'idle', HAPPY:'happy', SLEEPING:'sleeping', HUNGRY:'hungry', DIRTY:'dirty', CRITICAL:'critical' }[status] || 'idle';
 }
 
 function setSpeech(status) {
@@ -369,76 +493,10 @@ function setSpeech(status) {
     document.getElementById('pet-speech').textContent = lines[Math.floor(Math.random() * lines.length)];
 }
 
-function showLoading(show) {
-    document.getElementById('pet-tama-loading').style.display = show ? 'block' : 'none';
-    if (show) {
-        document.getElementById('pet-no-pet').style.display    = 'none';
-        document.getElementById('pet-game-wrap').style.display = 'none';
-    }
-}
-
 function setAllButtonsDisabled(disabled) {
-    ['btn-pet-feed','btn-pet-wipe','btn-pet-play','btn-pet-sleep'].forEach(id => {
+    ['btn-pet-feed','btn-pet-wipe','btn-pet-play'].forEach(id => {
         document.getElementById(id).disabled = disabled;
     });
 }
 
-function openRenameDialog() {
-    if (isGroupMode()) return;
-    document.getElementById('pet-rename-input').value = _pet?.my_pet_name || '';
-    document.getElementById('pet-rename-overlay').style.display = 'flex';
-    document.getElementById('pet-rename-input').focus();
-}
-function closeRenameDialog() {
-    document.getElementById('pet-rename-overlay').style.display = 'none';
-}
-async function confirmRename() {
-    if (!_pet || isGroupMode()) return;
-    const name = document.getElementById('pet-rename-input').value.trim().slice(0, 20);
-    closeRenameDialog();
-    if (!name) return;
-    try {
-        // 用 PATCH 只改名字，不會像 setup 那樣把養成數值重置
-        await apiFetch('/api/my-pet', {
-            method: 'PATCH',
-            body: JSON.stringify({ name }),
-        });
-        _pet.my_pet_name = name;
-        document.getElementById('pet-tama-name').textContent = name;
-    } catch (e) { console.error('rename error', e); }
-}
-
-function openDeleteDialog() {
-    if (isGroupMode()) return;
-    document.getElementById('pet-delete-overlay').style.display = 'flex';
-}
-function closeDeleteDialog() {
-    document.getElementById('pet-delete-overlay').style.display = 'none';
-}
-async function confirmDelete() {
-    if (!_pet || isGroupMode()) return;
-    closeDeleteDialog();
-    try {
-        await apiFetch('/api/my-pet', { method: 'DELETE' });
-        stopPolling();
-        _pet = null;
-        switchView('view-home');
-    } catch (e) { console.error('delete error', e); }
-}
-
-function startPolling() {
-    _pollTimer = setInterval(async () => {
-        if (_actionLock) return;
-        try {
-            if (isGroupMode()) {
-                const { data } = await apiFetch(`/api/groups/${_groupId}/pet`);
-                if (data?.pet) { _groupPet = { ..._groupPet, ...data.pet }; renderAll(); }
-            } else {
-                const { data } = await apiFetch('/api/my-pet');
-                if (data?.pet) { _pet = data.pet; renderAll(); }
-            }
-        } catch (_) {}
-    }, 60_000);
-}
-function stopPolling() { clearInterval(_pollTimer); _pollTimer = null; }
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

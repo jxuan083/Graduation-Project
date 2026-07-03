@@ -2560,6 +2560,59 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
     }
 
 
+@app.get("/api/my-pets")
+async def get_my_pets(decoded: dict = Depends(verify_token)):
+    """取得目前使用者在所有群組的寵物列表"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    try:
+        docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
+        pets = []
+        for doc in docs:
+            data = doc.to_dict() or {}
+            if not data.get("pet_face_url"):
+                continue
+            pet_fields = {k: v for k, v in data.items() if k.startswith("pet_")}
+            for tf in ("pet_last_fed_at", "pet_face_updated_at"):
+                if pet_fields.get(tf) and hasattr(pet_fields[tf], "isoformat"):
+                    pet_fields[tf] = pet_fields[tf].isoformat()
+            pets.append({
+                "group_id":   doc.id,
+                "group_name": data.get("name", ""),
+                "is_creator": uid == data.get("creator_uid"),
+                "pet":        pet_fields,
+            })
+        pets.sort(key=lambda p: p["pet"].get("pet_last_fed_at") or "", reverse=True)
+        return {"status": "success", "pets": pets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/groups/{group_id}/pet")
+async def delete_group_pet(group_id: str, decoded: dict = Depends(verify_token)):
+    """重置群組寵物（只有建立者可操作）"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    doc_ref = db.collection("groups").document(group_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="找不到群組")
+    data = doc.to_dict() or {}
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是群組成員")
+    if uid != data.get("creator_uid"):
+        raise HTTPException(status_code=403, detail="只有群組建立者可以刪除寵物")
+    pet_fields = [k for k in data if k.startswith("pet_")]
+    clear = {f: firestore.DELETE_FIELD for f in pet_fields}
+    try:
+        doc_ref.update(clear)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "success"}
+
+
 class JoinByInvitePayload(BaseModel):
     code: str
 

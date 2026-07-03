@@ -1,5 +1,19 @@
 <section id="view-pet-tamagotchi" class="view">
 
+    <!-- 寵物列表 -->
+    <div id="pet-list-screen" style="display:none; width:100%;">
+        <div class="pet-list-header">
+            <h2>我的寵物</h2>
+            <button id="btn-pet-list-back" class="btn secondary" style="padding:6px 14px; font-size:0.85rem;">返回</button>
+        </div>
+        <div id="pet-list-empty" class="pet-no-pet-card" style="display:none;">
+            <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
+            <h2>還沒有群組寵物</h2>
+            <p>加入或建立群組，設定寵物臉後就會出現在這裡！</p>
+        </div>
+        <div id="pet-list-cards" class="pet-list-cards"></div>
+    </div>
+
     <!-- 尚無寵物 -->
     <div id="pet-no-pet" class="pet-no-pet-card" style="display:none;">
         <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
@@ -164,11 +178,11 @@
         </div>
     </div>
 
-    <!-- 刪除確認 Overlay（個人模式） -->
+    <!-- 刪除確認 Overlay（群組寵物，建立者限定） -->
     <div id="pet-delete-overlay" class="pet-rename-overlay" style="display:none;">
         <div class="pet-rename-box">
-            <h3>確定要刪除寵物？</h3>
-            <p class="hint" style="margin:4px 0 12px;">刪除後所有養成數值都會消失，無法復原。你之後可以重新合成一隻。</p>
+            <h3>確定要刪除群組寵物？</h3>
+            <p class="hint" style="margin:4px 0 12px;">刪除後此群組的所有養成數值都會消失，無法復原。只有重新設定才能再養。</p>
             <div style="display:flex; gap:8px;">
                 <button id="btn-delete-confirm" class="btn primary" style="flex:1; background:#dc2626; border-color:#dc2626;">刪除</button>
                 <button id="btn-delete-cancel"  class="btn secondary" style="flex:1;">取消</button>
