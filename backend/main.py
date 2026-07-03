@@ -2562,13 +2562,36 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
 
 @app.get("/api/my-pets")
 async def get_my_pets(decoded: dict = Depends(verify_token)):
-    """取得目前使用者在所有群組的寵物列表"""
+    """取得所有寵物：個人寵物 + 所有群組寵物"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     try:
-        docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
         pets = []
+
+        # 1. 個人寵物
+        user_snap = db.collection("users").document(uid).get()
+        user_data = user_snap.to_dict() or {}
+        if user_data.get("my_pet_image_url"):
+            personal_pet = {k: v for k, v in user_data.items() if k.startswith("my_pet_")}
+            # 統一格式：把 my_pet_* 映射成 pet_* 讓前端共用同一套顯示邏輯
+            pets.append({
+                "group_id":   None,
+                "group_name": "個人寵物",
+                "is_creator": True,
+                "kind":       "personal",
+                "pet": {
+                    "pet_face_url": personal_pet.get("my_pet_image_url", ""),
+                    "pet_name":     personal_pet.get("my_pet_name", ""),
+                    "pet_energy":   personal_pet.get("my_pet_energy", 80),
+                    "pet_max_energy": 100,
+                    "pet_hp":       5,
+                    "pet_status":   personal_pet.get("my_pet_status", "NORMAL"),
+                },
+            })
+
+        # 2. 群組寵物
+        docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
         for doc in docs:
             data = doc.to_dict() or {}
             if not data.get("pet_face_url"):
@@ -2581,9 +2604,10 @@ async def get_my_pets(decoded: dict = Depends(verify_token)):
                 "group_id":   doc.id,
                 "group_name": data.get("name", ""),
                 "is_creator": uid == data.get("creator_uid"),
+                "kind":       "group",
                 "pet":        pet_fields,
             })
-        pets.sort(key=lambda p: p["pet"].get("pet_last_fed_at") or "", reverse=True)
+
         return {"status": "success", "pets": pets}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -233,18 +233,19 @@ function renderPetList() {
     }
     emptyEl.style.display = 'none';
 
-    _myPets.forEach(({ group_id, group_name, is_creator, pet }) => {
-        const energy = pet.pet_energy ?? 50;
-        const maxE   = pet.pet_max_energy ?? 100;
-        const hp     = pet.pet_hp ?? 5;
-        const status = pet.pet_status || 'NORMAL';
+    _myPets.forEach(({ group_id, group_name, is_creator, kind, pet }) => {
+        const energy  = pet.pet_energy ?? 50;
+        const maxE    = pet.pet_max_energy ?? 100;
+        const hp      = pet.pet_hp ?? 5;
+        const status  = pet.pet_status || 'NORMAL';
+        const isGroup = kind === 'group';
 
         const card = document.createElement('div');
         card.className = 'pet-list-card';
         card.innerHTML = `
             <img class="pet-list-avatar" src="${pet.pet_face_url}" alt="寵物頭像">
             <div class="pet-list-info">
-                <div class="pet-list-name">${pet.pet_name || '群組寵物'}</div>
+                <div class="pet-list-name">${pet.pet_name || (isGroup ? '群組寵物' : '我的寵物')}</div>
                 <div class="pet-list-group">${group_name}</div>
                 <div class="pet-list-status">
                     <span>${STATUS_EMOJI[status] || '😊'} ${STATUS_TEXT[status] || '正常'}</span>
@@ -262,11 +263,17 @@ function renderPetList() {
             </div>
         `;
 
-        card.querySelector('.btn-care-pet').onclick = () => enterGroupPet(group_id, is_creator);
+        card.querySelector('.btn-care-pet').onclick = () => {
+            if (isGroup) {
+                enterGroupPet(group_id, is_creator);
+            } else {
+                enterPersonalPet();
+            }
+        };
         if (is_creator) {
             card.querySelector('.btn-del-list-pet').onclick = (e) => {
                 e.stopPropagation();
-                _groupId   = group_id;
+                _groupId   = group_id;   // null for personal
                 _isCreator = true;
                 openDeleteDialog();
             };
@@ -280,6 +287,58 @@ function renderPetList() {
 }
 
 // ── 單一寵物模式 ──────────────────────────────────────────────────────────────
+
+async function enterPersonalPet() {
+    stopPolling();
+    _groupId   = null;
+    _isCreator = true;
+    _groupPet  = null;
+    showLoading(true);
+
+    try {
+        const { data } = await apiFetch('/api/my-pet');
+        const p = data?.pet;
+        if (p) {
+            _groupPet = {
+                pet_face_url:   p.my_pet_image_url,
+                pet_name:       p.my_pet_name,
+                pet_energy:     p.my_pet_energy,
+                pet_max_energy: 100,
+                pet_hp:         5,
+                pet_status:     p.my_pet_status || 'NORMAL',
+                _groupName:     '個人寵物',
+                _isPersonal:    true,
+                _raw:           p,
+            };
+        }
+    } catch (e) { console.error(e); }
+
+    renderGroupMode();
+    showLoading(false);
+    startPersonalPolling();
+}
+
+let _personalPollTimer = null;
+function startPersonalPolling() {
+    _personalPollTimer = setInterval(async () => {
+        if (_actionLock || _groupId) return;
+        try {
+            const { data } = await apiFetch('/api/my-pet');
+            const p = data?.pet;
+            if (p && _groupPet?._isPersonal) {
+                _groupPet.pet_energy = p.my_pet_energy;
+                _groupPet.pet_status = p.my_pet_status || 'NORMAL';
+                _groupPet._raw = p;
+                renderGroupMode();
+            }
+        } catch (_) {}
+    }, 60_000);
+}
+
+function stopPolling() {
+    clearInterval(_pollTimer);         _pollTimer = null;
+    clearInterval(_personalPollTimer); _personalPollTimer = null;
+}
 
 async function enterGroupPet(groupId, isCreator) {
     stopPolling();
@@ -314,8 +373,7 @@ async function loadGroupPet() {
 }
 
 async function doAction(action) {
-    if (_actionLock || !_groupId) return;
-    if (!_groupPet?.pet_face_url) return;
+    if (_actionLock || !_groupPet?.pet_face_url) return;
     _actionLock = true;
     setAllButtonsDisabled(true);
 
@@ -324,13 +382,25 @@ async function doAction(action) {
     if (tempAnim) applyAvatarState(tempAnim);
 
     try {
-        const { data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
-            method: 'POST',
-            body: JSON.stringify({ action }),
-        });
-        if (data?.pet_energy !== undefined && _groupPet) {
-            _groupPet.pet_energy = data.pet_energy;
-            _groupPet.pet_status = data.pet_status;
+        if (_groupPet._isPersonal) {
+            const { data } = await apiFetch('/api/my-pet/action', {
+                method: 'POST',
+                body: JSON.stringify({ action }),
+            });
+            if (data?.pet) {
+                _groupPet.pet_energy = data.pet.my_pet_energy;
+                _groupPet.pet_status = data.pet.my_pet_status || 'NORMAL';
+                _groupPet._raw = data.pet;
+            }
+        } else {
+            const { data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
+                method: 'POST',
+                body: JSON.stringify({ action }),
+            });
+            if (data?.pet_energy !== undefined && _groupPet) {
+                _groupPet.pet_energy = data.pet_energy;
+                _groupPet.pet_status = data.pet_status;
+            }
         }
     } catch (e) {
         console.error('pet action error', e);
@@ -425,15 +495,18 @@ function closeDeleteDialog() {
     document.getElementById('pet-delete-overlay').style.display = 'none';
 }
 async function confirmDelete() {
-    const targetId = _groupId;
+    const targetId  = _groupId;
+    const isPersonal = _groupPet?._isPersonal;
     closeDeleteDialog();
-    if (!targetId) return;
     try {
-        await apiFetch(`/api/groups/${targetId}/pet`, { method: 'DELETE' });
+        if (isPersonal) {
+            await apiFetch('/api/my-pet', { method: 'DELETE' });
+        } else if (targetId) {
+            await apiFetch(`/api/groups/${targetId}/pet`, { method: 'DELETE' });
+        }
         stopPolling();
         _groupPet = null;
         _groupId  = null;
-        // 回到列表並重新載入
         showLoading(true);
         await loadPetList();
     } catch (e) {
@@ -452,7 +525,6 @@ function startPolling() {
         } catch (_) {}
     }, 60_000);
 }
-function stopPolling() { clearInterval(_pollTimer); _pollTimer = null; }
 
 // ── 畫面切換 ─────────────────────────────────────────────────────────────────
 
