@@ -142,25 +142,28 @@
   transition: background 0.4s ease;
 }
 
-/* 背景 preset */
-.pet-stage.bg-meadow {
-  background-image: linear-gradient(180deg, #7dd3fc 0%, #bef264 55%, #4ade80 100%);
-}
-.pet-stage.bg-night {
-  background-image: linear-gradient(180deg, #0f172a 0%, #1e3a5f 55%, #312e81 100%);
-}
-.pet-stage.bg-beach {
-  background-image: linear-gradient(180deg, #38bdf8 0%, #7dd3fc 45%, #fde68a 80%, #ca8a04 100%);
-}
-.pet-stage.bg-forest {
-  background-image: linear-gradient(180deg, #14532d 0%, #166534 40%, #4ade80 80%, #15803d 100%);
-}
-.pet-stage.bg-sunset {
-  background-image: linear-gradient(180deg, #7c3aed 0%, #db2777 35%, #f97316 65%, #fbbf24 100%);
-}
-.pet-stage.bg-custom {
+/* 背景 preset — Unsplash 真實照片 */
+.pet-stage[class*="bg-"] {
   background-size: cover;
   background-position: center;
+}
+.pet-stage.bg-meadow {
+  background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80');
+}
+.pet-stage.bg-night {
+  background-image: url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800&q=80');
+}
+.pet-stage.bg-beach {
+  background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80');
+}
+.pet-stage.bg-forest {
+  background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80');
+}
+.pet-stage.bg-sunset {
+  background-image: url('https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=800&q=80');
+}
+.pet-stage.bg-snow {
+  background-image: url('https://images.unsplash.com/photo-1483921020603-2dc880257064?w=800&q=80');
 }
 
 /* 底部裝飾線 */
@@ -171,6 +174,16 @@
   height: 36px;
   background: rgba(0,0,0,0.1);
   pointer-events: none;
+}
+
+/* 拖曳提示 */
+.pet-bg-drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
 }
 
 /* 換背景按鈕 */

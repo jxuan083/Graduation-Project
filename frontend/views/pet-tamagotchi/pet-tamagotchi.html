@@ -50,15 +50,21 @@
         <!-- 背景選擇列 -->
         <div id="pet-bg-picker" class="pet-bg-picker" style="display:none;">
             <button class="bg-opt" data-bg="default">預設</button>
-            <button class="bg-opt" data-bg="meadow">草地</button>
-            <button class="bg-opt" data-bg="night">夜晚</button>
-            <button class="bg-opt" data-bg="beach">海邊</button>
-            <button class="bg-opt" data-bg="forest">森林</button>
-            <button class="bg-opt" data-bg="sunset">黃昏</button>
+            <button class="bg-opt" data-bg="meadow">🌿 草地</button>
+            <button class="bg-opt" data-bg="night">🌙 夜晚</button>
+            <button class="bg-opt" data-bg="beach">🏖️ 海邊</button>
+            <button class="bg-opt" data-bg="forest">🌲 森林</button>
+            <button class="bg-opt" data-bg="sunset">🌅 黃昏</button>
+            <button class="bg-opt" data-bg="snow">❄️ 雪地</button>
             <label class="bg-opt bg-upload-label">
-                自訂
+                📷 自訂
                 <input type="file" id="bg-upload-input" accept="image/*" style="display:none;">
             </label>
+        </div>
+        <!-- 自訂背景拖曳提示 -->
+        <div id="pet-bg-drag-hint" class="pet-bg-drag-hint" style="display:none;">
+            <i data-lucide="move" style="width:13px;height:13px;"></i>
+            <span>拖曳舞台可調整背景位置</span>
         </div>
 
         <!-- 個人模式數值條 -->

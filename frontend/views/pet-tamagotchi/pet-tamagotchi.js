@@ -2,12 +2,20 @@ import { register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 
-const BG_PRESETS = ['default','meadow','night','beach','forest','sunset'];
-const BG_KEY = 'pet_bg';
+const BG_PRESETS = ['default','meadow','night','beach','forest','sunset','snow'];
+const BG_KEY     = 'pet_bg';
+const BG_IMG_KEY = 'pet_bg_img';
+const BG_POS_KEY = 'pet_bg_pos';
+
+let _bgPosX = 50, _bgPosY = 50;
+let _bgDrag  = { active: false, startX: 0, startY: 0, basePosX: 50, basePosY: 50 };
 
 function loadBackground() {
-    const saved = localStorage.getItem(BG_KEY) || 'default';
-    applyBackground(saved);
+    const saved    = localStorage.getItem(BG_KEY) || 'default';
+    const savedImg = localStorage.getItem(BG_IMG_KEY) || null;
+    const savedPos = JSON.parse(localStorage.getItem(BG_POS_KEY) || '[50,50]');
+    _bgPosX = savedPos[0]; _bgPosY = savedPos[1];
+    applyBackground(saved, saved === 'custom' ? savedImg : null);
     document.querySelectorAll('.bg-opt[data-bg]').forEach(b => {
         b.classList.toggle('active', b.dataset.bg === saved);
     });
@@ -18,14 +26,60 @@ function applyBackground(key, customUrl) {
     if (!stage) return;
     BG_PRESETS.forEach(p => stage.classList.remove(`bg-${p}`));
     stage.classList.remove('bg-custom');
-    stage.style.backgroundImage = '';
+    stage.style.backgroundImage   = '';
+    stage.style.backgroundPosition = '';
+    stage.style.cursor = '';
+
     if (key === 'custom' && customUrl) {
         stage.classList.add('bg-custom');
-        stage.style.backgroundImage = `url(${customUrl})`;
+        stage.style.backgroundImage    = `url(${customUrl})`;
+        stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
+        stage.style.cursor = 'grab';
+        localStorage.setItem(BG_IMG_KEY, customUrl);
     } else if (key !== 'default') {
         stage.classList.add(`bg-${key}`);
     }
     localStorage.setItem(BG_KEY, key);
+    _updateDragHint(key === 'custom');
+}
+
+function _updateDragHint(show) {
+    let hint = document.getElementById('pet-bg-drag-hint');
+    if (!hint) return;
+    hint.style.display = show ? 'flex' : 'none';
+}
+
+function setupCustomBgDrag() {
+    const stage = document.getElementById('pet-stage');
+
+    stage.addEventListener('pointerdown', e => {
+        if (!stage.classList.contains('bg-custom')) return;
+        if (e.target.closest('.pet-avatar-wrap,.pet-bg-btn,.pet-speech,.pet-zzz,.pet-poop-wrap')) return;
+        _bgDrag.active   = true;
+        _bgDrag.startX   = e.clientX;
+        _bgDrag.startY   = e.clientY;
+        _bgDrag.basePosX = _bgPosX;
+        _bgDrag.basePosY = _bgPosY;
+        stage.style.cursor = 'grabbing';
+        stage.setPointerCapture(e.pointerId);
+    });
+
+    stage.addEventListener('pointermove', e => {
+        if (!_bgDrag.active) return;
+        const rect = stage.getBoundingClientRect();
+        const dx   = e.clientX - _bgDrag.startX;
+        const dy   = e.clientY - _bgDrag.startY;
+        _bgPosX = Math.max(0, Math.min(100, _bgDrag.basePosX - (dx / rect.width)  * 120));
+        _bgPosY = Math.max(0, Math.min(100, _bgDrag.basePosY - (dy / rect.height) * 120));
+        stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
+    });
+
+    stage.addEventListener('pointerup', () => {
+        if (!_bgDrag.active) return;
+        _bgDrag.active     = false;
+        stage.style.cursor = 'grab';
+        localStorage.setItem(BG_POS_KEY, JSON.stringify([_bgPosX, _bgPosY]));
+    });
 }
 
 const SPEECHES = {
@@ -107,12 +161,15 @@ export function init() {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
+            _bgPosX = 50; _bgPosY = 50;
             applyBackground('custom', ev.target.result);
             document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
             document.getElementById('pet-bg-picker').style.display = 'none';
         };
         reader.readAsDataURL(file);
     };
+
+    setupCustomBgDrag();
 }
 
 async function onShow() {
