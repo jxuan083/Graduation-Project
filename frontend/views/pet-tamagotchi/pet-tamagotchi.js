@@ -2,6 +2,32 @@ import { register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 
+const BG_PRESETS = ['default','meadow','night','beach','forest','sunset'];
+const BG_KEY = 'pet_bg';
+
+function loadBackground() {
+    const saved = localStorage.getItem(BG_KEY) || 'default';
+    applyBackground(saved);
+    document.querySelectorAll('.bg-opt[data-bg]').forEach(b => {
+        b.classList.toggle('active', b.dataset.bg === saved);
+    });
+}
+
+function applyBackground(key, customUrl) {
+    const stage = document.getElementById('pet-stage');
+    if (!stage) return;
+    BG_PRESETS.forEach(p => stage.classList.remove(`bg-${p}`));
+    stage.classList.remove('bg-custom');
+    stage.style.backgroundImage = '';
+    if (key === 'custom' && customUrl) {
+        stage.classList.add('bg-custom');
+        stage.style.backgroundImage = `url(${customUrl})`;
+    } else if (key !== 'default') {
+        stage.classList.add(`bg-${key}`);
+    }
+    localStorage.setItem(BG_KEY, key);
+}
+
 const SPEECHES = {
     NORMAL:   ['汪汪！你好！', '今天天氣很好～', '陪我玩嘛～', '我在這裡！'],
     HAPPY:    ['好開心！好開心！🎉', '你真是個好主人！', '耶！耶！耶！', '汪汪！愛你！'],
@@ -47,6 +73,31 @@ export function init() {
         if (e.key === 'Enter') confirmRename();
         if (e.key === 'Escape') closeRenameDialog();
     });
+
+    // 背景切換
+    document.getElementById('btn-change-bg').onclick = () => {
+        const picker = document.getElementById('pet-bg-picker');
+        picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+    };
+    document.querySelectorAll('.bg-opt[data-bg]').forEach(btn => {
+        btn.onclick = () => {
+            applyBackground(btn.dataset.bg);
+            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('pet-bg-picker').style.display = 'none';
+        };
+    });
+    document.getElementById('bg-upload-input').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            applyBackground('custom', ev.target.result);
+            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
+            document.getElementById('pet-bg-picker').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    };
 }
 
 async function onShow() {
@@ -54,6 +105,7 @@ async function onShow() {
     _pet      = null;
     _groupPet = null;
     showLoading(true);
+    loadBackground();
     await loadPet();
     startPolling();
 }
@@ -203,15 +255,11 @@ function renderPersonalMode() {
     document.getElementById('pet-zzz').style.display      = sleeping ? 'flex' : 'none';
     const btnSleep = document.getElementById('btn-pet-sleep');
     btnSleep.style.display = '';
-    if (sleeping) {
-        btnSleep.querySelector('.action-icon').textContent    = '☀️';
-        btnSleep.querySelector('span:last-child').textContent = '叫醒';
-        btnSleep.classList.add('active-toggle');
-    } else {
-        btnSleep.querySelector('.action-icon').textContent    = '😴';
-        btnSleep.querySelector('span:last-child').textContent = '睡覺';
-        btnSleep.classList.remove('active-toggle');
-    }
+    btnSleep.querySelector('.icon-sleep').style.display = sleeping ? 'none' : '';
+    btnSleep.querySelector('.icon-wake').style.display  = sleeping ? '' : 'none';
+    btnSleep.querySelector('span').textContent = sleeping ? '叫醒' : '睡覺';
+    if (sleeping) btnSleep.classList.add('active-toggle');
+    else          btnSleep.classList.remove('active-toggle');
 
     const status = _pet.my_pet_status || 'NORMAL';
     applyAvatarState(statusToAnimClass(status));

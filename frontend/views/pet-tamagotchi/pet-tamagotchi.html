@@ -23,12 +23,17 @@
         <!-- 名稱列 -->
         <div class="pet-name-row">
             <h2 id="pet-tama-name">我的寵物</h2>
-            <button id="btn-pet-rename" style="display:none;">✏️ 改名</button>
-            <button id="btn-pet-delete" style="display:none;">🗑️ 刪除</button>
+            <button id="btn-pet-rename" style="display:none;"><i data-lucide="pencil"></i> 改名</button>
+            <button id="btn-pet-delete" style="display:none;"><i data-lucide="trash-2"></i></button>
         </div>
 
         <!-- 舞台 -->
-        <div class="pet-stage">
+        <div class="pet-stage" id="pet-stage">
+            <!-- 換背景按鈕 -->
+            <button id="btn-change-bg" class="pet-bg-btn" title="更換背景">
+                <i data-lucide="image"></i>
+            </button>
+
             <div id="pet-speech" class="pet-speech">汪汪！</div>
             <div class="pet-zzz" id="pet-zzz">
                 <span>Z</span><span>z</span><span>z</span>
@@ -42,26 +47,52 @@
             </div>
         </div>
 
+        <!-- 背景選擇列 -->
+        <div id="pet-bg-picker" class="pet-bg-picker" style="display:none;">
+            <button class="bg-opt" data-bg="default">預設</button>
+            <button class="bg-opt" data-bg="meadow">草地</button>
+            <button class="bg-opt" data-bg="night">夜晚</button>
+            <button class="bg-opt" data-bg="beach">海邊</button>
+            <button class="bg-opt" data-bg="forest">森林</button>
+            <button class="bg-opt" data-bg="sunset">黃昏</button>
+            <label class="bg-opt bg-upload-label">
+                自訂
+                <input type="file" id="bg-upload-input" accept="image/*" style="display:none;">
+            </label>
+        </div>
+
         <!-- 個人模式數值條 -->
         <div id="pet-personal-stats" class="pet-stats">
             <div class="stat-row">
-                <span class="stat-label">🍖 飢餓</span>
-                <div class="stat-bar"><div id="fill-hunger"    class="stat-fill hunger-fill"    style="width:0%"></div></div>
+                <div class="stat-label">
+                    <i data-lucide="beef" class="stat-icon hunger-icon"></i>
+                    <span>飢餓</span>
+                </div>
+                <div class="stat-bar"><div id="fill-hunger" class="stat-fill hunger-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-hunger">0</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">😊 快樂</span>
+                <div class="stat-label">
+                    <i data-lucide="heart" class="stat-icon happiness-icon"></i>
+                    <span>快樂</span>
+                </div>
                 <div class="stat-bar"><div id="fill-happiness" class="stat-fill happiness-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-happiness">0</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">⚡ 精力</span>
-                <div class="stat-bar"><div id="fill-energy"    class="stat-fill energy-fill"    style="width:0%"></div></div>
+                <div class="stat-label">
+                    <i data-lucide="zap" class="stat-icon energy-icon"></i>
+                    <span>精力</span>
+                </div>
+                <div class="stat-bar"><div id="fill-energy" class="stat-fill energy-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-energy">0</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">🛁 清潔</span>
-                <div class="stat-bar"><div id="fill-clean"     class="stat-fill clean-fill"     style="width:0%"></div></div>
+                <div class="stat-label">
+                    <i data-lucide="sparkles" class="stat-icon clean-icon"></i>
+                    <span>清潔</span>
+                </div>
+                <div class="stat-bar"><div id="fill-clean" class="stat-fill clean-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-clean">0</span>
             </div>
         </div>
@@ -69,11 +100,17 @@
         <!-- 群組模式數值條 -->
         <div id="pet-group-stats" class="pet-stats" style="display:none;">
             <div class="pet-hp-row">
-                <span class="stat-label" style="width:auto; margin-right:6px;">❤️ HP</span>
+                <div class="stat-label" style="width:auto; margin-right:6px;">
+                    <i data-lucide="heart" class="stat-icon happiness-icon"></i>
+                    <span>HP</span>
+                </div>
                 <div class="pet-hp-hearts" id="pet-hp-hearts"></div>
             </div>
             <div class="stat-row">
-                <span class="stat-label">⚡ 精力</span>
+                <div class="stat-label">
+                    <i data-lucide="zap" class="stat-icon energy-icon"></i>
+                    <span>精力</span>
+                </div>
                 <div class="stat-bar"><div id="fill-group-energy" class="stat-fill energy-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-group-energy">0</span>
             </div>
@@ -81,17 +118,22 @@
 
         <!-- 動作按鈕 -->
         <div class="pet-actions">
-            <button id="btn-pet-feed"  class="pet-action-btn">
-                <span class="action-icon">🍖</span><span>餵食</span>
+            <button id="btn-pet-feed" class="pet-action-btn feed-btn">
+                <i data-lucide="utensils"></i>
+                <span>餵食</span>
             </button>
-            <button id="btn-pet-wipe"  class="pet-action-btn">
-                <span class="action-icon">🧹</span><span>擦屁股</span>
+            <button id="btn-pet-wipe" class="pet-action-btn wipe-btn">
+                <i data-lucide="wind"></i>
+                <span>清潔</span>
             </button>
-            <button id="btn-pet-play"  class="pet-action-btn">
-                <span class="action-icon">🎮</span><span>玩耍</span>
+            <button id="btn-pet-play" class="pet-action-btn play-btn">
+                <i data-lucide="gamepad-2"></i>
+                <span>玩耍</span>
             </button>
-            <button id="btn-pet-sleep" class="pet-action-btn">
-                <span class="action-icon">😴</span><span>睡覺</span>
+            <button id="btn-pet-sleep" class="pet-action-btn sleep-btn">
+                <i data-lucide="moon" class="icon-sleep"></i>
+                <i data-lucide="sun" class="icon-wake" style="display:none;"></i>
+                <span>睡覺</span>
             </button>
         </div>
 
