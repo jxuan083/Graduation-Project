@@ -1,6 +1,6 @@
 // features/photos/controller.js — 聚會照片上傳/壓縮/列表
 import { state } from '../../core/state.js';
-import { apiFetch, apiBase } from '../../core/api.js';
+import { apiFetch, apiBase, setProtectedImage } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
 import { t } from '../../core/i18n.js';
 
@@ -123,7 +123,10 @@ export function renderMeetingPhotosGrid() {
     state.currentMeetingPhotos.forEach(p => {
         const tile = document.createElement('div');
         tile.className = 'photo-tile' + (p.is_cover ? ' is-cover' : '');
-        tile.style.backgroundImage = `url("${p.url}")`;
+        setProtectedImage(tile, p.content_path, { background: true }).catch(err => {
+            console.warn('load protected meeting photo failed:', err);
+            tile.classList.add('photo-load-failed');
+        });
         if (p.is_cover) {
             const badge = document.createElement('span');
             badge.className = 'photo-cover-badge';
@@ -138,7 +141,11 @@ export function renderMeetingPhotosGrid() {
 // === Lightbox (放大檢視) ===
 export function openPhotoLightbox(photo) {
     state.lightboxPhoto = photo;
-    document.getElementById('lightbox-img').src = photo.url;
+    const lightbox = document.getElementById('lightbox-img');
+    lightbox.removeAttribute('src');
+    setProtectedImage(lightbox, photo.content_path).catch(err => {
+        console.warn('load protected lightbox photo failed:', err);
+    });
     const canManage = state.currentMeetingIsHost;
     document.getElementById('btn-lightbox-set-cover').style.display = (canManage && !photo.is_cover) ? 'inline-block' : 'none';
     document.getElementById('btn-lightbox-delete').style.display = canManage ? 'inline-block' : 'none';

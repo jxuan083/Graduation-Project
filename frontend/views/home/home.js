@@ -15,6 +15,7 @@ const STATUS_BADGE = {
     NORMAL:   '🐾',
     HUNGRY:   '😟',
     CRITICAL: '😰',
+    DIRTY:    '🧼',
 };
 
 export function init() {

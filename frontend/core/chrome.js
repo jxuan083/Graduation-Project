@@ -12,6 +12,7 @@ import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends
 import { openProfileView } from '../views/profile/profile.js';
 import { openFriendsView } from '../views/friends/friends.js';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
+import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
 import { t } from './i18n.js';
 
 export function initChrome() {
@@ -41,6 +42,11 @@ export function initChrome() {
     document.getElementById('btn-open-profile').onclick = () => { closeMenu(); openProfileView(); };
     document.getElementById('btn-open-friends').onclick = () => { closeMenu(); openFriendsView(); };
     document.getElementById('btn-open-leaderboard').onclick = () => { closeMenu(); openLeaderboardView(); };
+    const pushButton = document.getElementById('btn-enable-push');
+    if (pushButton) {
+        pushButton.style.display = isPushAvailable() ? '' : 'none';
+        pushButton.onclick = () => { closeMenu(); enablePush(); };
+    }
     document.getElementById('btn-open-about').onclick = () => { closeMenu(); switchView('view-about'); };
     document.getElementById('btn-logout').onclick = () => { closeMenu(); handleLogout(); };
 
@@ -58,6 +64,7 @@ export function initChrome() {
         catch (err) { console.warn('load friend caches on login failed:', err); }
         renderAuthBar();
         refreshIncomingBanner();
+        reEnablePushIfPreviouslyGranted();
     });
     events.on('auth:logged-out', () => {
         hideIncomingBanner();

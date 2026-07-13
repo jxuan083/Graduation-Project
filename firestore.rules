@@ -10,8 +10,9 @@ service cloud.firestore {
     // 修正前: allow read: if request.auth != null  → 任何登入者可讀任何人的 email
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid;
-      allow delete: if false;
+      // Profile / email / FCM token / pet state 全部由後端 Admin SDK 更新。
+      // 禁止 client 任意改 email、uid 或系統欄位。
+      allow write: if false;
 
       // ===== 個人題庫 =====
       // 每個使用者有自己的私人題庫，只有自己能讀寫

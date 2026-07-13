@@ -9,8 +9,17 @@ export const dict = {
     '個人資料': 'Profile',
     '好友': 'Friends',
     '排行榜': 'Leaderboard',
+    '開啟通知': 'Enable notifications',
     '登出': 'Log out',
     '返回聚會': 'Back to gathering',
+
+    // --- push notifications (core/push.js) ---
+    '這個瀏覽器不支援推播通知': 'This browser does not support push notifications',
+    '通知權限被拒絕，之後可以到瀏覽器設定重新開啟': 'Notification permission denied, you can re-enable it in browser settings later',
+    '無法取得推播 token': 'Failed to get push notification token',
+    '通知已開啟': 'Notifications enabled',
+    '推播通知尚未啟用': 'Push notifications are not enabled yet',
+    '開啟通知失敗：': 'Failed to enable notifications: ',
 
     // --- home ---
     '聚會時間': 'Meeting Time',
@@ -334,6 +343,9 @@ export const dict = {
     '🛁 清潔': '🛁 Cleanliness',
     '♥ 我的收藏': '♥ My Favorites',
     '還沒有寵物': 'No pet yet',
+    '還沒有個人寵物': 'No personal pet yet',
+    '你可以先建立個人寵物，或和朋友一起養群組寵物。': 'Create a personal pet, or raise a shared group pet with friends.',
+    '建立我的寵物': 'Create My Pet',
     '請先生成寵物臉再養它！': 'Please generate a pet face before taking care of it!',
     '請先在群組設定頁生成並設定寵物臉！': 'Please generate and set a pet face on the group settings page first!',
 

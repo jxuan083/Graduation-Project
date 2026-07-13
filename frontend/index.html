@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>社交定錨 | Phubbing Anchor</title>
 
+    <!-- PWA：可安裝到主畫面，是 iOS Web Push 能收到通知的前提 -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icons/icon-192.png">
+    <meta name="theme-color" content="#e87a41">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <!-- 字體：台北黑體 Taipei Sans TC（emfont CDN，woff2 + unicode-range 切片，含 300/400/700） -->
     <link rel="preconnect" href="https://font.emtech.cc" crossorigin>
     <link rel="stylesheet" href="https://font.emtech.cc/css/TaipeiSansTC">
@@ -21,6 +29,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 
     <!-- QR Code 掃描 + Lottie -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -51,6 +60,7 @@
                     <button id="btn-open-profile" class="user-menu-item"><i data-lucide="user"></i> 個人資料</button>
                     <button id="btn-open-friends" class="user-menu-item"><i data-lucide="users"></i> 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
                     <button id="btn-open-leaderboard" class="user-menu-item"><i data-lucide="trophy"></i> 排行榜</button>
+                    <button id="btn-enable-push" class="user-menu-item"><i data-lucide="bell"></i> 開啟通知</button>
                     <button id="btn-open-about" class="user-menu-item"><i data-lucide="info"></i> 關於</button>
                     <div class="user-menu-sep"></div>
                     <button id="btn-logout" class="user-menu-item danger"><i data-lucide="log-out"></i> 登出</button>

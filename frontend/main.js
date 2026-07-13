@@ -87,13 +87,24 @@ async function loadAllViewHtml() {
 }
 
 async function initAllViews() {
-    // 動態 import 並依序呼叫每個 view 的 init() 註冊事件
-    for (const name of VIEW_NAMES) {
+    // 同時下載所有 module，再依 VIEW_NAMES 順序 init，避免 30+ 個 sequential import waterfall。
+    const loaded = await Promise.all(VIEW_NAMES.map(async (name) => {
         try {
-            const mod = await VIEW_MODULES[name]();
-            mod.init?.();
+            return { name, mod: await VIEW_MODULES[name]() };
         } catch (err) {
+            return { name, err };
+        }
+    }));
+
+    for (const { name, mod, err } of loaded) {
+        if (err) {
             console.error(`[init] view "${name}" failed:`, err);
+            continue;
+        }
+        try {
+            mod.init?.();
+        } catch (initErr) {
+            console.error(`[init] view "${name}" failed during init:`, initErr);
         }
     }
 }

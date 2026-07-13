@@ -82,7 +82,9 @@ export function init() {
         onShow,
     });
 
-    document.getElementById('btn-pet-swap-back').onclick = () => switchView('view-group-setup');
+    document.getElementById('btn-pet-swap-back').onclick = () => {
+        switchView(state.petSwapOrigin === 'personal' ? 'view-pet-tamagotchi' : 'view-group-setup');
+    };
     document.getElementById('btn-pet-camera').onclick = startLiveCamera;
     document.getElementById('btn-pet-flip').onclick = flipCamera;
 
@@ -665,10 +667,13 @@ async function adoptPet() {
         const snap = await ref.put(toUpload, { contentType: 'image/jpeg' });
         const imageUrl = await snap.ref.getDownloadURL();
         const animal = ANIMALS.includes(selectedAnimal) ? selectedAnimal : 'dog';
-        await apiFetch('/api/my-pet/setup', {
+        const { res, data } = await apiFetch('/api/my-pet/setup', {
             method: 'POST',
             body: JSON.stringify({ image_url: imageUrl, animal, name: '' }),
         });
+        if (!res.ok) {
+            throw new Error(data?.detail || `建立寵物失敗（HTTP ${res.status}）`);
+        }
         setStatus('已成功建立你的寵物。');
         closeSheet('pet-result-sheet');
         switchView('view-pet-tamagotchi');

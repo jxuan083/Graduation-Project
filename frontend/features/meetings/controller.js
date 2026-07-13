@@ -1,6 +1,6 @@
 // features/meetings/controller.js — 聚會紀錄列表與詳情
 import { state } from '../../core/state.js';
-import { apiFetch } from '../../core/api.js';
+import { apiFetch, setProtectedImage } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
@@ -67,11 +67,11 @@ function _getDisplayedMeetings() {
 
 function _buildCard(m) {
     const card = document.createElement('div');
-    card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
+    card.className = 'meeting-card' + (m.cover_content_path ? ' has-cover' : '');
     const modeLabel = formatModeLabel(m.mode);
     const dateLabel = formatDateTime(m.ended_at);
-    const coverHtml = m.cover_url
-        ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
+    const coverHtml = m.cover_content_path
+        ? '<div class="mc-cover"></div>'
         : '';
     card.innerHTML = `
         ${coverHtml}
@@ -92,6 +92,12 @@ function _buildCard(m) {
     card.onclick = () => openMeetingDetail(m.id);
     card.querySelector('.btn-mc-fav').onclick = (e) => { e.stopPropagation(); _toggleFavorite(m.id); };
     card.querySelector('.btn-mc-delete').onclick = (e) => { e.stopPropagation(); _hideMeeting(m.id); };
+    const cover = card.querySelector('.mc-cover');
+    if (cover) {
+        setProtectedImage(cover, m.cover_content_path, { background: true }).catch(err => {
+            console.warn('load protected meeting cover failed:', err);
+        });
+    }
     return card;
 }
 
@@ -456,10 +462,15 @@ function renderNewspaper(news) {
     result.style.display = '';
 
     const cover = document.getElementById('md-news-cover');
-    const coverUrl = news.cover_photo && news.cover_photo.url;
+    const coverPath = news.cover_photo && news.cover_photo.content_path;
     if (cover) {
-        cover.style.display = coverUrl ? '' : 'none';
-        cover.style.backgroundImage = coverUrl ? `url("${coverUrl}")` : '';
+        cover.style.display = coverPath ? '' : 'none';
+        cover.style.backgroundImage = '';
+        if (coverPath) {
+            setProtectedImage(cover, coverPath, { background: true }).catch(err => {
+                console.warn('load protected newspaper cover failed:', err);
+            });
+        }
     }
 
     setText('md-news-subtitle', news.subtitle || 'Gathering recap');
@@ -530,7 +541,9 @@ function renderNewspaper(news) {
         (news.photos || []).forEach(photo => {
             const tile = document.createElement('div');
             tile.className = 'newspaper-photo';
-            tile.style.backgroundImage = `url("${photo.url}")`;
+            setProtectedImage(tile, photo.content_path, { background: true }).catch(err => {
+                console.warn('load protected newspaper photo failed:', err);
+            });
             photoStrip.appendChild(tile);
         });
         if (!(news.photos || []).length) {

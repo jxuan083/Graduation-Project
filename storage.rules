@@ -10,14 +10,24 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.auth.uid == uid
                    && request.resource.size < 5 * 1024 * 1024              // 5 MB 上限
-                   && request.resource.contentType.matches('image/.*');     // 必須是圖片
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 
-    // 聚會照片：讀取開放給所有登入者（實際權限由後端 + download URL 控制）
-    // 寫入完全走後端 (Admin SDK 會繞過規則)
+    // 個人寵物圖：前端會上傳到 pet-images/{uid}/pet.jpg。
+    match /pet-images/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // 聚會照片：client 讀寫一律拒絕；參與者經過後端身分檢查後取得內容。
+    // 寫入也完全走後端 (Admin SDK 會繞過規則)
     // 路徑慣例：meeting-photos/{meetingId}/{photoId}.jpg
     match /meeting-photos/{meetingId}/{fileName} {
-      allow read: if request.auth != null;
+      // 不讓 client 繞過後端的參與者檢查直接枚舉讀取。
+      allow read: if false;
       allow write: if false;
     }
 

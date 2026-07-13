@@ -9,15 +9,24 @@ import datetime
 import time
 import os
 import random
+import secrets
 import string
 import tempfile
 import firebase_admin
-from firebase_admin import credentials, firestore, auth as fb_auth
+from firebase_admin import credentials, firestore, auth as fb_auth, messaging as fb_messaging
 from typing import Dict, Set, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pet_logic import (
+    GROUP_PET_STAT_DEFAULTS,
+    group_pet_current_stats as _group_pet_current_stats,
+    group_pet_display as _group_pet_display,
+    group_pet_hp as _group_pet_hp,
+    group_pet_status as _group_pet_status,
+    personal_pet_decay as _personal_pet_decay,
+)
 
 # Qwen 文案生成（失敗時 _build_newspaper 會 fallback 回規則版，故 import 失敗也不致命）
 try:
@@ -70,10 +79,25 @@ db = firestore.client()
 app = FastAPI()
 
 # ===== CORS FOR FRONTEND SEPARATION =====
-# Allow frontend domains (e.g. from Vite dev server port 5173 or simple HTTP server 3000)
+# 正式環境只允許本專案 Hosting；本機開發 origin 明確列舉，不開 wildcard。
+DEFAULT_FRONTEND_ORIGINS = [
+    "https://graduation-6ae65.web.app",
+    "https://graduation-6ae65.firebaseapp.com",
+    "http://localhost:3000",
+    "http://localhost:5000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5000",
+    "http://127.0.0.1:5173",
+]
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("ALLOWED_ORIGINS", ",".join(DEFAULT_FRONTEND_ORIGINS)).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -258,6 +282,66 @@ async def get_public_profile(target_uid: str, decoded: dict = Depends(verify_tok
     }
 
 
+# ===== 推播通知 (FCM) =====
+class PushTokenPayload(BaseModel):
+    token: str = Field(min_length=16, max_length=4096)
+
+
+@app.post("/api/push_token")
+async def register_push_token(payload: PushTokenPayload, decoded: dict = Depends(verify_token)):
+    """前端拿到 FCM token 後上傳，存進 users/{uid}.fcm_tokens（陣列，同一人多裝置都留著）。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    token = (payload.token or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="token 不可為空")
+
+    _ensure_user_doc(decoded)
+    try:
+        user_ref = db.collection("users").document(uid)
+        snap = user_ref.get()
+        current = list((snap.to_dict() or {}).get("fcm_tokens") or [])
+        # 防止無限累加過期 token 撐爆 Firestore document。
+        tokens = [t for t in current if t != token][-9:] + [token]
+        user_ref.update({"fcm_tokens": tokens})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"儲存 token 失敗: {e}")
+    return {"status": "success"}
+
+
+def send_push(uid: str, title: str, body: str, url: str = "/") -> None:
+    """對某使用者名下所有已註冊裝置推播；過期/失效的 token 會被清掉。
+    推播是錦上添花的通知，不應該讓主要業務流程（加好友、邀請）因為推播失敗而報錯，故一律吞例外。
+    """
+    try:
+        snap = db.collection("users").document(uid).get()
+        if not snap.exists:
+            return
+        tokens = (snap.to_dict() or {}).get("fcm_tokens") or []
+        if not tokens:
+            return
+
+        message = fb_messaging.MulticastMessage(
+            notification=fb_messaging.Notification(title=title, body=body),
+            data={"url": url},
+            tokens=tokens,
+        )
+        response = fb_messaging.send_each_for_multicast(message)
+
+        if response.failure_count:
+            dead_tokens = [
+                tokens[i] for i, r in enumerate(response.responses)
+                if not r.success and isinstance(r.exception, fb_messaging.UnregisteredError)
+            ]
+            if dead_tokens:
+                db.collection("users").document(uid).update({
+                    "fcm_tokens": firestore.ArrayRemove(dead_tokens),
+                })
+    except Exception as e:
+        print(f"[push] send_push({uid}) failed: {e}")
+
+
 # ===== 好友系統 =====
 class FriendRequestPayload(BaseModel):
     target_uid: Optional[str] = None
@@ -302,7 +386,11 @@ async def get_relationship(target_uid: str, decoded: dict = Depends(verify_token
 
 
 @app.post("/api/friend_requests")
-async def send_friend_request(payload: FriendRequestPayload, decoded: dict = Depends(verify_token)):
+async def send_friend_request(
+    payload: FriendRequestPayload,
+    background_tasks: BackgroundTasks,
+    decoded: dict = Depends(verify_token),
+):
     """發送好友邀請。可以用 target_uid 或 target_email 指定對方。"""
     me_uid = decoded.get("uid") or decoded.get("user_id")
     if not me_uid:
@@ -382,6 +470,11 @@ async def send_friend_request(payload: FriendRequestPayload, decoded: dict = Dep
             print(f"[friend_request] mutual auto-accept batch failed: {e}")
             raise HTTPException(status_code=500, detail=f"自動成為好友失敗: {e}")
 
+        background_tasks.add_task(
+            send_push, target_uid, "互相邀請成功",
+            f"你和 {me_profile.get('nickname', '朋友')} 已成為好友！", "/?open=friends"
+        )
+
         return {
             "status": "auto_accepted",
             "target_uid": target_uid,
@@ -415,6 +508,11 @@ async def send_friend_request(payload: FriendRequestPayload, decoded: dict = Dep
         print(f"[friend_request] write failed: {e}")
         raise HTTPException(status_code=500, detail=f"發送邀請失敗: {e}")
 
+    background_tasks.add_task(
+        send_push, target_uid, "新的好友邀請",
+        f"{me_profile.get('nickname', '有人')} 想加你為好友", "/?open=friends"
+    )
+
     return {"status": "success", "request_id": req_id, "target_uid": target_uid}
 
 
@@ -446,7 +544,11 @@ async def list_friend_requests(decoded: dict = Depends(verify_token)):
 
 
 @app.post("/api/friend_requests/{req_id}/accept")
-async def accept_friend_request(req_id: str, decoded: dict = Depends(verify_token)):
+async def accept_friend_request(
+    req_id: str,
+    background_tasks: BackgroundTasks,
+    decoded: dict = Depends(verify_token),
+):
     me_uid = decoded.get("uid") or decoded.get("user_id")
     if not me_uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
@@ -496,6 +598,11 @@ async def accept_friend_request(req_id: str, decoded: dict = Depends(verify_toke
     except Exception as e:
         print(f"[accept] batch commit failed: {e}")
         raise HTTPException(status_code=500, detail=f"接受失敗: {e}")
+
+    background_tasks.add_task(
+        send_push, other_uid, "好友邀請被接受",
+        f"{me_profile.get('nickname', '對方')} 接受了你的好友邀請", "/?open=friends"
+    )
 
     return {"status": "success"}
 
@@ -693,6 +800,11 @@ def _serialize_meeting(data: dict, doc_id: str) -> dict:
     """把 Firestore document 轉成可序列化的 dict（轉 datetime / sentinel）"""
     out = dict(data)
     out["id"] = doc_id
+    # 不再回傳永久公開的 Storage URL；封面由通過身分驗證的 content API 讀取。
+    out.pop("cover_url", None)
+    cover_photo_id = out.get("cover_photo_id")
+    if cover_photo_id:
+        out["cover_content_path"] = f"/api/meetings/{doc_id}/photos/{cover_photo_id}/content"
     if out.get("ended_at") and hasattr(out["ended_at"], "isoformat"):
         out["ended_at"] = out["ended_at"].isoformat()
     elif out.get("ended_at"):
@@ -1137,6 +1249,10 @@ def _get_meeting_or_403(meeting_id: str, uid: str, require_host: bool = False) -
 def _serialize_photo(data: dict, doc_id: str) -> dict:
     out = dict(data)
     out["id"] = doc_id
+    meeting_id = out.pop("meeting_id", None)
+    out.pop("url", None)
+    if meeting_id:
+        out["content_path"] = f"/api/meetings/{meeting_id}/photos/{doc_id}/content"
     ts = out.get("uploaded_at")
     if ts and hasattr(ts, "isoformat"):
         out["uploaded_at"] = ts.isoformat()
@@ -1205,15 +1321,14 @@ async def upload_meeting_photo(
         bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
-        # 讓檔案可以透過 URL 讀取（URL 只有透過我們 API 回傳才拿得到，所以只有參與者能看到）
-        blob.make_public()
-        public_url = blob.public_url
+        # Blob 保持 private；前端改經過有參與者驗證的 content API 取圖。
 
         # 寫 Firestore
         is_first = len(existing) == 0
         payload = {
-            "url": public_url,
+            "meeting_id": meeting_id,
             "storage_path": blob_name,
+            "content_type": file.content_type,
             "uploaded_by": uid,
             "uploaded_at": firestore.SERVER_TIMESTAMP,
             "is_cover": is_first,  # 第一張自動設為封面
@@ -1224,8 +1339,8 @@ async def upload_meeting_photo(
         # 用 set + merge=True：聚會進行中 meetings/{id} 還不存在也能寫入（END_SESSION 會再 merge 其餘欄位）
         if is_first:
             db.collection("meetings").document(meeting_id).set({
-                "cover_url": public_url,
                 "cover_photo_id": photo_id,
+                "cover_url": firestore.DELETE_FIELD,
             }, merge=True)
 
         saved = payload.copy()
@@ -1249,9 +1364,50 @@ async def list_meeting_photos(meeting_id: str, decoded: dict = Depends(verify_to
     photos_col = db.collection("meetings").document(meeting_id).collection("photos")
     docs = list(photos_col.stream())
     photos = [_serialize_photo(d.to_dict() or {}, d.id) for d in docs]
+    for photo in photos:
+        photo["content_path"] = f"/api/meetings/{meeting_id}/photos/{photo['id']}/content"
     # 封面優先，其餘照 uploaded_at 先後排列
     photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
     return {"status": "success", "photos": photos, "max": MAX_PHOTOS_PER_MEETING}
+
+
+@app.get("/api/meetings/{meeting_id}/photos/{photo_id}/content")
+async def get_meeting_photo_content(
+    meeting_id: str,
+    photo_id: str,
+    decoded: dict = Depends(verify_token),
+):
+    """經過參與者驗證後回傳 private Storage 圖片。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    _get_meeting_or_403(meeting_id, uid)
+
+    photo_ref = db.collection("meetings").document(meeting_id).collection("photos").document(photo_id)
+    photo_doc = photo_ref.get()
+    if not photo_doc.exists:
+        raise HTTPException(status_code=404, detail="找不到這張照片")
+    photo = photo_doc.to_dict() or {}
+    storage_path = photo.get("storage_path")
+    if not storage_path:
+        raise HTTPException(status_code=404, detail="照片檔案不存在")
+
+    try:
+        blob = _storage_bucket().blob(storage_path)
+        content = blob.download_as_bytes()
+        # 舊版本上傳過的公開 blob 在第一次合法讀取時順便收回 public ACL。
+        try:
+            blob.make_private()
+        except Exception as acl_err:
+            print(f"[photo] make_private skipped for {storage_path}: {acl_err}")
+        return Response(
+            content=content,
+            media_type=photo.get("content_type") or blob.content_type or "image/jpeg",
+            headers={"Cache-Control": "private, max-age=300"},
+        )
+    except Exception as e:
+        print(f"[photo] download failed for {storage_path}: {e}")
+        raise HTTPException(status_code=500, detail="讀取照片失敗")
 
 
 @app.delete("/api/meetings/{meeting_id}/photos/{photo_id}")
@@ -1292,8 +1448,8 @@ async def delete_meeting_photo(
             new_cover.reference.update({"is_cover": True})
             new_data = new_cover.to_dict() or {}
             db.collection("meetings").document(meeting_id).set({
-                "cover_url": new_data.get("url"),
                 "cover_photo_id": new_cover.id,
+                "cover_url": firestore.DELETE_FIELD,
             }, merge=True)
         else:
             # 只有在 meetings doc 存在時才移除封面欄位（進行中的聚會還沒建立 doc，無須處理）
@@ -1334,8 +1490,8 @@ async def set_meeting_photo_cover(
 
     target_data = target_doc.to_dict() or {}
     db.collection("meetings").document(meeting_id).set({
-        "cover_url": target_data.get("url"),
         "cover_photo_id": photo_id,
+        "cover_url": firestore.DELETE_FIELD,
     }, merge=True)
     return {"status": "success"}
 
@@ -1394,7 +1550,11 @@ def _collect_meeting_transcripts(meeting_id: str) -> list:
 
 def _collect_meeting_photos(meeting_id: str) -> list:
     docs = list(db.collection("meetings").document(meeting_id).collection("photos").stream())
-    photos = [_serialize_photo(d.to_dict() or {}, d.id) for d in docs]
+    photos = []
+    for doc in docs:
+        data = doc.to_dict() or {}
+        data["meeting_id"] = meeting_id
+        photos.append(_serialize_photo(data, doc.id))
     photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
     return photos
 
@@ -2107,7 +2267,7 @@ def get_session_params(context: str, difficulty: str) -> dict:
 # ===== 群組 API =====
 class CreateGroupPayload(BaseModel):
     name: str
-    member_uids: Optional[List[str]] = []
+    member_uids: List[str] = Field(default_factory=list)
 
 
 class UpdateGroupPayload(BaseModel):
@@ -2131,7 +2291,7 @@ class UpdatePetPayload(BaseModel):
 
 def _generate_invite_code() -> str:
     chars = string.ascii_uppercase + string.digits
-    return ''.join(random.choices(chars, k=8))
+    return ''.join(secrets.choice(chars) for _ in range(8))
 
 
 def _serialize_group(data: dict, doc_id: str) -> dict:
@@ -2156,11 +2316,8 @@ async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(veri
     if not name:
         raise HTTPException(status_code=400, detail="群組名稱不能為空")
 
-    # 初始成員 = 建立者 + 傳入的 uids
+    # 建立時只加入建立者；其他人必須經好友檢查直接加入，或自行使用邀請碼。
     member_set = {uid}
-    for m in (payload.member_uids or []):
-        if m and isinstance(m, str):
-            member_set.add(m)
 
     group_data = {
         "name": name,
@@ -2172,6 +2329,8 @@ async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(veri
         "pet_body_emoji": None,
         "pet_name": "",
         "pet_energy": 50,
+        "pet_happiness": 70,
+        "pet_cleanliness": 100,
         "pet_max_energy": 100,
         "pet_hp": 5,
         "pet_level": 1,
@@ -2179,6 +2338,7 @@ async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(veri
         "pet_accessories": [],
         "pet_status": "NORMAL",
         "pet_last_fed_at": None,
+        "pet_last_updated": None,   # 衰減計算 anchor：只在動作/讀書/設臉時更新
         # 寵物臉（同時當群組頭像）
         "pet_face_url": None,
         "pet_face_path": None,
@@ -2226,8 +2386,8 @@ async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
     if not doc.exists:
         raise HTTPException(status_code=404, detail="找不到群組")
     data = doc.to_dict() or {}
-    if uid not in (data.get("member_uids") or []):
-        raise HTTPException(status_code=403, detail="你不是這個群組的成員")
+    if uid != data.get("creator_uid"):
+        raise HTTPException(status_code=403, detail="只有群組建立者可以直接加入好友")
     # 舊群組沒有 invite_code 時懶惰補上
     if not data.get("invite_code"):
         new_code = _generate_invite_code()
@@ -2301,6 +2461,13 @@ async def add_group_member(group_id: str, payload: AddGroupMemberPayload, decode
     if target_uid in (data.get("member_uids") or []):
         raise HTTPException(status_code=400, detail="對方已在群組中")
 
+    target_snap = db.collection("users").document(target_uid).get()
+    if not target_snap.exists:
+        raise HTTPException(status_code=404, detail="找不到這個使用者")
+    friend_snap = db.collection("users").document(uid).collection("friends").document(target_uid).get()
+    if not friend_snap.exists:
+        raise HTTPException(status_code=403, detail="只能直接加入好友；其他人請分享群組邀請碼")
+
     doc_ref.update({"member_uids": firestore.ArrayUnion([target_uid])})
     return {"status": "success", "target_uid": target_uid}
 
@@ -2320,7 +2487,18 @@ async def remove_group_member(group_id: str, target_uid: str, decoded: dict = De
         raise HTTPException(status_code=403, detail="無權限移除此成員")
     if data.get("creator_uid") == target_uid:
         raise HTTPException(status_code=400, detail="不能移除建立者")
-    doc_ref.update({"member_uids": firestore.ArrayRemove([target_uid])})
+    votes = data.get("pet_votes") or {}
+    cleaned_votes = {
+        voter: voted_for for voter, voted_for in votes.items()
+        if voter != target_uid and voted_for != target_uid
+    }
+    updates = {
+        "member_uids": firestore.ArrayRemove([target_uid]),
+        "pet_votes": cleaned_votes,
+    }
+    if data.get("pet_target_uid") == target_uid:
+        updates["pet_target_uid"] = None
+    doc_ref.update(updates)
     return {"status": "success"}
 
 
@@ -2370,8 +2548,8 @@ async def update_pet(group_id: str, payload: UpdatePetPayload, decoded: dict = D
     if not doc.exists:
         raise HTTPException(status_code=404, detail="找不到群組")
     data = doc.to_dict() or {}
-    if uid not in (data.get("member_uids") or []):
-        raise HTTPException(status_code=403, detail="你不是群組成員")
+    if uid != data.get("creator_uid"):
+        raise HTTPException(status_code=403, detail="只有群組建立者可以更改寵物設定")
 
     updates = {}
     if payload.pet_body_emoji is not None:
@@ -2406,9 +2584,13 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
         raise HTTPException(status_code=403, detail="你不是群組成員")
 
     pet_fields = {k: v for k, v in data.items() if k.startswith("pet_")}
-    for _tf in ("pet_last_fed_at", "pet_face_updated_at"):
+    for _tf in ("pet_last_fed_at", "pet_face_updated_at", "pet_last_updated"):
         if pet_fields.get(_tf) and hasattr(pet_fields[_tf], "isoformat"):
             pet_fields[_tf] = pet_fields[_tf].isoformat()
+
+    # 疊上時間衰減後的顯示值（只讀出來給前端，不回寫 timestamp）
+    if data.get("pet_face_url"):
+        pet_fields.update(_group_pet_display(data))
 
     # 取得寵物人的 profile（頭像）
     pet_uid = data.get("pet_target_uid")
@@ -2440,7 +2622,7 @@ async def set_group_pet_face(
     target_uid: Optional[str] = Form(default=None),
     decoded: dict = Depends(verify_token),
 ):
-    """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。任何群組成員皆可設定。"""
+    """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。只有群組建立者可設定。"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
@@ -2450,8 +2632,8 @@ async def set_group_pet_face(
     if not snap.exists:
         raise HTTPException(status_code=404, detail="找不到群組")
     data = snap.to_dict() or {}
-    if uid not in (data.get("member_uids") or []):
-        raise HTTPException(status_code=403, detail="你不是群組成員")
+    if uid != data.get("creator_uid"):
+        raise HTTPException(status_code=403, detail="只有群組建立者可以設定寵物臉")
 
     # 🔒 content_type 白名單（沿用照片那套，排除 SVG 等可執行內容）
     ALLOWED = {"image/jpeg", "image/png", "image/webp"}
@@ -2474,12 +2656,18 @@ async def set_group_pet_face(
         public_url = blob.public_url
 
         old_path = data.get("pet_face_path")
-        doc_ref.update({
+        face_updates = {
             "pet_face_url": public_url,
             "pet_face_path": blob_name,
             "pet_face_updated_at": firestore.SERVER_TIMESTAMP,
             "pet_face_target_uid": target_uid or None,
-        })
+            # 設臉＝寵物誕生，補齊養成欄位並起算衰減 anchor（缺才補，不覆蓋既有進度）
+            "pet_last_updated": firestore.SERVER_TIMESTAMP,
+        }
+        for _f, _default in GROUP_PET_STAT_DEFAULTS.items():
+            if data.get(_f) is None:
+                face_updates[_f] = _default
+        doc_ref.update(face_updates)
 
         # 換圖成功後刪舊 blob（失敗不阻斷，避免殘留指向不存在檔案的 metadata）
         if old_path and old_path != blob_name:
@@ -2498,6 +2686,11 @@ async def set_group_pet_face(
         raise HTTPException(status_code=500, detail=f"設定頭像失敗: {e}")
 
 
+# ── 群組寵物養成模型 ──────────────────────────────────────────────────────────
+# 三條數值（飽食/快樂/清潔）隨時間衰減，靠讀書時段與照顧動作補回。
+# 關鍵：衰減 anchor（pet_last_updated）只在「有動作」時更新，GET 只讀出來顯示、
+# 不回寫 timestamp，避免個人寵物那套「每次 poll 重設 anchor → 衰減被截斷歸零」的坑。
+
 class GroupPetActionPayload(BaseModel):
     action: str  # "feed" | "play" | "wipe"
 
@@ -2509,54 +2702,68 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
 
-    doc_ref = db.collection("groups").document(group_id)
-    doc = doc_ref.get()
-    if not doc.exists:
-        raise HTTPException(status_code=404, detail="找不到群組")
-    data = doc.to_dict() or {}
-    if uid not in (data.get("member_uids") or []):
-        raise HTTPException(status_code=403, detail="你不是群組成員")
-    if not data.get("pet_face_url"):
-        raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
-
-    energy     = int(data.get("pet_energy", 50))
-    max_energy = int(data.get("pet_max_energy", 100))
-    hp         = int(data.get("pet_hp", 5))
-    action     = payload.action
-
-    updates: dict = {"pet_last_fed_at": firestore.SERVER_TIMESTAMP}
-
-    if action == "feed":
-        energy = min(max_energy, energy + 20)
-        updates["pet_energy"] = energy
-    elif action == "play":
-        energy = min(max_energy, energy + 10)
-        updates["pet_energy"] = energy
-    elif action == "wipe":
-        energy = min(max_energy, energy + 5)
-        updates["pet_energy"] = energy
-    else:
+    action = payload.action
+    if action not in ("feed", "play", "wipe"):
         raise HTTPException(status_code=400, detail=f"未知動作：{action}")
+    doc_ref = db.collection("groups").document(group_id)
+    transaction = db.transaction()
 
-    if energy >= 80:
-        new_status = "HAPPY"
-    elif energy >= 40:
-        new_status = "NORMAL"
-    elif energy >= 15:
-        new_status = "HUNGRY"
-    else:
-        new_status = "CRITICAL"
-    updates["pet_status"] = new_status
+    @firestore.transactional
+    def apply_action(tx):
+        doc = doc_ref.get(transaction=tx)
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = doc.to_dict() or {}
+        if uid not in (data.get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+        if not data.get("pet_face_url"):
+            raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
+
+        # 在 transaction 內從最新版本計算，避免多人同時操作互相覆蓋。
+        stats = _group_pet_current_stats(data)
+        energy = stats["pet_energy"]
+        happiness = stats["pet_happiness"]
+        cleanliness = stats["pet_cleanliness"]
+
+        if action == "feed":
+            energy = min(100.0, energy + 30)
+            happiness = min(100.0, happiness + 5)
+        elif action == "play":
+            happiness = min(100.0, happiness + 25)
+            energy = max(0.0, energy - 8)
+        else:  # wipe
+            cleanliness = 100.0
+            happiness = min(100.0, happiness + 5)
+
+        new_status = _group_pet_status(energy, happiness, cleanliness)
+        updates = {
+            "pet_energy": energy,
+            "pet_happiness": happiness,
+            "pet_cleanliness": cleanliness,
+            "pet_status": new_status,
+            "pet_last_updated": firestore.SERVER_TIMESTAMP,
+        }
+        if action == "feed":
+            updates["pet_last_fed_at"] = firestore.SERVER_TIMESTAMP
+        tx.update(doc_ref, updates)
+        return energy, happiness, cleanliness, new_status
 
     try:
-        doc_ref.update(updates)
+        energy, happiness, cleanliness, new_status = apply_action(transaction)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[group_pet_action] transaction failed: {e}")
+        raise HTTPException(status_code=500, detail="寵物狀態更新失敗")
 
+    hp = _group_pet_hp({"pet_energy": energy, "pet_happiness": happiness, "pet_cleanliness": cleanliness})
     return {
         "status": "success",
-        "pet_energy": energy,
+        "pet_energy": round(energy),
+        "pet_happiness": round(happiness),
+        "pet_cleanliness": round(cleanliness),
         "pet_status": new_status,
+        "pet_hp": hp,
     }
 
 
@@ -2574,6 +2781,7 @@ async def get_my_pets(decoded: dict = Depends(verify_token)):
         user_data = user_snap.to_dict() or {}
         if user_data.get("my_pet_image_url"):
             personal_pet = {k: v for k, v in user_data.items() if k.startswith("my_pet_")}
+            current_personal = _calc_pet_decay(user_data)
             # 統一格式：把 my_pet_* 映射成 pet_* 讓前端共用同一套顯示邏輯
             pets.append({
                 "group_id":   None,
@@ -2583,10 +2791,12 @@ async def get_my_pets(decoded: dict = Depends(verify_token)):
                 "pet": {
                     "pet_face_url": personal_pet.get("my_pet_image_url", ""),
                     "pet_name":     personal_pet.get("my_pet_name", ""),
-                    "pet_energy":   personal_pet.get("my_pet_energy", 80),
+                    "pet_energy":   current_personal["my_pet_energy"],
+                    "pet_happiness": current_personal["my_pet_happiness"],
+                    "pet_cleanliness": current_personal["my_pet_cleanliness"],
                     "pet_max_energy": 100,
                     "pet_hp":       5,
-                    "pet_status":   personal_pet.get("my_pet_status", "NORMAL"),
+                    "pet_status":   current_personal["my_pet_status"],
                 },
             })
 
@@ -2597,9 +2807,10 @@ async def get_my_pets(decoded: dict = Depends(verify_token)):
             if not data.get("pet_face_url"):
                 continue
             pet_fields = {k: v for k, v in data.items() if k.startswith("pet_")}
-            for tf in ("pet_last_fed_at", "pet_face_updated_at"):
+            for tf in ("pet_last_fed_at", "pet_face_updated_at", "pet_last_updated"):
                 if pet_fields.get(tf) and hasattr(pet_fields[tf], "isoformat"):
                     pet_fields[tf] = pet_fields[tf].isoformat()
+            pet_fields.update(_group_pet_display(data))   # 疊上時間衰減後的顯示值
             pets.append({
                 "group_id":   doc.id,
                 "group_name": data.get("name", ""),
@@ -2632,6 +2843,12 @@ async def delete_group_pet(group_id: str, decoded: dict = Depends(verify_token))
     clear = {f: firestore.DELETE_FIELD for f in pet_fields}
     try:
         doc_ref.update(clear)
+        old_path = data.get("pet_face_path")
+        if old_path:
+            try:
+                _storage_bucket().blob(old_path).delete()
+            except Exception:
+                pass
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success"}
@@ -2736,64 +2953,7 @@ class PersonalPetActionPayload(BaseModel):
 
 
 def _calc_pet_decay(data: dict) -> dict:
-    last_updated = data.get("my_pet_last_updated")
-    now = datetime.datetime.utcnow()
-    if last_updated:
-        try:
-            lu = last_updated.replace(tzinfo=None) if hasattr(last_updated, 'replace') else last_updated
-            elapsed_hours = max(0.0, (now - lu).total_seconds() / 3600)
-        except Exception:
-            elapsed_hours = 0.0
-    else:
-        elapsed_hours = 0.0
-
-    hunger      = int(data.get("my_pet_hunger",      70))
-    happiness   = int(data.get("my_pet_happiness",   70))
-    energy      = int(data.get("my_pet_energy",      80))
-    cleanliness = int(data.get("my_pet_cleanliness", 100))
-    is_sleeping = bool(data.get("my_pet_is_sleeping", False))
-    has_poop    = bool(data.get("my_pet_has_poop", False))
-    has_pee     = bool(data.get("my_pet_has_pee",  False))
-
-    if elapsed_hours > 0:
-        hunger      = max(0, min(100, hunger      - int(5 * elapsed_hours)))
-        happiness   = max(0, min(100, happiness   - int(3 * elapsed_hours)))
-        cleanliness = max(0, min(100, cleanliness - int(2 * elapsed_hours)))
-        if is_sleeping:
-            energy = max(0, min(100, energy + int(8 * elapsed_hours)))
-        else:
-            energy = max(0, min(100, energy - int(4 * elapsed_hours)))
-
-        if not has_poop and int(elapsed_hours / 4) >= 1:
-            if random.random() < 0.65:
-                has_poop = True
-        if not has_pee and int(elapsed_hours / 3) >= 1:
-            if random.random() < 0.75:
-                has_pee = True
-
-    if is_sleeping:
-        status = "SLEEPING"
-    elif has_poop or has_pee:
-        status = "DIRTY"
-    elif hunger < 20 or energy < 10:
-        status = "CRITICAL"
-    elif hunger < 40 or happiness < 30:
-        status = "HUNGRY"
-    elif hunger > 70 and happiness > 70 and energy > 60:
-        status = "HAPPY"
-    else:
-        status = "NORMAL"
-
-    return {
-        "my_pet_hunger":      hunger,
-        "my_pet_happiness":   happiness,
-        "my_pet_energy":      energy,
-        "my_pet_cleanliness": cleanliness,
-        "my_pet_is_sleeping": is_sleeping,
-        "my_pet_has_poop":    has_poop,
-        "my_pet_has_pee":     has_pee,
-        "my_pet_status":      status,
-    }
+    return _personal_pet_decay(data)
 
 
 @app.get("/api/my-pet")
@@ -2806,14 +2966,8 @@ async def get_my_pet(decoded: dict = Depends(verify_token)):
     if not data.get("my_pet_image_url"):
         return {"status": "success", "pet": None}
 
+    # GET 只計算顯示值，不重設衰減 anchor。否則頻繁 poll 會讓寵物永遠不衰減。
     pet = _calc_pet_decay(data)
-    try:
-        db.collection("users").document(uid).update({
-            **pet,
-            "my_pet_last_updated": firestore.SERVER_TIMESTAMP,
-        })
-    except Exception:
-        pass
 
     pet["my_pet_image_url"] = data.get("my_pet_image_url", "")
     pet["my_pet_name"]      = data.get("my_pet_name", "")
@@ -2874,7 +3028,6 @@ async def update_my_pet(payload: PersonalPetUpdatePayload, decoded: dict = Depen
     if not updates:
         raise HTTPException(status_code=400, detail="沒有要更新的欄位")
 
-    updates["my_pet_last_updated"] = firestore.SERVER_TIMESTAMP
     ref.update(updates)
     return {"status": "success", "updated": [k for k in updates if k != "my_pet_last_updated"]}
 
@@ -2892,6 +3045,10 @@ async def delete_my_pet(decoded: dict = Depends(verify_token)):
     clear = {f"my_pet_{f}": firestore.DELETE_FIELD for f in fields}
     try:
         db.collection("users").document(uid).update(clear)
+        try:
+            _storage_bucket().blob(f"pet-images/{uid}/pet.jpg").delete()
+        except Exception:
+            pass
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success"}
@@ -2902,57 +3059,64 @@ async def my_pet_action(payload: PersonalPetActionPayload, decoded: dict = Depen
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
-    snap = db.collection("users").document(uid).get()
-    data = snap.to_dict() or {}
-    if not data.get("my_pet_image_url"):
-        raise HTTPException(status_code=404, detail="還沒有寵物")
-
-    pet = _calc_pet_decay(data)
     action = payload.action
-
-    if action == "feed":
-        pet["my_pet_hunger"]    = min(100, pet["my_pet_hunger"]    + 25)
-        pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 5)
-    elif action == "wipe":
-        pet["my_pet_cleanliness"] = 100
-        pet["my_pet_has_poop"]    = False
-        pet["my_pet_has_pee"]     = False
-        pet["my_pet_happiness"]   = min(100, pet["my_pet_happiness"] + 10)
-    elif action == "play":
-        pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 20)
-        pet["my_pet_energy"]    = max(0,   pet["my_pet_energy"]    - 10)
-        pet["my_pet_hunger"]    = max(0,   pet["my_pet_hunger"]    - 5)
-    elif action == "sleep":
-        pet["my_pet_is_sleeping"] = True
-    elif action == "wake":
-        pet["my_pet_is_sleeping"] = False
-    else:
+    if action not in ("feed", "wipe", "play", "sleep", "wake"):
         raise HTTPException(status_code=400, detail=f"未知動作：{action}")
+    ref = db.collection("users").document(uid)
+    transaction = db.transaction()
 
-    if pet["my_pet_is_sleeping"]:
-        pet["my_pet_status"] = "SLEEPING"
-    elif pet["my_pet_has_poop"] or pet["my_pet_has_pee"]:
-        pet["my_pet_status"] = "DIRTY"
-    elif pet["my_pet_hunger"] < 20 or pet["my_pet_energy"] < 10:
-        pet["my_pet_status"] = "CRITICAL"
-    elif pet["my_pet_hunger"] < 40 or pet["my_pet_happiness"] < 30:
-        pet["my_pet_status"] = "HUNGRY"
-    elif pet["my_pet_hunger"] > 70 and pet["my_pet_happiness"] > 70 and pet["my_pet_energy"] > 60:
-        pet["my_pet_status"] = "HAPPY"
-    else:
-        pet["my_pet_status"] = "NORMAL"
+    @firestore.transactional
+    def apply_action(tx):
+        snap = ref.get(transaction=tx)
+        data = snap.to_dict() or {}
+        if not data.get("my_pet_image_url"):
+            raise HTTPException(status_code=404, detail="還沒有寵物")
+        pet = _calc_pet_decay(data)
+
+        if action == "feed":
+            pet["my_pet_hunger"] = min(100, pet["my_pet_hunger"] + 25)
+            pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 5)
+        elif action == "wipe":
+            pet["my_pet_cleanliness"] = 100
+            pet["my_pet_has_poop"] = False
+            pet["my_pet_has_pee"] = False
+            pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 10)
+        elif action == "play":
+            pet["my_pet_happiness"] = min(100, pet["my_pet_happiness"] + 20)
+            pet["my_pet_energy"] = max(0, pet["my_pet_energy"] - 10)
+            pet["my_pet_hunger"] = max(0, pet["my_pet_hunger"] - 5)
+        elif action == "sleep":
+            pet["my_pet_is_sleeping"] = True
+        else:  # wake
+            pet["my_pet_is_sleeping"] = False
+
+        if pet["my_pet_is_sleeping"]:
+            pet["my_pet_status"] = "SLEEPING"
+        elif pet["my_pet_has_poop"] or pet["my_pet_has_pee"]:
+            pet["my_pet_status"] = "DIRTY"
+        elif pet["my_pet_hunger"] < 20 or pet["my_pet_energy"] < 10:
+            pet["my_pet_status"] = "CRITICAL"
+        elif pet["my_pet_hunger"] < 40 or pet["my_pet_happiness"] < 30:
+            pet["my_pet_status"] = "HUNGRY"
+        elif pet["my_pet_hunger"] > 70 and pet["my_pet_happiness"] > 70 and pet["my_pet_energy"] > 60:
+            pet["my_pet_status"] = "HAPPY"
+        else:
+            pet["my_pet_status"] = "NORMAL"
+
+        tx.update(ref, {**pet, "my_pet_last_updated": firestore.SERVER_TIMESTAMP})
+        return pet, data.get("my_pet_image_url", ""), data.get("my_pet_name", ""), data.get("my_pet_animal", "dog")
 
     try:
-        db.collection("users").document(uid).update({
-            **pet,
-            "my_pet_last_updated": firestore.SERVER_TIMESTAMP,
-        })
+        pet, image_url, pet_name, pet_animal = apply_action(transaction)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[my_pet_action] transaction failed: {e}")
+        raise HTTPException(status_code=500, detail="寵物狀態更新失敗")
 
-    pet["my_pet_image_url"] = data.get("my_pet_image_url", "")
-    pet["my_pet_name"]      = data.get("my_pet_name", "")
-    pet["my_pet_animal"]    = data.get("my_pet_animal", "dog")
+    pet["my_pet_image_url"] = image_url
+    pet["my_pet_name"] = pet_name
+    pet["my_pet_animal"] = pet_animal
     return {"status": "success", "pet": pet}
 
 
@@ -3559,7 +3723,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                         "host_score": host_score,
                         "deviation_ranking": deviation_ranking,
                     }
-                    # merge=True 保留聚會中可能已經寫入的 cover_url / cover_photo_id
+                    # merge=True 保留聚會中可能已經寫入的 cover_photo_id
                     db.collection("meetings").document(room_id).set(meeting_record, merge=True)
                     print(f"[END_SESSION] meeting record saved: {room_id}")
 
@@ -3590,35 +3754,41 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 if group_id_local:
                     try:
                         g_ref = db.collection("groups").document(group_id_local)
-                        g_snap = g_ref.get()
-                        if g_snap.exists:
+                        pet_transaction = db.transaction()
+
+                        @firestore.transactional
+                        def apply_session_reward(tx):
+                            g_snap = g_ref.get(transaction=tx)
+                            if not g_snap.exists:
+                                return None
                             g_data = g_snap.to_dict() or {}
-                            pet_hp = int(g_data.get("pet_hp", 5))
-                            pet_energy = int(g_data.get("pet_energy", 50))
-                            pet_max_energy = int(g_data.get("pet_max_energy", 100))
-                            if base_score >= 70:
+                            # 先套用時間衰減拿到當前基準，讀書成績再往上/往下調
+                            _s = _group_pet_current_stats(g_data)
+                            pet_energy      = _s["pet_energy"]
+                            pet_happiness   = _s["pet_happiness"]
+                            pet_cleanliness = _s["pet_cleanliness"]
+                            if base_score >= 70:                        # 認真讀書：餵飽 + 開心
                                 energy_delta = min(10 + int((base_score - 70) / 3), 20)
-                                pet_energy = min(pet_energy + energy_delta, pet_max_energy)
-                            elif base_score < 40:
-                                pet_energy = max(pet_energy - 5, 0)
-                                pet_hp = max(pet_hp - 1, 0)
+                                pet_energy    = min(100.0, pet_energy + energy_delta)
+                                pet_happiness = min(100.0, pet_happiness + 5)
+                            elif base_score < 40:                       # 混水摸魚：餓 + 掉心情
+                                pet_energy    = max(0.0, pet_energy - 5)
+                                pet_happiness = max(0.0, pet_happiness - 5)
 
-                            if pet_energy >= 80:
-                                new_status = "HAPPY"
-                            elif pet_energy >= 40:
-                                new_status = "NORMAL"
-                            elif pet_energy >= 15:
-                                new_status = "HUNGRY"
-                            else:
-                                new_status = "CRITICAL"
-
-                            g_ref.update({
-                                "pet_energy": pet_energy,
-                                "pet_hp": pet_hp,
-                                "pet_status": new_status,
-                                "pet_last_fed": firestore.SERVER_TIMESTAMP,
+                            new_status = _group_pet_status(pet_energy, pet_happiness, pet_cleanliness)
+                            tx.update(g_ref, {
+                                "pet_energy":       pet_energy,
+                                "pet_happiness":    pet_happiness,
+                                "pet_cleanliness":  pet_cleanliness,
+                                "pet_status":       new_status,
+                                "pet_last_updated": firestore.SERVER_TIMESTAMP,   # 重設衰減 anchor
                             })
-                            print(f"[END_SESSION] group pet updated: group={group_id_local} energy={pet_energy} hp={pet_hp} status={new_status}")
+                            return pet_energy, pet_happiness, new_status
+
+                        pet_result = apply_session_reward(pet_transaction)
+                        if pet_result:
+                            pet_energy, pet_happiness, new_status = pet_result
+                            print(f"[END_SESSION] group pet updated: group={group_id_local} energy={round(pet_energy)} happy={round(pet_happiness)} status={new_status}")
                     except Exception as pet_err:
                         print(f"[END_SESSION] group pet update failed: {pet_err}")
 

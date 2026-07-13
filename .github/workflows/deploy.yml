@@ -16,8 +16,35 @@ env:
   IMAGE: asia-east1-docker.pkg.dev/graduation-6ae65/cloud-run-source-deploy/phubbing-backend
 
 jobs:
+  # ── Deploy gate: 任何靜態檢查或測試失敗都不得上線 ──
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run frontend unit tests
+        run: npm test
+
+      - name: Check JavaScript syntax
+        run: find frontend tests -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Check Python syntax
+        run: python -m py_compile backend/*.py
+
+      - name: Run backend unit tests
+        run: python -m unittest discover -s backend/tests -v
+
   # ── Frontend: Firebase Hosting ──
   deploy-frontend:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -36,13 +63,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Deploy to Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --project ${{ env.GCP_PROJECT_ID }} --non-interactive
+      - name: Deploy Hosting and security rules
+        run: npx firebase-tools deploy --only hosting,firestore:rules,storage --project ${{ env.GCP_PROJECT_ID }} --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
 
   # ── Backend: Cloud Run ──
   deploy-backend:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,6 +118,7 @@ jobs:
             --allow-unauthenticated \
             --memory 2Gi \
             --min-instances 1 \
+            --max-instances 1 \
             --quiet
 
       - name: Route traffic to latest Cloud Run revision
