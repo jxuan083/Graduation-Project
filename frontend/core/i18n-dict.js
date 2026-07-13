@@ -176,7 +176,7 @@ export const dict = {
 
     // --- 群組聊天室 ---
     '群組聊天室': 'Group Chat',
-    ' 的聊天室': ' Chat',
+    '{name} 的聊天室': '{name} Chat',
     '載入訊息中…': 'Loading messages…',
     '讀取訊息失敗': 'Failed to load messages',
     '還沒有訊息，說點什麼吧！': 'No messages yet — say something!',

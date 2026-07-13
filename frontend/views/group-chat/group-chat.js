@@ -28,7 +28,7 @@ export function init() {
 function onShow() {
     const g = state.currentGroupDetail;
     if (!g) { switchView('view-home'); return; }
-    document.getElementById('gc-title').textContent = (g.name || t('群組')) + t(' 的聊天室');
+    document.getElementById('gc-title').textContent = t('{name} 的聊天室', { name: g.name || t('群組') });
     lastRenderedIds = '';
     loadMessages(true);
     startPolling();

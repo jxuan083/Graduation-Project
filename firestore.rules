@@ -10,8 +10,9 @@ service cloud.firestore {
     // 修正前: allow read: if request.auth != null  → 任何登入者可讀任何人的 email
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid;
-      allow delete: if false;
+      // 使用者文件（含積分等系統欄位）一律只由後端 Admin SDK 寫入（繞過規則），
+      // 前端不得直接寫，避免客戶端偽造分數/系統欄位。
+      allow write: if false;
 
       // ===== 個人題庫 =====
       // 每個使用者有自己的私人題庫，只有自己能讀寫
