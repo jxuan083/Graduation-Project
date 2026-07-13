@@ -1,0 +1,48 @@
+<section id="view-friend-profile" class="view">
+    <div style="position:absolute;top:56px;left:20px;z-index:10;">
+        <button class="btn-back" id="btn-fp-back">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </div>
+
+    <div class="scroll-body" style="flex:1;overflow-y:auto;">
+        <div class="fp-avatar-wrap">
+            <div class="fp-avatar" id="fp-avatar" style="width:110px;height:110px;background:var(--brown-10);font-size:52px;">🙂</div>
+        </div>
+        <div class="fp-card">
+            <p class="fp-name" id="fp-name">—</p>
+            <p class="fp-id" id="fp-id"></p>
+            <div class="fp-bio" id="fp-bio" style="display:none;"></div>
+        </div>
+
+        <div class="fp-stats">
+            <div class="fp-stat"><p class="fp-stat-val" id="fp-stat-meetings">0</p><p class="fp-stat-label">聚會次數</p></div>
+            <div class="fp-stat" style="border-left:1px solid rgba(79,53,26,.1);border-right:1px solid rgba(79,53,26,.1);padding:0 20px;">
+                <p class="fp-stat-val" id="fp-stat-friends">0</p><p class="fp-stat-label">好友人數</p>
+            </div>
+            <div class="fp-stat"><p class="fp-stat-val" id="fp-stat-score">0</p><p class="fp-stat-label">本週積分</p></div>
+        </div>
+
+        <p id="fp-mutual" class="fp-mutual-line" style="display:none;"></p>
+    </div>
+
+    <div style="flex-shrink:0;padding:12px 20px 32px;">
+        <!-- 陌生人：加好友 -->
+        <button class="btn-primary" id="fp-add-btn" style="display:none;">加為好友</button>
+        <p id="fp-pending-hint" class="hint" style="display:none;text-align:center;">已送出邀請，等待對方回覆中…</p>
+
+        <!-- 好友：刪除 -->
+        <div id="fp-delete-area" style="display:none;">
+            <button class="btn-primary" id="fp-delete-btn" style="background:var(--red);">刪除好友</button>
+        </div>
+        <div id="fp-confirm-area" style="display:none;">
+            <div class="fp-confirm">
+                <p class="fp-confirm-text" id="fp-confirm-text">確定要刪除這位好友嗎？</p>
+                <div class="fp-confirm-btns">
+                    <button class="fp-btn-cancel" id="fp-cancel-btn">取消</button>
+                    <button class="fp-btn-delete" id="fp-confirm-delete">確定刪除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

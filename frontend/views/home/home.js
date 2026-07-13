@@ -1,124 +1,124 @@
-// views/home/home.js
+// views/home/home.js — 首頁（front-preview 設計：群組九宮格 + 4 顆功能列）
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { startQrScanner } from '../scanner/scanner.js';
-import { openMeetingsList } from '../../features/meetings/controller.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { openLeaderboardView } from '../../features/leaderboard/controller.js';
-import { apiFetch } from '../../core/api.js';
+import { fetchMyGroups } from '../../features/groups/controller.js';
 import { t } from '../../core/i18n.js';
 
-const STATUS_BADGE = {
-    HAPPY:    '😊',
-    NORMAL:   '🐾',
-    HUNGRY:   '😟',
-    CRITICAL: '😰',
-};
+let _groupsCacheTs = 0;
 
 export function init() {
     register('view-home', {
         element: document.getElementById('view-home'),
         onShow: () => {
             events.emit('home:show');
-            if (state.currentUser) loadGroupPet();
-            else {
-                // 未登入時隱藏寵物、清快取
-                const wrap = document.getElementById('campfire-pet-wrap');
-                if (wrap) wrap.style.display = 'none';
-            }
-        }
+            renderGroups();
+        },
     });
 
+    // 題庫
+    document.getElementById('btn-question-library').onclick = openQuestionBank;
+
+    // 好友邀請橫幅「查看」
+    const bannerView = document.getElementById('btn-incoming-banner-view');
+    if (bannerView) bannerView.onclick = () => openFriendsView('incoming');
+
+    // 搜尋群組
+    document.getElementById('home-search').addEventListener('input', (e) => filterGroups(e.target.value));
+
+    // 底部功能列
     document.getElementById('btn-create-room').onclick = handleCreateRoom;
     document.getElementById('btn-scan-qr').onclick = startQrScanner;
-    document.getElementById('btn-open-meetings').onclick = openMeetingsList;
-    document.getElementById('btn-open-questions').onclick = openQuestionBank;
-
     document.getElementById('btn-home-schedule').onclick = openScheduleSheet;
+    document.getElementById('btn-open-groups').onclick = () => switchView('view-groups');
+
+    // 預約聚會 sheet
     document.getElementById('btn-sch-cancel').onclick = () => { document.getElementById('home-schedule-sheet').hidden = true; };
     document.getElementById('btn-sch-ics').onclick = createScheduleIcs;
 
-    const btnGroups = document.getElementById('btn-open-groups');
-    if (btnGroups) btnGroups.onclick = () => switchView('view-groups');
-
-    const btnLb = document.getElementById('btn-home-leaderboard');
-    if (btnLb) btnLb.onclick = openLeaderboardView;
-
-    const btnMyPet = document.getElementById('btn-open-my-pet');
-    if (btnMyPet) btnMyPet.onclick = () => {
-        state.tamagotchiGroupId = null;
-        switchView('view-pet-tamagotchi');
-    };
-
-    // 寵物點擊：群組寵物 → 群組 tamagotchi；個人寵物 → 個人 tamagotchi
-    const petWrap = document.getElementById('campfire-pet-wrap');
-    if (petWrap) petWrap.onclick = () => {
-        state.tamagotchiGroupId = state._campfireGroupId || null;
-        switchView('view-pet-tamagotchi');
-    };
-
-    // 邀請橫幅「查看」按鈕
-    const btnBannerView = document.getElementById('btn-incoming-banner-view');
-    if (btnBannerView) btnBannerView.onclick = () => openFriendsView('incoming');
+    // 登入/登出後刷新群組
+    events.on('auth:logged-in', () => { _groupsCacheTs = 0; renderGroups(); });
+    events.on('auth:logged-out', () => { _groupsCacheTs = 0; renderGroups(); });
 }
 
-const LS_PET_KEY = 'campfire_pet_v1';
-let _petCacheTs = 0;
+// ── 群組九宮格 ──
+async function renderGroups() {
+    const grid = document.getElementById('home-groups-grid');
+    const empty = document.getElementById('home-groups-empty');
+    const guest = document.getElementById('home-groups-guest');
+    if (!grid) return;
 
-// 登入後立刻預載（不等首頁 onShow）
-events.on('auth:logged-in', () => { _petCacheTs = 0; loadGroupPet(); });
-
-async function loadGroupPet() {
-    const wrap = document.getElementById('campfire-pet-wrap');
-    if (!wrap) return;
-
-    // 1. localStorage 快取 → 立刻顯示（跨 session）
-    if (!state._campfirePetCache) {
-        try {
-            const stored = JSON.parse(localStorage.getItem(LS_PET_KEY) || 'null');
-            if (stored) { state._campfirePetCache = stored; applyPet(stored, wrap); }
-        } catch (_) {}
-    } else {
-        applyPet(state._campfirePetCache, wrap);
+    if (!state.currentUser) {
+        grid.innerHTML = '';
+        empty.style.display = 'none';
+        guest.style.display = 'block';
+        return;
     }
+    guest.style.display = 'none';
 
-    // 2. 30 秒內不重打 API
-    if (Date.now() - _petCacheTs < 30_000) return;
+    // 先用快取立即畫，再背景刷新
+    if (Array.isArray(state.myGroups) && state.myGroups.length) paintGroups(state.myGroups);
 
-    // 3. 背景更新：先試群組寵物，沒有則 fallback 個人寵物
+    if (Date.now() - _groupsCacheTs < 20_000 && Array.isArray(state.myGroups)) {
+        paintGroups(state.myGroups);
+        return;
+    }
     try {
-        const [grpRes, myRes] = await Promise.all([
-            apiFetch('/api/groups'),
-            apiFetch('/api/my-pet'),
-        ]);
-        const groupWithPet = grpRes.data?.groups?.find(g => g.pet_face_url) || null;
-        const myPet = myRes.data?.pet;
-        const myPetUrl = myPet?.my_pet_image_url || null;
-
-        let petData = null;
-        if (groupWithPet) {
-            petData = { type: 'group', group_id: groupWithPet.group_id, pet_face_url: groupWithPet.pet_face_url, pet_status: groupWithPet.pet_status };
-        } else if (myPetUrl) {
-            petData = { type: 'my', pet_face_url: myPetUrl, pet_status: myPet.my_pet_status || 'NORMAL' };
-        }
-
-        state._campfirePetCache = petData;
-        _petCacheTs = Date.now();
-        try { localStorage.setItem(LS_PET_KEY, JSON.stringify(petData)); } catch (_) {}
-        applyPet(petData, wrap);
-    } catch (_) {}
+        const groups = await fetchMyGroups();
+        _groupsCacheTs = Date.now();
+        paintGroups(groups || []);
+    } catch (err) {
+        console.warn('[home] fetchMyGroups failed:', err);
+        paintGroups(Array.isArray(state.myGroups) ? state.myGroups : []);
+    }
 }
 
-function applyPet(petData, wrap) {
-    if (!petData) { wrap.style.display = 'none'; state._campfireGroupId = null; return; }
-    state._campfireGroupId = petData.type === 'group' ? petData.group_id : null;
-    const img = document.getElementById('campfire-pet-img');
-    if (img.src !== petData.pet_face_url) img.src = petData.pet_face_url;
-    document.getElementById('campfire-pet-badge').textContent =
-        STATUS_BADGE[petData.pet_status] || '🐾';
-    wrap.style.display = 'flex';
+function paintGroups(groups) {
+    const grid = document.getElementById('home-groups-grid');
+    const empty = document.getElementById('home-groups-empty');
+    if (!grid) return;
+
+    if (!groups.length) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = groups.map(g => {
+        const name = escapeHtml(g.name || t('未命名群組'));
+        const img = g.pet_face_url
+            ? `<img src="${escapeAttr(g.pet_face_url)}" alt="">`
+            : '🐾';
+        return `<button class="group-card" data-group-id="${escapeAttr(g.group_id)}" data-group-name="${escapeAttr(g.name || '')}">
+            <div class="group-img-area">${img}</div>
+            <span class="group-name">${name}</span>
+        </button>`;
+    }).join('');
+
+    grid.querySelectorAll('.group-card').forEach(card => {
+        card.onclick = () => openGroup(card.dataset.groupId, card.dataset.groupName);
+    });
+}
+
+function filterGroups(qRaw) {
+    const q = (qRaw || '').trim().toLowerCase();
+    const grid = document.getElementById('home-groups-grid');
+    if (!grid) return;
+    grid.querySelectorAll('.group-card').forEach(card => {
+        const name = (card.dataset.groupName || '').toLowerCase();
+        card.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+}
+
+function openGroup(groupId, groupName) {
+    // 導向群組詳情頁（view-group）。帶入手上的群組物件，詳情頁會再抓完整資料。
+    const g = (Array.isArray(state.myGroups) ? state.myGroups : [])
+        .find(x => String(x.group_id) === String(groupId));
+    state.currentGroupDetail = g || { group_id: groupId, name: groupName };
+    switchView('view-group');
 }
 
 function handleCreateRoom() {
@@ -129,11 +129,11 @@ function handleCreateRoom() {
     switchView('view-meeting-setup');
 }
 
-// ── 預約聚會：產生 .ics 邀請檔（可加進行事曆、傳給朋友） ──
+// ── 預約聚會：產生 .ics 邀請檔 ──
 function openScheduleSheet() {
-    const t = new Date(Date.now() + 60 * 60 * 1000);
-    t.setSeconds(0, 0);
-    const local = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const when = new Date(Date.now() + 60 * 60 * 1000);
+    when.setSeconds(0, 0);
+    const local = new Date(when.getTime() - when.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     document.getElementById('sch-time').value = local;
     document.getElementById('home-schedule-sheet').hidden = false;
     if (window.lucide) window.lucide.createIcons();
@@ -143,9 +143,9 @@ function createScheduleIcs() {
     const title = (document.getElementById('sch-title').value || '放下手機聚一聚').trim();
     const timeVal = document.getElementById('sch-time').value;
     const place = (document.getElementById('sch-place').value || '').trim();
-    if (!timeVal) { alert('請先選聚會時間'); return; }
+    if (!timeVal) { alert(t('請先選聚會時間')); return; }
     const start = new Date(timeVal);
-    if (isNaN(start.getTime())) { alert('時間格式不正確'); return; }
+    if (isNaN(start.getTime())) { alert(t('時間格式不正確')); return; }
     const end = new Date(start.getTime() + 60 * 60 * 1000);
     const esc = s => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
     const utc = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -169,3 +169,9 @@ function createScheduleIcs() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     document.getElementById('home-schedule-sheet').hidden = true;
 }
+
+// ── utils ──
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }

@@ -1,20 +1,36 @@
-<section id="view-groups" class="view page-view">
+<section id="view-groups" class="view">
 
     <div class="page-header">
-        <button id="btn-groups-back" class="btn-back">←</button>
-        <span class="page-title">我的群組</span>
+        <button id="btn-groups-back" class="btn-back">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="page-title">加入 / 建立群組</span>
     </div>
 
-    <div id="groups-list" class="groups-list"></div>
+    <div class="scroll-body scroll-pad" style="padding-top:4px;padding-bottom:32px;">
 
-    <button id="btn-create-group" class="btn primary">＋ 建立新群組</button>
-
-    <div class="setup-section" style="margin-top:16px;">
-        <h3>透過邀請碼加入</h3>
-        <div class="add-member-row">
-            <input id="group-invite-input" type="text" class="text-input" placeholder="輸入邀請碼…" />
-            <button id="btn-join-by-invite" class="btn secondary">加入</button>
+        <!-- 加入群組 -->
+        <p class="jg-section-label">加入群組</p>
+        <div class="jg-card">
+            <p class="jg-card-title">輸入邀請碼</p>
+            <input class="jg-input" id="jg-invite-code" type="text" placeholder="輸入邀請碼（例如：PPP-7X4K）" style="width:100%;margin-bottom:12px;">
+            <button class="btn-primary" id="btn-jg-join" style="width:100%;height:48px;font-size:15px;">加入群組</button>
         </div>
-    </div>
 
+        <div class="jg-divider"><span>或</span></div>
+
+        <!-- 建立新群組 -->
+        <p class="jg-section-label">建立新群組</p>
+        <div class="jg-card">
+            <p class="jg-card-title">群組名稱</p>
+            <input class="jg-input" id="jg-new-name" type="text" maxlength="40" placeholder="幫群組取個名字…" style="width:100%;margin-bottom:20px;">
+            <p class="jg-card-title">邀請好友加入</p>
+            <p class="jg-card-hint">選擇想邀請的好友，建立後會直接加入群組</p>
+            <div class="jg-friend-list" id="jg-friend-list">
+                <p class="hint" id="jg-friend-hint">載入好友中…</p>
+            </div>
+            <button class="btn-primary" id="btn-jg-create" style="margin-top:20px;width:100%;">建立群組</button>
+        </div>
+
+    </div>
 </section>

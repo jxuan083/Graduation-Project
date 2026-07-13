@@ -1,60 +1,143 @@
 <section id="view-focus" class="view">
-    <h2 class="status-title">聚會中 <i data-lucide="flame"></i></h2>
-    <p class="status-subtitle">把手機蓋著，享受當下的互動</p>
 
-    <div class="lottie-container" id="lottie-orb"></div>
-
-    <div class="setup-section" style="text-align:center; padding:12px 18px;">
-        <span style="font-size:0.85rem; color:var(--text-secondary);">我的分心次數</span>
-        <div style="font-size:2.2rem; font-weight:800; margin-top:4px;"><span id="deviation-count">0</span></div>
+    <!-- 頂列：標題 + 在場成員頭像列（點擊展開成員清單） -->
+    <div class="pa-header">
+        <span class="pa-header-title">聚會中</span>
+        <button id="btn-focus-members-toggle" class="pa-members-row" type="button" aria-label="查看成員">
+            <span class="pa-member-avatars" id="focus-members-avatars"></span>
+            <span class="pa-member-count"><span id="focus-member-count">0</span>人</span>
+        </button>
     </div>
 
-    <button id="btn-focus-members-toggle" class="btn secondary members-toggle">
-        <i data-lucide="users"></i> 成員 (<span id="focus-member-count">0</span>)
-    </button>
-    <div id="focus-members-panel" class="members-panel" style="display:none;">
+    <!-- 成員清單（預設收合，點頭像列展開；含查看 / 加好友） -->
+    <div id="focus-members-panel" class="pa-members-panel" style="display:none;">
         <ul id="focus-member-list-ul" class="member-ul"></ul>
     </div>
 
-    <div id="host-only-controls" style="display:none; width:100%;">
-        <button id="btn-mode-qa"    class="btn primary blue"><i data-lucide="help-circle"></i> 發起團體問答</button>
-        <button id="btn-mode-taboo" class="btn primary blue"><i data-lucide="target"></i> 發起關鍵字遊戲</button>
-        <button id="btn-mode-67"    class="btn primary blue"><i data-lucide="zap"></i> 發起 67 挑戰</button>
-    </div>
+    <div class="pa-scroll">
 
-    <div id="meeting-photo-controls" style="width:100%;">
-        <button id="btn-meeting-camera" class="btn secondary"><i data-lucide="camera"></i> 開啟相機</button>
-        <button id="btn-meeting-album" class="btn secondary"><i data-lucide="image"></i> 從相簿選擇</button>
-    </div>
-    <input id="meeting-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
-    <input id="meeting-album-input" type="file" accept="image/*" style="display:none;" />
+        <!-- 場景卡：吉祥物舞台 -->
+        <div class="pa-scene-card">
+            <div class="pa-sun"></div>
+            <div class="pa-ground"></div>
+            <div class="pa-grass" style="left:18px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 2 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <div class="pa-grass" style="left:44px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 8 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <div class="pa-grass" style="left:72px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 2 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <div class="pa-grass" style="right:72px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 8 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <div class="pa-grass" style="right:44px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 2 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <div class="pa-grass" style="right:18px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 8 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <!-- 吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回專案既有的 Lottie 動畫 -->
+            <img id="focus-pet-face" class="pa-pet-face" alt="群組寵物" style="display:none;">
+            <div class="lottie-container" id="lottie-orb"></div>
+        </div>
+        <p class="pa-mascot-text">把手機蓋著，好好享受當下的互動吧～</p>
 
-    <div class="live-transcript-panel">
-        <div class="live-transcript-header">
-            <div>
-                <span class="live-transcript-kicker">Live Transcript</span>
-                <h3>即時語音轉文字</h3>
+        <!-- 我的分心次數 -->
+        <div class="pa-distraction-row">
+            <span class="pa-distraction-label">我的分心次數</span>
+            <span class="pa-distraction-count" id="deviation-count">0</span>
+        </div>
+
+        <!-- 房主專屬：發起遊戲（非房主隱藏，由 wsHandlers 控制 display） -->
+        <div id="host-only-controls" style="display:none;">
+            <div class="pa-action-grid">
+                <button class="pa-action-btn" id="btn-mode-qa" type="button">
+                    <div class="pa-icon-wrap" style="background:rgba(155,121,85,0.13);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9b7955" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                    </div>
+                    <span class="pa-action-label">發起團體問答</span>
+                </button>
+                <button class="pa-action-btn" id="btn-mode-taboo" type="button">
+                    <div class="pa-icon-wrap" style="background:rgba(173,87,147,0.12);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#AD5793" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 7 4 4 20 4 20 7"/>
+                            <line x1="9" y1="20" x2="15" y2="20"/>
+                            <line x1="12" y1="4" x2="12" y2="20"/>
+                        </svg>
+                    </div>
+                    <span class="pa-action-label">發起關鍵字遊戲</span>
+                </button>
             </div>
-            <button id="btn-live-transcript-toggle" class="btn secondary" type="button">
-                <i data-lucide="mic"></i> 開始
+        </div>
+
+        <!-- 所有人：拍照 / 相簿 -->
+        <div id="meeting-photo-controls" class="pa-action-grid">
+            <button class="pa-action-btn" id="btn-meeting-camera" type="button">
+                <div class="pa-icon-wrap" style="background:rgba(60,150,100,0.11);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3a9464" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                </div>
+                <span class="pa-action-label">開啟相機</span>
+            </button>
+            <button class="pa-action-btn" id="btn-meeting-album" type="button">
+                <div class="pa-icon-wrap" style="background:rgba(74,127,193,0.11);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4a7fc1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5" fill="#4a7fc1"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                </div>
+                <span class="pa-action-label">從相簿選擇</span>
             </button>
         </div>
-        <div class="live-transcript-options">
-            <select id="live-transcript-language" class="compact-select" aria-label="語音語言">
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-                <option value="">自動偵測</option>
-            </select>
-            <input id="live-transcript-speakers" class="compact-number" type="number" min="1" max="12" placeholder="人數" aria-label="說話者人數" />
+        <input id="meeting-camera-input" type="file" accept="image/*" capture="environment" style="display:none;" />
+        <input id="meeting-album-input" type="file" accept="image/*" style="display:none;" />
+
+        <!-- 即時錄音轉文字：揭示按鈕 -->
+        <button class="pa-record-btn" id="btn-focus-record-reveal" type="button">
+            <svg width="16" height="18" viewBox="0 0 24 28" fill="none">
+                <rect x="8" y="1" width="8" height="16" rx="4" fill="#9b7955"/>
+                <path d="M4 14a8 8 0 0016 0" stroke="#9b7955" stroke-width="2" stroke-linecap="round" fill="none"/>
+                <line x1="12" y1="22" x2="12" y2="27" stroke="#9b7955" stroke-width="2" stroke-linecap="round"/>
+                <line x1="8" y1="27" x2="16" y2="27" stroke="#9b7955" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="pa-record-label">即時錄音轉文字</span>
+        </button>
+
+        <!-- 錄音面板（預設收合） -->
+        <div class="pa-record-panel" id="focus-record-panel" style="display:none;">
+            <div class="pa-record-panel-header">
+                <div>
+                    <p class="pa-record-panel-title">LIVE TRANSCRIPT</p>
+                    <p class="pa-record-panel-sub">即時語音轉文字</p>
+                </div>
+                <button class="pa-record-close" id="btn-focus-record-close" type="button" aria-label="收合">×</button>
+            </div>
+            <button class="pa-record-toggle" id="btn-live-transcript-toggle" type="button">
+                <i data-lucide="mic"></i> 開始錄音
+            </button>
+            <div class="pa-record-options">
+                <select id="live-transcript-language" class="compact-select" aria-label="語音語言">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                    <option value="">自動偵測</option>
+                </select>
+                <input id="live-transcript-speakers" class="compact-number" type="number" min="1" max="12" placeholder="人數" aria-label="說話者人數" />
+            </div>
+            <p id="live-transcript-status" class="pa-record-hint">開始後會即時顯示預覽，並每 8 秒用 Whisper 轉錄一次。</p>
+            <div id="live-transcript-preview" class="live-transcript-preview" style="display:none;">
+                <strong>即時預覽</strong>
+                <span id="live-transcript-preview-text"></span>
+            </div>
+            <div id="live-transcript-list" class="live-transcript-list"></div>
         </div>
-        <p id="live-transcript-status" class="hint">開始後會即時顯示預覽，並每 8 秒用 Whisper 轉錄一次。</p>
-        <div id="live-transcript-preview" class="live-transcript-preview" style="display:none;">
-            <strong>即時預覽</strong>
-            <span id="live-transcript-preview-text"></span>
-        </div>
-        <div id="live-transcript-list" class="live-transcript-list"></div>
+
+        <!-- 邀請朋友 -->
+        <button class="pa-invite-btn" id="btn-focus-invite" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke="rgba(79,53,26,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            邀請朋友加入
+        </button>
     </div>
 
-    <button id="btn-focus-invite" class="btn secondary"><i data-lucide="share-2"></i> 邀請朋友加入</button>
-    <button id="btn-end-session"  class="btn secondary">結束聚會</button>
+    <!-- 結束聚會 -->
+    <div class="pa-footer">
+        <button class="btn-primary orange" id="btn-end-session" type="button">結束聚會</button>
+    </div>
 </section>

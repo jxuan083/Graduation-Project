@@ -17,9 +17,11 @@ export function init() {
     const btnCopy = document.getElementById('btn-copy-room-link');
     if (btnCopy) btnCopy.addEventListener('click', () => copyInviteLink());
 
-    // 取消聚會
+    // 取消聚會（底部 + 左上返回都視為離開房間）
     const btnCancel = document.getElementById('btn-cancel-host-room');
     if (btnCancel) btnCancel.addEventListener('click', handleCancelHostRoom);
+    const btnBack = document.getElementById('btn-host-back');
+    if (btnBack) btnBack.addEventListener('click', handleCancelHostRoom);
 
     // 開始同步定錨
     const btnStart = document.getElementById('btn-start-sync');

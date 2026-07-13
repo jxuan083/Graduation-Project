@@ -1,26 +1,37 @@
 <section id="view-summary" class="view">
-    <div style="font-size:3rem; margin-bottom:8px; color:var(--gold);"><i data-lucide="party-popper"></i></div>
-    <h2>聚會總結</h2>
+    <div class="ps-top-strip"></div>
 
-    <div class="summary-card">
-        <div style="display:flex; justify-content:space-around; gap:16px; margin-bottom:8px;">
-            <div style="text-align:center;">
-                <div style="font-size:2.2rem; font-weight:800;"><span id="summary-time">0</span></div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">分鐘</div>
+    <div class="ps-body">
+        <p class="ps-pre-title">PARTY RECAP</p>
+        <p class="ps-title">聚會總結 🎉</p>
+
+        <!-- 吉祥物卡 -->
+        <div class="ps-mascot-card">
+            <div class="ps-mascot-scene">
+                <div class="ps-mascot-sun"></div>
+                <div class="ps-mascot-emoji">🦁</div>
             </div>
-            <div style="width:1px; background:var(--border);"></div>
-            <div style="text-align:center;">
-                <div style="font-size:2.2rem; font-weight:800;"><span id="summary-deviations">0</span></div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">次分心（我）</div>
+            <div class="ps-mascot-text">
+                大家今天都很棒，繼續保持！<br>
+                <span class="ps-mascot-sub">下次聚會再一起加油 💪</span>
             </div>
         </div>
+
+        <!-- 統計（真實資料：時長 + 我的分心次數） -->
+        <div class="ps-stats">
+            <div class="ps-stat-card"><p class="ps-stat-val" id="summary-time">0</p><p class="ps-stat-label">分鐘</p></div>
+            <div class="ps-stat-card"><p class="ps-stat-val" id="summary-deviations">0</p><p class="ps-stat-label">次分心（我）</p></div>
+        </div>
         <p id="summary-host-hint" style="display:none;"></p>
+
+        <!-- 分心排行（由 wsHandlers 填入 #summary-deviation-list） -->
+        <div class="ps-rank-section" id="summary-deviation-ranking" style="display:none;">
+            <p class="ps-rank-label">分心次數排行（越少越好）</p>
+            <ul id="summary-deviation-list"></ul>
+        </div>
     </div>
 
-    <div class="summary-card" id="summary-deviation-ranking" style="display:none;">
-        <div style="font-size:0.9rem; font-weight:700; margin-bottom:10px;"><i data-lucide="bar-chart-2"></i> 分心排行榜</div>
-        <ul id="summary-deviation-list" style="list-style:none; padding:0; margin:0;"></ul>
+    <div class="ps-footer">
+        <button class="btn-primary" type="button" onclick="location.href='/'">回到首頁</button>
     </div>
-
-    <button class="btn primary" onclick="location.href='/'"><i data-lucide="home"></i> 回到首頁</button>
 </section>

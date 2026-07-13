@@ -1,27 +1,40 @@
 <section id="view-host-room" class="view page-view">
 
-    <div class="page-header">
-        <span class="page-title">聚會已建立</span>
-        <div id="room-context-badge" class="context-badge" style="display:none; margin-left:auto; margin-bottom:0;">
+    <div class="page-header" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button id="btn-host-back" class="btn-back" aria-label="返回">
+                <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <span class="page-title">聚會室</span>
+        </div>
+        <div id="room-context-badge" class="context-badge" style="display:none;">
             <span id="room-context-label"></span>
             <span id="room-difficulty-badge" class="diff-badge"></span>
         </div>
     </div>
 
-    <div style="display:flex; flex-direction:column; align-items:center; width:100%;">
-        <div class="qr-container">
-            <img id="qr-code-img" src="" alt="QR Code" />
+    <div class="pr-body">
+        <!-- QR 卡 -->
+        <div class="pr-qr-card">
+            <p class="pr-qr-hint">掃描 QR Code 或分享邀請連結邀請好友</p>
+            <div class="qr-container"><img id="qr-code-img" src="" alt="QR Code" /></div>
+            <button id="btn-copy-room-link" class="pr-copy-btn" type="button">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="4" y="4" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/>
+                    <path d="M10 4V3a2 2 0 0 0-2-2H3a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                複製邀請連結
+            </button>
         </div>
-        <p style="margin-bottom:8px;">請朋友掃描 QR Code 加入</p>
-        <button id="btn-copy-room-link" class="btn secondary copy-link-btn" style="max-width:280px;"><i data-lucide="clipboard-copy"></i> 複製聚會連結</button>
+
+        <!-- 已加入成員（由 renderMemberList 填入 #member-list-ul / #member-count） -->
+        <p class="pr-section-label">已加入成員 (<span id="member-count">0</span>)</p>
+        <ul id="member-list-ul" class="member-ul pr-member-ul"></ul>
     </div>
 
-    <div class="setup-section" style="margin-top:16px;">
-        <h3>已加入成員 (<span id="member-count">0</span>)</h3>
-        <ul id="member-list-ul" class="member-ul"></ul>
+    <div class="pr-footer">
+        <button id="btn-cancel-host-room" class="btn-secondary" type="button">取消聚會</button>
+        <button id="btn-start-sync" class="btn-primary disabled" type="button">開始聚會！</button>
     </div>
-
-    <button id="btn-start-sync"        class="btn primary disabled" style="margin-top:8px;">大家準備好，開始！</button>
-    <button id="btn-cancel-host-room"  class="btn secondary">取消聚會</button>
 
 </section>

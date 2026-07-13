@@ -21,6 +21,7 @@ export function init() {
 
     buildContextGrid();
     bindDiffBtns();
+    bindGroupDropdown();
 
     const btnConfirm = document.getElementById('btn-confirm-setup');
     if (btnConfirm) btnConfirm.onclick = handleConfirm;
@@ -28,15 +29,75 @@ export function init() {
     if (btnCancel) btnCancel.onclick = () => switchView('view-home');
 }
 
+// ── 自訂群組下拉 ──
+function bindGroupDropdown() {
+    const btn = document.getElementById('cp-group-btn');
+    const list = document.getElementById('cp-group-list');
+    if (!btn || !list) return;
+
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = list.hidden;
+        list.hidden = !willOpen;
+        btn.setAttribute('aria-expanded', String(willOpen));
+    };
+
+    // 點選項目（事件委派）
+    list.onclick = (e) => {
+        const item = e.target.closest('.cp-dropdown-item');
+        if (!item) return;
+        selectGroup(item.dataset.gid || '', item.textContent);
+    };
+
+    // 點外面關閉
+    document.addEventListener('click', (e) => {
+        if (list.hidden) return;
+        if (!e.target.closest('.cp-dropdown-wrap')) closeGroupDropdown();
+    });
+}
+
+function closeGroupDropdown() {
+    const btn = document.getElementById('cp-group-btn');
+    const list = document.getElementById('cp-group-list');
+    if (list) list.hidden = true;
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function selectGroup(gid, name) {
+    state.currentGroupId = gid || null;
+    const val = document.getElementById('cp-group-val');
+    if (val) {
+        val.textContent = gid ? name : t('選擇一個群組…');
+        val.classList.toggle('placeholder', !gid);
+        val.classList.toggle('selected', !!gid);
+    }
+    closeGroupDropdown();
+}
+
+function populateGroupDropdown(groups) {
+    const list = document.getElementById('cp-group-list');
+    if (!list) return;
+    // 第一項：不綁定
+    let html = `<button class="cp-dropdown-item placeholder-item" type="button" data-gid="">${t('不綁定群組')}</button>`;
+    html += (groups || []).map(g =>
+        `<button class="cp-dropdown-item" type="button" data-gid="${escAttr(g.group_id)}">${escHtml(g.name || t('群組'))}</button>`
+    ).join('');
+    list.innerHTML = html;
+}
+
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escAttr(s) { return escHtml(s); }
+
 function buildContextGrid() {
     const grid = document.getElementById('context-grid');
     if (!grid) return;
     grid.innerHTML = '';
     Object.entries(CONTEXT_CONFIGS).forEach(([key, cfg]) => {
         const card = document.createElement('button');
-        card.className = 'context-card' + (key === 'general' ? ' active-context' : '');
+        card.className = 'cp-sit-btn' + (key === 'general' ? ' active-context' : '');
+        card.type = 'button';
         card.dataset.context = key;
-        card.innerHTML = `<span class="ctx-icon"><i data-lucide="${cfg.icon}"></i></span><span class="ctx-label">${cfg.label}</span>`;
+        card.innerHTML = `<span class="cp-sit-icon"><i data-lucide="${cfg.icon}"></i></span><span class="cp-sit-label">${cfg.label}</span>`;
         card.onclick = () => selectContext(key, card);
         grid.appendChild(card);
     });
@@ -44,7 +105,7 @@ function buildContextGrid() {
 }
 
 function selectContext(key, card) {
-    document.querySelectorAll('.context-card').forEach(c => c.classList.remove('active-context'));
+    document.querySelectorAll('.cp-sit-btn').forEach(c => c.classList.remove('active-context'));
     card.classList.add('active-context');
     state.currentContext = key;
 
@@ -54,9 +115,6 @@ function selectContext(key, card) {
         b.classList.toggle('active-diff', b.dataset.diff === cfg.difficulty);
     });
     updateDiffHint(cfg.difficulty);
-
-    const durInput = document.getElementById('duration-input');
-    if (durInput) durInput.value = cfg.duration;
     state.currentExpectedDuration = cfg.duration;
 }
 
@@ -83,30 +141,25 @@ async function onSetupShow() {
     state.currentExpectedDuration = 90;
     state.currentGroupId = null;
 
-    document.querySelectorAll('.context-card').forEach(c =>
+    document.querySelectorAll('.cp-sit-btn').forEach(c =>
         c.classList.toggle('active-context', c.dataset.context === 'general'));
     document.querySelectorAll('.diff-btn').forEach(b =>
         b.classList.toggle('active-diff', b.dataset.diff === 'L'));
     updateDiffHint('L');
-    const durInput = document.getElementById('duration-input');
-    if (durInput) durInput.value = 90;
+
+    // 重設群組下拉為未選
+    selectGroup('', '');
+    closeGroupDropdown();
 
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
             const { fetchMyGroups } = await import('../../features/groups/controller.js');
             const groups = await fetchMyGroups();
-            const sel = document.getElementById('group-select');
-            if (sel) {
-                sel.innerHTML = '<option value="">— 不綁定群組 —</option>';
-                groups.forEach(g => {
-                    const opt = document.createElement('option');
-                    opt.value = g.group_id;
-                    opt.textContent = g.name;
-                    sel.appendChild(opt);
-                });
-            }
+            populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }
+    } else {
+        populateGroupDropdown([]);
     }
 }
 
@@ -116,13 +169,8 @@ async function handleConfirm() {
         return;
     }
 
-    const durInput = document.getElementById('duration-input');
-    const duration = parseInt(durInput?.value || '90', 10);
-    const groupSel = document.getElementById('group-select');
-    const groupId = groupSel?.value || null;
-
-    state.currentExpectedDuration = duration;
-    state.currentGroupId = groupId || null;
+    const duration = state.currentExpectedDuration || 90;
+    const groupId = state.currentGroupId || null;
 
     const btn = document.getElementById('btn-confirm-setup');
     if (btn) { btn.disabled = true; btn.textContent = '建立中…'; }
@@ -166,6 +214,6 @@ async function handleConfirm() {
         alert(t('建立房間失敗：') + (err.message || err));
         state.amIHost = false;
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '建立房間'; }
+        if (btn) { btn.disabled = false; btn.textContent = '建立聚會室'; }
     }
 }

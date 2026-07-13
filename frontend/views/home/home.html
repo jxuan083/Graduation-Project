@@ -1,6 +1,6 @@
 <section id="view-home" class="view active">
 
-    <!-- 好友邀請提示橫幅 -->
+    <!-- 好友邀請提示橫幅（chrome.js 控制顯示） -->
     <div id="incoming-banner" class="incoming-banner" style="display:none;">
         <div class="incoming-banner-icon"><i data-lucide="mail"></i></div>
         <div class="incoming-banner-text">
@@ -10,68 +10,78 @@
         <button id="btn-incoming-banner-view" class="btn-mini primary">查看</button>
     </div>
 
-    <!-- 篝火英雄區 -->
-    <div class="campfire-card">
-        <div class="campfire-glow"></div>
-        <div class="campfire-scene">
-            <div class="campfire-bubbles" id="campfire-bubbles"></div>
-            <div class="campfire-fire"><svg class="fire-svg" viewBox="0 0 48 60" aria-hidden="true"><defs><linearGradient id="fireG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e8530f"/><stop offset=".55" stop-color="#ff7a3c"/><stop offset="1" stop-color="#f0b454"/></linearGradient></defs><path fill="url(#fireG)" d="M24 2c5 10 13 14 13 27 0 11-7 17-13 17S11 53 11 42c0-6 3-9 5-13 1 5 4 6 4 1 0-7-2-11 4-28z"/><path fill="#ffe0a3" opacity=".92" d="M24 31c3 4 5 6 5 10 0 4-2 7-5 7s-5-3-5-7c0-4 2-6 5-10z"/></svg></div>
-            <!-- 群組寵物（有設定才顯示，圍爐旁） -->
-            <div id="campfire-pet-wrap" class="campfire-pet-wrap" style="display:none;" title="點我互動！">
-                <img id="campfire-pet-img" src="" alt="群組寵物" class="campfire-pet-img" />
-                <span id="campfire-pet-badge" class="campfire-pet-status-badge">😊</span>
-            </div>
+    <!-- 頂列：題庫（右上帳號由常駐 auth chip 顯示，比照現有專案） -->
+    <div class="top-row">
+        <button id="btn-question-library" class="btn-book" aria-label="題庫管理">
+            <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+                <path d="M2 2h13a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H2" stroke="#4f351a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M2 2a1 1 0 0 0-1 1v18a1 1 0 0 0 1 1h13" stroke="#4f351a" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M5 8h8M5 12h8M5 16h5" stroke="#4f351a" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 搜尋 -->
+    <div class="search-row">
+        <div class="search-bar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;">
+                <circle cx="11" cy="11" r="7" stroke="#9b7955" stroke-width="1.8"/>
+                <path d="M16.5 16.5L21 21" stroke="#9b7955" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <input id="home-search" type="text" placeholder="搜尋群組…" autocomplete="off">
         </div>
-        <div class="campfire-bar">
-            <span class="campfire-online" id="home-campfire-hint">等朋友一起聚會</span>
-            <span class="campfire-streak" id="home-campfire-streak" style="display:none;"><i data-lucide="flame"></i> 連續 0 場</span>
+    </div>
+
+    <!-- 群組九宮格（由 home.js 依 /api/groups 動態渲染） -->
+    <div class="groups-scroll">
+        <div class="groups-grid" id="home-groups-grid"></div>
+        <div class="home-empty" id="home-groups-empty" style="display:none;">
+            <div class="home-empty-emoji">🐾</div>
+            <p class="home-empty-title">還沒有任何群組</p>
+            <p class="home-empty-desc">點下方「群組」建立或加入一個群組，<br>揪朋友一起放下手機聚一聚吧！</p>
+        </div>
+        <div class="home-empty" id="home-groups-guest" style="display:none;">
+            <div class="home-empty-emoji">🔥</div>
+            <p class="home-empty-title">登入後看看你的群組</p>
+            <p class="home-empty-desc">用右上角的 Google 登入，<br>就能建立群組、發起聚會。</p>
         </div>
     </div>
 
-    <!-- 主標題 -->
-    <div class="home-title">
-        <h1>聚會時間</h1>
-        <p>放下手機，圍著火光好好聊</p>
-    </div>
-
-    <!-- 主要 CTA -->
-    <button id="btn-create-room" class="btn primary btn-fire"><i data-lucide="flame"></i> 發起聚會</button>
-    <p id="home-login-hint" class="hint" style="display:none; text-align:center; margin-bottom:12px;">※ 發起聚會需要先登入 Google 帳號</p>
-    <button id="btn-scan-qr" class="btn secondary btn-qr"><i data-lucide="scan-line"></i> 掃描 QR Code 加入</button>
-    <button id="btn-home-schedule" class="btn secondary"><i data-lucide="calendar-plus"></i> 預約聚會</button>
-
-    <!-- 功能 Grid（登入後顯示） -->
-    <div class="home-grid" id="home-feature-grid">
-        <button id="btn-open-groups" class="home-grid-card">
-            <span class="hgc-icon"><i data-lucide="users"></i></span>
-            <span class="hgc-title">群組管理</span>
-            <span class="hgc-sub" id="hgc-groups-sub">管理你的群組</span>
+    <!-- 底部 4 顆功能列 -->
+    <div class="bottom-bar">
+        <button class="btn-bottom btn-bottom-create" id="btn-create-room">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
+                <path d="M9 21V12h6v9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            發起聚會
         </button>
-        <button id="btn-open-meetings" class="home-grid-card">
-            <span class="hgc-icon"><i data-lucide="calendar"></i></span>
-            <span class="hgc-title">聚會紀錄</span>
-            <span class="hgc-sub">查看過去聚會</span>
+        <button class="btn-bottom btn-bottom-join" id="btn-scan-qr">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M10 17l5-5-5-5M15 12H3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            加入聚會
         </button>
-        <button id="btn-open-questions" class="home-grid-card">
-            <span class="hgc-icon"><i data-lucide="file-text"></i></span>
-            <span class="hgc-title">題庫管理</span>
-            <span class="hgc-sub">自訂問答題目</span>
+        <button class="btn-bottom btn-bottom-schedule" id="btn-home-schedule">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                <path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M8 14h2M13 14h2M8 18h2M13 18h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            預約聚會
         </button>
-        <button id="btn-home-leaderboard" class="home-grid-card">
-            <span class="hgc-icon"><i data-lucide="trophy"></i></span>
-            <span class="hgc-title">排行榜</span>
-            <span class="hgc-sub">查看本週排名</span>
-        </button>
-        <button id="btn-open-my-pet" class="home-grid-card">
-            <span class="hgc-icon"><i data-lucide="paw-print"></i></span>
-            <span class="hgc-title">我的寵物</span>
-            <span class="hgc-sub" id="hgc-pet-sub">陪伴你的小可愛</span>
+        <button class="btn-bottom btn-bottom-group" id="btn-open-groups">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="9" cy="7" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                <path d="M3 21c0-3.3 2.7-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                <path d="M16 11v6M13 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            群組
         </button>
     </div>
 
-    <p class="hint footer-hint">也可以直接用手機相機掃 QR Code 加入</p>
-
-    <!-- 預約聚會（底部彈出） -->
+    <!-- 預約聚會（底部彈出，沿用 .ics 產生邏輯） -->
     <div id="home-schedule-sheet" class="pet-sheet" hidden>
         <div class="pet-sheet-grip"></div>
         <div class="pet-sheet-body">

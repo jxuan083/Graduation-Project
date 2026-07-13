@@ -38,49 +38,64 @@ export async function refreshLeaderboard() {
             emptyEl.style.display = 'block';
             return;
         }
-        entries.forEach((e, i) => listEl.appendChild(buildLeaderboardRow(e, i, data.me_uid)));
+        // 前三名頒獎台 + 第 4 名之後列表（front-preview screen-leaderboard）
+        listEl.appendChild(buildPodium(entries.slice(0, 3), data.me_uid));
+        entries.slice(3).forEach((e, i) => listEl.appendChild(buildLeaderboardRow(e, i + 4, data.me_uid)));
     } catch (err) {
         console.error(err);
         listEl.innerHTML = '<p class="hint">讀取排行榜失敗(可能需要在 Firebase Console 建立索引)</p>';
     }
 }
 
-function buildLeaderboardRow(e, index, meUid) {
+const LB_AV_COLORS = ['#a8c8e8', '#f5c6b8', '#c8e6c9', '#ffe0b2', '#d8b8e8', '#e8c8a8', '#c8d8e8'];
+
+function avatarInner(e, i) {
+    if (e.avatar_url) {
+        return `<img src="${escAttr(e.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.visibility='hidden'">`;
+    }
+    const name = e.nickname || '?';
+    return escHtml((String(name).trim()[0] || '?').toUpperCase());
+}
+
+// 頒獎台：顯示順序 [第2, 第1, 第3]，第1 在中間且最高
+function buildPodium(top, meUid) {
+    const wrap = document.createElement('div');
+    wrap.className = 'lb-podium';
+    const cfg = [
+        { idx: 1, av: 60, bar: 60, barBg: 'rgba(155,121,85,0.30)', medal: '🥈' },
+        { idx: 0, av: 74, bar: 80, barBg: 'rgba(155,121,85,0.55)', medal: '👑', first: true },
+        { idx: 2, av: 54, bar: 44, barBg: 'rgba(155,121,85,0.18)', medal: '🥉' },
+    ];
+    cfg.forEach(c => {
+        const e = top[c.idx];
+        if (!e) return;
+        const isMe = e.uid === meUid;
+        const col = document.createElement('div');
+        col.className = 'lb-podium-col';
+        col.innerHTML = `
+            ${c.first ? '<span class="lb-podium-crown">👑</span>' : ''}
+            <div class="lb-podium-avatar" style="width:${c.av}px;height:${c.av}px;background:${LB_AV_COLORS[c.idx]};">
+                ${avatarInner(e, c.idx)}
+                ${c.first ? '' : `<span class="lb-medal">${c.medal}</span>`}
+            </div>
+            <p class="lb-podium-name${isMe ? ' me' : ''}">${escHtml(e.nickname || '(無名)')}</p>
+            <p class="lb-podium-score${isMe ? ' me' : ''}">${e.score || 0}分</p>
+            <div class="lb-podium-bar" style="height:${c.bar}px;background:${c.barBg};"></div>`;
+        wrap.appendChild(col);
+    });
+    return wrap;
+}
+
+function buildLeaderboardRow(e, rank, meUid) {
     const row = document.createElement('div');
-    row.className = 'leaderboard-row';
-    if (e.uid === meUid) row.classList.add('me');
-
-    const rankEl = document.createElement('div');
-    rankEl.className = 'lb-rank';
-    if (index === 0) rankEl.innerText = '🥇';
-    else if (index === 1) rankEl.innerText = '🥈';
-    else if (index === 2) rankEl.innerText = '🥉';
-    else rankEl.innerText = `#${index + 1}`;
-    row.appendChild(rankEl);
-
-    const avatar = document.createElement('img');
-    avatar.className = 'lb-avatar';
-    // 🔒 [Bug 7 v15.3] placeholder 避免 src='' 觸發整頁重抓
-    avatar.src = e.avatar_url || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
-    avatar.onerror = () => { avatar.style.visibility = 'hidden'; };
-    row.appendChild(avatar);
-
-    const info = document.createElement('div');
-    info.className = 'lb-info';
-    const name = document.createElement('div');
-    name.className = 'lb-name';
-    name.innerText = e.nickname || '(無名)';
-    info.appendChild(name);
-    const sub = document.createElement('div');
-    sub.className = 'lb-sub';
-    sub.innerText = t('本週 {count} 場', { count: e.meetings_count || 0 });
-    info.appendChild(sub);
-    row.appendChild(info);
-
-    const score = document.createElement('div');
-    score.className = 'lb-score';
-    score.innerText = e.score || 0;
-    row.appendChild(score);
-
+    row.className = 'lb-row' + (e.uid === meUid ? ' me' : '');
+    row.innerHTML = `
+        <span class="lb-rank">${rank}</span>
+        <div class="lb-avatar" style="width:40px;height:40px;background:${LB_AV_COLORS[(rank - 1) % LB_AV_COLORS.length]};">${avatarInner(e, rank)}</div>
+        <div class="lb-info"><p class="lb-name">${escHtml(e.nickname || '(無名)')}</p><p class="lb-sub">${t('本週 {count} 場', { count: e.meetings_count || 0 })}</p></div>
+        <span class="lb-score">${e.score || 0}</span>`;
     return row;
 }
+
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escAttr(s) { return escHtml(s); }

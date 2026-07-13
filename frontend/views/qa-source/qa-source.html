@@ -1,8 +1,31 @@
 <section id="view-qa-source" class="view">
-            <h2>選擇題目來源</h2>
-            <p>要給大家答哪一題？</p>
-            <button id="btn-qa-src-mine" class="btn primary"><i data-lucide="dices"></i> 從我的題庫隨機</button>
-            <button id="btn-qa-src-public" class="btn primary"><i data-lucide="globe"></i> 從公共題庫隨機</button>
-            <button id="btn-qa-src-pick" class="btn secondary"><i data-lucide="clipboard-list"></i> 手動挑一題</button>
-            <button id="btn-qa-src-cancel" class="btn secondary">取消</button>
-        </section>
+    <div class="scroll-body scroll-pad" style="padding-top:24px;padding-bottom:32px;">
+        <div class="qas-hero">
+            <div class="qas-hero-svg">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"/><circle cx="8" cy="8" r="1.2" fill="var(--gold)"/><circle cx="16" cy="8" r="1.2" fill="var(--gold)"/><circle cx="8" cy="16" r="1.2" fill="var(--gold)"/><circle cx="16" cy="16" r="1.2" fill="var(--gold)"/><circle cx="12" cy="12" r="1.2" fill="var(--gold)"/></svg>
+            </div>
+            <p class="qas-hero-title">選擇題目來源</p>
+            <p class="qas-hero-sub">選完後題目會推播給所有成員</p>
+        </div>
+
+        <button id="btn-qa-src-mine" class="qas-option-btn">
+            <div class="qas-option-icon" style="background:rgba(155,121,85,0.12);"><i data-lucide="dices" style="color:#9b7955;"></i></div>
+            <div class="qas-option-text"><p class="qas-option-title">從我的題庫隨機</p><p class="qas-option-sub">從你自己建立的題目中隨機抽一題</p></div>
+            <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="var(--brown-45)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <button id="btn-qa-src-public" class="qas-option-btn">
+            <div class="qas-option-icon" style="background:rgba(74,127,193,0.12);"><i data-lucide="globe" style="color:#4a7fc1;"></i></div>
+            <div class="qas-option-text"><p class="qas-option-title">從公共題庫隨機</p><p class="qas-option-sub">從所有人共享的公共題庫中隨機抽取</p></div>
+            <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="var(--brown-45)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <button id="btn-qa-src-pick" class="qas-option-btn">
+            <div class="qas-option-icon" style="background:rgba(173,87,147,0.10);"><i data-lucide="clipboard-list" style="color:#AD5793;"></i></div>
+            <div class="qas-option-text"><p class="qas-option-title">手動挑一題</p><p class="qas-option-sub">自己從題庫瀏覽並選定要出的題目</p></div>
+            <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="var(--brown-45)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <button id="btn-qa-src-cancel" class="btn secondary" style="margin-top:12px;">取消</button>
+    </div>
+</section>

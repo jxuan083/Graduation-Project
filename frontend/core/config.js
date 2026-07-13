@@ -18,6 +18,11 @@ export const firebaseConfig = {
     measurementId: "G-8STMGY1K1C"
 };
 
+// FCM Web Push 用的 VAPID public key。
+// 去 Firebase Console → 專案設定 → Cloud Messaging → Web Push 憑證 → 產生金鑰組，貼在這裡。
+// 沒填之前 getToken() 會直接失敗（push.js 有擋，不會炸整個 app）。
+export const FCM_VAPID_KEY = "";
+
 // 11 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
 export const CONTEXT_CONFIGS = {
     general:     { label: '一般聚會', icon: 'party-popper',   difficulty: 'L', duration: 90,  mode: 'GATHERING' },

@@ -1,20 +1,22 @@
 <section id="view-leaderboard" class="view page-view">
 
     <div class="page-header">
-        <button id="btn-leaderboard-back" class="btn-back">←</button>
+        <button id="btn-leaderboard-back" class="btn-back" aria-label="返回">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <span class="page-title">排行榜</span>
-        <span class="hint" id="leaderboard-period-hint" style="margin-left:auto;">本週</span>
     </div>
 
-    <div class="tabs">
-        <button id="lb-tab-global"  class="tab-btn active"><i data-lucide="globe"></i> 全站週榜</button>
-        <button id="lb-tab-friends" class="tab-btn"><i data-lucide="users"></i> 好友圈</button>
+    <div class="tab-underline-bar">
+        <button id="lb-tab-global" class="tab-underline-btn active" type="button">全站週榜</button>
+        <button id="lb-tab-friends" class="tab-underline-btn" type="button">好友圈</button>
     </div>
 
-    <div id="leaderboard-list" class="leaderboard-list"></div>
+    <p class="lb-week-hint" id="leaderboard-period-hint">本週</p>
+    <div id="leaderboard-list" class="lb-list"></div>
     <p id="leaderboard-empty" class="hint" style="display:none; text-align:center; margin-top:32px;">本週還沒有人聚會喔</p>
 
-    <p class="hint" style="margin-top:20px; font-size:0.78rem; text-align:center; line-height:1.6;">
+    <p class="lb-formula-hint">
         計分：max(0, 50 − 分心×5) + 時長×0.5<br>零分心且≥20分鐘 +10 · 房主 +5
     </p>
 

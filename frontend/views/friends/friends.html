@@ -1,38 +1,116 @@
-<section id="view-friends" class="view page-view">
+<section id="view-friends" class="view">
 
     <div class="page-header">
-        <button id="btn-friends-back" class="btn-back">←</button>
+        <button id="btn-friends-back" class="btn-back">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <span class="page-title">好友</span>
     </div>
 
-    <div class="tabs">
-        <button id="friends-tab-list"     class="tab-btn active"><i data-lucide="users"></i> 我的好友 (<span id="friends-count">0</span>)</button>
-        <button id="friends-tab-incoming" class="tab-btn"><i data-lucide="mail"></i> 收到邀請 (<span id="friends-incoming-count">0</span>)</button>
-        <button id="friends-tab-add"      class="tab-btn"><i data-lucide="user-plus"></i> 加好友</button>
+    <div class="tab-underline-bar" id="friends-tab-bar">
+        <button class="tab-underline-btn active" id="friends-tab-list">我的好友 (<span id="friends-count">0</span>)</button>
+        <button class="tab-underline-btn" id="friends-tab-incoming">好友請求 (<span id="friends-incoming-count">0</span>)</button>
+        <button class="tab-underline-btn" id="friends-tab-add">加好友</button>
     </div>
 
-    <div id="friends-list-pane" class="friends-pane">
-        <div id="friends-list" class="friends-list"></div>
-        <p id="friends-empty-hint" class="hint" style="display:none; margin-top:24px;">還沒有好友，到「加好友」頁面邀請別人加入吧！</p>
+    <!-- ── 我的好友 ── -->
+    <div id="friends-panel-my" class="friends-tab-panel">
+        <div class="friend-search-wrap">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="rgba(79,53,26,0.4)" stroke-width="1.5" fill="none"/><path d="M11 11L14 14" stroke="rgba(79,53,26,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input type="text" placeholder="搜尋好友" id="friend-search">
+        </div>
+        <div class="scroll-body scroll-pad">
+            <div id="friend-list"></div>
+            <p id="friends-empty-hint" class="hint" style="display:none; text-align:center; margin-top:24px;">還沒有好友，到「加好友」邀請別人吧！</p>
+        </div>
     </div>
 
-    <div id="friends-incoming-pane" class="friends-pane" style="display:none;">
-        <div id="friends-incoming-list" class="friends-list"></div>
-        <p id="friends-incoming-empty" class="hint" style="display:none; margin-top:24px;">目前沒有待處理的邀請</p>
+    <!-- ── 好友請求 ── -->
+    <div id="friends-panel-requests" class="friends-tab-panel" style="display:none;">
+        <div class="scroll-body scroll-pad">
+            <p class="friends-section-hd">收到的邀請 (<span id="friends-incoming-count2">0</span>)</p>
+            <div id="fr-incoming-list"></div>
+            <p id="fr-incoming-empty" class="hint" style="display:none;">目前沒有待處理的邀請</p>
+            <p class="friends-section-hd" style="margin-top:20px;">已發出邀請</p>
+            <div id="fr-outgoing-list"></div>
+            <p id="fr-outgoing-empty" class="hint" style="display:none;">沒有送出中的邀請</p>
+        </div>
     </div>
 
-    <div id="friends-add-pane" class="friends-pane" style="display:none;">
-        <div class="setup-section">
-            <h3>新增好友</h3>
-            <p class="hint" style="margin-bottom:10px;">輸入對方的 Email 來送邀請</p>
-            <input id="friends-add-email" class="text-input" type="email" placeholder="friend@example.com" />
-            <button id="btn-send-friend-req" class="btn primary" style="margin-top:12px; border-radius:var(--r-sm);">送出邀請</button>
-            <p id="friends-add-msg" class="hint" style="margin-top:8px;"></p>
+    <!-- ── 加好友 ── -->
+    <div id="friends-panel-add" class="friends-tab-panel" style="display:none;">
+        <!-- 模式選擇 -->
+        <div id="af-mode-select" class="scroll-body scroll-pad" style="display:flex;flex-direction:column;gap:14px;">
+            <button class="af-mode-row" id="af-qr-mode">
+                <div class="af-mode-icon">
+                    <svg width="34" height="34" viewBox="0 0 56 56" fill="none"><rect x="4" y="4" width="20" height="20" rx="3" stroke="#9b7955" stroke-width="2.5"/><rect x="9" y="9" width="10" height="10" rx="1.5" fill="#9b7955"/><rect x="32" y="4" width="20" height="20" rx="3" stroke="#9b7955" stroke-width="2.5"/><rect x="37" y="9" width="10" height="10" rx="1.5" fill="#9b7955"/><rect x="4" y="32" width="20" height="20" rx="3" stroke="#9b7955" stroke-width="2.5"/><rect x="9" y="37" width="10" height="10" rx="1.5" fill="#9b7955"/><rect x="32" y="32" width="6" height="6" rx="1" fill="#9b7955"/><rect x="42" y="32" width="6" height="6" rx="1" fill="#9b7955"/><rect x="32" y="42" width="6" height="6" rx="1" fill="#9b7955"/><rect x="42" y="42" width="6" height="6" rx="1" fill="#9b7955"/></svg>
+                </div>
+                <div style="flex:1;text-align:left;">
+                    <p class="af-mode-row-label">掃描 QR Code</p>
+                    <p class="af-mode-row-sub">掃描對方的 QR Code 加為好友</p>
+                </div>
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="rgba(79,53,26,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="af-mode-row" id="af-search-mode">
+                <div class="af-mode-icon">
+                    <svg width="34" height="34" viewBox="0 0 56 56" fill="none"><circle cx="24" cy="24" r="14" stroke="#9b7955" stroke-width="3"/><circle cx="24" cy="24" r="7" stroke="rgba(155,121,85,0.3)" stroke-width="2"/><path d="M34 34L46 46" stroke="#9b7955" stroke-width="3.5" stroke-linecap="round"/></svg>
+                </div>
+                <div style="flex:1;text-align:left;">
+                    <p class="af-mode-row-label">輸入 ID 搜尋</p>
+                    <p class="af-mode-row-sub">輸入好友的用戶 ID 來搜尋</p>
+                </div>
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="rgba(79,53,26,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="af-mode-row" id="af-myqr-mode">
+                <div class="af-mode-icon" style="background:#f3eaff;">
+                    <svg width="34" height="34" viewBox="0 0 56 56" fill="none"><rect x="4" y="4" width="20" height="20" rx="3" stroke="#9059a0" stroke-width="2.5"/><rect x="9" y="9" width="10" height="10" rx="1.5" fill="#9059a0"/><rect x="32" y="4" width="20" height="20" rx="3" stroke="#9059a0" stroke-width="2.5"/><rect x="37" y="9" width="10" height="10" rx="1.5" fill="#9059a0"/><rect x="4" y="32" width="20" height="20" rx="3" stroke="#9059a0" stroke-width="2.5"/><rect x="9" y="37" width="10" height="10" rx="1.5" fill="#9059a0"/><path d="M32 46h8M40 38v8M46 32h6M46 38h6M32 32h6" stroke="#9059a0" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </div>
+                <div style="flex:1;text-align:left;">
+                    <p class="af-mode-row-label" style="color:#9059a0;">產生我的 QR Code</p>
+                    <p class="af-mode-row-sub">讓對方掃描你的 QR Code</p>
+                </div>
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="rgba(79,53,26,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
         </div>
 
-        <div style="margin-top:8px;">
-            <p style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">已送出邀請</p>
-            <div id="friends-outgoing-list" class="friends-list"></div>
+        <!-- 掃描 QR -->
+        <div id="af-qr-view" class="scroll-body scroll-pad" style="display:none;flex-direction:column;align-items:center;gap:16px;">
+            <div class="card" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 20px;">
+                <p style="font-size:14px;color:var(--brown-55);">將對方的 QR Code 對準框框</p>
+                <div id="af-qr-scanner" class="af-scanner-box"></div>
+                <p id="af-qr-hint" class="hint" style="text-align:center;"></p>
+            </div>
+            <button class="btn-secondary" id="af-qr-back">返回</button>
+        </div>
+
+        <!-- 搜尋 ID -->
+        <div id="af-search-view" class="scroll-body scroll-pad" style="display:none;flex-direction:column;gap:16px;">
+            <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+                <p style="font-size:14px;font-weight:600;color:var(--brown);">輸入好友 ID</p>
+                <div class="af-search-wrap">
+                    <input class="af-search-input" type="text" placeholder="輸入 ID（如：chmstjs）" id="af-id-input" autocapitalize="off" autocomplete="off" spellcheck="false">
+                    <button class="af-search-btn" id="af-search-btn">搜尋</button>
+                </div>
+                <p id="af-search-msg" class="hint"></p>
+            </div>
+            <div id="af-result" style="display:none;" class="af-result-row">
+                <div class="af-result-avatar" id="af-result-avatar">🙂</div>
+                <div style="flex:1;"><p class="af-result-name" id="af-result-name"></p><p class="af-result-id" id="af-result-id"></p></div>
+                <button class="af-add-btn" id="af-result-add">加好友</button>
+            </div>
+            <button class="btn-secondary" id="af-search-back">返回</button>
+        </div>
+
+        <!-- 我的 QR -->
+        <div id="af-myqr-view" class="scroll-body scroll-pad" style="display:none;flex-direction:column;align-items:center;gap:16px;">
+            <div class="card" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 20px;">
+                <p style="font-size:13px;color:var(--brown-50);text-align:center;">讓對方掃描這個 QR Code 來加你為好友</p>
+                <div id="af-myqr-box" class="af-myqr-box"></div>
+                <p id="af-myqr-handle" style="font-size:13px;font-weight:600;color:var(--brown);"></p>
+                <p id="af-myqr-nohandle" class="hint" style="display:none;text-align:center;">你還沒設定用戶 ID，先到「個人資料」設定一個吧！</p>
+            </div>
+            <button class="btn-primary" id="af-myqr-share" style="width:100%;">分享我的 ID</button>
+            <button class="btn-secondary" id="af-myqr-back" style="width:100%;">返回</button>
         </div>
     </div>
 

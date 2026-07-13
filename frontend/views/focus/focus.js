@@ -11,7 +11,10 @@ import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { t } from '../../core/i18n.js';
 
 export function init() {
-    register('view-focus', { element: document.getElementById('view-focus') });
+    register('view-focus', {
+        element: document.getElementById('view-focus'),
+        onShow: refreshFocusMascot,
+    });
 
     // 折疊成員清單
     const btnFocusToggle = document.getElementById('btn-focus-members-toggle');
@@ -25,24 +28,31 @@ export function init() {
     const tabooBtn = document.getElementById('btn-mode-taboo');
     if (tabooBtn) tabooBtn.addEventListener('click', hostStartTabooGame);
 
-    // 房主發起 67 挑戰
-    const btn67 = document.getElementById('btn-mode-67');
-    if (btn67) btn67.addEventListener('click', () => {
-        if (!state.amIHost) return;
-        sendAction('START_67_GAME');
-    });
-
     // 參與者拍照 / 上傳
     document.getElementById('btn-meeting-camera').onclick = () => handleMeetingPhotoClick('meeting-camera-input');
     document.getElementById('btn-meeting-album').onclick = () => handleMeetingPhotoClick('meeting-album-input');
     document.getElementById('meeting-camera-input').addEventListener('change', handleMeetingPhotoChange);
     document.getElementById('meeting-album-input').addEventListener('change', handleMeetingPhotoChange);
 
-    // 即時語音轉文字
+    // 即時語音轉文字：揭示 / 收合錄音面板（front-preview 兩段式）
+    const recordReveal = document.getElementById('btn-focus-record-reveal');
+    const recordPanel = document.getElementById('focus-record-panel');
+    const recordClose = document.getElementById('btn-focus-record-close');
+    if (recordReveal && recordPanel) {
+        recordReveal.onclick = () => {
+            recordPanel.style.display = (recordPanel.style.display === 'none' || !recordPanel.style.display) ? 'block' : 'none';
+        };
+    }
+    if (recordClose && recordPanel) {
+        recordClose.onclick = () => { recordPanel.style.display = 'none'; };
+    }
+
+    // 開始 / 停止錄音
     const liveBtn = document.getElementById('btn-live-transcript-toggle');
     if (liveBtn) liveBtn.onclick = toggleLiveTranscript;
     events.on('session:cleanup', () => {
         if (state.liveTranscript.active) stopLiveTranscript('已停止即時轉文字');
+        state.meetingGroupPetFace = '';
     });
 
     // 邀請朋友
@@ -51,6 +61,23 @@ export function init() {
 
     // 結束聚會
     document.getElementById('btn-end-session').onclick = handleEndSession;
+}
+
+// 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球
+export function refreshFocusMascot() {
+    const orb = document.getElementById('lottie-orb');
+    const petImg = document.getElementById('focus-pet-face');
+    if (!orb || !petImg) return;
+    const face = state.meetingGroupPetFace || '';
+    if (face) {
+        petImg.src = face;
+        petImg.style.display = '';
+        orb.style.display = 'none';
+    } else {
+        petImg.removeAttribute('src');
+        petImg.style.display = 'none';
+        orb.style.display = '';
+    }
 }
 
 function toggleFocusMembersPanel() {
@@ -402,10 +429,9 @@ function updateLiveTranscriptButton(active) {
     const btn = document.getElementById('btn-live-transcript-toggle');
     if (!btn) return;
     btn.innerHTML = active
-        ? '<i data-lucide="mic-off"></i> 停止'
-        : '<i data-lucide="mic"></i> 開始';
-    btn.classList.toggle('primary', active);
-    btn.classList.toggle('secondary', !active);
+        ? '<i data-lucide="mic-off"></i> 停止錄音'
+        : '<i data-lucide="mic"></i> 開始錄音';
+    btn.classList.toggle('recording', active);
     if (window.lucide) window.lucide.createIcons();
 }
 

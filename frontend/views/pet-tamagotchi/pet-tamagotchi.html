@@ -8,8 +8,11 @@
         </div>
         <div id="pet-list-empty" class="pet-no-pet-card" style="display:none;">
             <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
-            <h2>還沒有群組寵物</h2>
-            <p>加入或建立群組，設定寵物臉後就會出現在這裡！</p>
+            <h2>還沒有寵物</h2>
+            <p>你可以先建立個人寵物，或和朋友一起養群組寵物。</p>
+            <button id="btn-create-personal-pet" class="btn primary" style="width:100%;">
+                <i data-lucide="wand-2"></i> 建立我的寵物
+            </button>
         </div>
         <div id="pet-list-cards" class="pet-list-cards"></div>
     </div>
@@ -128,11 +131,27 @@
             </div>
             <div class="stat-row">
                 <div class="stat-label">
-                    <i data-lucide="zap" class="stat-icon energy-icon"></i>
-                    <span>精力</span>
+                    <i data-lucide="utensils" class="stat-icon energy-icon"></i>
+                    <span>飽食</span>
                 </div>
                 <div class="stat-bar"><div id="fill-group-energy" class="stat-fill energy-fill" style="width:0%"></div></div>
                 <span class="stat-val" id="val-group-energy">0</span>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label">
+                    <i data-lucide="smile" class="stat-icon happiness-icon"></i>
+                    <span>快樂</span>
+                </div>
+                <div class="stat-bar"><div id="fill-group-happiness" class="stat-fill happiness-fill" style="width:0%"></div></div>
+                <span class="stat-val" id="val-group-happiness">0</span>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label">
+                    <i data-lucide="sparkles" class="stat-icon clean-icon"></i>
+                    <span>清潔</span>
+                </div>
+                <div class="stat-bar"><div id="fill-group-clean" class="stat-fill clean-fill" style="width:0%"></div></div>
+                <span class="stat-val" id="val-group-clean">0</span>
             </div>
         </div>
 
@@ -166,7 +185,7 @@
         <p class="hint">載入寵物中…</p>
     </div>
 
-    <!-- 改名 Overlay（個人模式） -->
+    <!-- 改名 Overlay（個人與群組建立者） -->
     <div id="pet-rename-overlay" class="pet-rename-overlay" style="display:none;">
         <div class="pet-rename-box">
             <h3>幫寵物改名</h3>
@@ -181,8 +200,8 @@
     <!-- 刪除確認 Overlay（群組寵物，建立者限定） -->
     <div id="pet-delete-overlay" class="pet-rename-overlay" style="display:none;">
         <div class="pet-rename-box">
-            <h3>確定要刪除群組寵物？</h3>
-            <p class="hint" style="margin:4px 0 12px;">刪除後此群組的所有養成數值都會消失，無法復原。只有重新設定才能再養。</p>
+            <h3 id="pet-delete-title">確定要刪除群組寵物？</h3>
+            <p class="hint" style="margin:4px 0 12px;">刪除後所有養成數值都會消失，無法復原。只有重新設定才能再養。</p>
             <div style="display:flex; gap:8px;">
                 <button id="btn-delete-confirm" class="btn primary" style="flex:1; background:#dc2626; border-color:#dc2626;">刪除</button>
                 <button id="btn-delete-cancel"  class="btn secondary" style="flex:1;">取消</button>

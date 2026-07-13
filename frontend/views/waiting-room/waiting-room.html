@@ -1,24 +1,25 @@
 <section id="view-waiting-room" class="view page-view">
 
-    <div class="page-header">
+    <div class="page-header" style="justify-content:center;">
         <span class="page-title">等待開始</span>
     </div>
 
-    <div class="campfire-card" style="min-height:120px;">
-        <div class="campfire-glow"></div>
-        <div class="campfire-scene" style="height:80px;">
-            <div class="campfire-fire" style="font-size:3.5rem;"><svg class="fire-svg" viewBox="0 0 48 60" aria-hidden="true"><defs><linearGradient id="fireG2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e8530f"/><stop offset=".55" stop-color="#ff7a3c"/><stop offset="1" stop-color="#f0b454"/></linearGradient></defs><path fill="url(#fireG2)" d="M24 2c5 10 13 14 13 27 0 11-7 17-13 17S11 53 11 42c0-6 3-9 5-13 1 5 4 6 4 1 0-7-2-11 4-28z"/><path fill="#ffe0a3" opacity=".92" d="M24 31c3 4 5 6 5 10 0 4-2 7-5 7s-5-3-5-7c0-4 2-6 5-10z"/></svg></div>
+    <!-- 營火卡 -->
+    <div class="wr-campfire-card">
+        <div class="wr-fire-wrap">
+            <svg class="wr-fire-svg" viewBox="0 0 48 60" aria-hidden="true">
+                <defs><linearGradient id="wrFireG" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e8530f"/><stop offset=".55" stop-color="#ff7a3c"/><stop offset="1" stop-color="#f0b454"/></linearGradient></defs>
+                <path fill="url(#wrFireG)" d="M24 2c5 10 13 14 13 27 0 11-7 17-13 17S11 53 11 42c0-6 3-9 5-13 1 5 4 6 4 1 0-7-2-11 4-28z"/>
+                <path fill="#ffe0a3" opacity=".92" d="M24 31c3 4 5 6 5 10 0 4-2 7-5 7s-5-3-5-7c0-4 2-6 5-10z"/>
+            </svg>
         </div>
-        <div class="campfire-bar">
-            <span class="campfire-online">等房主開始…</span>
-        </div>
+        <p class="wr-campfire-label">等房主開始…</p>
     </div>
 
-    <div class="setup-section">
-        <h3>目前成員 (<span id="waiting-member-count">0</span>)</h3>
-        <ul id="waiting-member-list-ul" class="member-ul"></ul>
-    </div>
+    <!-- 目前成員（由 renderMemberList 填入 #waiting-member-list-ul / #waiting-member-count） -->
+    <p class="wr-section-title">目前成員 <span class="wr-member-count" id="waiting-member-count">0</span></p>
+    <ul id="waiting-member-list-ul" class="member-ul wr-member-ul"></ul>
 
-    <button id="btn-leave-waiting" class="btn secondary" style="margin-top:8px;">離開聚會</button>
+    <button id="btn-leave-waiting" class="btn-secondary" type="button" style="margin-top:20px;">離開聚會</button>
 
 </section>

@@ -33,6 +33,8 @@ export function openProfileView() {
         (state.currentProfile && state.currentProfile.nickname) || state.currentUser.displayName || '';
     document.getElementById('profile-bio').value =
         (state.currentProfile && state.currentProfile.bio) || '';
+    document.getElementById('profile-handle').value =
+        (state.currentProfile && state.currentProfile.handle) || '';
     document.getElementById('profile-status').innerText = '';
     switchView('view-profile');
 }
@@ -52,7 +54,8 @@ async function saveProfile() {
 
     const payload = {
         nickname: document.getElementById('profile-nickname').value.trim(),
-        bio: document.getElementById('profile-bio').value.trim()
+        bio: document.getElementById('profile-bio').value.trim(),
+        handle: document.getElementById('profile-handle').value.trim().toLowerCase()
     };
     const fileInput = document.getElementById('profile-avatar-input');
     const file = fileInput.files && fileInput.files[0];

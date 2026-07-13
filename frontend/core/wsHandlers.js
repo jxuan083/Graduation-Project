@@ -8,7 +8,7 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { enterReadyPhase, startPreCountdown, showResults, cleanup67Game, handleCancelled, updateLiveScores, syncTime } from '../views/67-game/67-game.js';
+import { refreshFocusMascot } from '../views/focus/focus.js';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -26,18 +26,15 @@ export function registerAllWsHandlers() {
     registerHandler('QA_FINISHED', handleQaFinished);
     registerHandler('TABOO_STARTED', handleTabooStarted);
     registerHandler('TABOO_ENDED', handleTabooEnded);
-    registerHandler('GAME67_STARTED', handleGame67Started);
-    registerHandler('GAME67_COUNTDOWN', handleGame67Countdown);
-    registerHandler('GAME67_RESULTS', handleGame67Results);
-    registerHandler('GAME67_CANCELLED', handleGame67Cancelled);
-    registerHandler('GAME67_LIVE_SCORES', handleGame67LiveScores);
-    registerHandler('GAME67_TIME_SYNC', handleGame67TimeSync);
     registerHandler('QA_ERROR', (msg) => alert(t('出題失敗:') + msg.message));
 }
 
 function handleRoomUpdate(msg) {
     const rs = msg.room_state || {};
     if (rs.host_uid) state.roomHostUid = rs.host_uid;
+    // 本場聚會綁定群組的寵物臉（聚會中吉祥物）；沒綁群組 / 群組沒寵物則為空 → focus 顯示動畫球
+    state.meetingGroupPetFace = rs.group_pet_face_url || '';
+    refreshFocusMascot();
     renderMemberList(rs.members || {});
     if (state.amIHost) {
         const startBtn = document.getElementById('btn-start-sync');
@@ -131,18 +128,19 @@ function renderDeviationRanking(ranking) {
     if (!section || !ul) return;
     if (!ranking.length) { section.style.display = 'none'; return; }
 
-    const medals = ['🥇', '🥈', '🥉'];
+    const COLORS = ['#a8c8e8', '#f5c6b8', '#c8e6c9', '#ffe0b2', '#d8b8e8', '#e8c8a8', '#c8d8e8'];
     ul.innerHTML = '';
     ranking.forEach((item, i) => {
         const isMe = item.uid === state.userId;
+        const name = item.nickname || item.uid || '';
+        const initial = escHtml((String(name).trim()[0] || '?').toUpperCase());
         const li = document.createElement('li');
-        li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid var(--border);';
-        if (i === ranking.length - 1) li.style.borderBottom = 'none';
-        const medal = medals[i] || `${i + 1}.`;
-        const nameStyle = isMe ? 'font-weight:700; color:var(--accent-fire, #ff6b35);' : '';
+        li.className = 'ps-rank-row' + (isMe ? ' me' : '');
         li.innerHTML = `
-            <span style="${nameStyle}">${medal} ${escHtml(item.nickname || item.uid)}${isMe ? ' (我)' : ''}</span>
-            <span style="font-weight:700;">${item.deviations} 次</span>
+            <span class="ps-rank-num">${i + 1}</span>
+            <span class="ps-rank-avatar" style="width:36px;height:36px;background:${COLORS[i % COLORS.length]};">${initial}</span>
+            <span class="ps-rank-name">${escHtml(name)}${isMe ? ' <span class="ps-rank-me-tag">（你）</span>' : ''}</span>
+            <span class="ps-rank-count">${item.deviations} 次</span>
         `;
         ul.appendChild(li);
     });
@@ -194,12 +192,14 @@ function handleQaStarted(msg) {
 
     if (container) {
         container.innerHTML = '';
-        msg.options.forEach(opt => {
+        msg.options.forEach((opt, i) => {
+            const letter = String.fromCharCode(65 + i); // A/B/C/D
             const btn = document.createElement('button');
-            btn.innerText = opt;
-            btn.className = 'qa-option-btn';
+            btn.className = 'qag-opt';
+            btn.innerHTML = `<span class="qag-opt-label">${letter}</span><span class="qag-opt-text">${escHtml(opt)}</span>`;
             btn.onclick = () => {
                 sendAction('SUBMIT_ANSWER', { answer: opt });
+                btn.classList.add('selected');
                 if (statusEl) statusEl.innerText = '你已送出答案,等待其他人...';
                 Array.from(container.children).forEach(b => b.disabled = true);
             };
@@ -224,18 +224,11 @@ function handleQaFinished(msg) {
         container.innerHTML = '';
         const sorted = Object.entries(msg.results).sort((a, b) => b[1] - a[1]);
         sorted.forEach(([opt, count]) => {
+            const isCorrect = msg.has_answer && msg.correct_option && opt === msg.correct_option;
             const div = document.createElement('div');
-            div.className = 'qa-option-btn';
-            div.style.opacity = '1';
-            div.style.cursor = 'default';
-            if (msg.has_answer && msg.correct_option && opt === msg.correct_option) {
-                div.style.background = 'rgba(16, 185, 129, 0.25)';
-                div.style.borderColor = '#34d399';
-                div.style.color = '#a7f3d0';
-                div.innerText = t('{option}  —  {count} 票(正解)', { option: opt, count });
-            } else {
-                div.innerText = t('{option}  —  {count} 票', { option: opt, count });
-            }
+            div.className = 'qag-opt qag-result' + (isCorrect ? ' correct' : '');
+            const countText = isCorrect ? t('{count} 票(正解)', { count }) : t('{count} 票', { count });
+            div.innerHTML = `<span class="qag-opt-text">${escHtml(opt)}</span><span class="qag-opt-count">${escHtml(countText)}</span>`;
             container.appendChild(div);
         });
     }
@@ -276,28 +269,3 @@ function handleTabooEnded() {
     try { showToast('關鍵字遊戲結束', 'info'); } catch (e) {}
 }
 
-function handleGame67Started() {
-    state.currentPhase = 'GAME_67';
-    switchView('view-67-game');
-    enterReadyPhase();
-}
-
-function handleGame67Countdown() {
-    startPreCountdown();
-}
-
-function handleGame67Results(msg) {
-    showResults(msg.scores || []);
-}
-
-function handleGame67Cancelled() {
-    handleCancelled();
-}
-
-function handleGame67LiveScores(msg) {
-    updateLiveScores(msg.scores || {});
-}
-
-function handleGame67TimeSync(msg) {
-    syncTime(msg.seconds_left);
-}

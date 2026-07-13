@@ -14,7 +14,7 @@ export function init() {
     });
 
     const btnBack = document.getElementById('btn-group-setup-back');
-    if (btnBack) btnBack.onclick = () => switchView('view-groups');
+    if (btnBack) btnBack.onclick = () => switchView(state.currentGroupDetail ? 'view-group' : 'view-groups');
 
     const btnSaveName = document.getElementById('btn-save-group-name');
     if (btnSaveName) btnSaveName.onclick = handleSaveName;
@@ -172,6 +172,7 @@ function renderMembers(g) {
     ul.querySelectorAll('.btn-pet-gen').forEach(btn => {
         btn.onclick = () => {
             state.petSwapTarget = { uid: btn.dataset.uid, nickname: btn.dataset.nickname };
+            state.petSwapOrigin = 'group';
             switchView('view-pet-swap');
         };
     });

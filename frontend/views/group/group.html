@@ -1,0 +1,84 @@
+<section id="view-group" class="view">
+
+    <div class="page-header" style="padding-bottom:12px;">
+        <button id="btn-group-back" class="btn-back">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="page-title" id="group-title" style="flex:1;">群組</span>
+        <div style="display:flex;gap:8px;margin-left:auto;flex-shrink:0;">
+            <button class="grp-icon-btn" id="btn-group-settings" aria-label="群組設定">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="3" stroke="var(--brown)" stroke-width="1.7" fill="none"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="var(--brown)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+            </button>
+            <button class="grp-icon-btn" id="btn-group-chat" aria-label="群組聊天室">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                    <path d="M2 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6l-4 3V5z" stroke="var(--brown)" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="scroll-body" style="padding:0;overflow-y:auto;flex:1;">
+
+        <!-- 成員橫向列 -->
+        <div style="padding:0 20px 14px;">
+            <p class="grp-section-title">成員 <span class="grp-member-count" id="grp-detail-member-count">0</span></p>
+            <div class="grp-members-row" id="group-members-row"></div>
+        </div>
+
+        <!-- 寵物區塊 -->
+        <div class="grp-pet-section" id="group-pet-section">
+            <div class="grp-pet-header">
+                <p class="grp-section-title" style="margin-bottom:0;">群組寵物</p>
+            </div>
+
+            <!-- 無寵物狀態 -->
+            <div class="grp-pet-empty" id="group-pet-empty">
+                <div class="grp-pet-paw">🐾</div>
+                <p class="grp-pet-empty-title">還沒有群組寵物</p>
+                <p class="grp-pet-empty-desc">一起合成你們的專屬寵物吧！</p>
+                <button class="btn-primary" id="btn-group-pet-vote" style="width:100%;">投票並生成寵物</button>
+            </div>
+
+            <!-- 有寵物狀態 -->
+            <div class="grp-pet-has" id="group-pet-has" style="display:none;">
+                <div class="grp-pet-card">
+                    <div class="grp-pet-card-img-wrap">
+                        <img id="group-pet-img" src="" class="grp-pet-card-img" alt="群組寵物">
+                    </div>
+                    <div class="grp-pet-card-info">
+                        <p class="grp-pet-card-name" id="group-pet-name">寵物</p>
+                        <div class="grp-pet-card-hp" id="group-pet-hp"></div>
+                        <div class="grp-pet-card-bar-row">
+                            <span class="grp-pet-bar-label">⚡</span>
+                            <div class="grp-pet-bar"><div class="grp-pet-bar-fill energy-fill" id="group-pet-energy-fill" style="width:0%"></div></div>
+                            <span class="grp-pet-bar-val" id="group-pet-energy-val">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <button class="btn-primary" id="btn-group-pet-tama" style="flex:1;font-size:14px;">🐾 去養成</button>
+                    <button class="grp-pet-regen-btn" id="btn-group-pet-regen">
+                        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 8a6 6 0 1 0 1.5-4M2 4v4h4" stroke="var(--brown)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        更新寵物
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近聚會 -->
+        <div style="padding:0 20px 24px;">
+            <p class="grp-section-title">最近聚會</p>
+            <div id="group-meetings-list" class="grp-meetings-list"></div>
+            <div id="group-meetings-empty" class="grp-meetings-empty">
+                <p>這個群組還沒有聚會紀錄。</p>
+            </div>
+            <button class="grp-all-meetings-btn" id="btn-group-all-meetings">查看全部聚會紀錄</button>
+        </div>
+
+    </div>
+</section>

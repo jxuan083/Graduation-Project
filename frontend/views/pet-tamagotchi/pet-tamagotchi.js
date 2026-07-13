@@ -1,6 +1,7 @@
 import { register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
+import { showToast } from '../../utils/toast.js';
 
 // ── 背景 ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +16,13 @@ let _bgDrag  = { active: false, startX: 0, startY: 0, basePosX: 50, basePosY: 50
 function loadBackground() {
     const saved    = localStorage.getItem(BG_KEY) || 'default';
     const savedImg = localStorage.getItem(BG_IMG_KEY) || null;
-    const savedPos = JSON.parse(localStorage.getItem(BG_POS_KEY) || '[50,50]');
+    let savedPos = [50, 50];
+    try {
+        const parsed = JSON.parse(localStorage.getItem(BG_POS_KEY) || '[50,50]');
+        if (Array.isArray(parsed) && parsed.length === 2 && parsed.every(Number.isFinite)) savedPos = parsed;
+    } catch {
+        localStorage.removeItem(BG_POS_KEY);
+    }
     _bgPosX = savedPos[0]; _bgPosY = savedPos[1];
     applyBackground(saved, saved === 'custom' ? savedImg : null);
     document.querySelectorAll('.bg-opt[data-bg]').forEach(b => {
@@ -33,10 +40,14 @@ function applyBackground(key, customUrl) {
     stage.style.cursor = '';
     if (key === 'custom' && customUrl) {
         stage.classList.add('bg-custom');
-        stage.style.backgroundImage    = `url(${customUrl})`;
+        stage.style.backgroundImage    = `url("${customUrl.replaceAll('"', '%22')}")`;
         stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
         stage.style.cursor = 'grab';
-        localStorage.setItem(BG_IMG_KEY, customUrl);
+        try {
+            localStorage.setItem(BG_IMG_KEY, customUrl);
+        } catch {
+            showToast('背景圖片太大，無法儲存在此裝置。');
+        }
     } else if (key !== 'default') {
         stage.classList.add(`bg-${key}`);
     }
@@ -87,6 +98,12 @@ const SPEECHES = {
 const STATUS_TEXT = { NORMAL:'正常', HAPPY:'開心', HUNGRY:'飢餓', DIRTY:'需清潔', CRITICAL:'危急', SLEEPING:'睡覺' };
 const STATUS_EMOJI = { NORMAL:'😊', HAPPY:'🎉', HUNGRY:'😢', DIRTY:'😷', CRITICAL:'💔', SLEEPING:'😴' };
 
+function escHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+    })[char]);
+}
+
 // ── 狀態 ─────────────────────────────────────────────────────────────────────
 
 let _groupPet   = null;
@@ -97,6 +114,10 @@ let _myPets     = [];
 let _pollTimer  = null;
 let _actionLock = false;
 let _clickIdx   = 0;
+// 刪除目標明確落在這裡，confirmDelete 只讀它 —— 不再靠殘留的 _groupPet._isPersonal
+// 猜（否則：從列表刪個人寵物會靜默失敗；進過個人寵物再刪群組寵物會誤刪個人寵物）
+let _pendingDelete = null;   // { kind: 'personal' | 'group', groupId }
+let _deleteBusy    = false;
 
 const CLICK_CYCLE = [
     { anim: 'happy',   status: 'HAPPY'  },
@@ -131,6 +152,24 @@ export function init() {
     document.getElementById('btn-pet-feed').onclick  = () => doAction('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
+    document.getElementById('btn-pet-sleep').onclick = () => {
+        const sleeping = Boolean(_groupPet?._raw?.my_pet_is_sleeping);
+        doAction(sleeping ? 'wake' : 'sleep');
+    };
+    const openPersonalPetCreator = () => {
+        state.currentGroupDetail = null;
+        state.petSwapOrigin = 'personal';
+        state.petSwapTarget = state.currentUser
+            ? { uid: state.currentUser.uid, nickname: state.currentProfile?.nickname || state.currentUser.displayName || '' }
+            : null;
+        switchView('view-pet-swap');
+    };
+    document.getElementById('btn-go-pet-swap').onclick = openPersonalPetCreator;
+    document.getElementById('btn-create-personal-pet').onclick = openPersonalPetCreator;
+    document.getElementById('btn-pet-tama-back-nopet').onclick = () => {
+        if (_entryMode === 'direct') switchView('view-home');
+        else showScreen('list');
+    };
 
     document.getElementById('pet-avatar-wrap').addEventListener('click', () => {
         if (_actionLock) return;
@@ -148,7 +187,9 @@ export function init() {
         if (e.key === 'Escape') closeRenameDialog();
     });
 
-    document.getElementById('btn-pet-delete').onclick     = openDeleteDialog;
+    document.getElementById('btn-pet-delete').onclick = () => openDeleteDialog(
+        _groupPet?._isPersonal ? { kind: 'personal' } : { kind: 'group', groupId: _groupId }
+    );
     document.getElementById('btn-delete-confirm').onclick  = confirmDelete;
     document.getElementById('btn-delete-cancel').onclick   = closeDeleteDialog;
 
@@ -243,10 +284,10 @@ function renderPetList() {
         const card = document.createElement('div');
         card.className = 'pet-list-card';
         card.innerHTML = `
-            <img class="pet-list-avatar" src="${pet.pet_face_url}" alt="寵物頭像">
+            <img class="pet-list-avatar" src="${escHtml(pet.pet_face_url)}" alt="寵物頭像">
             <div class="pet-list-info">
-                <div class="pet-list-name">${pet.pet_name || (isGroup ? '群組寵物' : '我的寵物')}</div>
-                <div class="pet-list-group">${group_name}</div>
+                <div class="pet-list-name">${escHtml(pet.pet_name || (isGroup ? '群組寵物' : '我的寵物'))}</div>
+                <div class="pet-list-group">${escHtml(group_name)}</div>
                 <div class="pet-list-status">
                     <span>${STATUS_EMOJI[status] || '😊'} ${STATUS_TEXT[status] || '正常'}</span>
                     <span class="pet-list-energy">⚡ ${energy}/${maxE}</span>
@@ -273,9 +314,10 @@ function renderPetList() {
         if (is_creator) {
             card.querySelector('.btn-del-list-pet').onclick = (e) => {
                 e.stopPropagation();
-                _groupId   = group_id;   // null for personal
-                _isCreator = true;
-                openDeleteDialog();
+                openDeleteDialog(
+                    isGroup ? { kind: 'group', groupId: group_id }
+                            : { kind: 'personal' }
+                );
             };
         }
 
@@ -362,7 +404,7 @@ async function loadGroupPet() {
         }
         // 若 direct entry 尚未確認是否為建立者，從群組資料補上
         if (_entryMode === 'direct') {
-            const myUid = state.uid || state.user?.uid;
+            const myUid = state.currentUser?.uid;
             _isCreator  = myUid && grpRes.data?.group?.creator_uid === myUid;
         }
     } catch (e) {
@@ -377,33 +419,39 @@ async function doAction(action) {
     _actionLock = true;
     setAllButtonsDisabled(true);
 
-    const animMap  = { feed: 'eating', wipe: 'wiping', play: 'playing' };
+    const animMap  = { feed: 'eating', wipe: 'wiping', play: 'playing', sleep: 'sleeping', wake: 'happy' };
     const tempAnim = animMap[action];
     if (tempAnim) applyAvatarState(tempAnim);
 
     try {
         if (_groupPet._isPersonal) {
-            const { data } = await apiFetch('/api/my-pet/action', {
+            const { res, data } = await apiFetch('/api/my-pet/action', {
                 method: 'POST',
                 body: JSON.stringify({ action }),
             });
+            if (!res.ok) throw new Error(data?.detail || '寵物互動失敗');
             if (data?.pet) {
                 _groupPet.pet_energy = data.pet.my_pet_energy;
                 _groupPet.pet_status = data.pet.my_pet_status || 'NORMAL';
                 _groupPet._raw = data.pet;
             }
         } else {
-            const { data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
+            const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
                 method: 'POST',
                 body: JSON.stringify({ action }),
             });
+            if (!res.ok) throw new Error(data?.detail || '寵物互動失敗');
             if (data?.pet_energy !== undefined && _groupPet) {
-                _groupPet.pet_energy = data.pet_energy;
-                _groupPet.pet_status = data.pet_status;
+                _groupPet.pet_energy      = data.pet_energy;
+                _groupPet.pet_happiness   = data.pet_happiness;
+                _groupPet.pet_cleanliness = data.pet_cleanliness;
+                _groupPet.pet_status      = data.pet_status;
+                _groupPet.pet_hp          = data.pet_hp;
             }
         }
     } catch (e) {
         console.error('pet action error', e);
+        showToast(e.message || '寵物互動失敗', 'warn');
     }
 
     await delay(tempAnim ? 680 : 0);
@@ -415,16 +463,20 @@ async function doAction(action) {
 function renderGroupMode() {
     if (!_groupPet?.pet_face_url) {
         showScreen('no-pet');
-        document.getElementById('pet-no-pet-title').textContent  = '群組還沒有設定寵物臉';
-        document.getElementById('pet-no-pet-desc').textContent   = '請先在群組設定頁生成並設定寵物臉！';
-        document.getElementById('btn-go-pet-swap').style.display = 'none';
+        const personal = !_groupId;
+        document.getElementById('pet-no-pet-title').textContent = personal ? '還沒有個人寵物' : '群組還沒有設定寵物臉';
+        document.getElementById('pet-no-pet-desc').textContent = personal
+            ? '先生成一張寵物臉，再回來養它！'
+            : '請先在群組設定頁生成並設定寵物臉！';
+        document.getElementById('btn-go-pet-swap').style.display = personal ? '' : 'none';
         return;
     }
     showScreen('game');
 
-    document.getElementById('pet-group-badge').style.display = 'inline-flex';
+    const isPersonal = Boolean(_groupPet._isPersonal);
+    document.getElementById('pet-group-badge').style.display = isPersonal ? 'none' : 'inline-flex';
     document.getElementById('pet-group-name').textContent    = _groupPet._groupName || '群組';
-    document.getElementById('pet-tama-name').textContent     = _groupPet.pet_name || '群組寵物';
+    document.getElementById('pet-tama-name').textContent = _groupPet.pet_name || (isPersonal ? '我的寵物' : '群組寵物');
 
     // 改名：群組建立者才能改
     document.getElementById('btn-pet-rename').style.display = _isCreator ? '' : 'none';
@@ -434,14 +486,52 @@ function renderGroupMode() {
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
 
-    document.getElementById('pet-personal-stats').style.display = 'none';
-    document.getElementById('pet-group-stats').style.display    = 'block';
+    document.getElementById('pet-personal-stats').style.display = isPersonal ? 'block' : 'none';
+    document.getElementById('pet-group-stats').style.display    = isPersonal ? 'none' : 'block';
+
+    if (isPersonal) {
+        const raw = _groupPet._raw || {};
+        const personalStats = {
+            hunger: raw.my_pet_hunger ?? 70,
+            happiness: raw.my_pet_happiness ?? 70,
+            energy: raw.my_pet_energy ?? _groupPet.pet_energy ?? 80,
+            clean: raw.my_pet_cleanliness ?? 100,
+        };
+        Object.entries(personalStats).forEach(([key, value]) => {
+            document.getElementById(`fill-${key}`).style.width = `${value}%`;
+            document.getElementById(`val-${key}`).textContent = value;
+        });
+        toggleIcon('pet-poop-icon', Boolean(raw.my_pet_has_poop));
+        toggleIcon('pet-pee-icon', Boolean(raw.my_pet_has_pee));
+        const sleeping = Boolean(raw.my_pet_is_sleeping);
+        document.getElementById('pet-zzz').style.display = sleeping ? 'block' : 'none';
+        const sleepButton = document.getElementById('btn-pet-sleep');
+        sleepButton.style.display = '';
+        sleepButton.querySelector('.icon-sleep').style.display = sleeping ? 'none' : '';
+        sleepButton.querySelector('.icon-wake').style.display = sleeping ? '' : 'none';
+        sleepButton.querySelector('span').textContent = sleeping ? '叫醒' : '睡覺';
+
+        const status = _groupPet.pet_status || 'NORMAL';
+        applyAvatarState(statusToAnimClass(status));
+        setSpeech(status);
+        return;
+    }
 
     const energy = _groupPet.pet_energy ?? 50;
     const maxE   = _groupPet.pet_max_energy ?? 100;
     const hp     = _groupPet.pet_hp ?? 5;
     document.getElementById('fill-group-energy').style.width = Math.round(energy / maxE * 100) + '%';
     document.getElementById('val-group-energy').textContent  = energy;
+
+    // 快樂／清潔只有群組寵物有（個人寵物走舊的單一 energy 顯示，維持原狀）
+    const happiness   = _groupPet.pet_happiness   ?? 0;
+    const cleanliness = _groupPet.pet_cleanliness ?? 0;
+    document.getElementById('fill-group-happiness').style.width = happiness + '%';
+    document.getElementById('val-group-happiness').textContent  = happiness;
+    document.getElementById('fill-group-clean').style.width     = cleanliness + '%';
+    document.getElementById('val-group-clean').textContent      = cleanliness;
+    document.getElementById('fill-group-happiness').closest('.stat-row').style.display = isPersonal ? 'none' : '';
+    document.getElementById('fill-group-clean').closest('.stat-row').style.display     = isPersonal ? 'none' : '';
 
     const heartsEl = document.getElementById('pet-hp-hearts');
     heartsEl.innerHTML = '';
@@ -475,42 +565,69 @@ function closeRenameDialog() {
 async function confirmRename() {
     const name = document.getElementById('pet-rename-input').value.trim().slice(0, 20);
     closeRenameDialog();
-    if (!name || !_groupId) return;
+    if (!name || !_groupPet) return;
     try {
-        await apiFetch(`/api/groups/${_groupId}/pet`, {
+        const path = _groupPet._isPersonal ? '/api/my-pet' : `/api/groups/${_groupId}/pet`;
+        const body = _groupPet._isPersonal ? { name } : { pet_name: name };
+        const { res, data } = await apiFetch(path, {
             method: 'PATCH',
-            body: JSON.stringify({ pet_name: name }),
+            body: JSON.stringify(body),
         });
+        if (!res.ok) throw new Error(data?.detail || '改名失敗');
         if (_groupPet) _groupPet.pet_name = name;
         document.getElementById('pet-tama-name').textContent = name;
-    } catch (e) { console.error('rename error', e); }
+    } catch (e) {
+        console.error('rename error', e);
+        showToast(e.message || '改名失敗', 'warn');
+    }
 }
 
 // ── 刪除 ──────────────────────────────────────────────────────────────────────
 
-function openDeleteDialog() {
+function openDeleteDialog(target) {
+    _pendingDelete = target || null;
+    // 依對象換確認文案（個人寵物 vs 群組寵物）
+    const isPersonal = _pendingDelete?.kind === 'personal';
+    document.getElementById('pet-delete-title').textContent =
+        isPersonal ? '確定要刪除個人寵物？' : '確定要刪除群組寵物？';
     document.getElementById('pet-delete-overlay').style.display = 'flex';
 }
 function closeDeleteDialog() {
     document.getElementById('pet-delete-overlay').style.display = 'none';
 }
 async function confirmDelete() {
-    const targetId  = _groupId;
-    const isPersonal = _groupPet?._isPersonal;
-    closeDeleteDialog();
+    if (_deleteBusy) return;               // 防連點觸發多次 DELETE
+    const target = _pendingDelete;
+    if (!target) { closeDeleteDialog(); return; }
+
+    _deleteBusy = true;
+    const confirmBtn = document.getElementById('btn-delete-confirm');
+    const cancelBtn  = document.getElementById('btn-delete-cancel');
+    confirmBtn.disabled = cancelBtn.disabled = true;
+
     try {
-        if (isPersonal) {
-            await apiFetch('/api/my-pet', { method: 'DELETE' });
-        } else if (targetId) {
-            await apiFetch(`/api/groups/${targetId}/pet`, { method: 'DELETE' });
+        if (target.kind === 'personal') {
+            const { res, data } = await apiFetch('/api/my-pet', { method: 'DELETE' });
+            if (!res.ok) throw new Error(data?.detail || '刪除失敗');
+        } else if (target.kind === 'group' && target.groupId) {
+            const { res, data } = await apiFetch(`/api/groups/${target.groupId}/pet`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(data?.detail || '刪除失敗');
+        } else {
+            throw new Error('刪除目標無效');
         }
+        closeDeleteDialog();
         stopPolling();
         _groupPet = null;
         _groupId  = null;
+        _pendingDelete = null;
         showLoading(true);
         await loadPetList();
     } catch (e) {
         console.error('delete pet error', e);
+        showToast('刪除失敗，請稍後再試', 'warn');   // 失敗要讓使用者看得到，別靜默
+    } finally {
+        _deleteBusy = false;
+        confirmBtn.disabled = cancelBtn.disabled = false;
     }
 }
 
@@ -566,7 +683,7 @@ function setSpeech(status) {
 }
 
 function setAllButtonsDisabled(disabled) {
-    ['btn-pet-feed','btn-pet-wipe','btn-pet-play'].forEach(id => {
+    ['btn-pet-feed','btn-pet-wipe','btn-pet-play','btn-pet-sleep'].forEach(id => {
         document.getElementById(id).disabled = disabled;
     });
 }

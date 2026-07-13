@@ -1,24 +1,29 @@
-<section id="view-taboo-prepare" class="view">
-    <div style="font-size:3rem; margin-bottom:8px; color:var(--accent-fire);"><i data-lucide="target"></i></div>
-    <h2>關鍵字遊戲</h2>
+<section id="view-taboo-prepare" class="view page-view">
 
-    <div class="setup-section" style="text-align:left; margin-top:8px;">
-        <h3>玩法說明</h3>
-        <p style="margin-bottom:8px; font-size:0.92rem; color:var(--text-primary);">
-            1. 點下方按鈕後 <strong>5 秒</strong>內把手機放在<strong>額頭上</strong>，螢幕朝外給其他人看。
-        </p>
-        <p style="margin-bottom:8px; font-size:0.92rem; color:var(--text-primary);">
-            2. 其他人會看到你頭上的關鍵字，用各種方式誘導你說出它。
-        </p>
-        <p style="font-size:0.92rem; color:var(--text-primary);">
-            3. 一旦說出關鍵字就<strong>輸了</strong>，輸家自己拿回手機按「我輸了 / 換下一張」。
-        </p>
+    <div class="page-header">
+        <span class="page-title">關鍵字遊戲</span>
     </div>
 
-    <button id="btn-taboo-draw" class="btn primary taboo-big-btn" style="margin-top:8px;"><i data-lucide="layers"></i> 抽取字卡</button>
-    <p class="hint" id="taboo-prepare-hint">準備好了再按，按下後立刻把手機放上額頭！</p>
+    <div class="tbp-hero">
+        <div class="tbp-hero-svg">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#AD5793" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+            </svg>
+        </div>
+        <p class="tbp-hero-title">關鍵字遊戲</p>
+    </div>
 
-    <div id="taboo-host-controls" style="display:none; width:100%; margin-top:16px;">
-        <button id="btn-end-taboo" class="btn secondary"><i data-lucide="square"></i> 結束關鍵字遊戲</button>
+    <div class="tbp-rules-card">
+        <p class="tbp-rules-title">玩法說明</p>
+        <div class="tbp-rule-row"><span class="tbp-rule-num">1</span><p>點下方按鈕後 <strong>5 秒</strong>內把手機放在<strong>額頭上</strong>，螢幕朝外給其他人看。</p></div>
+        <div class="tbp-rule-row"><span class="tbp-rule-num">2</span><p>其他人會看到你頭上的關鍵字，用各種方式誘導你說出它。</p></div>
+        <div class="tbp-rule-row"><span class="tbp-rule-num">3</span><p>一旦說出關鍵字就<strong>輸了</strong>，輸家自己拿回手機按「我輸了 / 換下一張」。</p></div>
+    </div>
+
+    <button id="btn-taboo-draw" class="btn-primary tbp-draw-btn" type="button">抽取字卡</button>
+    <p class="tbp-draw-hint" id="taboo-prepare-hint">準備好了再按，按下後立刻把手機放上額頭！</p>
+
+    <div id="taboo-host-controls" style="display:none;">
+        <button id="btn-end-taboo" class="btn-secondary tbp-end-btn" type="button">結束關鍵字遊戲</button>
     </div>
 </section>

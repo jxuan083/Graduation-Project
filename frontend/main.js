@@ -11,7 +11,7 @@
 import { state } from './core/state.js';
 import { switchView, register } from './core/router.js';
 import { listenAuthChanges } from './core/firebase.js';
-import { loadBackendVersion } from './core/api.js';
+import { loadBackendVersion, apiFetch } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
 import { showJoinView } from './views/join/join.js';
@@ -21,13 +21,14 @@ import { initI18n, t } from './core/i18n.js?v=28';
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
     'home', 'scanner', 'meetings', 'meeting-detail', 'friends', 'leaderboard',
-    'about', 'photo-lightbox', 'question-bank', 'question-edit',
+    'photo-lightbox', 'question-bank', 'question-edit',
     'qa-source', 'qa-picker', 'profile', 'join',
     'waiting-room', 'host-room', 'sync-ritual', 'focus', 'qa-game',
-    'taboo-prepare', 'taboo-countdown', 'taboo-card', '67-game',
+    'taboo-prepare', 'taboo-countdown', 'taboo-card',
     'buffer', 'summary',
     'member-preview', 'invite-modal',
-    'meeting-setup', 'groups', 'group-setup',
+    'meeting-setup', 'groups', 'group', 'group-setup', 'group-invite', 'pet-vote',
+    'group-chat', 'friend-profile',
     'pet-swap',
     'pet-tamagotchi',
 ];
@@ -40,7 +41,6 @@ const VIEW_MODULES = {
     'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=28'),
     'friends':           () => import('./views/friends/friends.js?v=28'),
     'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=28'),
-    'about':             () => import('./views/about/about.js?v=28'),
     'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=28'),
     'question-bank':     () => import('./views/question-bank/question-bank.js?v=28'),
     'question-edit':     () => import('./views/question-edit/question-edit.js?v=28'),
@@ -56,14 +56,18 @@ const VIEW_MODULES = {
     'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=28'),
     'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=28'),
     'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=28'),
-    '67-game':           () => import('./views/67-game/67-game.js?v=28'),
     'buffer':            () => import('./views/buffer/buffer.js?v=28'),
     'summary':           () => import('./views/summary/summary.js?v=28'),
     'member-preview':    () => import('./views/member-preview/member-preview.js?v=28'),
     'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=28'),
     'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=28'),
     'groups':            () => import('./views/groups/groups.js?v=28'),
+    'group':             () => import('./views/group/group.js?v=28'),
     'group-setup':       () => import('./views/group-setup/group-setup.js?v=28'),
+    'group-invite':      () => import('./views/group-invite/group-invite.js?v=28'),
+    'pet-vote':          () => import('./views/pet-vote/pet-vote.js?v=28'),
+    'group-chat':        () => import('./views/group-chat/group-chat.js?v=28'),
+    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=28'),
     'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=28'),
     'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=28'),
 };
@@ -87,13 +91,24 @@ async function loadAllViewHtml() {
 }
 
 async function initAllViews() {
-    // 動態 import 並依序呼叫每個 view 的 init() 註冊事件
-    for (const name of VIEW_NAMES) {
+    // 同時下載所有 module，再依 VIEW_NAMES 順序 init，避免 30+ 個 sequential import waterfall。
+    const loaded = await Promise.all(VIEW_NAMES.map(async (name) => {
         try {
-            const mod = await VIEW_MODULES[name]();
-            mod.init?.();
+            return { name, mod: await VIEW_MODULES[name]() };
         } catch (err) {
+            return { name, err };
+        }
+    }));
+
+    for (const { name, mod, err } of loaded) {
+        if (err) {
             console.error(`[init] view "${name}" failed:`, err);
+            continue;
+        }
+        try {
+            mod.init?.();
+        } catch (initErr) {
+            console.error(`[init] view "${name}" failed during init:`, initErr);
         }
     }
 }
@@ -146,6 +161,7 @@ async function boot() {
         const urlParams = new URLSearchParams(window.location.search);
         const roomFromUrl = urlParams.get('room');
         const groupInviteCode = urlParams.get('group_invite');
+        const addFriendHandle = urlParams.get('add_friend');
         if (roomFromUrl) {
             state.pendingRoomId = roomFromUrl;
             showJoinView();
@@ -156,6 +172,11 @@ async function boot() {
             window.history.replaceState({}, '', cleanUrl);
             switchView('view-home');
             handleGroupInviteOnBoot(groupInviteCode);
+        } else if (addFriendHandle) {
+            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            window.history.replaceState({}, '', cleanUrl);
+            switchView('view-home');
+            handleAddFriendOnBoot(addFriendHandle);
         } else {
             switchView('view-home');
         }
@@ -213,6 +234,27 @@ function handleGroupInviteOnBoot(code) {
             unsubscribe();
             tryJoin();
         });
+    }
+}
+
+// 透過 ?add_friend=<handle> 連結進來 → 開對方的好友資料卡
+function handleAddFriendOnBoot(handle) {
+    async function open() {
+        try {
+            const { res, data } = await apiFetch(`/api/users/by_handle/${encodeURIComponent(handle)}`);
+            if (res.ok && data?.profile?.uid) {
+                state.friendProfileUid = data.profile.uid;
+                switchView('view-friend-profile');
+            } else {
+                alert(t('找不到這個 ID 的使用者'));
+            }
+        } catch (_) { /* noop */ }
+    }
+    if (state.currentUser) {
+        open();
+    } else {
+        alert(t('請先登入 Google 帳號，才能加好友'));
+        const unsubscribe = events.on('auth:logged-in', () => { unsubscribe(); open(); });
     }
 }
 

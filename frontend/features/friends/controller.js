@@ -94,6 +94,16 @@ export async function declineFriendRequest(reqId) {
     } catch (err) { alert(t('網路錯誤:') + err.message); }
 }
 
+export async function withdrawFriendRequest(reqId) {
+    try {
+        const { res, data } = await apiFetch(`/api/friend_requests/${encodeURIComponent(reqId)}/withdraw`, {
+            method: 'POST'
+        });
+        if (!res.ok) { alert(t('撤回失敗:') + ((data && data.detail) || '')); return; }
+        events.emit('friends:changed');
+    } catch (err) { alert(t('網路錯誤:') + err.message); }
+}
+
 export async function removeFriend(friendUid) {
     if (!confirm(t('確定要解除好友關係嗎?'))) return;
     try {

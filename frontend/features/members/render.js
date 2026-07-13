@@ -92,4 +92,21 @@ export function renderMemberList(members) {
              document.getElementById('waiting-member-count'));
     renderTo(document.getElementById('focus-member-list-ul'),
              document.getElementById('focus-member-count'));
+
+    // focus 頂列的在場成員頭像（front-preview pa-members-row）：緊湊頭像 + 首字母
+    const avatarsEl = document.getElementById('focus-members-avatars');
+    if (avatarsEl) {
+        const COLORS = ['#a8c8e8', '#f5c6b8', '#c8e6c9', '#ffe0b2', '#d8b8e8', '#e8c8a8', '#c8d8e8'];
+        avatarsEl.innerHTML = '';
+        const MAX_AV = 5; // 過多時只顯示前幾個，人數靠旁邊的計數呈現
+        entries.slice(0, MAX_AV).forEach(([uid, info], i) => {
+            const name = (info && info.nickname) ? info.nickname : '(無名)';
+            const av = document.createElement('div');
+            av.className = 'pa-member-av';
+            av.style.background = COLORS[i % COLORS.length];
+            av.title = name;
+            av.textContent = (name.trim()[0] || '?').toUpperCase();
+            avatarsEl.appendChild(av);
+        });
+    }
 }

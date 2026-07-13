@@ -1,6 +1,6 @@
 // features/meetings/controller.js — 聚會紀錄列表與詳情
 import { state } from '../../core/state.js';
-import { apiFetch } from '../../core/api.js';
+import { apiFetch, setProtectedImage } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
@@ -67,31 +67,43 @@ function _getDisplayedMeetings() {
 
 function _buildCard(m) {
     const card = document.createElement('div');
-    card.className = 'meeting-card' + (m.cover_url ? ' has-cover' : '');
-    const modeLabel = formatModeLabel(m.mode);
-    const dateLabel = formatDateTime(m.ended_at);
-    const coverHtml = m.cover_url
-        ? `<div class="mc-cover" style="background-image:url('${m.cover_url}')"></div>`
+    card.className = 'mt-card' + (m.cover_content_path ? ' has-cover' : '');
+    const title = escHtml(t(formatModeLabel(m.mode)));
+    const dateLabel = escHtml(formatDateTime(m.ended_at));
+    // 封面是 private blob：先放空的 .mc-cover，稍後用帶 token 的 setProtectedImage 填背景
+    const coverHtml = m.cover_content_path
+        ? '<div class="mc-cover"></div>'
+        : '';
+    const groupTag = m.group_name
+        ? `<span class="mt-group-tag">${escHtml(m.group_name)}</span>`
         : '';
     card.innerHTML = `
         ${coverHtml}
-        <div class="mc-body">
-            <div class="mc-top">
-                <div class="mc-mode">${modeLabel}</div>
-                <div class="mc-actions">
-                    <button class="btn-mc-fav${m.is_favorited ? ' active' : ''}" title="${m.is_favorited ? '取消收藏' : '收藏'}">♥</button>
+        <div class="mt-card-body">
+            <div class="mt-card-top">
+                <span class="mt-card-name">${title}</span>
+                <div class="mt-card-actions">
+                    <button class="btn-mc-fav${m.is_favorited ? ' active' : ''}" title="${m.is_favorited ? '取消收藏' : '收藏'}">${m.is_favorited ? '♥' : '♡'}</button>
                     <button class="btn-mc-delete" title="刪除紀錄">✕</button>
                 </div>
             </div>
-            <div class="mc-meta">
-                <span><i data-lucide="users"></i> ${m.member_count || 0} 人</span>
-                <span><i data-lucide="timer"></i> ${m.duration_minutes || 0} 分鐘</span>
-                <span><i data-lucide="calendar"></i> ${dateLabel}</span>
+            ${groupTag}
+            <div class="mt-card-meta">${dateLabel}</div>
+            <div class="mt-card-stats">
+                <span class="mt-stat">👥 ${m.member_count || 0} 人</span>
+                <span class="mt-stat">⏱ ${m.duration_minutes || 0} 分</span>
+                <span class="mt-stat">📱 分心 ${m.total_deviations || 0} 次</span>
             </div>
         </div>`;
     card.onclick = () => openMeetingDetail(m.id);
     card.querySelector('.btn-mc-fav').onclick = (e) => { e.stopPropagation(); _toggleFavorite(m.id); };
     card.querySelector('.btn-mc-delete').onclick = (e) => { e.stopPropagation(); _hideMeeting(m.id); };
+    const cover = card.querySelector('.mc-cover');
+    if (cover) {
+        setProtectedImage(cover, m.cover_content_path, { background: true }).catch(err => {
+            console.warn('load protected meeting cover failed:', err);
+        });
+    }
     return card;
 }
 
@@ -456,10 +468,15 @@ function renderNewspaper(news) {
     result.style.display = '';
 
     const cover = document.getElementById('md-news-cover');
-    const coverUrl = news.cover_photo && news.cover_photo.url;
+    const coverPath = news.cover_photo && news.cover_photo.content_path;
     if (cover) {
-        cover.style.display = coverUrl ? '' : 'none';
-        cover.style.backgroundImage = coverUrl ? `url("${coverUrl}")` : '';
+        cover.style.display = coverPath ? '' : 'none';
+        cover.style.backgroundImage = '';
+        if (coverPath) {
+            setProtectedImage(cover, coverPath, { background: true }).catch(err => {
+                console.warn('load protected newspaper cover failed:', err);
+            });
+        }
     }
 
     setText('md-news-subtitle', news.subtitle || 'Gathering recap');
@@ -530,7 +547,9 @@ function renderNewspaper(news) {
         (news.photos || []).forEach(photo => {
             const tile = document.createElement('div');
             tile.className = 'newspaper-photo';
-            tile.style.backgroundImage = `url("${photo.url}")`;
+            setProtectedImage(tile, photo.content_path, { background: true }).catch(err => {
+                console.warn('load protected newspaper photo failed:', err);
+            });
             photoStrip.appendChild(tile);
         });
         if (!(news.photos || []).length) {

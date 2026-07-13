@@ -12,12 +12,13 @@ import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends
 import { openProfileView } from '../views/profile/profile.js';
 import { openFriendsView } from '../views/friends/friends.js';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
+import { openMeetingsList } from '../features/meetings/controller.js';
+import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
 import { t } from './i18n.js';
 
 export function initChrome() {
     // ===== Auth bar =====
     document.getElementById('btn-google-login').onclick = doGoogleLogin;
-    document.getElementById('btn-open-about-guest').onclick = () => switchView('view-about');
 
     const userMenuToggle = document.getElementById('btn-user-menu-toggle');
     const userMenuDropdown = document.getElementById('user-menu-dropdown');
@@ -40,8 +41,14 @@ export function initChrome() {
 
     document.getElementById('btn-open-profile').onclick = () => { closeMenu(); openProfileView(); };
     document.getElementById('btn-open-friends').onclick = () => { closeMenu(); openFriendsView(); };
+    document.getElementById('btn-open-my-pet').onclick = () => { closeMenu(); state.tamagotchiGroupId = null; switchView('view-pet-tamagotchi'); };
     document.getElementById('btn-open-leaderboard').onclick = () => { closeMenu(); openLeaderboardView(); };
-    document.getElementById('btn-open-about').onclick = () => { closeMenu(); switchView('view-about'); };
+    document.getElementById('btn-menu-meetings').onclick = () => { closeMenu(); openMeetingsList(); };
+    const pushButton = document.getElementById('btn-enable-push');
+    if (pushButton) {
+        pushButton.style.display = isPushAvailable() ? '' : 'none';
+        pushButton.onclick = () => { closeMenu(); enablePush(); };
+    }
     document.getElementById('btn-logout').onclick = () => { closeMenu(); handleLogout(); };
 
     // ===== 「返回聚會」浮動按鈕 =====
@@ -58,6 +65,7 @@ export function initChrome() {
         catch (err) { console.warn('load friend caches on login failed:', err); }
         renderAuthBar();
         refreshIncomingBanner();
+        reEnablePushIfPreviouslyGranted();
     });
     events.on('auth:logged-out', () => {
         hideIncomingBanner();
@@ -82,7 +90,7 @@ function refreshAuthBarVisibility(viewId) {
         if (dd) dd.style.display = 'none';
     } else {
         // 只在已登入時才顯示
-        if (state.currentUser && state.currentProfile) {
+        if (state.currentUser) {
             loggedIn.style.display = 'flex';
         }
     }
@@ -91,26 +99,21 @@ function refreshAuthBarVisibility(viewId) {
 function renderAuthBar() {
     const loggedOut = document.getElementById('auth-logged-out');
     const loggedIn = document.getElementById('auth-logged-in');
-    const homeHint = document.getElementById('home-login-hint');
-
-    const homeGrid = document.getElementById('home-feature-grid');
-    if (state.currentUser && state.currentProfile) {
+    // 只要 Firebase 已登入就視為登入狀態（暱稱/頭貼可 fallback 用 Google 帳號），
+    // 避免後端/profile 尚未載入時登入鈕還留著。
+    if (state.currentUser) {
         loggedOut.style.display = 'none';
         loggedIn.style.display = 'flex';
         const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
         document.getElementById('auth-avatar').src =
-            state.currentProfile.photoURL || state.currentUser.photoURL || PLACEHOLDER;
+            state.currentProfile?.photoURL || state.currentUser.photoURL || PLACEHOLDER;
         document.getElementById('auth-nickname').innerText =
-            state.currentProfile.nickname || state.currentUser.displayName || '使用者';
-        if (homeHint) homeHint.style.display = 'none';
-        if (homeGrid) homeGrid.style.display = 'grid';
+            state.currentProfile?.nickname || state.currentUser.displayName || '使用者';
     } else {
         loggedOut.style.display = 'flex';
         loggedIn.style.display = 'none';
         const dd = document.getElementById('user-menu-dropdown');
         if (dd) dd.style.display = 'none';
-        if (homeHint) homeHint.style.display = 'block';
-        if (homeGrid) homeGrid.style.display = 'none';
     }
 }
 

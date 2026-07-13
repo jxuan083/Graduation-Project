@@ -21,6 +21,23 @@ export async function apiFetch(path, options = {}) {
     return { res, data };
 }
 
+const protectedImageUrls = new WeakMap();
+
+// 聚會照片是 private blob；先帶 Firebase ID token 取回，再用本機 object URL 顯示。
+export async function setProtectedImage(element, path, { background = false } = {}) {
+    if (!element || !path) return false;
+    const headers = await getAuthHeaders();
+    const res = await fetch(apiBase + path, { headers });
+    if (!res.ok) throw new Error(`讀取圖片失敗 (HTTP ${res.status})`);
+    const objectUrl = URL.createObjectURL(await res.blob());
+    const previous = protectedImageUrls.get(element);
+    if (previous) URL.revokeObjectURL(previous);
+    protectedImageUrls.set(element, objectUrl);
+    if (background) element.style.backgroundImage = `url("${objectUrl}")`;
+    else element.src = objectUrl;
+    return true;
+}
+
 export async function loadBackendVersion() {
     const footerEl = document.getElementById('footer-version');
     if (!footerEl) return;

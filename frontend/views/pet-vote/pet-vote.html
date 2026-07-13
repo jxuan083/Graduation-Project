@@ -1,0 +1,29 @@
+<section id="view-pet-vote" class="view">
+
+    <div class="page-header">
+        <button id="btn-pet-vote-back" class="btn-back">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="page-title">群組寵物投票</span>
+    </div>
+
+    <div class="scroll-body scroll-pad-sm">
+
+        <!-- ① 選誰的臉 -->
+        <p class="pv-step-label">① 投票選誰的臉當寵物頭像</p>
+        <p class="pv-step-hint">每人一票，票數最高者將被合成為群組寵物臉</p>
+        <div class="pv-member-grid" id="pv-member-grid"></div>
+
+        <!-- ② 選身體造型 -->
+        <p class="pv-step-label" style="margin-top:24px;">② 選擇寵物身體造型</p>
+        <p class="pv-step-hint">選一種動物作為群組寵物的身體</p>
+        <div class="pv-body-grid" id="pv-body-grid"></div>
+
+        <!-- 確認 -->
+        <button class="btn-primary" id="btn-pet-vote-confirm" style="width:100%;margin-top:24px;">
+            確認並開始拍攝寵物臉
+        </button>
+        <p class="pv-foot-hint">投票結束後，每位成員需上傳自己的照片，系統將根據最高票者合成群組寵物</p>
+
+    </div>
+</section>

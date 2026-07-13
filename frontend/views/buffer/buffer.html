@@ -1,10 +1,16 @@
 <section id="view-buffer" class="view overlay">
-    <div class="buffer-content">
-        <h2><i data-lucide="alert-triangle"></i> 分心提醒</h2>
-        <h1 id="buffer-timer" class="timer">15</h1>
-        <p>請在倒數結束前蓋上手機！</p>
-        <p class="buffer-hint">蓋上手機就不會被計入分心</p>
-        <button id="btn-buffer-back" class="btn primary" style="margin-top:24px; max-width:280px;">我回來專心了</button>
-        <p class="hint" style="margin-top:8px;">（按下可關閉提醒，不計入分心）</p>
+    <div class="buf-wrap">
+        <div class="buf-icon-wrap">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        </div>
+        <h2 class="buf-title">分心提醒</h2>
+        <div class="buf-timer" id="buffer-timer">--</div>
+        <p class="buf-desc">請在倒數結束前蓋上手機！</p>
+        <p class="buf-hint">蓋上手機就不會被計入分心</p>
+        <button class="buf-ok-btn" id="btn-buffer-back" type="button">我回來專心了</button>
+        <p class="buf-ok-hint">（按下可關閉提醒，不計入分心）</p>
     </div>
 </section>
