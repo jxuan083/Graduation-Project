@@ -8,6 +8,7 @@ import { openQaSourcePicker } from '../qa-source/qa-source.js';
 import { hostStartTabooGame } from '../../features/taboo/controller.js';
 import { startPhotoMode, endPhotoMode, uploadMeetingPhoto } from '../../features/photos/controller.js';
 import { openInviteModal } from '../invite-modal/invite-modal.js';
+import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
 
 export function init() {
@@ -28,11 +29,16 @@ export function init() {
     const tabooBtn = document.getElementById('btn-mode-taboo');
     if (tabooBtn) tabooBtn.addEventListener('click', hostStartTabooGame);
 
-    // 參與者拍照 / 上傳
-    document.getElementById('btn-meeting-camera').onclick = () => handleMeetingPhotoClick('meeting-camera-input');
+    // 參與者拍照 / 上傳（手機→原生相機；電腦→網頁鏡頭）
+    document.getElementById('btn-meeting-camera').onclick = handleMeetingCameraClick;
     document.getElementById('btn-meeting-album').onclick = () => handleMeetingPhotoClick('meeting-album-input');
     document.getElementById('meeting-camera-input').addEventListener('change', handleMeetingPhotoChange);
     document.getElementById('meeting-album-input').addEventListener('change', handleMeetingPhotoChange);
+    // 電腦網頁鏡頭 modal 的按鈕
+    const camShoot = document.getElementById('mc-cam-shoot');
+    const camCancel = document.getElementById('mc-cam-cancel');
+    if (camShoot) camShoot.onclick = captureMeetingPhoto;
+    if (camCancel) camCancel.onclick = closeMeetingCameraModal;
 
     // 即時語音轉文字：揭示 / 收合錄音面板（front-preview 兩段式）
     const recordReveal = document.getElementById('btn-focus-record-reveal');
@@ -52,6 +58,7 @@ export function init() {
     if (liveBtn) liveBtn.onclick = toggleLiveTranscript;
     events.on('session:cleanup', () => {
         if (state.liveTranscript.active) stopLiveTranscript('已停止即時轉文字');
+        closeMeetingCameraModal();
         state.meetingGroupPetFace = '';
     });
 
@@ -450,21 +457,69 @@ async function handleMeetingPhotoChange(e) {
     const file = e.target.files && e.target.files[0];
     endPhotoMode();
     if (!file) return;
-    const btn = e.target.id === 'meeting-camera-input'
-        ? document.getElementById('btn-meeting-camera')
-        : document.getElementById('btn-meeting-album');
-    const origText = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = '上傳中...';
+    await uploadCapturedPhoto(file);
+}
+
+// ── 相機：手機用原生相機(input capture)，電腦用網頁鏡頭(getUserMedia) ──
+let _meetingCamStream = null;
+const _isMobileDevice = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+function handleMeetingCameraClick() {
+    if (!state.roomId) { alert(t('聚會尚未建立')); return; }
+    if (_isMobileDevice() || !navigator.mediaDevices?.getUserMedia) {
+        // 手機（或不支援 getUserMedia）→ 原生相機
+        handleMeetingPhotoClick('meeting-camera-input');
+    } else {
+        openMeetingCameraModal();  // 電腦 → 網頁鏡頭
+    }
+}
+
+async function openMeetingCameraModal() {
+    const modal = document.getElementById('meeting-camera-modal');
+    const video = document.getElementById('mc-cam-video');
+    if (!modal || !video) { handleMeetingPhotoClick('meeting-camera-input'); return; }
+    startPhotoMode();
     try {
+        _meetingCamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = _meetingCamStream;
+        modal.style.display = 'flex';
+    } catch (err) {
+        endPhotoMode();
+        alert(t('無法開啟相機：') + (err.message || err));
+    }
+}
+
+function closeMeetingCameraModal() {
+    const modal = document.getElementById('meeting-camera-modal');
+    if (modal) modal.style.display = 'none';
+    if (_meetingCamStream) {
+        _meetingCamStream.getTracks().forEach(tr => tr.stop());
+        _meetingCamStream = null;
+    }
+    endPhotoMode();
+}
+
+async function captureMeetingPhoto() {
+    const video = document.getElementById('mc-cam-video');
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.9));
+    closeMeetingCameraModal();
+    if (!blob) return;
+    await uploadCapturedPhoto(new File([blob], `meeting-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+}
+
+async function uploadCapturedPhoto(file) {
+    try {
+        showToast(t('照片上傳中…'), 'info');
         await uploadMeetingPhoto(state.roomId, file);
-        btn.innerText = '上傳成功';
-        setTimeout(() => { btn.innerText = origText; btn.disabled = false; }, 1500);
+        showToast(t('照片已上傳'), 'success');
     } catch (err) {
         console.error('upload photo failed:', err);
-        alert(t('照片上傳失敗:') + (err.message || err));
-        btn.innerText = origText;
-        btn.disabled = false;
+        showToast(t('照片上傳失敗:') + (err.message || err), 'error');
     }
 }
 

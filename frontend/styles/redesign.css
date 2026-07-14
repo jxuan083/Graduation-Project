@@ -385,7 +385,13 @@ body.mode-family, body.mode-meeting, body.mode-class {
    PET TAMAGOTCHI (view-pet-tamagotchi) — front-preview 養寵物介面
    純 CSS 換皮，對應現有 class，不動 JS/id。
    ============================================================ */
-#view-pet-tamagotchi { padding: 20px; }
+#view-pet-tamagotchi { padding: 56px 20px 20px; justify-content: flex-start; align-items: stretch; text-align: left; }
+/* 清單頁標題列：跟其他頁一樣沉在頂列(帳號/語言)下方，避免疊到 */
+#view-pet-tamagotchi .pet-list-header { margin-top: 4px; }
+#view-pet-tamagotchi .pet-list-header h2 { color: var(--brown); white-space: nowrap; }
+#view-pet-tamagotchi #btn-pet-list-back,
+#view-pet-tamagotchi #btn-pet-tama-back-nopet { background: #fff; color: var(--brown); border: 1.5px solid var(--brown-15); border-radius: 999px; }
+#view-pet-tamagotchi #btn-create-personal-pet { width: 100%; margin-top: 12px; }
 #view-pet-tamagotchi .pet-list-header h2,
 #view-pet-tamagotchi .pet-no-pet-card h2,
 #view-pet-tamagotchi #pet-tama-name { color: var(--brown); }
@@ -684,7 +690,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 /* 聚會總結（summary） */
 /* 聚會總結（summary）— front-preview screen-party-summary 結構 */
-#view-summary { justify-content: flex-start; align-items: stretch; text-align: left; padding: 0; }
+#view-summary { justify-content: flex-start; align-items: stretch; text-align: left; padding: 56px 0 0; }
 #view-summary .ps-top-strip { width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(to right, #AD5793, #e07830, #B89825); flex-shrink: 0; margin-bottom: 24px; }
 #view-summary .ps-body { display: flex; flex-direction: column; }
 #view-summary .ps-pre-title { font-size: 13px; font-weight: 600; color: var(--brown-45); letter-spacing: .12em; text-align: center; margin: 0 0 4px; }
@@ -716,7 +722,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* ============================================================
    聚會中（focus）— front-preview screen-party-active 結構統一
    ============================================================ */
-#view-focus { justify-content: flex-start; align-items: stretch; text-align: left; }
+#view-focus { justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 56px; }
 
 /* 頂列：標題 + 在場成員頭像列（點擊展開成員清單） */
 #view-focus .pa-header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px; flex-shrink: 0; }
@@ -781,6 +787,15 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-invite-btn { background: #fff; border: none; border-radius: 16px; height: 48px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; font-size: 14px; font-weight: 500; color: var(--brown-60); cursor: pointer; }
 #view-focus .pa-footer { margin-top: 16px; flex-shrink: 0; }
 
+/* 電腦網頁鏡頭 modal（全螢幕；手機不會用到，走原生相機） */
+.mc-cam-modal { position: fixed; inset: 0; z-index: 300; background: #000; display: flex; flex-direction: column; }
+.mc-cam-video { flex: 1; width: 100%; min-height: 0; object-fit: cover; background: #000; }
+.mc-cam-bar { flex-shrink: 0; height: 120px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; background: #000; }
+.mc-cam-cancel { width: 56px; text-align: left; color: #fff; background: none; border: none; font-size: 16px; cursor: pointer; }
+.mc-cam-spacer { width: 56px; flex-shrink: 0; }
+.mc-cam-shoot { width: 68px; height: 68px; border-radius: 50%; background: #fff; border: 4px solid rgba(255,255,255,.55); cursor: pointer; box-shadow: 0 0 0 2px #000 inset; transition: transform .1s; }
+.mc-cam-shoot:active { transform: scale(.92); }
+
 /* ============================================================
    QA + TABOO 遊戲 — front-preview 風格
    ============================================================ */
@@ -805,7 +820,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 /* 團體問答（qa-game） */
 /* 團體問答（qa-game）— front-preview screen-qa-game */
-#view-qa-game { justify-content: flex-start; align-items: stretch; text-align: left; }
+#view-qa-game { justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 56px; }
 #view-qa-game .qag-live-badge { background: var(--grad-purple); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 3px 9px; border-radius: 99px; flex-shrink: 0; }
 #view-qa-game .qag-card { background: #fff; border-radius: 24px; padding: 22px 20px; margin-bottom: 16px; }
 #view-qa-game .qag-card-kicker { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: .5px; text-transform: uppercase; margin: 0 0 10px; }

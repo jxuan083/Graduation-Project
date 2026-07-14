@@ -140,4 +140,14 @@
     <div class="pa-footer">
         <button class="btn-primary orange" id="btn-end-session" type="button">結束聚會</button>
     </div>
+
+    <!-- 電腦網頁鏡頭（手機用原生相機，不會顯示這個） -->
+    <div id="meeting-camera-modal" class="mc-cam-modal" style="display:none;">
+        <video id="mc-cam-video" class="mc-cam-video" autoplay playsinline muted></video>
+        <div class="mc-cam-bar">
+            <button id="mc-cam-cancel" class="mc-cam-cancel" type="button">取消</button>
+            <button id="mc-cam-shoot" class="mc-cam-shoot" type="button" aria-label="拍照"></button>
+            <span class="mc-cam-spacer"></span>
+        </div>
+    </div>
 </section>
