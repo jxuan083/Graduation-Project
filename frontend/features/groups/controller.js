@@ -11,8 +11,10 @@ export async function fetchMyGroups() {
 
 export async function fetchGroupDetail(groupId) {
     const { data } = await apiFetch(`/api/groups/${groupId}`);
-    state.currentGroupDetail = data?.group || null;
-    return state.currentGroupDetail;
+    // 只有成功抓到 group 才更新；抓不到（API 失敗/沒後端）就保留現有的 currentGroupDetail，
+    // 否則會把它清成 null，導致群組頁上所有「if (currentGroupDetail)」的按鈕全部按不動。
+    if (data?.group) state.currentGroupDetail = data.group;
+    return data?.group || null;
 }
 
 export async function createGroup(name) {

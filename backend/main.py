@@ -2523,8 +2523,8 @@ async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
     if not doc.exists:
         raise HTTPException(status_code=404, detail="找不到群組")
     data = doc.to_dict() or {}
-    if uid != data.get("creator_uid"):
-        raise HTTPException(status_code=403, detail="只有群組建立者可以直接加入好友")
+    if uid not in (data.get("member_uids") or []):
+        raise HTTPException(status_code=403, detail="你不是這個群組的成員")
     # 舊群組沒有 invite_code 時懶惰補上
     if not data.get("invite_code"):
         new_code = _generate_invite_code()
