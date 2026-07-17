@@ -150,7 +150,7 @@ async function saveQuestionEdit() {
         }
         const { data } = await apiFetch(path, { method, body: JSON.stringify(payload) });
         if (data.status !== 'success') {
-            statusEl.innerText = '失敗:' + (data.detail || '未知錯誤');
+            statusEl.innerText = t('失敗:') + (data.detail || t('未知錯誤'));
             saveBtn.disabled = false;
             return;
         }
@@ -158,7 +158,7 @@ async function saveQuestionEdit() {
         saveBtn.disabled = false;
         await openQuestionBank();
     } catch (err) {
-        statusEl.innerText = '失敗:' + (err.message || err);
+        statusEl.innerText = t('失敗:') + (err.message || err);
         saveBtn.disabled = false;
     }
 }

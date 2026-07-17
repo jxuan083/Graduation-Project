@@ -140,7 +140,7 @@ function openScheduleSheet() {
 }
 
 function createScheduleIcs() {
-    const title = (document.getElementById('sch-title').value || '放下手機聚一聚').trim();
+    const title = (document.getElementById('sch-title').value || t('放下手機聚一聚')).trim();
     const timeVal = document.getElementById('sch-time').value;
     const place = (document.getElementById('sch-place').value || '').trim();
     if (!timeVal) { alert(t('請先選聚會時間')); return; }
@@ -158,7 +158,7 @@ function createScheduleIcs() {
         `DTEND:${utc(end)}`,
         `SUMMARY:${esc(title)}`,
         place ? `LOCATION:${esc(place)}` : '',
-        'DESCRIPTION:來自 Phubbing：放下手機，好好相聚 🐾',
+        'DESCRIPTION:' + esc(t('來自 Phubbing：放下手機，好好相聚 🐾')),
         'END:VEVENT', 'END:VCALENDAR',
     ].filter(Boolean).join('\r\n');
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });

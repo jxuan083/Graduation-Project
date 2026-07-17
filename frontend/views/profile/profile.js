@@ -75,10 +75,10 @@ async function saveProfile() {
             fileInput.value = '';
         } else {
             statusEl.style.color = '#f87171';
-            statusEl.innerText = '儲存失敗:' + ((data && data.detail) || JSON.stringify(data));
+            statusEl.innerText = t('儲存失敗:') + ((data && data.detail) || JSON.stringify(data));
         }
     } catch (err) {
         statusEl.style.color = '#f87171';
-        statusEl.innerText = '儲存失敗:' + (err.message || err);
+        statusEl.innerText = t('儲存失敗:') + (err.message || err);
     }
 }

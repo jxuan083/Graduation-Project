@@ -263,7 +263,8 @@ function renderPetPreview(g) {
         const hp = g.pet_hp ?? 5;
         const energy = g.pet_energy ?? 50;
         const maxEnergy = g.pet_max_energy ?? 100;
-        const status = { HAPPY: '😊 很開心', NORMAL: '😐 普通', HUNGRY: '😟 肚子餓', CRITICAL: '💀 危急' }[g.pet_status] || '';
+        const statusZh = { HAPPY: '😊 很開心', NORMAL: '😐 普通', HUNGRY: '😟 肚子餓', CRITICAL: '💀 危急' }[g.pet_status] || '';
+        const status = statusZh ? t(statusZh) : '';
         statsEl.textContent = t('HP: {hp} | 能量: {energy}/{maxEnergy} | {status}', { hp: '❤️'.repeat(Math.max(0, hp)), energy, maxEnergy, status });
     }
     if (g.pet_body_emoji) {

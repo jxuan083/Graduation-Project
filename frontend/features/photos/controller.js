@@ -102,7 +102,7 @@ export async function loadMeetingPhotos(meetingId) {
         if (countEl) countEl.innerText = state.currentMeetingPhotos.length;
     } catch (err) {
         console.error('loadMeetingPhotos failed:', err);
-        if (grid) grid.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗:${err.message || err}</p>`;
+        if (grid) grid.innerHTML = `<p class="hint" style="color:#fca5a5;">${t('讀取失敗:')}${err.message || err}</p>`;
     }
 }
 

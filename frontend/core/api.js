@@ -1,6 +1,7 @@
 // core/api.js — REST API 封裝 + 後端版本載入
 import { HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
 import { getAuthHeaders } from './firebase.js';
+import { t } from './i18n.js';
 
 export const apiBase = `${HTTP_PROTOCOL}${BACKEND_HOST}`;
 
@@ -28,7 +29,7 @@ export async function setProtectedImage(element, path, { background = false } = 
     if (!element || !path) return false;
     const headers = await getAuthHeaders();
     const res = await fetch(apiBase + path, { headers });
-    if (!res.ok) throw new Error(`讀取圖片失敗 (HTTP ${res.status})`);
+    if (!res.ok) throw new Error(t('讀取圖片失敗 (HTTP {status})', { status: res.status }));
     const objectUrl = URL.createObjectURL(await res.blob());
     const previous = protectedImageUrls.get(element);
     if (previous) URL.revokeObjectURL(previous);

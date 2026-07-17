@@ -59,7 +59,7 @@ export async function refreshQuestionBank() {
         }
     } catch (err) {
         listEl.innerHTML = '';
-        emptyEl.innerText = '讀取失敗:' + (err.message || err);
+        emptyEl.innerText = t('讀取失敗:') + (err.message || err);
         emptyEl.style.display = 'block';
     }
 }

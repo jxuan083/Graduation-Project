@@ -672,7 +672,7 @@ async function adoptPet() {
             body: JSON.stringify({ image_url: imageUrl, animal, name: '' }),
         });
         if (!res.ok) {
-            throw new Error(data?.detail || `建立寵物失敗（HTTP ${res.status}）`);
+            throw new Error(data?.detail || t('建立寵物失敗（HTTP {status}）', { status: res.status }));
         }
         setStatus('已成功建立你的寵物。');
         closeSheet('pet-result-sheet');

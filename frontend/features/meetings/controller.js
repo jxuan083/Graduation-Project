@@ -30,7 +30,7 @@ export async function openMeetingsList() {
         _renderMeetingsList();
     } catch (err) {
         console.error('openMeetingsList failed:', err);
-        listEl.innerHTML = `<p class="hint" style="color:#fca5a5;">讀取失敗:${err.message || err}</p>`;
+        listEl.innerHTML = `<p class="hint" style="color:#fca5a5;">${t('讀取失敗:')}${err.message || err}</p>`;
     }
 }
 
@@ -227,7 +227,7 @@ export async function openMeetingDetail(meetingId) {
         await loadMeetingNewspaper(meetingId);
     } catch (err) {
         console.error('openMeetingDetail failed:', err);
-        document.getElementById('md-host').innerText = '讀取失敗:' + (err.message || err);
+        document.getElementById('md-host').innerText = t('讀取失敗:') + (err.message || err);
     }
 }
 
