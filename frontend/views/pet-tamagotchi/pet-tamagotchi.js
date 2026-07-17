@@ -10,7 +10,17 @@ const BG_KEY     = 'pet_bg';
 const BG_IMG_KEY = 'pet_bg_img';
 const BG_POS_KEY = 'pet_bg_pos';
 
+const BG_GRADIENTS = {
+    meadow: 'linear-gradient(175deg,#c8f5a0 0%,#7ecb57 40%,#4a9e2f 100%)',
+    night:  'linear-gradient(175deg,#0d0b2b 0%,#1a1060 45%,#2e1a6e 100%)',
+    beach:  'linear-gradient(175deg,#87ceeb 0%,#60b8de 38%,#f5dfa0 70%,#e8c96b 100%)',
+    forest: 'linear-gradient(175deg,#1a3a1a 0%,#2d5e2d 45%,#3b7a3b 100%)',
+    sunset: 'linear-gradient(175deg,#ff6b35 0%,#f7931e 30%,#ffc93c 60%,#c0392b 100%)',
+    snow:   'linear-gradient(175deg,#b8d4f0 0%,#dceeff 45%,#f2f8ff 100%)',
+};
+
 let _bgPosX = 50, _bgPosY = 50;
+let _bgKey   = 'default';
 let _bgDrag  = { active: false, startX: 0, startY: 0, basePosX: 50, basePosY: 50 };
 
 function loadBackground() {
@@ -33,24 +43,24 @@ function loadBackground() {
 function applyBackground(key, customUrl) {
     const stage = document.getElementById('pet-stage');
     if (!stage) return;
-    BG_PRESETS.forEach(p => stage.classList.remove(`bg-${p}`));
-    stage.classList.remove('bg-custom');
     stage.style.backgroundImage    = '';
     stage.style.backgroundPosition = '';
+    stage.style.backgroundSize     = '';
     stage.style.cursor = '';
     if (key === 'custom' && customUrl) {
-        stage.classList.add('bg-custom');
         stage.style.backgroundImage    = `url("${customUrl.replaceAll('"', '%22')}")`;
         stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
+        stage.style.backgroundSize     = 'cover';
         stage.style.cursor = 'grab';
         try {
             localStorage.setItem(BG_IMG_KEY, customUrl);
         } catch {
             showToast('背景圖片太大，無法儲存在此裝置。');
         }
-    } else if (key !== 'default') {
-        stage.classList.add(`bg-${key}`);
+    } else if (BG_GRADIENTS[key]) {
+        stage.style.backgroundImage = BG_GRADIENTS[key];
     }
+    _bgKey = key;
     localStorage.setItem(BG_KEY, key);
     const hint = document.getElementById('pet-bg-drag-hint');
     if (hint) hint.style.display = key === 'custom' ? 'flex' : 'none';
@@ -59,7 +69,7 @@ function applyBackground(key, customUrl) {
 function setupCustomBgDrag() {
     const stage = document.getElementById('pet-stage');
     stage.addEventListener('pointerdown', e => {
-        if (!stage.classList.contains('bg-custom')) return;
+        if (_bgKey !== 'custom') return;
         if (e.target.closest('.pet-avatar-wrap,.pet-bg-btn,.pet-speech,.pet-zzz,.pet-poop-wrap')) return;
         _bgDrag.active   = true;
         _bgDrag.startX   = e.clientX;

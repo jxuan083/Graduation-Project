@@ -239,28 +239,10 @@
   background: var(--bg-surface);
   background-size: cover;
   background-position: center;
-  transition: background 0.4s ease;
+  transition: border-color 0.3s ease;
 }
 
-/* 背景 preset — CSS 漸層（不依賴外部圖片，永遠可載入） */
-.pet-stage.bg-meadow {
-  background: linear-gradient(175deg, #c8f5a0 0%, #7ecb57 40%, #4a9e2f 100%);
-}
-.pet-stage.bg-night {
-  background: linear-gradient(175deg, #0d0b2b 0%, #1a1060 45%, #2e1a6e 100%);
-}
-.pet-stage.bg-beach {
-  background: linear-gradient(175deg, #87ceeb 0%, #60b8de 38%, #f5dfa0 70%, #e8c96b 100%);
-}
-.pet-stage.bg-forest {
-  background: linear-gradient(175deg, #1a3a1a 0%, #2d5e2d 45%, #3b7a3b 100%);
-}
-.pet-stage.bg-sunset {
-  background: linear-gradient(175deg, #ff6b35 0%, #f7931e 30%, #ffc93c 60%, #c0392b 100%);
-}
-.pet-stage.bg-snow {
-  background: linear-gradient(175deg, #b8d4f0 0%, #dceeff 45%, #f2f8ff 100%);
-}
+/* 背景由 JS 直接寫 inline style，不靠 CSS class，避免 transition 干擾 */
 
 /* 底部裝飾線 */
 .pet-stage::before {
