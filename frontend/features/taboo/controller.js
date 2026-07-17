@@ -3,7 +3,7 @@ import { state } from '../../core/state.js';
 import { switchView } from '../../core/router.js';
 import { sendAction } from '../../core/ws.js';
 import { gameLibrary } from './library.js';
-import { t } from '../../core/i18n.js';
+import { t, getLang } from '../../core/i18n.js';
 
 // 進入「準備抽卡」畫面 (所有人都會看到)
 export function enterTabooPrepare() {
@@ -26,12 +26,12 @@ export function cleanupTabooLocalState() {
 
 // 從題庫隨機抽一張字卡 (避免連續同一張)
 function drawRandomTabooWord() {
-    if (!gameLibrary.length) return '???';
+    if (!gameLibrary.length) return null;
     if (gameLibrary.length === 1) return gameLibrary[0];
     let word;
     do {
         word = gameLibrary[Math.floor(Math.random() * gameLibrary.length)];
-    } while (word === state.taboo.currentWord);
+    } while (state.taboo.currentWord && word.zh === state.taboo.currentWord.zh);
     return word;
 }
 
@@ -60,7 +60,8 @@ export function startTabooDrawCountdown() {
 export function showTabooCard() {
     const wordEl = document.getElementById('taboo-card-word');
     if (wordEl) {
-        wordEl.innerText = state.taboo.currentWord || '???';
+        const card = state.taboo.currentWord;
+        wordEl.innerText = card ? (getLang() === 'en' ? card.en : card.zh) : '???';
         if (state.taboo.flipMode) wordEl.classList.add('flip');
         else wordEl.classList.remove('flip');
     }

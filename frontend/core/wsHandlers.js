@@ -248,7 +248,7 @@ function handleQaFinished(msg) {
 
     if (questionEl) {
         if (msg.has_answer && msg.correct_option) {
-            questionEl.innerText = t('正解:{option}({count} 人答對)', { option: msg.correct_option, count: msg.correct_count || 0 });
+            questionEl.innerText = t('正解:{option}({count} 人答對)', { option: t(msg.correct_option), count: msg.correct_count || 0 });
         } else {
             questionEl.innerText = '結果統計';
         }
