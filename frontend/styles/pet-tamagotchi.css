@@ -242,28 +242,24 @@
   transition: background 0.4s ease;
 }
 
-/* 背景 preset — Unsplash 真實照片 */
-.pet-stage[class*="bg-"] {
-  background-size: cover;
-  background-position: center;
-}
+/* 背景 preset — CSS 漸層（不依賴外部圖片，永遠可載入） */
 .pet-stage.bg-meadow {
-  background-image: url('https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80');
+  background: linear-gradient(175deg, #c8f5a0 0%, #7ecb57 40%, #4a9e2f 100%);
 }
 .pet-stage.bg-night {
-  background-image: url('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800&q=80');
+  background: linear-gradient(175deg, #0d0b2b 0%, #1a1060 45%, #2e1a6e 100%);
 }
 .pet-stage.bg-beach {
-  background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80');
+  background: linear-gradient(175deg, #87ceeb 0%, #60b8de 38%, #f5dfa0 70%, #e8c96b 100%);
 }
 .pet-stage.bg-forest {
-  background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80');
+  background: linear-gradient(175deg, #1a3a1a 0%, #2d5e2d 45%, #3b7a3b 100%);
 }
 .pet-stage.bg-sunset {
-  background-image: url('https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=800&q=80');
+  background: linear-gradient(175deg, #ff6b35 0%, #f7931e 30%, #ffc93c 60%, #c0392b 100%);
 }
 .pet-stage.bg-snow {
-  background-image: url('https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=800&q=80');
+  background: linear-gradient(175deg, #b8d4f0 0%, #dceeff 45%, #f2f8ff 100%);
 }
 
 /* 底部裝飾線 */
