@@ -818,6 +818,42 @@ def _compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool
     return int(round(focus_points + participation_points + bonus + host_bonus))
 
 
+def _build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minutes: int):
+    """個人計分：每個人依「自己的」分心次數算分。
+
+    回傳 (ranking, score_by_uid, avg_score)：
+      - ranking   : 分數由高到低（同分時分心少的在前），每列含 score + deviations
+      - score_by_uid: uid → 個人分數
+      - avg_score : 全場平均分，代表「這場聚會整體表現」（群組寵物用）
+    """
+    rows = []
+    score_by_uid: Dict[str, int] = {}
+    for uid, info in (all_ever or {}).items():
+        deviations = int((info or {}).get("deviations", 0) or 0)
+        score = _compute_meeting_score(duration_minutes, deviations, is_host=(uid == host_uid))
+        score_by_uid[uid] = score
+        rows.append({
+            "uid": uid,
+            "nickname": (info or {}).get("nickname", ""),
+            "deviations": deviations,
+            "score": score,
+        })
+
+    rows.sort(key=lambda x: (-x["score"], x["deviations"]))
+    avg_score = int(round(sum(score_by_uid.values()) / len(score_by_uid))) if score_by_uid else 0
+    return rows, score_by_uid, avg_score
+
+
+def _score_for_uid(uid: str, score_by_uid: dict, all_ever: dict, host_uid: Optional[str],
+                   duration_minutes: int) -> int:
+    """取某人的分數；若他不在 all_ever（例如已斷線的房主）則現算一份。"""
+    score = score_by_uid.get(uid)
+    if score is None:
+        deviations = int((all_ever.get(uid) or {}).get("deviations", 0) or 0)
+        score = _compute_meeting_score(duration_minutes, deviations, is_host=(uid == host_uid))
+    return score
+
+
 def _week_start_utc_from_taipei() -> datetime.datetime:
     """取得本週一 00:00（台北時區）對應的 UTC datetime"""
     # 台北時區 UTC+8
@@ -3404,20 +3440,8 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
     all_ever = room_data.get("all_participants") or room_data.get("members") or {}
     host_uid_local = room_data.get("host_uid")
     total_deviations = int(room_data.get("deviations", 0) or 0)
-    base_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=False)
-    host_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=True)
-
-    deviation_ranking = sorted(
-        [
-            {
-                "uid": uid,
-                "nickname": info.get("nickname", ""),
-                "deviations": info.get("deviations", 0),
-            }
-            for uid, info in all_ever.items()
-        ],
-        key=lambda x: x["deviations"],
-        reverse=True,
+    score_ranking, score_by_uid, avg_score = _build_score_ranking(
+        all_ever, host_uid_local, duration_minutes
     )
 
     members_snapshot = []
@@ -3470,17 +3494,18 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
         "members_snapshot": members_snapshot,
         "participants": participants,
         "end_reason": reason,
-        "base_score": base_score,
-        "host_score": host_score,
-        "deviation_ranking": deviation_ranking,
+        "avg_score": avg_score,
+        "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
+        "score_ranking": score_ranking,
+        "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
     }
 
     db.collection("rooms").document(room_id).set({"status": "ENDED"}, merge=True)
     db.collection("meetings").document(room_id).set(meeting_record, merge=True)
 
     for p_uid in participants:
-        my_score = host_score if p_uid == host_uid_local else base_score
-        my_deviations = all_ever.get(p_uid, {}).get("deviations", 0)
+        my_score = _score_for_uid(p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes)
+        my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
         mirror = {
             "owner_uid": p_uid,
             "room_id": room_id,
@@ -3810,33 +3835,23 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 host_uid_local = room_data.get("host_uid")
                 group_id_local = room_data.get("group_id")
                 total_deviations = int(room_data.get("deviations", 0) or 0)
-                base_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=False)
-                host_score = _compute_meeting_score(duration_minutes, total_deviations, is_host=True)
+                # 個人計分：每個人依自己的分心次數算分，排行由高分到低分
+                score_ranking, score_by_uid, avg_score = _build_score_ranking(
+                    all_ever, host_uid_local, duration_minutes
+                )
 
                 # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
                 print(f"[END_SESSION] room={room_id} reason={reason}")
-                # 建立分心排行榜（由多到少排序）
-                deviation_ranking = sorted(
-                    [
-                        {
-                            "uid": uid,
-                            "nickname": info.get("nickname", ""),
-                            "deviations": info.get("deviations", 0),
-                        }
-                        for uid, info in all_ever.items()
-                    ],
-                    key=lambda x: x["deviations"],
-                    reverse=True,
-                )
-
                 await manager.broadcast_to_room(room_id, {
                     "type": "SESSION_ENDED",
                     "reason": reason,
                     "duration_minutes": duration_minutes,
                     "total_deviations": total_deviations,
-                    "base_score": base_score,
+                    "avg_score": avg_score,
+                    "base_score": avg_score,          # 舊欄位相容
                     "group_id": group_id_local,
-                    "deviation_ranking": deviation_ranking,
+                    "score_ranking": score_ranking,
+                    "deviation_ranking": score_ranking,   # 舊前端相容
                 })
 
                 # 廣播之後才做 Firestore 寫入（慢但不影響 UX）
@@ -3876,9 +3891,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                         "members_snapshot": members_snapshot,
                         "participants": participants,
                         "end_reason": reason,
-                        "base_score": base_score,
-                        "host_score": host_score,
-                        "deviation_ranking": deviation_ranking,
+                        "avg_score": avg_score,
+                        "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
+                        "score_ranking": score_ranking,
+                        "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
                     }
                     # merge=True 保留聚會中可能已經寫入的 cover_photo_id
                     db.collection("meetings").document(room_id).set(meeting_record, merge=True)
@@ -3886,8 +3902,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                     # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
                     for p_uid in participants:
-                        my_score = host_score if p_uid == host_uid_local else base_score
-                        my_deviations = all_ever.get(p_uid, {}).get("deviations", 0)
+                        my_score = _score_for_uid(
+                            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes
+                        )
+                        my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
                         mirror = {
                             "owner_uid": p_uid,
                             "room_id": room_id,
@@ -3908,7 +3926,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"Error saving meeting record: {e}")
 
                 # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
-                if group_id_local:
+                # score_by_uid 為空 = 沒有任何參與者留下紀錄，此時 avg_score=0 並非「表現差」，
+                # 不可拿來扣寵物能量，直接跳過。
+                if group_id_local and score_by_uid:
                     try:
                         g_ref = db.collection("groups").document(group_id_local)
                         pet_transaction = db.transaction()
@@ -3924,11 +3944,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                             pet_energy      = _s["pet_energy"]
                             pet_happiness   = _s["pet_happiness"]
                             pet_cleanliness = _s["pet_cleanliness"]
-                            if base_score >= 70:                        # 認真讀書：餵飽 + 開心
-                                energy_delta = min(10 + int((base_score - 70) / 3), 20)
+                            if avg_score >= 70:                         # 認真讀書：餵飽 + 開心
+                                energy_delta = min(10 + int((avg_score - 70) / 3), 20)
                                 pet_energy    = min(100.0, pet_energy + energy_delta)
                                 pet_happiness = min(100.0, pet_happiness + 5)
-                            elif base_score < 40:                       # 混水摸魚：餓 + 掉心情
+                            elif avg_score < 40:                        # 混水摸魚：餓 + 掉心情
                                 pet_energy    = max(0.0, pet_energy - 5)
                                 pet_happiness = max(0.0, pet_happiness - 5)
 

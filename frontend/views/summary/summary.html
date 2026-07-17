@@ -17,17 +17,18 @@
             </div>
         </div>
 
-        <!-- 統計（真實資料：時長 + 我的分心次數） -->
+        <!-- 統計（真實資料：時長 + 我的分數 + 我的分心次數） -->
         <div class="ps-stats">
             <div class="ps-stat-card"><p class="ps-stat-val" id="summary-time">0</p><p class="ps-stat-label">分鐘</p></div>
+            <div class="ps-stat-card"><p class="ps-stat-val" id="summary-score">0</p><p class="ps-stat-label">我的分數</p></div>
             <div class="ps-stat-card"><p class="ps-stat-val" id="summary-deviations">0</p><p class="ps-stat-label">次分心（我）</p></div>
         </div>
         <p id="summary-host-hint" style="display:none;"></p>
 
-        <!-- 分心排行（由 wsHandlers 填入 #summary-deviation-list） -->
-        <div class="ps-rank-section" id="summary-deviation-ranking" style="display:none;">
-            <p class="ps-rank-label">分心次數排行（越少越好）</p>
-            <ul id="summary-deviation-list"></ul>
+        <!-- 聚會分數排行（由 wsHandlers 填入 #summary-score-list） -->
+        <div class="ps-rank-section" id="summary-score-ranking" style="display:none;">
+            <p class="ps-rank-label">聚會分數排行</p>
+            <ul id="summary-score-list"></ul>
         </div>
     </div>
 

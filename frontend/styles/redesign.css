@@ -686,7 +686,6 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-buffer .buf-hint { font-size: 13px; color: rgba(255,255,255,.45); margin-bottom: 28px; }
 #view-buffer .buf-hint strong { color: rgba(255,255,255,.7); }
 #view-buffer .buf-ok-btn { width: 100%; max-width: 320px; height: 54px; border: none; cursor: pointer; border-radius: 18px; background: #ff7a3c; color: #fff; font-size: 16px; font-weight: 700; margin-bottom: 10px; }
-#view-buffer .buf-ok-hint { font-size: 11px; color: rgba(255,255,255,.3); }
 
 /* 聚會總結（summary） */
 /* 聚會總結（summary）— front-preview screen-party-summary 結構 */
@@ -701,22 +700,27 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-mascot-emoji { font-size: 68px; line-height: 1; position: relative; z-index: 1; margin-bottom: 6px; }
 #view-summary .ps-mascot-text { padding: 16px 20px; text-align: center; font-size: 14px; color: var(--brown); line-height: 1.6; }
 #view-summary .ps-mascot-sub { font-size: 12px; color: var(--brown-40); }
-#view-summary .ps-stats { display: flex; gap: 12px; margin-top: 12px; }
-#view-summary .ps-stat-card { flex: 1; background: #fff; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-#view-summary .ps-stat-val { font-size: 30px; font-weight: 800; color: var(--brown); line-height: 1; margin: 0; }
-#view-summary .ps-stat-label { font-size: 12px; color: var(--brown-45); font-weight: 500; margin: 0; }
+/* 三張卡並排：縮 gap / padding / 字級，並讓標籤不換行，避免窄螢幕跑版 */
+#view-summary .ps-stats { display: flex; gap: 8px; margin-top: 12px; }
+#view-summary .ps-stat-card { flex: 1; min-width: 0; background: #fff; border-radius: 20px; padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#view-summary .ps-stat-val { font-size: 26px; font-weight: 800; color: var(--brown); line-height: 1; margin: 0; }
+#view-summary .ps-stat-label { font-size: 11px; color: var(--brown-45); font-weight: 500; margin: 0; white-space: nowrap; }
 #view-summary #summary-host-hint { font-size: 13px; color: var(--brown-50); text-align: center; margin: 12px 0 0; }
 #view-summary .ps-rank-section { margin-top: 16px; }
 #view-summary .ps-rank-label { font-size: 13px; font-weight: 600; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 8px; padding: 0 4px; }
-#view-summary #summary-deviation-list { list-style: none; padding: 0; margin: 0; }
+#view-summary #summary-score-list { list-style: none; padding: 0; margin: 0; }
 #view-summary .ps-rank-row { border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #fff; }
 #view-summary .ps-rank-row + .ps-rank-row { margin-top: 8px; }
 #view-summary .ps-rank-row.me { background: rgba(155,121,85,.12); }
 #view-summary .ps-rank-num { font-size: 13px; font-weight: 700; width: 20px; text-align: center; color: var(--brown-60); }
 #view-summary .ps-rank-avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #4f351a; flex-shrink: 0; }
-#view-summary .ps-rank-name { flex: 1; font-size: 14px; color: var(--brown); }
+/* min-width:0 + 省略號：長暱稱會被截斷，不會把右側分數擠出版面 */
+#view-summary .ps-rank-name { flex: 1; min-width: 0; font-size: 14px; color: var(--brown); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #view-summary .ps-rank-me-tag { font-size: 11px; color: var(--brown-40); font-weight: 400; }
-#view-summary .ps-rank-count { font-size: 14px; font-weight: 700; color: var(--brown-60); }
+/* 右側統計：分數為主、分心次數為輔，上下堆疊靠右對齊 */
+#view-summary .ps-rank-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+#view-summary .ps-rank-score { font-size: 15px; font-weight: 700; color: var(--brown-60); line-height: 1.2; white-space: nowrap; }
+#view-summary .ps-rank-dev { font-size: 11px; color: var(--brown-45); font-weight: 500; line-height: 1.2; white-space: nowrap; }
 #view-summary .ps-footer { margin-top: 24px; }
 
 /* ============================================================

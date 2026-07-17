@@ -52,6 +52,9 @@ function handleRoomUpdate(msg) {
         const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
         document.getElementById('summary-time').innerText = mins;
         document.getElementById('summary-deviations').innerText = state.myDeviations;
+        // 這條路徑沒收到 SESSION_ENDED，拿不到分數與排行；顯示 — 而不是誤導的 0
+        const scoreEl = document.getElementById('summary-score');
+        if (scoreEl) scoreEl.innerText = '—';
         state.currentPhase = 'SUMMARY';
         document.body.className = '';
         if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
@@ -92,8 +95,12 @@ function handleSessionEnded(msg) {
     const reason = msg.reason || 'host_ended';
     // 優先用後端傳來的值（已同步），fallback 到前端本地計算
     const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
+    const ranking = msg.score_ranking || msg.deviation_ranking || [];
+    const myRow = ranking.find(r => r.uid === state.userId);
     document.getElementById('summary-time').innerText = mins;
     document.getElementById('summary-deviations').innerText = state.myDeviations;
+    const scoreEl = document.getElementById('summary-score');
+    if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -111,7 +118,7 @@ function handleSessionEnded(msg) {
         else hint.innerText = '';
     }
 
-    renderDeviationRanking(msg.deviation_ranking || []);
+    renderScoreRanking(ranking);
 
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
@@ -122,9 +129,10 @@ function handleSessionEnded(msg) {
     switchView('view-summary');
 }
 
-function renderDeviationRanking(ranking) {
-    const section = document.getElementById('summary-deviation-ranking');
-    const ul = document.getElementById('summary-deviation-list');
+// 聚會分數排行：分數由高到低（後端已排序），每列同時顯示分數與分心次數
+function renderScoreRanking(ranking) {
+    const section = document.getElementById('summary-score-ranking');
+    const ul = document.getElementById('summary-score-list');
     if (!section || !ul) return;
     if (!ranking.length) { section.style.display = 'none'; return; }
 
@@ -134,13 +142,18 @@ function renderDeviationRanking(ranking) {
         const isMe = item.uid === state.userId;
         const name = item.nickname || item.uid || '';
         const initial = escHtml((String(name).trim()[0] || '?').toUpperCase());
+        const score = Number(item.score ?? 0);
+        const deviations = Number(item.deviations ?? 0);
         const li = document.createElement('li');
         li.className = 'ps-rank-row' + (isMe ? ' me' : '');
         li.innerHTML = `
             <span class="ps-rank-num">${i + 1}</span>
             <span class="ps-rank-avatar" style="width:36px;height:36px;background:${COLORS[i % COLORS.length]};">${initial}</span>
             <span class="ps-rank-name">${escHtml(name)}${isMe ? ' <span class="ps-rank-me-tag">（你）</span>' : ''}</span>
-            <span class="ps-rank-count">${item.deviations} 次</span>
+            <span class="ps-rank-stats">
+                <span class="ps-rank-score">${escHtml(t('{n} 分', { n: score }))}</span>
+                <span class="ps-rank-dev">${escHtml(t('分心 {n} 次', { n: deviations }))}</span>
+            </span>
         `;
         ul.appendChild(li);
     });
