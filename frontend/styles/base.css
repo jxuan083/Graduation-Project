@@ -883,5 +883,9 @@ select.text-input {
   width: 64px; height: 64px; border-radius: 50%;
   object-fit: cover; border: 2px solid var(--border);
 }
+.pet-preview-img {
+  width: 120px; height: 120px; border-radius: var(--r-md);
+  object-fit: cover; border: 2px solid var(--border);
+}
 .pet-body-emoji       { font-size: 3rem; }
 .pet-name             { font-size: 0.88rem; color: var(--text-secondary); }

@@ -245,16 +245,14 @@ function renderPetPreview(g) {
         return;
     }
     if (section) section.style.display = '';
-    const body = g.pet_body_emoji || '🐾';
     const petName = g.pet_name || '寵物';
-    const headHtml = g.pet_face_url
-        ? `<img class="pet-head-img" src="${escHtml(g.pet_face_url)}" alt="寵物臉" />`
+    const petImgHtml = g.pet_face_url
+        ? `<img class="pet-preview-img" src="${escHtml(g.pet_face_url)}" alt="寵物" />`
         : `<div class="pet-head-placeholder"><i data-lucide="user"></i></div>`;
     if (previewEl) {
         previewEl.innerHTML = `
             <div class="pet-display">
-                ${headHtml}
-                <div class="pet-body-emoji">${body}</div>
+                ${petImgHtml}
                 <div class="pet-name">${escHtml(petName)}</div>
             </div>
         `;
