@@ -14,7 +14,16 @@ const PRESET_INTERESTS = [
     '攝影', '旅行', '閱讀', '寵物', '畫畫', '動漫', 'K-pop', '手作',
 ];
 const MAX_INTERESTS = 5;
-let selectedInterests = [];
+
+// 已選標籤一律從 DOM 讀（唯一真相來源）。
+// 不放模組變數:profile.js 曾同時以「有/無 ?v=」兩種 URL 被 import,
+// 產生兩個模組實例,狀態放變數會分裂(選了標籤卻存出空陣列)。
+function getSelectedInterests() {
+    return Array.from(document.querySelectorAll('#profile-interests-selected .interest-chip'))
+        .map(btn => btn.dataset.tag)
+        .filter(Boolean)
+        .slice(0, MAX_INTERESTS);
+}
 
 export function init() {
     register('view-profile', { element: document.getElementById('view-profile') });
@@ -36,19 +45,18 @@ export function init() {
 }
 
 function toggleInterest(tag) {
-    const i = selectedInterests.indexOf(tag);
-    if (i >= 0) {
-        selectedInterests.splice(i, 1);
-    } else {
-        if (selectedInterests.length >= MAX_INTERESTS) {
-            const statusEl = document.getElementById('profile-status');
-            statusEl.style.color = '#f87171';
-            statusEl.innerText = t('最多只能選 {count} 個標籤', { count: MAX_INTERESTS });
-            return;
-        }
-        selectedInterests.push(tag);
+    const cur = getSelectedInterests();
+    if (cur.includes(tag)) {
+        renderInterests(cur.filter(x => x !== tag));
+        return;
     }
-    renderInterests();
+    if (cur.length >= MAX_INTERESTS) {
+        const statusEl = document.getElementById('profile-status');
+        statusEl.style.color = '#f87171';
+        statusEl.innerText = t('最多只能選 {count} 個標籤', { count: MAX_INTERESTS });
+        return;
+    }
+    renderInterests(cur.concat(tag));
 }
 
 function addCustomInterest() {
@@ -56,18 +64,18 @@ function addCustomInterest() {
     const tag = (input.value || '').trim().slice(0, 12);
     if (!tag) return;
     input.value = '';
-    if (!selectedInterests.includes(tag)) toggleInterest(tag);
+    if (!getSelectedInterests().includes(tag)) toggleInterest(tag);
 }
 
-function renderInterests() {
+function renderInterests(selected) {
     const selEl = document.getElementById('profile-interests-selected');
     const preEl = document.getElementById('profile-interests-presets');
-    const full = selectedInterests.length >= MAX_INTERESTS;
+    const full = selected.length >= MAX_INTERESTS;
 
-    selEl.innerHTML = selectedInterests.map(tag =>
+    selEl.innerHTML = selected.map(tag =>
         `<button type="button" class="interest-chip on" data-tag="${escAttr(tag)}">${escHtml(t(tag))}<span class="chip-x">×</span></button>`
     ).join('');
-    preEl.innerHTML = PRESET_INTERESTS.filter(tag => !selectedInterests.includes(tag)).map(tag =>
+    preEl.innerHTML = PRESET_INTERESTS.filter(tag => !selected.includes(tag)).map(tag =>
         `<button type="button" class="interest-chip${full ? ' disabled' : ''}" data-tag="${escAttr(tag)}">${escHtml(t(tag))}</button>`
     ).join('');
 
@@ -89,9 +97,8 @@ export function openProfileView() {
         (state.currentProfile && state.currentProfile.bio) || '';
     document.getElementById('profile-handle').value =
         (state.currentProfile && state.currentProfile.handle) || '';
-    selectedInterests = Array.isArray(state.currentProfile?.interests)
-        ? state.currentProfile.interests.slice(0, MAX_INTERESTS) : [];
-    renderInterests();
+    renderInterests(Array.isArray(state.currentProfile?.interests)
+        ? state.currentProfile.interests.slice(0, MAX_INTERESTS) : []);
     document.getElementById('profile-status').innerText = '';
     switchView('view-profile');
 }
@@ -113,7 +120,7 @@ async function saveProfile() {
         nickname: document.getElementById('profile-nickname').value.trim(),
         bio: document.getElementById('profile-bio').value.trim(),
         handle: document.getElementById('profile-handle').value.trim().toLowerCase(),
-        interests: selectedInterests.slice(0, MAX_INTERESTS)
+        interests: getSelectedInterests()
     };
     const fileInput = document.getElementById('profile-avatar-input');
     const file = fileInput.files && fileInput.files[0];

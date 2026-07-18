@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import test from 'node:test';
 
 
@@ -38,6 +40,33 @@ test('personal pet upload path has an explicit owner-only Storage rule', () => {
 test('unused Firebase Functions package is not part of the deploy surface', () => {
   const config = JSON.parse(read('firebase.json'));
   assert.equal(config.functions, undefined);
+});
+
+test('view modules are always imported with the same cache-bust version', () => {
+  // 同一個 view 模組若以不同 URL（有無 ?v=N）被 import,瀏覽器會建立兩個模組實例,
+  // 模組內狀態會分裂（例:興趣標籤選了卻存出空陣列）。
+  const root = fileURLToPath(new URL('../frontend', import.meta.url));
+  const files = [];
+  (function walk(dir) {
+    for (const name of readdirSync(dir)) {
+      const p = path.join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (name.endsWith('.js')) files.push(p);
+    }
+  })(root);
+  const versions = new Set();
+  const bare = [];
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/import\s*(?:[\s\S]*?from\s*)?['"]([^'"]*\/views\/[^'"]+\.js[^'"]*)['"]/g)) {
+      const spec = m[1];
+      const v = spec.match(/\?v=(\d+)/);
+      if (v) versions.add(v[1]);
+      else bare.push(`${path.relative(root, f)} -> ${spec}`);
+    }
+  }
+  assert.deepEqual(bare, [], `這些 import 少了 ?v= 版本（會造成模組實例分裂）:\n${bare.join('\n')}`);
+  assert.ok(versions.size <= 1, `view 模組版本不一致: ${[...versions].join(', ')}`);
 });
 
 test('group chat media uploads require owner folder and group membership', () => {
