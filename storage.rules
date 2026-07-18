@@ -22,6 +22,22 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 
+    // 群組聊天室媒體（圖片 / 語音）：只有該群組成員能上傳到自己的資料夾。
+    // 讀取靠帶 token 的下載 URL（同頭像模式），URL 只會出現在群組訊息裡。
+    // 路徑慣例：group-chat/{groupId}/{uid}/<filename>
+    match /group-chat/{groupId}/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.member_uids.hasAny([request.auth.uid])
+                   && (
+                        (request.resource.contentType.matches('image/(jpeg|png|webp)')
+                         && request.resource.size < 5 * 1024 * 1024)          // 圖片 5 MB
+                     || (request.resource.contentType.matches('audio/.*')
+                         && request.resource.size < 2 * 1024 * 1024)          // 語音 2 MB
+                   );
+    }
+
     // 聚會照片：client 讀寫一律拒絕；參與者經過後端身分檢查後取得內容。
     // 寫入也完全走後端 (Admin SDK 會繞過規則)
     // 路徑慣例：meeting-photos/{meetingId}/{photoId}.jpg

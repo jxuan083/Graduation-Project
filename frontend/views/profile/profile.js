@@ -7,10 +7,23 @@ import { goHomeFromMenu } from '../../core/session.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
 
+// Tinder 風格預設興趣（key 為繁中，顯示時經 t() 翻譯）
+const PRESET_INTERESTS = [
+    '咖啡', '美食', '烹飪', '健身', '爬山', '露營', '跑步', '游泳',
+    '籃球', '羽球', '桌遊', '電玩', '追劇', '電影', '音樂', '唱歌',
+    '攝影', '旅行', '閱讀', '寵物', '畫畫', '動漫', 'K-pop', '手作',
+];
+const MAX_INTERESTS = 5;
+let selectedInterests = [];
+
 export function init() {
     register('view-profile', { element: document.getElementById('view-profile') });
     document.getElementById('btn-profile-save').onclick = saveProfile;
     document.getElementById('btn-profile-back').onclick = goHomeFromMenu;
+    document.getElementById('btn-interest-add').onclick = addCustomInterest;
+    document.getElementById('profile-interest-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); }
+    });
 
     // 即時預覽頭像
     document.getElementById('profile-avatar-input').addEventListener('change', (e) => {
@@ -20,6 +33,47 @@ export function init() {
             document.getElementById('profile-avatar-preview').src = url;
         }
     });
+}
+
+function toggleInterest(tag) {
+    const i = selectedInterests.indexOf(tag);
+    if (i >= 0) {
+        selectedInterests.splice(i, 1);
+    } else {
+        if (selectedInterests.length >= MAX_INTERESTS) {
+            const statusEl = document.getElementById('profile-status');
+            statusEl.style.color = '#f87171';
+            statusEl.innerText = t('最多只能選 {count} 個標籤', { count: MAX_INTERESTS });
+            return;
+        }
+        selectedInterests.push(tag);
+    }
+    renderInterests();
+}
+
+function addCustomInterest() {
+    const input = document.getElementById('profile-interest-input');
+    const tag = (input.value || '').trim().slice(0, 12);
+    if (!tag) return;
+    input.value = '';
+    if (!selectedInterests.includes(tag)) toggleInterest(tag);
+}
+
+function renderInterests() {
+    const selEl = document.getElementById('profile-interests-selected');
+    const preEl = document.getElementById('profile-interests-presets');
+    const full = selectedInterests.length >= MAX_INTERESTS;
+
+    selEl.innerHTML = selectedInterests.map(tag =>
+        `<button type="button" class="interest-chip on" data-tag="${escAttr(tag)}">${escHtml(t(tag))}<span class="chip-x">×</span></button>`
+    ).join('');
+    preEl.innerHTML = PRESET_INTERESTS.filter(tag => !selectedInterests.includes(tag)).map(tag =>
+        `<button type="button" class="interest-chip${full ? ' disabled' : ''}" data-tag="${escAttr(tag)}">${escHtml(t(tag))}</button>`
+    ).join('');
+
+    [selEl, preEl].forEach(el => el.querySelectorAll('.interest-chip').forEach(btn => {
+        btn.onclick = () => toggleInterest(btn.dataset.tag);
+    }));
 }
 
 export function openProfileView() {
@@ -35,6 +89,9 @@ export function openProfileView() {
         (state.currentProfile && state.currentProfile.bio) || '';
     document.getElementById('profile-handle').value =
         (state.currentProfile && state.currentProfile.handle) || '';
+    selectedInterests = Array.isArray(state.currentProfile?.interests)
+        ? state.currentProfile.interests.slice(0, MAX_INTERESTS) : [];
+    renderInterests();
     document.getElementById('profile-status').innerText = '';
     switchView('view-profile');
 }
@@ -55,7 +112,8 @@ async function saveProfile() {
     const payload = {
         nickname: document.getElementById('profile-nickname').value.trim(),
         bio: document.getElementById('profile-bio').value.trim(),
-        handle: document.getElementById('profile-handle').value.trim().toLowerCase()
+        handle: document.getElementById('profile-handle').value.trim().toLowerCase(),
+        interests: selectedInterests.slice(0, MAX_INTERESTS)
     };
     const fileInput = document.getElementById('profile-avatar-input');
     const file = fileInput.files && fileInput.files[0];
@@ -82,3 +140,6 @@ async function saveProfile() {
         statusEl.innerText = t('儲存失敗:') + (err.message || err);
     }
 }
+
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escAttr(s) { return escHtml(s); }

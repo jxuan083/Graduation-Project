@@ -40,6 +40,15 @@ test('unused Firebase Functions package is not part of the deploy surface', () =
   assert.equal(config.functions, undefined);
 });
 
+test('group chat media uploads require owner folder and group membership', () => {
+  const rules = read('storage.rules');
+  const start = rules.indexOf('match /group-chat/{groupId}/{uid}/{fileName}');
+  assert.ok(start >= 0);
+  const block = rules.slice(start, rules.indexOf('match /', start + 1));
+  assert.match(block, /request\.auth\.uid == uid/);
+  assert.match(block, /member_uids\.hasAny\(\[request\.auth\.uid\]\)/);
+});
+
 test('meeting photos are not made public during upload', () => {
   const backend = read('backend/main.py');
   const uploadStart = backend.indexOf('async def upload_meeting_photo');

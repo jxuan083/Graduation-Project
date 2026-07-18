@@ -210,6 +210,25 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
     photoURL: Optional[str] = None
     handle: Optional[str] = None   # 自訂短 ID（唯一），用於加好友搜尋 / QR
+    interests: Optional[List[str]] = None   # 個性/興趣標籤（最多 5 個）
+
+
+MAX_INTERESTS = 5
+MAX_INTEREST_LEN = 12
+
+
+def _clean_interests(raw: List[str]) -> List[str]:
+    """去除空白/重複，限制數量與單一標籤長度。"""
+    cleaned: List[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        tag = item.strip()[:MAX_INTEREST_LEN]
+        if tag and tag not in cleaned:
+            cleaned.append(tag)
+        if len(cleaned) >= MAX_INTERESTS:
+            break
+    return cleaned
 
 
 @app.get("/api/me")
@@ -257,6 +276,8 @@ async def update_profile(payload: ProfileUpdate, decoded: dict = Depends(verify_
             update_data["handle"] = handle
         else:
             update_data["handle"] = ""   # 允許清空
+    if payload.interests is not None:
+        update_data["interests"] = _clean_interests(payload.interests)
 
     if not update_data:
         raise HTTPException(status_code=400, detail="沒有要更新的欄位")
@@ -301,6 +322,7 @@ async def get_public_profile(target_uid: str, decoded: dict = Depends(verify_tok
             "nickname": data.get("nickname", ""),
             "photoURL": data.get("photoURL", ""),
             "bio": data.get("bio", ""),
+            "interests": data.get("interests", []),
         }
     }
 
@@ -365,6 +387,7 @@ async def get_user_card(target_uid: str, decoded: dict = Depends(verify_token)):
             "nickname": data.get("nickname", ""),
             "photoURL": data.get("photoURL", ""),
             "bio": data.get("bio", ""),
+            "interests": data.get("interests", []),
         },
         "stats": {
             "friends_count": len(their_friends),
@@ -2588,7 +2611,17 @@ async def get_group(group_id: str, decoded: dict = Depends(verify_token)):
 
 # ===== 群組聊天室 =====
 class GroupMessagePayload(BaseModel):
-    text: str
+    text: Optional[str] = ""
+    type: Optional[str] = "text"          # text | image | audio
+    media_url: Optional[str] = None       # image / audio 的 Storage 下載 URL
+    duration_sec: Optional[float] = None  # audio 長度（秒）
+
+
+# 只接受本專案 Firebase Storage 的下載 URL，避免訊息掛任意外部連結
+ALLOWED_MEDIA_PREFIXES = (
+    "https://firebasestorage.googleapis.com/",
+    "https://storage.googleapis.com/",
+)
 
 
 def _require_group_member(group_id: str, uid: str) -> dict:
@@ -2623,6 +2656,9 @@ async def list_group_messages(group_id: str, limit: int = 100, decoded: dict = D
                 "sender_nickname": m.get("sender_nickname", ""),
                 "sender_avatar": m.get("sender_avatar", ""),
                 "text": m.get("text", ""),
+                "type": m.get("type", "text"),
+                "media_url": m.get("media_url", ""),
+                "duration_sec": m.get("duration_sec"),
                 "created_at": ca.isoformat() if hasattr(ca, "isoformat") else None,
             })
         msgs.reverse()  # DESC 取最新 N 筆後翻成 舊→新
@@ -2639,18 +2675,37 @@ async def send_group_message(group_id: str, payload: GroupMessagePayload, decode
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     _require_group_member(group_id, uid)
+    msg_type = (payload.type or "text").strip()
+    if msg_type not in ("text", "image", "audio"):
+        raise HTTPException(status_code=400, detail="不支援的訊息類型")
     text = (payload.text or "").strip()[:500]
-    if not text:
-        raise HTTPException(status_code=400, detail="訊息不能為空")
+    media_url = (payload.media_url or "").strip()
+
+    if msg_type == "text":
+        if not text:
+            raise HTTPException(status_code=400, detail="訊息不能為空")
+        media_url = ""
+    else:
+        if not media_url.startswith(ALLOWED_MEDIA_PREFIXES):
+            raise HTTPException(status_code=400, detail="無效的媒體網址")
+
     me = _ensure_user_doc(decoded)
-    ref = db.collection("groups").document(group_id).collection("messages").document()
-    ref.set({
+    doc = {
         "sender_uid": uid,
         "sender_nickname": me.get("nickname", ""),
         "sender_avatar": me.get("photoURL", ""),
         "text": text,
+        "type": msg_type,
+        "media_url": media_url,
         "created_at": firestore.SERVER_TIMESTAMP,
-    })
+    }
+    if msg_type == "audio":
+        try:
+            doc["duration_sec"] = max(0.0, min(float(payload.duration_sec or 0), 120.0))
+        except (TypeError, ValueError):
+            doc["duration_sec"] = 0.0
+    ref = db.collection("groups").document(group_id).collection("messages").document()
+    ref.set(doc)
     return {"status": "success", "id": ref.id}
 
 

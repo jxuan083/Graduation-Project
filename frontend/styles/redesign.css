@@ -1037,3 +1037,46 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 .chat-input::placeholder { color: var(--brown-35); }
 .chat-send-btn { width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer; background: var(--gold); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity .15s; }
 .chat-send-btn:active { opacity: .75; }
+
+/* ═══ 興趣標籤（Tinder 風格 chip）═══ */
+.interest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.interest-selected:not(:empty) { margin-bottom: 10px; }
+.interest-chip { border: 1.5px solid var(--brown-15); background: #fff; color: var(--brown-60); font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 99px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: opacity .15s; }
+.interest-chip:active { opacity: .75; }
+.interest-chip.on { background: var(--gold); border-color: var(--gold); color: #fff; }
+.interest-chip.disabled { opacity: .4; pointer-events: none; }
+.interest-chip.static { cursor: default; background: var(--brown-06); border-color: transparent; }
+.chip-x { font-size: 14px; line-height: 1; opacity: .8; }
+.fp-interests { justify-content: center; margin-top: 10px; }
+
+/* ═══ 群組聊天室：媒體訊息（類 IG）═══ */
+.chat-icon-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; color: var(--gold); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; padding: 0; transition: opacity .15s; }
+.chat-icon-btn:active { opacity: .7; }
+.chat-icon-btn.busy { opacity: .4; pointer-events: none; }
+
+.chat-date-sep { align-self: center; }
+.chat-date-sep span { font-size: 11px; font-weight: 600; color: var(--brown-40); background: var(--brown-06); padding: 4px 12px; border-radius: 99px; }
+
+.chat-img-bubble { padding: 4px !important; }
+.chat-img { max-width: 200px; max-height: 260px; border-radius: 14px; display: block; cursor: pointer; }
+
+.chat-audio { display: flex; align-items: center; gap: 8px; min-width: 170px; }
+.audio-play { width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer; background: rgba(255,255,255,.25); color: inherit; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; }
+.chat-msg.them .audio-play { background: var(--brown-08); }
+.audio-play::before { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent currentColor; margin-left: 2px; }
+.chat-audio.playing .audio-play::before { width: 10px; height: 12px; border: none; border-left: 3px solid currentColor; border-right: 3px solid currentColor; margin-left: 0; }
+.audio-track { flex: 1; min-width: 70px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.35); overflow: hidden; }
+.chat-msg.them .audio-track { background: var(--brown-15); }
+.audio-prog { height: 100%; width: 0; border-radius: 2px; background: #fff; }
+.chat-msg.them .audio-prog { background: var(--gold); }
+.audio-dur { font-size: 11px; opacity: .85; font-variant-numeric: tabular-nums; }
+
+.chat-record-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px 24px; background: #fff; border-top: 1px solid rgba(79,53,26,0.09); flex-shrink: 0; }
+.chat-record-cancel { border: none; background: transparent; color: var(--brown-45); font-size: 14px; font-weight: 600; cursor: pointer; padding: 8px; }
+.chat-record-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); margin-left: auto; opacity: .35; }
+.chat-record-bar.recording .chat-record-dot { opacity: 1; animation: gc-rec-pulse 1s infinite; }
+@keyframes gc-rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.chat-record-timer { font-size: 15px; font-weight: 700; color: var(--brown); font-variant-numeric: tabular-nums; margin-right: auto; }
+
+.chat-img-viewer { position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+.chat-img-viewer img { max-width: 100%; max-height: 100%; border-radius: 8px; }

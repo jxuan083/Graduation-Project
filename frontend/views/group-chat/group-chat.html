@@ -11,11 +11,31 @@
         <p class="hint" id="gc-loading" style="text-align:center;margin-top:24px;">載入訊息中…</p>
     </div>
 
-    <div class="chat-input-bar">
+    <div class="chat-input-bar" id="gc-input-bar">
+        <button class="chat-icon-btn" id="gc-img-btn" aria-label="傳圖片">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="currentColor"/><path d="M4 18l5-5 3.5 3.5L16 13l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="chat-icon-btn" id="gc-mic-btn" aria-label="錄語音">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
         <input class="chat-input" id="gc-input" type="text" placeholder="輸入訊息…" maxlength="500" autocomplete="off">
         <button class="chat-send-btn" id="gc-send" aria-label="送出">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8H2M14 8L9 3M14 8L9 13" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+        <input id="gc-img-input" type="file" accept="image/*" style="display:none;">
+    </div>
+
+    <div class="chat-record-bar" id="gc-record-bar" style="display:none;">
+        <button class="chat-record-cancel" id="gc-rec-cancel">取消</button>
+        <span class="chat-record-dot" id="gc-rec-dot"></span>
+        <span class="chat-record-timer" id="gc-rec-timer">0:00</span>
+        <button class="chat-send-btn" id="gc-rec-send" aria-label="送出">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M14 8H2M14 8L9 3M14 8L9 13" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </div>
+
+    <div class="chat-img-viewer" id="gc-img-viewer" style="display:none;">
+        <img id="gc-img-viewer-img" src="" alt="photo">
     </div>
 
 </section>
