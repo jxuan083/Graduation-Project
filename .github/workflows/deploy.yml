@@ -92,10 +92,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # base image 以 Dockerfile 的 FROM 為唯一來源（已釘死 digest），
+      # 避免這裡另外寫一份浮動 tag 而與 Dockerfile 不同步。
       - name: Pull base image (retry up to 3x)
         run: |
+          BASE=$(awk '/^FROM /{print $2; exit}' backend/Dockerfile)
+          echo "Base image: $BASE"
           for i in 1 2 3; do
-            docker pull python:3.11-slim && break
+            docker pull "$BASE" && break
             echo "Attempt $i failed, retrying in 20s..."
             sleep 20
           done
