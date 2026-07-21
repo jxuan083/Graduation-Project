@@ -5,7 +5,7 @@ import { showToast } from '../../utils/toast.js';
 
 // ── 背景 ─────────────────────────────────────────────────────────────────────
 
-const BG_PRESETS = ['default','meadow','night','beach','forest','sunset','snow'];
+const BG_PRESETS = ['default','terrace','meadow','night','beach','forest','sunset','snow'];
 const BG_KEY     = 'pet_bg';
 const BG_IMG_KEY = 'pet_bg_img';
 const BG_POS_KEY = 'pet_bg_pos';
@@ -13,21 +13,27 @@ const BG_POS_KEY = 'pet_bg_pos';
 let _bgPosX = 50, _bgPosY = 50;
 let _bgDrag  = { active: false, startX: 0, startY: 0, basePosX: 50, basePosY: 50 };
 
+function scopedBgKey(baseKey) {
+    return _groupId ? `${baseKey}:${_groupId}` : baseKey;
+}
+
+function readBackgroundSetting(baseKey, fallback = null) {
+    return localStorage.getItem(scopedBgKey(baseKey)) ?? localStorage.getItem(baseKey) ?? fallback;
+}
+
 function loadBackground() {
-    const saved    = localStorage.getItem(BG_KEY) || 'default';
-    const savedImg = localStorage.getItem(BG_IMG_KEY) || null;
+    const savedValue = readBackgroundSetting(BG_KEY, 'default');
+    const saved    = ['default', 'terrace', 'custom'].includes(savedValue) ? savedValue : 'default';
+    const savedImg = readBackgroundSetting(BG_IMG_KEY, null);
     let savedPos = [50, 50];
     try {
-        const parsed = JSON.parse(localStorage.getItem(BG_POS_KEY) || '[50,50]');
+        const parsed = JSON.parse(readBackgroundSetting(BG_POS_KEY, '[50,50]'));
         if (Array.isArray(parsed) && parsed.length === 2 && parsed.every(Number.isFinite)) savedPos = parsed;
     } catch {
-        localStorage.removeItem(BG_POS_KEY);
+        localStorage.removeItem(scopedBgKey(BG_POS_KEY));
     }
     _bgPosX = savedPos[0]; _bgPosY = savedPos[1];
     applyBackground(saved, saved === 'custom' ? savedImg : null);
-    document.querySelectorAll('.bg-opt[data-bg]').forEach(b => {
-        b.classList.toggle('active', b.dataset.bg === saved);
-    });
 }
 
 function applyBackground(key, customUrl) {
@@ -44,16 +50,22 @@ function applyBackground(key, customUrl) {
         stage.style.backgroundPosition = `${_bgPosX}% ${_bgPosY}%`;
         stage.style.cursor = 'grab';
         try {
-            localStorage.setItem(BG_IMG_KEY, customUrl);
+            localStorage.setItem(scopedBgKey(BG_IMG_KEY), customUrl);
         } catch {
             showToast('背景圖片太大，無法儲存在此裝置。');
         }
     } else if (key !== 'default') {
         stage.classList.add(`bg-${key}`);
     }
-    localStorage.setItem(BG_KEY, key);
+    localStorage.setItem(scopedBgKey(BG_KEY), key);
+    document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.toggle('active', b.dataset.bg === key));
+    document.querySelector('.bg-upload-label')?.classList.toggle('active', key === 'custom');
+    const uploadPreview = document.getElementById('bg-upload-preview');
+    if (uploadPreview && customUrl) uploadPreview.style.backgroundImage = `url("${customUrl.replaceAll('"', '%22')}")`;
     const hint = document.getElementById('pet-bg-drag-hint');
     if (hint) hint.style.display = key === 'custom' ? 'flex' : 'none';
+    const resetBtn = document.getElementById('btn-reset-bg-position');
+    if (resetBtn) resetBtn.style.display = key === 'custom' ? '' : 'none';
 }
 
 function setupCustomBgDrag() {
@@ -80,7 +92,40 @@ function setupCustomBgDrag() {
         if (!_bgDrag.active) return;
         _bgDrag.active     = false;
         stage.style.cursor = 'grab';
-        localStorage.setItem(BG_POS_KEY, JSON.stringify([_bgPosX, _bgPosY]));
+        localStorage.setItem(scopedBgKey(BG_POS_KEY), JSON.stringify([_bgPosX, _bgPosY]));
+    });
+}
+
+function closeBackgroundPicker() {
+    const picker = document.getElementById('pet-bg-picker');
+    const button = document.getElementById('btn-change-bg');
+    picker.style.display = 'none';
+    button.setAttribute('aria-expanded', 'false');
+}
+
+function prepareBackgroundImage(file) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('請選擇圖片檔案'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('無法讀取這張圖片'));
+        reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error('這個圖片格式目前無法使用'));
+            image.onload = () => {
+                const maxEdge = 1600;
+                const ratio = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+                canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+                canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', .84));
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
     });
 }
 
@@ -93,6 +138,8 @@ const SPEECHES = {
     LONELY:   ['好久沒有一起玩了...', '陪我一下嘛。'],
     DIRTY:    ['該整理一下了。', '幫我清潔一下吧！'],
     CRITICAL: ['我現在很需要大家照顧...', '先看看哪個狀態最低。'],
+    RESCUE:   ['我被困住了…一起開場聚會救我出去！', '我在等大家，完成一場聚會牢籠就會打開。'],
+    MEETING_WARNING: ['有點想大家了，這週找時間聚一聚吧。', '好久沒一起專注了，我在等下一場聚會。'],
 };
 
 const STATUS_META = {
@@ -179,7 +226,7 @@ export function init() {
     };
 
     document.getElementById('pet-avatar-wrap').addEventListener('click', () => {
-        if (_actionLock) return;
+        if (_actionLock || _groupPet?.pet_is_caged) return;
         const s = CLICK_CYCLE[_clickIdx % CLICK_CYCLE.length];
         _clickIdx++;
         applyAvatarState(s.anim, true);
@@ -203,27 +250,39 @@ export function init() {
     // 背景切換
     document.getElementById('btn-change-bg').onclick = () => {
         const picker = document.getElementById('pet-bg-picker');
-        picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+        const opening = picker.style.display === 'none';
+        picker.style.display = opening ? 'block' : 'none';
+        document.getElementById('btn-change-bg').setAttribute('aria-expanded', String(opening));
     };
+    document.getElementById('btn-close-bg-picker').onclick = closeBackgroundPicker;
     document.querySelectorAll('.bg-opt[data-bg]').forEach(btn => {
         btn.onclick = () => {
             applyBackground(btn.dataset.bg);
-            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('pet-bg-picker').style.display = 'none';
+            closeBackgroundPicker();
         };
     });
-    document.getElementById('bg-upload-input').onchange = (e) => {
+    document.getElementById('btn-reset-bg-position').onclick = () => {
+        _bgPosX = 50; _bgPosY = 50;
+        document.getElementById('pet-stage').style.backgroundPosition = '50% 50%';
+        localStorage.setItem(scopedBgKey(BG_POS_KEY), '[50,50]');
+        showToast('背景構圖已重設');
+    };
+    document.getElementById('bg-upload-input').onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
+        const uploadTile = document.querySelector('.bg-upload-label');
+        uploadTile.classList.add('is-loading');
+        try {
+            const imageUrl = await prepareBackgroundImage(file);
             _bgPosX = 50; _bgPosY = 50;
-            applyBackground('custom', ev.target.result);
-            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
-            document.getElementById('pet-bg-picker').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+            applyBackground('custom', imageUrl);
+            closeBackgroundPicker();
+        } catch (error) {
+            showToast(error.message || '背景處理失敗', 'warn');
+        } finally {
+            uploadTile.classList.remove('is-loading');
+            e.target.value = '';
+        }
     };
 
     setupCustomBgDrag();
@@ -233,7 +292,6 @@ export function init() {
 // ── 進入 / 離開 ───────────────────────────────────────────────────────────────
 
 async function onShow() {
-    loadBackground();
     const directGroupId = state.tamagotchiGroupId || null;
 
     if (directGroupId) {
@@ -242,6 +300,7 @@ async function onShow() {
         _groupId    = directGroupId;
         _isCreator  = false;
         _groupPet   = null;
+        loadBackground();
         showLoading(true);
         await loadGroupPet();
         startPolling();
@@ -293,31 +352,42 @@ function renderPetList() {
     _groupPets.forEach(({ group_id, group_name, is_creator, pet }, index) => {
         const energy  = pet.pet_energy ?? 50;
         const maxE    = pet.pet_max_energy ?? 100;
-        const hp      = pet.pet_hp ?? 5;
         const status  = pet.pet_status || 'NORMAL';
         const statusMeta = STATUS_META[status] || STATUS_META.NORMAL;
         const level = pet.pet_level ?? 1;
-        const card = document.createElement('div');
+        const isCaged = Boolean(pet.pet_is_caged);
+        const meetingWarning = Boolean(pet.pet_meeting_warning);
+        const visitorEntry = index === 0 && _groupPets.length > 1 ? _groupPets[1] : null;
+        const sceneClass = index % 2 === 0 ? 'scene-sunroom' : 'scene-terrace';
+        const card = document.createElement('article');
         card.className = 'pet-list-card';
         card.style.setProperty('--pet-card-index', String(Math.min(8, index)));
         card.innerHTML = `
-            <img class="pet-list-avatar" src="${escHtml(pet.pet_face_url)}" alt="寵物頭像">
-            <div class="pet-list-info">
-                <div class="pet-list-name">${escHtml(pet.pet_name || '群組寵物')}<span class="pet-list-level">LV ${level}</span></div>
-                <div class="pet-list-group">${escHtml(group_name)}</div>
-                <div class="pet-list-status">
-                    <span><i data-lucide="${statusMeta.icon}"></i>${statusMeta.text}</span>
-                    <span class="pet-list-energy"><i data-lucide="utensils"></i>${energy}/${maxE}</span>
+            <div class="pet-list-scene ${sceneClass}${isCaged ? ' is-caged' : ''}">
+                <span class="pet-list-scene-label">${index % 2 === 0 ? '晨光起居室' : '黃昏露台'}</span>
+                <div class="pet-list-pet-wrap">
+                    <img class="pet-list-avatar" src="${escHtml(pet.pet_face_url)}" alt="${escHtml(pet.pet_name || '群組寵物')}">
                 </div>
-                <div class="pet-list-hp">${
-                    Array.from({length: 5}, (_, i) =>
-                        `<i data-lucide="heart" class="pet-hp-heart${i < hp ? ' is-filled' : ' empty'}"></i>`
-                    ).join('')
-                }</div>
+                ${visitorEntry && !isCaged ? `
+                    <div class="pet-list-visitor" aria-label="${escHtml(visitorEntry.pet.pet_name || '另一隻寵物')}來串門">
+                        <img src="${escHtml(visitorEntry.pet.pet_face_url)}" alt="">
+                        <span>${escHtml(visitorEntry.pet.pet_name || '朋友')}來串門</span>
+                    </div>` : ''}
+                ${isCaged ? `<div class="pet-list-cage" aria-hidden="true"><span></span><span></span><span></span><span></span></div>` : ''}
             </div>
-            <div class="pet-list-btns">
-                <button class="btn-care-pet">照顧</button>
-                ${is_creator ? `<button class="btn-del-list-pet" title="刪除寵物"><i data-lucide="trash-2"></i></button>` : ''}
+            <div class="pet-list-body">
+                <div class="pet-list-info">
+                    <div class="pet-list-group">${escHtml(group_name)}</div>
+                    <div class="pet-list-name">${escHtml(pet.pet_name || '群組寵物')}<span class="pet-list-level">LV ${level}</span></div>
+                    <div class="pet-list-status${isCaged ? ' status-rescue' : ''}">
+                        <span><i data-lucide="${isCaged ? 'lock-keyhole' : (meetingWarning ? 'calendar-clock' : statusMeta.icon)}"></i>${isCaged ? '等待大家開一場聚會救援' : (meetingWarning ? `${Number(pet.pet_days_until_caged || 0)} 天後需要救援` : statusMeta.text)}</span>
+                        ${isCaged ? '' : `<span class="pet-list-energy"><i data-lucide="utensils"></i>${energy}/${maxE}</span>`}
+                    </div>
+                </div>
+                <div class="pet-list-btns">
+                    <button class="btn-care-pet">${isCaged ? '去救援' : '進入'}<i data-lucide="arrow-up-right"></i></button>
+                    ${is_creator ? `<button class="btn-del-list-pet" title="刪除寵物"><i data-lucide="trash-2"></i></button>` : ''}
+                </div>
             </div>
         `;
 
@@ -350,6 +420,7 @@ async function enterGroupPet(groupId, isCreator) {
     _groupId   = groupId;
     _isCreator = isCreator;
     _groupPet  = null;
+    loadBackground();
     showLoading(true);
     await loadGroupPet();
     startPolling();
@@ -382,7 +453,7 @@ async function loadGroupPet() {
 }
 
 async function doAction(action) {
-    if (_actionLock || !_groupPet?.pet_face_url) return;
+    if (_actionLock || !_groupPet?.pet_face_url || _groupPet?.pet_is_caged) return;
     _actionLock = true;
     setAllButtonsDisabled(true);
 
@@ -489,15 +560,60 @@ function renderGroupMode() {
     ).join('');
 
     const status = _groupPet.pet_status || 'NORMAL';
+    const isCaged = Boolean(_groupPet.pet_is_caged);
+    const meetingWarning = Boolean(_groupPet.pet_meeting_warning);
+    const rescueMemoryKey = `pet-was-caged:${_groupId}`;
+    const shouldPlayRelease = !isCaged && localStorage.getItem(rescueMemoryKey) === '1';
     const statusMeta = STATUS_META[status] || STATUS_META.NORMAL;
     const statusChip = document.getElementById('pet-status-chip');
-    statusChip.className = `pet-status-chip status-${status.toLowerCase()}`;
-    statusChip.innerHTML = `<i data-lucide="${statusMeta.icon}"></i><span>${statusMeta.text}</span>`;
-    applyAvatarState(statusToAnimClass(status));
-    if (_lastRenderedStatus !== status) setSpeech(status, true);
-    _lastRenderedStatus = status;
+    const stage = document.getElementById('pet-stage');
+    const rescueOverlay = document.getElementById('pet-rescue-overlay');
+    stage.classList.toggle('is-caged', isCaged);
+    rescueOverlay.style.display = isCaged ? 'block' : 'none';
+    if (isCaged) {
+        localStorage.setItem(rescueMemoryKey, '1');
+        statusChip.className = 'pet-status-chip status-rescue';
+        statusChip.innerHTML = '<i data-lucide="lock-keyhole"></i><span>等待救援</span>';
+        applyAvatarState('rescue');
+        if (_lastRenderedStatus !== 'RESCUE') setSpeech('RESCUE', true);
+        _lastRenderedStatus = 'RESCUE';
+    } else if (meetingWarning) {
+        localStorage.removeItem(rescueMemoryKey);
+        statusChip.className = 'pet-status-chip status-warning';
+        statusChip.innerHTML = `<i data-lucide="calendar-clock"></i><span>${Number(_groupPet.pet_days_until_caged || 0)} 天後需要救援</span>`;
+        applyAvatarState(statusToAnimClass(status));
+        if (_lastRenderedStatus !== 'MEETING_WARNING') setSpeech('MEETING_WARNING', true);
+        _lastRenderedStatus = 'MEETING_WARNING';
+    } else {
+        localStorage.removeItem(rescueMemoryKey);
+        statusChip.className = `pet-status-chip status-${status.toLowerCase()}`;
+        statusChip.innerHTML = `<i data-lucide="${statusMeta.icon}"></i><span>${statusMeta.text}</span>`;
+        applyAvatarState(statusToAnimClass(status));
+        if (_lastRenderedStatus !== status) setSpeech(status, true);
+        _lastRenderedStatus = status;
+    }
     renderActionButtons();
     if (window.lucide) window.lucide.createIcons();
+    if (shouldPlayRelease) playPetRelease();
+}
+
+function playPetRelease() {
+    const stage = document.getElementById('pet-stage');
+    const overlay = document.getElementById('pet-rescue-overlay');
+    const copy = overlay?.querySelector('.pet-rescue-copy');
+    if (!stage || !overlay || !copy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    copy.innerHTML = '<strong>救援成功</strong><span>聚會讓牢籠打開了，歡迎回來</span>';
+    overlay.style.display = 'block';
+    overlay.classList.remove('is-releasing');
+    void overlay.offsetWidth;
+    overlay.classList.add('is-releasing');
+    playPetMotion('play');
+    playPetReaction('play');
+    window.setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.classList.remove('is-releasing');
+        copy.innerHTML = '<strong>等你們來救我</strong><span>完成一場群組聚會，牢籠就會打開</span>';
+    }, 1250);
 }
 
 // ── 改名 ──────────────────────────────────────────────────────────────────────
@@ -728,13 +844,14 @@ function setAllButtonsDisabled(disabled) {
 
 function renderActionButtons() {
     const cooldowns = _groupPet?.pet_cooldowns || {};
+    const isCaged = Boolean(_groupPet?.pet_is_caged);
     for (const action of ['feed', 'wipe', 'play']) {
         const remaining = Math.max(0, Math.ceil(Number(cooldowns[action] || 0)));
         const button = document.getElementById(`btn-pet-${action}`);
         const stateEl = document.getElementById(`pet-${action}-state`);
-        button.disabled = _actionLock || remaining > 0;
+        button.disabled = _actionLock || remaining > 0 || isCaged;
         button.classList.toggle('is-cooling', remaining > 0);
-        stateEl.textContent = remaining > 0 ? formatCooldown(remaining) : '可互動';
+        stateEl.textContent = isCaged ? '完成聚會解鎖' : (remaining > 0 ? formatCooldown(remaining) : '可互動');
     }
 }
 

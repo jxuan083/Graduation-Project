@@ -8,7 +8,7 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=37';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=38';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);

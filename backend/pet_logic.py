@@ -22,6 +22,8 @@ GROUP_PET_DECAY_PER_HOUR = {
     "pet_cleanliness": 0.35,
 }
 GROUP_PET_ACTION_COOLDOWN_SECONDS = 10 * 60
+PET_MEETING_REMINDER_DAYS = 7
+PET_RESCUE_DAYS = 14
 PET_XP_PER_LEVEL = 100
 PET_ACCESSORY_UNLOCKS = {
     3: "bell",
@@ -106,6 +108,22 @@ def group_pet_growth(data: dict) -> dict:
     }
 
 
+def group_pet_meeting_state(data: dict, now: datetime.datetime | None = None) -> dict:
+    """依最後聚會時間判斷提醒／待救援狀態；新寵物以建立時間起算。"""
+    anchor = data.get("pet_last_session_at") or data.get("pet_face_updated_at") or data.get("created_at")
+    if _as_naive_utc(anchor) is None:
+        days_since = 0
+    else:
+        days_since = int(elapsed_hours(anchor, now) // 24)
+    is_caged = days_since >= PET_RESCUE_DAYS
+    return {
+        "pet_days_since_meeting": days_since,
+        "pet_meeting_warning": PET_MEETING_REMINDER_DAYS <= days_since < PET_RESCUE_DAYS,
+        "pet_is_caged": is_caged,
+        "pet_days_until_caged": max(0, PET_RESCUE_DAYS - days_since),
+    }
+
+
 def group_pet_session_xp(avg_score: int | float, duration_minutes: int | float) -> int:
     """低頻聚會採高回饋：完成保底、時數為主，專注品質提供小幅加成。"""
     score = max(0.0, min(100.0, float(avg_score)))
@@ -159,4 +177,5 @@ def group_pet_display(data: dict, now: datetime.datetime | None = None) -> dict:
         ),
         "pet_hp": group_pet_hp(stats),
         **group_pet_growth(data),
+        **group_pet_meeting_state(data, now),
     }

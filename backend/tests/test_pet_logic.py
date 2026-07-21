@@ -13,6 +13,7 @@ from pet_logic import (  # noqa: E402
     group_pet_current_stats,
     group_pet_display,
     group_pet_growth,
+    group_pet_meeting_state,
     group_pet_session_xp,
     group_pet_status,
 )
@@ -79,6 +80,32 @@ class PetLogicTests(unittest.TestCase):
         last = self.now - datetime.timedelta(seconds=301.2)
         self.assertEqual(cooldown_remaining_seconds(last, self.now), 299)
         self.assertEqual(cooldown_remaining_seconds(self.now - datetime.timedelta(minutes=10), self.now), 0)
+
+    def test_meeting_rescue_state_has_grace_period(self):
+        created = self.now - datetime.timedelta(days=7)
+        state = group_pet_meeting_state({"created_at": created}, self.now)
+        self.assertTrue(state["pet_meeting_warning"])
+        self.assertFalse(state["pet_is_caged"])
+        self.assertEqual(state["pet_days_until_caged"], 7)
+
+    def test_pet_is_caged_after_fourteen_days_without_meeting(self):
+        state = group_pet_meeting_state(
+            {"pet_last_session_at": self.now - datetime.timedelta(days=14)},
+            self.now,
+        )
+        self.assertTrue(state["pet_is_caged"])
+        self.assertEqual(state["pet_days_until_caged"], 0)
+
+    def test_recent_meeting_releases_pet(self):
+        state = group_pet_meeting_state(
+            {
+                "created_at": self.now - datetime.timedelta(days=90),
+                "pet_last_session_at": self.now - datetime.timedelta(days=1),
+            },
+            self.now,
+        )
+        self.assertFalse(state["pet_meeting_warning"])
+        self.assertFalse(state["pet_is_caged"])
 
     def test_group_actions_are_bounded(self):
         stats = {"pet_energy": 90.0, "pet_happiness": 50.0, "pet_cleanliness": 80.0}

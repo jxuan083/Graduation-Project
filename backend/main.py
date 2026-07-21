@@ -28,6 +28,7 @@ from pet_logic import (
     group_pet_display as _group_pet_display,
     group_pet_growth as _group_pet_growth,
     group_pet_hp as _group_pet_hp,
+    group_pet_meeting_state as _group_pet_meeting_state,
     group_pet_session_xp as _group_pet_session_xp,
     group_pet_status as _group_pet_status,
 )
@@ -3077,6 +3078,11 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             raise HTTPException(status_code=403, detail="你不是群組成員")
         if not data.get("pet_face_url"):
             raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
+        if _group_pet_meeting_state(data).get("pet_is_caged"):
+            raise HTTPException(
+                status_code=423,
+                detail={"message": "寵物正在等待救援，完成一場群組聚會才能解鎖互動"},
+            )
 
         # 在 transaction 內從最新版本計算，避免多人同時操作互相覆蓋。
         cooldowns = data.get("pet_action_cooldowns") or {}
