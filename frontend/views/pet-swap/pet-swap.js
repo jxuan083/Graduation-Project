@@ -1,6 +1,4 @@
 import { register, switchView } from '../../core/router.js';
-import { apiFetch } from '../../core/api.js';
-import { storage } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
 import { t } from '../../core/i18n.js';
 
@@ -83,7 +81,7 @@ export function init() {
     });
 
     document.getElementById('btn-pet-swap-back').onclick = () => {
-        switchView(state.petSwapOrigin === 'personal' ? 'view-pet-tamagotchi' : 'view-group-setup');
+        switchView('view-group-setup');
     };
     document.getElementById('btn-pet-camera').onclick = startLiveCamera;
     document.getElementById('btn-pet-flip').onclick = flipCamera;
@@ -108,7 +106,6 @@ export function init() {
     document.getElementById('btn-pet-reset').onclick = resetFilterControls;
     document.getElementById('btn-pet-download').onclick = downloadCanvas;
     document.getElementById('btn-pet-set-avatar').onclick = setAsGroupAvatar;
-    document.getElementById('btn-pet-adopt').onclick = adoptPet;
     ['pet-control-scale', 'pet-control-x', 'pet-control-y', 'pet-control-rotation'].forEach(id => {
         document.getElementById(id).addEventListener('input', renderFilter);
     });
@@ -651,61 +648,6 @@ async function setAsGroupAvatar() {
     }
 }
 
-async function adoptPet() {
-    if (!state.currentUser) { showError('請先登入才能養寵物。'); return; }
-    const adoptBtn = document.getElementById('btn-pet-adopt');
-    const adoptLoad = document.getElementById('pet-adopt-loading');
-    adoptBtn.disabled = true;
-    adoptLoad.style.display = 'block';
-    hideError();
-    try {
-        const blob = await getRenderedBlob();
-        const uid = state.currentUser.uid;
-        const file = new File([blob], 'pet.jpg', { type: 'image/jpeg' });
-        const toUpload = await compressImage(file, 512, 0.85);
-        const ref = storage.ref().child(`pet-images/${uid}/pet.jpg`);
-        const snap = await ref.put(toUpload, { contentType: 'image/jpeg' });
-        const imageUrl = await snap.ref.getDownloadURL();
-        const animal = ANIMALS.includes(selectedAnimal) ? selectedAnimal : 'dog';
-        const { res, data } = await apiFetch('/api/my-pet/setup', {
-            method: 'POST',
-            body: JSON.stringify({ image_url: imageUrl, animal, name: '' }),
-        });
-        if (!res.ok) {
-            throw new Error(data?.detail || t('建立寵物失敗（HTTP {status}）', { status: res.status }));
-        }
-        setStatus('已成功建立你的寵物。');
-        closeSheet('pet-result-sheet');
-        switchView('view-pet-tamagotchi');
-    } catch (err) {
-        showError(err.message || String(err));
-    } finally {
-        adoptBtn.disabled = false;
-        adoptLoad.style.display = 'none';
-    }
-}
-
-function compressImage(file, maxPx, quality) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-            URL.revokeObjectURL(url);
-            let { width, height } = img;
-            if (width > maxPx || height > maxPx) {
-                if (width > height) { height = Math.round(height * maxPx / width); width = maxPx; }
-                else { width = Math.round(width * maxPx / height); height = maxPx; }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
-            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality);
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-        img.src = url;
-    });
-}
-
 // ── sheet 開關 ──
 function openSheet(id) {
     document.getElementById(id).hidden = false;
@@ -720,7 +662,6 @@ function syncResultButtons() {
     document.getElementById('btn-pet-generate').disabled = !ready || sourceMode === 'video';
     document.getElementById('btn-pet-reset').disabled = !ready;
     document.getElementById('btn-pet-download').disabled = !ready;
-    document.getElementById('btn-pet-adopt').disabled = !ready;
     const avatarBtn = document.getElementById('btn-pet-set-avatar');
     avatarBtn.style.display = state.currentGroupDetail?.group_id ? '' : 'none';
     avatarBtn.disabled = !ready;
@@ -744,7 +685,6 @@ function resetView() {
     setLoading(false);
     hideError();
     setStatus('開啟鏡頭，左右滑選濾鏡，點中間圓圈拍照。');
-    document.getElementById('pet-adopt-loading').style.display = 'none';
     document.getElementById('pet-album-input').value = '';
 }
 

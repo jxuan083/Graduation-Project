@@ -13,15 +13,6 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 
-    // 個人寵物圖：前端會上傳到 pet-images/{uid}/pet.jpg。
-    match /pet-images/{uid}/{fileName} {
-      allow read: if true;
-      allow write: if request.auth != null
-                   && request.auth.uid == uid
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/(jpeg|png|webp)');
-    }
-
     // 群組聊天室媒體（圖片 / 語音）：只有該群組成員能上傳到自己的資料夾。
     // 讀取靠帶 token 的下載 URL（同頭像模式），URL 只會出現在群組訊息裡。
     // 路徑慣例：group-chat/{groupId}/{uid}/<filename>

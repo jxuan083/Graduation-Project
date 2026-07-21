@@ -172,7 +172,6 @@ function renderMembers(g) {
     ul.querySelectorAll('.btn-pet-gen').forEach(btn => {
         btn.onclick = () => {
             state.petSwapTarget = { uid: btn.dataset.uid, nickname: btn.dataset.nickname };
-            state.petSwapOrigin = 'group';
             switchView('view-pet-swap');
         };
     });

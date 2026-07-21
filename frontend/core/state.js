@@ -31,6 +31,8 @@ export const state = {
     totalDeviations: 0,        // 整個房間的分心總次數
     myDeviations: 0,           // 我自己的分心次數
     meetingGroupPetFace: '',   // 本場聚會綁定群組的寵物臉 URL（聚會中吉祥物用，隨 room_state 廣播）
+    meetingGroupPetName: '',
+    meetingGroupPetLevel: 1,
 
     // === 聚會設定 (meeting-setup) ===
     currentContext: 'general',
@@ -44,7 +46,6 @@ export const state = {
     currentGroupDetail: null,       // 正在查看的群組 detail
     pendingGroupInviteCode: null,   // URL ?group_invite=CODE 暫存
     petSwapTarget: null,            // { uid, nickname } 要生成寵物臉的成員
-    petSwapOrigin: null,            // 'group' | 'personal'，決定寵物臉頁返回去向
 
     // === Sync Ritual ===
     holdInterval: null,

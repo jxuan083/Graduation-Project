@@ -14,11 +14,11 @@ import { listenAuthChanges } from './core/firebase.js';
 import { loadBackendVersion, apiFetch } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
-import { showJoinView } from './views/join/join.js?v=35';
+import { showJoinView } from './views/join/join.js?v=37';
 import { events } from './core/events.js';
-import { initI18n, t } from './core/i18n.js?v=35';
+import { initI18n, t } from './core/i18n.js?v=37';
 
-const ASSET_VERSION = '35';
+const ASSET_VERSION = '37';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -37,42 +37,42 @@ const VIEW_NAMES = [
 
 // ===== view 模組(動態 import,parallel) =====
 const VIEW_MODULES = {
-    'home':              () => import('./views/home/home.js?v=35'),
-    'scanner':           () => import('./views/scanner/scanner.js?v=35'),
-    'meetings':          () => import('./views/meetings/meetings.js?v=35'),
-    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=35'),
-    'friends':           () => import('./views/friends/friends.js?v=35'),
-    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=35'),
-    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=35'),
-    'question-bank':     () => import('./views/question-bank/question-bank.js?v=35'),
-    'question-edit':     () => import('./views/question-edit/question-edit.js?v=35'),
-    'qa-source':         () => import('./views/qa-source/qa-source.js?v=35'),
-    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=35'),
-    'profile':           () => import('./views/profile/profile.js?v=35'),
-    'join':              () => import('./views/join/join.js?v=35'),
-    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=35'),
-    'host-room':         () => import('./views/host-room/host-room.js?v=35'),
-    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=35'),
-    'focus':             () => import('./views/focus/focus.js?v=35'),
-    'qa-game':           () => import('./views/qa-game/qa-game.js?v=35'),
-    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=35'),
-    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=35'),
-    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=35'),
-    'buffer':            () => import('./views/buffer/buffer.js?v=35'),
-    'summary':           () => import('./views/summary/summary.js?v=35'),
-    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=35'),
-    'member-preview':    () => import('./views/member-preview/member-preview.js?v=35'),
-    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=35'),
-    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=35'),
-    'groups':            () => import('./views/groups/groups.js?v=35'),
-    'group':             () => import('./views/group/group.js?v=35'),
-    'group-setup':       () => import('./views/group-setup/group-setup.js?v=35'),
-    'group-invite':      () => import('./views/group-invite/group-invite.js?v=35'),
-    'pet-vote':          () => import('./views/pet-vote/pet-vote.js?v=35'),
-    'group-chat':        () => import('./views/group-chat/group-chat.js?v=35'),
-    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=35'),
-    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=35'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=35'),
+    'home':              () => import('./views/home/home.js?v=37'),
+    'scanner':           () => import('./views/scanner/scanner.js?v=37'),
+    'meetings':          () => import('./views/meetings/meetings.js?v=37'),
+    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=37'),
+    'friends':           () => import('./views/friends/friends.js?v=37'),
+    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=37'),
+    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=37'),
+    'question-bank':     () => import('./views/question-bank/question-bank.js?v=37'),
+    'question-edit':     () => import('./views/question-edit/question-edit.js?v=37'),
+    'qa-source':         () => import('./views/qa-source/qa-source.js?v=37'),
+    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=37'),
+    'profile':           () => import('./views/profile/profile.js?v=37'),
+    'join':              () => import('./views/join/join.js?v=37'),
+    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=37'),
+    'host-room':         () => import('./views/host-room/host-room.js?v=37'),
+    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=37'),
+    'focus':             () => import('./views/focus/focus.js?v=37'),
+    'qa-game':           () => import('./views/qa-game/qa-game.js?v=37'),
+    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=37'),
+    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=37'),
+    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=37'),
+    'buffer':            () => import('./views/buffer/buffer.js?v=37'),
+    'summary':           () => import('./views/summary/summary.js?v=37'),
+    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=37'),
+    'member-preview':    () => import('./views/member-preview/member-preview.js?v=37'),
+    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=37'),
+    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=37'),
+    'groups':            () => import('./views/groups/groups.js?v=37'),
+    'group':             () => import('./views/group/group.js?v=37'),
+    'group-setup':       () => import('./views/group-setup/group-setup.js?v=37'),
+    'group-invite':      () => import('./views/group-invite/group-invite.js?v=37'),
+    'pet-vote':          () => import('./views/pet-vote/pet-vote.js?v=37'),
+    'group-chat':        () => import('./views/group-chat/group-chat.js?v=37'),
+    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=37'),
+    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=37'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=37'),
 };
 
 async function loadAllViewHtml() {

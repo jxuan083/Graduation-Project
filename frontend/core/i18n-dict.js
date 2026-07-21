@@ -34,8 +34,6 @@ export const dict = {
     '題庫管理': 'Question Bank',
     '自訂問答題目': 'Customize Q&A questions',
     '查看本週排名': 'See this week\'s ranking',
-    '我的寵物': 'My Pet',
-    '陪伴你的小可愛': 'Keep your buddy company',
     '等朋友一起聚會': 'Waiting for friends to gather',
     '也可以直接用手機相機掃 QR Code 加入': 'You can also join by scanning the QR code with your phone camera',
     '查看': 'View',
@@ -544,9 +542,6 @@ export const dict = {
     '🛁 清潔': '🛁 Cleanliness',
     '♥ 我的收藏': '♥ My Favorites',
     '還沒有寵物': 'No pet yet',
-    '還沒有個人寵物': 'No personal pet yet',
-    '你可以先建立個人寵物，或和朋友一起養群組寵物。': 'Create a personal pet, or raise a shared group pet with friends.',
-    '建立我的寵物': 'Create My Pet',
     '請先生成寵物臉再養它！': 'Please generate a pet face before taking care of it!',
     '請先在群組設定頁生成並設定寵物臉！': 'Please generate and set a pet face on the group settings page first!',
 
@@ -811,7 +806,7 @@ export const dict = {
     '停止': 'Stop',
     '編輯': 'Edit',
 
-    // --- merged-main additions (pet-swap camera, my-pet delete, schedule gathering) ---
+    // --- merged-main additions (pet-swap camera, schedule gathering) ---
     '🗑️ 刪除': '🗑️ Delete',
     '上下': 'Up / Down',
     '左右': 'Left / Right',
@@ -1132,12 +1127,10 @@ export const dict = {
     '😟 肚子餓': '😟 Hungry',
     '💀 危急': '💀 Critical',
     '寵物頭像': 'Pet avatar',
-    '個人寵物': 'Personal Pet',
     '刪除寵物': 'Delete pet',
     '寵物互動失敗': 'Pet interaction failed',
     '先生成一張寵物臉，再回來養它！': 'Generate a pet face first, then come back to raise it!',
     '改名失敗': 'Rename failed',
-    '確定要刪除個人寵物？': 'Delete your personal pet?',
     '刪除目標無效': 'Invalid delete target',
     '汪汪！你好！': 'Woof! Hello!',
     '今天天氣很好～': 'Lovely weather today~',

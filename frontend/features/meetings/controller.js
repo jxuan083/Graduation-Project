@@ -5,7 +5,7 @@ import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
 import { t } from '../../core/i18n.js';
-import { renderMeetingNews } from '../../views/meeting-news/meeting-news.js?v=35';
+import { renderMeetingNews } from '../../views/meeting-news/meeting-news.js?v=37';
 
 const MEETINGS_DISPLAY_LIMIT = 10;
 let _allMeetings = [];

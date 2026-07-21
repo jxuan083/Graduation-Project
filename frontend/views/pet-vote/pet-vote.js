@@ -132,7 +132,6 @@ async function handleConfirm() {
         const g = state.currentGroupDetail;
         const winner = pickWinner(g);
         state.petSwapTarget = winner ? { uid: winner.uid, nickname: winner.nickname } : null;
-        state.petSwapOrigin = 'group';
         switchView('view-pet-swap');
     } catch (err) {
         alert(t('更新失敗：') + (err.message || err));

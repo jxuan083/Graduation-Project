@@ -3,29 +3,22 @@
     <!-- 寵物列表 -->
     <div id="pet-list-screen" style="display:none; width:100%;">
         <div class="pet-list-header">
-            <h2>我的寵物</h2>
+            <h2>群組寵物</h2>
             <button id="btn-pet-list-back" class="btn secondary" style="padding:6px 14px; font-size:0.85rem;">返回</button>
         </div>
         <div id="pet-list-empty" class="pet-no-pet-card" style="display:none;">
-            <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
-            <h2>還沒有寵物</h2>
-            <p>你可以先建立個人寵物，或和朋友一起養群組寵物。</p>
+            <div class="pet-empty-icon"><i data-lucide="paw-print"></i></div>
+            <h2>還沒有群組寵物</h2>
+            <p>請先加入群組，並在群組設定中建立寵物。</p>
         </div>
         <div id="pet-list-cards" class="pet-list-cards"></div>
-        <!-- 一律顯示：不管有沒有群組寵物，都能建立自己的個人寵物 -->
-        <button id="btn-create-personal-pet" class="btn primary">
-            <i data-lucide="wand-2"></i> 建立我的寵物
-        </button>
     </div>
 
     <!-- 尚無寵物 -->
     <div id="pet-no-pet" class="pet-no-pet-card" style="display:none;">
-        <div style="font-size:3rem; margin-bottom:12px;">🐾</div>
+        <div class="pet-empty-icon"><i data-lucide="paw-print"></i></div>
         <h2 id="pet-no-pet-title">還沒有寵物</h2>
-        <p id="pet-no-pet-desc">先去生成一張寵物臉，再回來養它！</p>
-        <button id="btn-go-pet-swap" class="btn primary" style="width:100%; margin-bottom:10px;">
-            <i data-lucide="wand-2"></i> 去生成寵物臉
-        </button>
+        <p id="pet-no-pet-desc">請先在群組設定頁生成並設定寵物臉！</p>
         <button id="btn-pet-tama-back-nopet" class="btn secondary" style="width:100%;">返回</button>
     </div>
 
@@ -40,9 +33,34 @@
 
         <!-- 名稱列 -->
         <div class="pet-name-row">
-            <h2 id="pet-tama-name">我的寵物</h2>
+            <h2 id="pet-tama-name">群組寵物</h2>
             <button id="btn-pet-rename" style="display:none;"><i data-lucide="pencil"></i> 改名</button>
             <button id="btn-pet-delete" style="display:none;"><i data-lucide="trash-2"></i></button>
+        </div>
+
+        <div class="pet-growth-panel" aria-label="寵物成長進度">
+            <div class="pet-level-mark">
+                <span>LV</span>
+                <strong id="pet-level">1</strong>
+            </div>
+            <div class="pet-growth-main">
+                <div class="pet-growth-meta">
+                    <span id="pet-stage-label">幼年期</span>
+                    <span id="pet-xp-label">0 / 100 XP</span>
+                </div>
+                <div class="pet-xp-track" role="progressbar" aria-label="升級進度" aria-valuemin="0" aria-valuemax="100">
+                    <div id="pet-xp-fill" class="pet-xp-fill"></div>
+                </div>
+                <div class="pet-growth-foot">
+                    <span><i data-lucide="calendar-check"></i><b id="pet-meeting-count">0</b> 次共同聚會</span>
+                    <span id="pet-last-reward" style="display:none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="pet-unlocks" class="pet-unlocks" style="display:none;" aria-label="已解鎖收藏">
+            <span class="pet-unlocks-label">共同回憶</span>
+            <div id="pet-unlock-items" class="pet-unlock-items"></div>
         </div>
 
         <!-- 舞台 -->
@@ -52,30 +70,29 @@
                 <i data-lucide="image"></i>
             </button>
 
-            <div id="pet-speech" class="pet-speech">汪汪！</div>
-            <div class="pet-zzz" id="pet-zzz">
-                <span>Z</span><span>z</span><span>z</span>
+            <div id="pet-status-chip" class="pet-status-chip">
+                <i data-lucide="circle-check"></i>
+                <span>狀態良好</span>
             </div>
+            <div id="pet-speech" class="pet-speech">汪汪！</div>
+            <div class="pet-ground-shadow" aria-hidden="true"></div>
             <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
                 <img id="pet-avatar-img" src="" alt="寵物" />
             </div>
-            <div class="pet-poop-wrap">
-                <span id="pet-poop-icon" class="pet-poop-icon">💩</span>
-                <span id="pet-pee-icon"  class="pet-pee-icon">💦</span>
-            </div>
+            <div id="pet-reaction-layer" class="pet-reaction-layer" aria-hidden="true"></div>
         </div>
 
         <!-- 背景選擇列 -->
         <div id="pet-bg-picker" class="pet-bg-picker" style="display:none;">
             <button class="bg-opt" data-bg="default">預設</button>
-            <button class="bg-opt" data-bg="meadow">🌿 草地</button>
-            <button class="bg-opt" data-bg="night">🌙 夜晚</button>
-            <button class="bg-opt" data-bg="beach">🏖️ 海邊</button>
-            <button class="bg-opt" data-bg="forest">🌲 森林</button>
-            <button class="bg-opt" data-bg="sunset">🌅 黃昏</button>
-            <button class="bg-opt" data-bg="snow">❄️ 雪地</button>
+            <button class="bg-opt" data-bg="meadow"><i data-lucide="sprout"></i>草地</button>
+            <button class="bg-opt" data-bg="night"><i data-lucide="moon"></i>夜晚</button>
+            <button class="bg-opt" data-bg="beach"><i data-lucide="waves"></i>海邊</button>
+            <button class="bg-opt" data-bg="forest"><i data-lucide="trees"></i>森林</button>
+            <button class="bg-opt" data-bg="sunset"><i data-lucide="sunset"></i>黃昏</button>
+            <button class="bg-opt" data-bg="snow"><i data-lucide="snowflake"></i>雪地</button>
             <label class="bg-opt bg-upload-label">
-                📷 自訂
+                <i data-lucide="camera"></i>自訂
                 <input type="file" id="bg-upload-input" accept="image/*" style="display:none;">
             </label>
         </div>
@@ -85,44 +102,7 @@
             <span>拖曳舞台可調整背景位置</span>
         </div>
 
-        <!-- 個人模式數值條 -->
-        <div id="pet-personal-stats" class="pet-stats">
-            <div class="stat-row">
-                <div class="stat-label">
-                    <i data-lucide="beef" class="stat-icon hunger-icon"></i>
-                    <span>飢餓</span>
-                </div>
-                <div class="stat-bar"><div id="fill-hunger" class="stat-fill hunger-fill" style="width:0%"></div></div>
-                <span class="stat-val" id="val-hunger">0</span>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label">
-                    <i data-lucide="heart" class="stat-icon happiness-icon"></i>
-                    <span>快樂</span>
-                </div>
-                <div class="stat-bar"><div id="fill-happiness" class="stat-fill happiness-fill" style="width:0%"></div></div>
-                <span class="stat-val" id="val-happiness">0</span>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label">
-                    <i data-lucide="zap" class="stat-icon energy-icon"></i>
-                    <span>精力</span>
-                </div>
-                <div class="stat-bar"><div id="fill-energy" class="stat-fill energy-fill" style="width:0%"></div></div>
-                <span class="stat-val" id="val-energy">0</span>
-            </div>
-            <div class="stat-row">
-                <div class="stat-label">
-                    <i data-lucide="sparkles" class="stat-icon clean-icon"></i>
-                    <span>清潔</span>
-                </div>
-                <div class="stat-bar"><div id="fill-clean" class="stat-fill clean-fill" style="width:0%"></div></div>
-                <span class="stat-val" id="val-clean">0</span>
-            </div>
-        </div>
-
-        <!-- 群組模式數值條 -->
-        <div id="pet-group-stats" class="pet-stats" style="display:none;">
+        <div id="pet-group-stats" class="pet-stats">
             <div class="pet-hp-row">
                 <div class="stat-label" style="width:auto; margin-right:6px;">
                     <i data-lucide="heart" class="stat-icon happiness-icon"></i>
@@ -160,33 +140,41 @@
         <div class="pet-actions">
             <button id="btn-pet-feed" class="pet-action-btn feed-btn">
                 <i data-lucide="utensils"></i>
-                <span>餵食</span>
+                <span class="pet-action-label">餵食</span>
+                <small id="pet-feed-state">可互動</small>
             </button>
             <button id="btn-pet-wipe" class="pet-action-btn wipe-btn">
                 <i data-lucide="wind"></i>
-                <span>清潔</span>
+                <span class="pet-action-label">清潔</span>
+                <small id="pet-wipe-state">可互動</small>
             </button>
             <button id="btn-pet-play" class="pet-action-btn play-btn">
                 <i data-lucide="gamepad-2"></i>
-                <span>玩耍</span>
-            </button>
-            <button id="btn-pet-sleep" class="pet-action-btn sleep-btn">
-                <i data-lucide="moon" class="icon-sleep"></i>
-                <i data-lucide="sun" class="icon-wake" style="display:none;"></i>
-                <span>睡覺</span>
+                <span class="pet-action-label">玩耍</span>
+                <small id="pet-play-state">可互動</small>
             </button>
         </div>
+        <div id="pet-action-feedback" class="pet-action-feedback" role="status" aria-live="polite"></div>
 
         <button id="btn-pet-tama-back" class="btn secondary" style="width:100%; margin-top:4px;">返回</button>
     </div>
 
-    <!-- 載入中 -->
-    <div id="pet-tama-loading" style="text-align:center; padding:60px 0;">
-        <div class="spinner" style="margin:0 auto 12px;"></div>
-        <p class="hint">載入寵物中…</p>
+    <!-- 載入中：骨架尺寸對齊實際畫面，避免版面跳動 -->
+    <div id="pet-tama-loading" class="pet-loading-skeleton" aria-label="載入寵物中">
+        <div class="pet-skeleton-line short"></div>
+        <div class="pet-skeleton-stage"></div>
+        <div class="pet-skeleton-line"></div>
+        <div class="pet-skeleton-actions"><span></span><span></span><span></span></div>
     </div>
 
-    <!-- 改名 Overlay（個人與群組建立者） -->
+    <div id="pet-tama-error" class="pet-no-pet-card" style="display:none;" role="alert">
+        <div class="pet-empty-icon is-error"><i data-lucide="cloud-off"></i></div>
+        <h2>寵物狀態載入失敗</h2>
+        <p id="pet-error-message">請檢查網路後再試一次。</p>
+        <button id="btn-pet-retry" class="btn primary" style="width:100%;">重新載入</button>
+    </div>
+
+    <!-- 改名 Overlay（群組建立者） -->
     <div id="pet-rename-overlay" class="pet-rename-overlay" style="display:none;">
         <div class="pet-rename-box">
             <h3>幫寵物改名</h3>

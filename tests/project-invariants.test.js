@@ -31,10 +31,28 @@ test('client cannot directly overwrite user system fields', () => {
     assert.doesNotMatch(userBlock, /allow create, update/);
 });
 
-test('personal pet upload path has an explicit owner-only Storage rule', () => {
-    const rules = read('storage.rules');
-    assert.match(rules, /match \/pet-images\/\{uid\}\/\{fileName\}/);
-    assert.match(rules, /request\.auth\.uid == uid/);
+test('pet feature is group-only', () => {
+  const backend = read('backend/main.py');
+  const tamagotchi = read('frontend/views/pet-tamagotchi/pet-tamagotchi.js');
+  const petSwap = read('frontend/views/pet-swap/pet-swap.js');
+  const storageRules = read('storage.rules');
+  assert.match(backend, /@app\.get\("\/api\/group-pets"\)/);
+  for (const source of [backend, tamagotchi, petSwap]) {
+    assert.doesNotMatch(source, /\/api\/my-pet(?:s|\/|"|')/);
+    assert.doesNotMatch(source, /my_pet_/);
+  }
+  assert.doesNotMatch(storageRules, /match \/pet-images\//);
+});
+
+test('group pet is included in linked meeting rooms without requiring a target user', () => {
+  const backend = read('backend/main.py');
+  const createRoomStart = backend.indexOf('async def create_room');
+  const createRoomEnd = backend.indexOf('\n@app.', createRoomStart + 1);
+  const createRoom = backend.slice(createRoomStart, createRoomEnd);
+  assert.match(createRoom, /elif gd\.get\("pet_face_url"\):/);
+  assert.doesNotMatch(createRoom, /gd\.get\("pet_target_uid"\).*pet_face_url/);
+  assert.match(createRoom, /"group_pet_name": group_pet_name/);
+  assert.match(createRoom, /"group_pet_level": group_pet_level/);
 });
 
 test('unused Firebase Functions package is not part of the deploy surface', () => {

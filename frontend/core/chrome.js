@@ -9,8 +9,8 @@ import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=35';
-import { openFriendsView } from '../views/friends/friends.js?v=35';
+import { openProfileView } from '../views/profile/profile.js?v=37';
+import { openFriendsView } from '../views/friends/friends.js?v=37';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -41,7 +41,7 @@ export function initChrome() {
 
     document.getElementById('btn-open-profile').onclick = () => { closeMenu(); openProfileView(); };
     document.getElementById('btn-open-friends').onclick = () => { closeMenu(); openFriendsView(); };
-    document.getElementById('btn-open-my-pet').onclick = () => { closeMenu(); state.tamagotchiGroupId = null; switchView('view-pet-tamagotchi'); };
+    document.getElementById('btn-open-group-pets').onclick = () => { closeMenu(); state.tamagotchiGroupId = null; switchView('view-pet-tamagotchi'); };
     document.getElementById('btn-open-leaderboard').onclick = () => { closeMenu(); openLeaderboardView(); };
     document.getElementById('btn-menu-meetings').onclick = () => { closeMenu(); openMeetingsList(); };
     const pushButton = document.getElementById('btn-enable-push');

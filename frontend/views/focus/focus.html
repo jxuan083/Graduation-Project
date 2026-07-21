@@ -29,8 +29,13 @@
             <!-- 吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回專案既有的 Lottie 動畫 -->
             <img id="focus-pet-face" class="pa-pet-face" alt="群組寵物" style="display:none;">
             <div class="lottie-container" id="lottie-orb"></div>
+            <div id="focus-pet-identity" class="pa-pet-identity" style="display:none;">
+                <span id="focus-pet-level">LV 1</span>
+                <strong id="focus-pet-name">群組寵物</strong>
+            </div>
         </div>
-        <p class="pa-mascot-text">把手機蓋著，好好享受當下的互動吧～</p>
+        <p id="focus-pet-growth-hint" class="pa-pet-growth-hint" style="display:none;"><i data-lucide="timer"></i>聚會時間正在轉化為寵物 XP</p>
+        <p id="focus-default-mascot-text" class="pa-mascot-text">把手機蓋著，好好享受當下的互動吧～</p>
 
         <!-- 我的分心次數 -->
         <div class="pa-distraction-row">
