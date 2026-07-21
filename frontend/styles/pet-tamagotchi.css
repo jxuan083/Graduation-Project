@@ -307,10 +307,20 @@
   background: var(--bg-surface);
   background-size: cover;
   background-position: center;
-  transition: border-color 0.3s ease;
+  transition: background 0.4s ease;
 }
 
-/* 背景由 JS 直接寫 inline style，不靠 CSS class，避免 transition 干擾 */
+/* 背景 preset — Unsplash 真實照片 */
+.pet-stage[class*="bg-"] {
+  background-size: cover;
+  background-position: center;
+}
+.pet-stage.bg-meadow { background-image: linear-gradient(160deg, #dce8cc 0 58%, #aec38d 58%); }
+.pet-stage.bg-night { background-image: radial-gradient(circle at 75% 20%, #d6cba9 0 4%, transparent 4.5%), linear-gradient(155deg, #27333b, #4e5d59); }
+.pet-stage.bg-beach { background-image: linear-gradient(165deg, #d8e8e5 0 54%, #b8d5cf 54% 67%, #dec89d 67%); }
+.pet-stage.bg-forest { background-image: linear-gradient(145deg, #365347, #78916f 58%, #c9b68c); }
+.pet-stage.bg-sunset { background-image: linear-gradient(155deg, #e9c3aa, #d99b78 58%, #9b735c); }
+.pet-stage.bg-snow { background-image: linear-gradient(155deg, #edf1ed, #d9e2e2 62%, #bfcfc9); }
 
 /* 底部裝飾線 */
 .pet-stage::before {
