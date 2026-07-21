@@ -8,7 +8,7 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot } from '../views/focus/focus.js?v=30';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=35';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -92,6 +92,9 @@ function handleSyncStarted() {
 }
 
 function handleSessionEnded(msg) {
+    if (state.liveTranscript?.active) {
+        stopLiveTranscript('聚會結束，已停止即時轉文字');
+    }
     const reason = msg.reason || 'host_ended';
     // 優先用後端傳來的值（已同步），fallback 到前端本地計算
     const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
@@ -101,6 +104,14 @@ function handleSessionEnded(msg) {
     document.getElementById('summary-deviations').innerText = state.myDeviations;
     const scoreEl = document.getElementById('summary-score');
     if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
+    const memberCountEl = document.getElementById('summary-member-count');
+    if (memberCountEl) memberCountEl.innerText = (msg.deviation_ranking || []).length || 0;
+    const mascotMessage = document.getElementById('summary-mascot-message');
+    if (mascotMessage) {
+        mascotMessage.innerText = state.myDeviations <= 3
+            ? '太棒了！你非常專注，獅子獲得了豐盛養分 🎉'
+            : '下次聚會再更專注一點，獅子會更健壯的！';
+    }
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -281,4 +292,3 @@ function handleTabooEnded() {
     document.body.classList.add('mode-flow');
     try { showToast('關鍵字遊戲結束', 'info'); } catch (e) {}
 }
-

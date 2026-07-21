@@ -3,7 +3,6 @@ import { register } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import {
     openMeetingsList,
-    saveMeetingTranscriptFromInput,
     transcribeMeetingAudio,
     generateMeetingNewspaper,
 } from '../../features/meetings/controller.js';
@@ -15,7 +14,6 @@ export function init() {
     document.getElementById('btn-meeting-detail-back').onclick = openMeetingsList;
     document.getElementById('btn-md-camera-photo').onclick = () => handleDetailPhotoClick('md-camera-input');
     document.getElementById('btn-md-album-photo').onclick = () => handleDetailPhotoClick('md-album-input');
-    document.getElementById('btn-md-save-transcript').onclick = saveMeetingTranscriptFromInput;
     document.getElementById('btn-md-transcribe-audio').onclick = transcribeMeetingAudio;
     document.getElementById('btn-md-generate-newspaper').onclick = generateMeetingNewspaper;
     document.getElementById('md-camera-input').addEventListener('change', handleDetailPhotoChange);

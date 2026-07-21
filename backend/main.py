@@ -2042,7 +2042,7 @@ def _extract_key_points(transcripts: list) -> list:
         text = _clean_transcript_text(entry.get("text", ""), limit=120)
         if len(text) >= 12:
             candidates.append({
-                "speaker": entry.get("speaker_name") or entry.get("speaker_uid") or "",
+                "speaker": "",
                 "text": text,
             })
 

@@ -236,8 +236,6 @@ export const dict = {
     '選項 {num}': 'Option {num}',
     '本週(從 {month}/{day} 週一 00:00 起,台北時區)': 'This week (from {month}/{day} Mon 00:00, Taipei time)',
     '本週 {count} 場': '{count} meeting(s) this week',
-    '已儲存 {saved} 段逐字稿': 'Saved {saved} transcript segment(s)',
-    '儲存失敗: {error}': 'Save failed: {error}',
     '已轉錄並儲存 {saved} 段（{engine}）': 'Transcribed and saved {saved} segment(s) ({engine})',
     '音檔轉錄失敗: {error}': 'Audio transcription failed: {error}',
     '某段轉錄失敗: {error}': 'A transcript segment failed: {error}',
@@ -297,7 +295,6 @@ export const dict = {
     '更換頭像': 'Change Avatar',
     '儲存名稱': 'Save Name',
     '儲存題目': 'Save Question',
-    '儲存逐字稿': 'Save Transcript',
     '儲存到相簿': 'Save to Album',
     '選一題送出': 'Pick a Question to Send',
     '選一位成員作為群組寵物頭像': 'Select a member as the group pet avatar',
@@ -451,9 +448,6 @@ export const dict = {
     '嚴格': 'Strict',
     '標準': 'Standard',
     '輕鬆': 'Relaxed',
-    '嚴格模式：短緩衝、高懲罰，適合上課或正式會議': 'Strict mode: short buffer, high penalty — for class or formal meetings',
-    '標準模式：平衡體驗，多數場合適用': 'Standard mode: balanced experience for most occasions',
-    '寬鬆模式：較長的緩衝時間，適合輕鬆聚會': 'Relaxed mode: longer buffer time, for casual gatherings',
 
     // --- sync-ritual ---
     '參與度': 'Engagement',
@@ -474,7 +468,6 @@ export const dict = {
     '開始後會即時顯示預覽，並每 8 秒用 Whisper 轉錄一次。': 'Live preview starts immediately, with Whisper transcription every 8 seconds.',
     '聊天重點': 'Chat Highlights',
     '熱門話題': 'Hot Topics',
-    '每行一段，例如「Amy：今天那個遊戲很好笑」。儲存後可用來分析參與度與聊天重點。': 'One line per entry, e.g. "Amy: That game was so funny." Saved transcripts can be used to analyze engagement and highlights.',
     '這次聚會沒有逐字稿記錄': 'No transcript for this meeting',
 
     // --- photo wall ---
@@ -796,7 +789,6 @@ export const dict = {
     '— 聚會照片上傳／刪除／設封面，聚會中拍照不會觸發分心倒數': '— Meeting photo upload/delete/set cover; taking photos during meetings no longer triggers distraction countdown',
     '— 安全修正:(1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— Security fixes: (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
     '— (1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
-    '（可選）': '(optional)',
 
     // --- 其他 JS 字串 ---
     '使用者': 'User',
@@ -1048,7 +1040,6 @@ export const dict = {
     '零分心且≥20分鐘 +10 · 房主 +5': 'Zero distractions & ≥20 min +10 · Host +5',
     // meeting-detail
     'Amy：今天那個遊戲很好笑\nKevin：大家都很投入\nMia：照片可以放到回顧裡': 'Amy: That game was hilarious\nKevin: Everyone was so into it\nMia: Put the photos in the recap',
-    '尚未產生聚會回顧報。儲存逐字稿或上傳照片後，按下「產生報紙」。': 'No recap generated yet. Save the transcript or upload photos, then tap "Generate Newspaper".',
     '本場亮點': 'Highlights',
     // pet-tamagotchi
     '更換背景': 'Change Background',

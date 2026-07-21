@@ -95,22 +95,12 @@ def _build_user_prompt(context: dict) -> str:
     topics = context.get("topics") or []
     photo_count = context.get("photo_count") or 0
 
-    # 參與者：只給暱稱、角色、分數、發言次數與 uid（供 spotlights 對應）
-    people_lines = []
-    for p in context.get("participation") or []:
-        people_lines.append(
-            f'- uid={p.get("uid")}｜暱稱={p.get("nickname")}｜角色={p.get("role")}｜'
-            f'參與度={p.get("participation_score")}｜發言次數={p.get("utterance_count")}'
-        )
-
-    # 精選逐字稿片段（已由呼叫端挑選並清理過）
+    # 精選逐字稿片段：只提供對話內容，不提供講者，讓 AI 以整體聚會為單位分析。
     quote_lines = []
     for q in context.get("key_points") or []:
-        speaker = q.get("speaker") or ""
         text = q.get("text") or ""
-        quote_lines.append(f"- {speaker}：{text}" if speaker else f"- {text}")
-
-    uids = [p.get("uid") for p in (context.get("participation") or [])]
+        if text:
+            quote_lines.append(f"- {text}")
 
     return f"""這是一場聚會的資料，請據此撰寫回顧報。
 
@@ -121,10 +111,7 @@ def _build_user_prompt(context: dict) -> str:
 - 照片數量：{photo_count}
 - 熱門話題（詞頻）：{"、".join(topics) if topics else "（無）"}
 
-【參與者】
-{chr(10).join(people_lines) if people_lines else "（無參與者資料）"}
-
-【對話片段】
+【整體對話內容】
 {chr(10).join(quote_lines) if quote_lines else "（本場沒有逐字稿）"}
 
 請只輸出以下 JSON 結構（繁體中文）：
@@ -132,11 +119,10 @@ def _build_user_prompt(context: dict) -> str:
   "title": "有創意的報紙主標題（8~16字）",
   "subtitle": "副標題（一句話）",
   "lead": "導語，2~3 句話總結這場聚會的氛圍與重點",
-  "highlights": ["2~4 條本場亮點或趣味小報導，每條一句話"],
-  "spotlights": {{ {", ".join(f'"{u}": "這位成員的花絮一句話"' for u in uids) if uids else '"": ""'} }}
+  "highlights": ["2~4 條整體聚會亮點，每條一句話"]
 }}
 
-注意：spotlights 的 key 必須是上面提供的 uid，value 是替該成員寫的一句花絮。"""
+注意：請總結整場聚會在聊什麼、氣氛如何、留下哪些共同記憶；不要寫成逐字稿，不要指出是誰說了哪句話。"""
 
 
 def generate_newspaper_copy(context: dict) -> dict | None:

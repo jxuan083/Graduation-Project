@@ -574,7 +574,6 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
    ============================================================ */
 /* 發起聚會（meeting-setup）— front-preview screen-create-party 結構統一 */
 #view-meeting-setup .cp-section-label { font-size: 13px; font-weight: 600; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 12px; }
-#view-meeting-setup .cp-optional { font-size: 12px; font-weight: 500; color: var(--brown-40); letter-spacing: 0; }
 
 /* 場景格 4×N */
 #view-meeting-setup .cp-situation-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 24px; }
@@ -722,6 +721,53 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-rank-score { font-size: 15px; font-weight: 700; color: var(--brown-60); line-height: 1.2; white-space: nowrap; }
 #view-summary .ps-rank-dev { font-size: 11px; color: var(--brown-45); font-weight: 500; line-height: 1.2; white-space: nowrap; }
 #view-summary .ps-footer { margin-top: 24px; }
+
+/* 聚會報紙（meeting-news） */
+#view-meeting-news { justify-content: flex-start; align-items: stretch; text-align: left; padding: 0; background: #f5f0e2; color: #1a1208; overflow: hidden; }
+#view-meeting-news .mn-paper { position: relative; width: 100%; height: 100%; min-height: 100dvh; background: #f5f0e2; font-family: Georgia, 'Times New Roman', 'Noto Serif TC', serif; overflow: hidden; }
+#view-meeting-news .mn-scroll { height: 100%; overflow-y: auto; padding-bottom: 112px; }
+#view-meeting-news .mn-masthead { padding: 40px 20px 12px; border-bottom: 3px double #1a1208; }
+#view-meeting-news .mn-issue-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 9.5px; letter-spacing: .1em; color: #3a2a10; }
+#view-meeting-news .mn-masthead h1 { margin: 0; text-align: center; font-size: 36px; font-weight: 900; color: #1a1208; letter-spacing: .06em; line-height: 1; }
+#view-meeting-news .mn-post { margin: 2px 0 0; text-align: center; font-size: 12px; color: #3a2a10; letter-spacing: .35em; }
+#view-meeting-news .mn-band { display: flex; align-items: center; justify-content: center; padding: 5px 0; background: #1a1208; color: #f5f0e2; font-size: 10px; font-weight: 700; letter-spacing: .35em; }
+#view-meeting-news .mn-headline-block { padding: 16px 20px 12px; border-bottom: 1px solid rgba(26,18,8,.2); }
+#view-meeting-news .mn-headline-block h2 { white-space: pre-line; margin: 0; text-align: center; font-size: 24px; font-weight: 900; color: #1a1208; line-height: 1.2; }
+#view-meeting-news .mn-headline-block p { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: #5a3e1e; font-style: italic; }
+#view-meeting-news .mn-hero { padding: 16px 20px 0; }
+#view-meeting-news .mn-photo-frame { border: 1px solid rgba(26,18,8,.2); border-radius: 4px; overflow: hidden; background-size: cover; background-position: center; background-color: rgba(26,18,8,.06); }
+#view-meeting-news .mn-hero-photo { width: 100%; height: 200px; }
+#view-meeting-news .mn-mascot-scene { position: relative; height: 110px; border: 1px solid rgba(26,18,8,.2); border-radius: 4px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+#view-meeting-news .mn-sky { position: absolute; inset: 0; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #8aac58 100%); }
+#view-meeting-news .mn-sun { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #f9d05e; top: 10px; right: 16px; box-shadow: 0 0 10px #f9d05e; }
+#view-meeting-news .mn-lion { position: relative; z-index: 1; font-size: 64px; line-height: 1; margin-bottom: 4px; }
+#view-meeting-news .mn-hero p, #view-meeting-news .mn-inline-photo-wrap p { margin: 4px 0 0; text-align: center; font-size: 9.5px; color: rgba(26,18,8,.4); font-style: italic; }
+#view-meeting-news .mn-article { padding: 16px 20px 0; column-count: 2; column-gap: 14px; column-rule: 1px solid rgba(26,18,8,.15); }
+#view-meeting-news .mn-article p { margin: 0 0 10px; font-size: 11.5px; line-height: 1.8; color: #2a1c08; text-align: justify; }
+#view-meeting-news .mn-inline-photo-wrap { break-inside: avoid; margin-bottom: 10px; }
+#view-meeting-news .mn-inline-photo { height: 120px; }
+#view-meeting-news .mn-gallery-section { padding: 0 20px; margin-top: 16px; }
+#view-meeting-news .mn-thin-rule { height: 1px; background: rgba(26,18,8,.15); margin-bottom: 8px; }
+#view-meeting-news .mn-section-title { margin: 0 0 8px; text-align: center; font-size: 10px; font-weight: 700; color: #1a1208; letter-spacing: .2em; }
+#view-meeting-news .mn-gallery { display: grid; gap: 8px; }
+#view-meeting-news .mn-gallery-photo { height: 80px; }
+#view-meeting-news .mn-stats-section { margin: 20px 20px 0; padding: 10px 0; border-top: 2px solid #1a1208; border-bottom: 2px solid #1a1208; }
+#view-meeting-news .mn-stats { display: flex; justify-content: space-around; }
+#view-meeting-news .mn-stats div { display: flex; flex-direction: column; align-items: center; }
+#view-meeting-news .mn-stat-value { font-size: 26px; font-weight: 900; color: #1a1208; line-height: 1; }
+#view-meeting-news .mn-stat-unit { font-size: 11px; color: #1a1208; }
+#view-meeting-news .mn-stat-label { font-size: 9px; color: rgba(26,18,8,.4); margin-top: 2px; }
+#view-meeting-news .mn-roster-section { padding: 0 20px; margin-top: 16px; }
+#view-meeting-news .mn-roster-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px; border-bottom: 1px solid rgba(26,18,8,.1); }
+#view-meeting-news .mn-roster-row.me { background: rgba(26,18,8,.04); }
+#view-meeting-news .mn-roster-rank { width: 14px; text-align: center; font-weight: 700; font-size: 11px; color: rgba(26,18,8,.3); }
+#view-meeting-news .mn-roster-row:first-child .mn-roster-rank { color: #8b5e00; }
+#view-meeting-news .mn-roster-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
+#view-meeting-news .mn-roster-name { flex: 1; min-width: 0; font-size: 12px; color: #1a1208; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-meeting-news .mn-roster-name small { font-size: 9.5px; color: rgba(26,18,8,.4); }
+#view-meeting-news .mn-roster-count { font-size: 11.5px; color: rgba(26,18,8,.55); white-space: nowrap; }
+#view-meeting-news .mn-home-bar { position: absolute; left: 20px; right: 20px; bottom: 40px; }
+#view-meeting-news .mn-home-bar button { width: 100%; height: 52px; border: none; border-radius: 5px; background: #1a1208; color: #f5f0e2; font-size: 15px; font-weight: 700; letter-spacing: .08em; font-family: Georgia, 'Times New Roman', 'Noto Serif TC', serif; cursor: pointer; }
 
 /* ============================================================
    聚會中（focus）— front-preview screen-party-active 結構統一

@@ -211,7 +211,7 @@ function startLiveRecorderChunk() {
     }, live.chunkMs);
 }
 
-function stopLiveTranscript(message = '') {
+export function stopLiveTranscript(message = '') {
     const live = state.liveTranscript;
     live.active = false;
     stopBrowserLivePreview();

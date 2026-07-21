@@ -5,6 +5,7 @@ import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
 import { t } from '../../core/i18n.js';
+import { renderMeetingNews } from '../../views/meeting-news/meeting-news.js?v=35';
 
 const MEETINGS_DISPLAY_LIMIT = 10;
 let _allMeetings = [];
@@ -161,6 +162,7 @@ async function _hideMeeting(meetingId) {
 export async function openMeetingDetail(meetingId) {
     switchView('view-meeting-detail');
     state.currentMeetingDetailId = meetingId;
+    state.currentMeetingDetail = null;
     state.currentMeetingIsHost = false;
     state.currentMeetingMembers = [];
     state.currentMeetingNewspaper = null;
@@ -185,6 +187,7 @@ export async function openMeetingDetail(meetingId) {
         const { data } = await apiFetch(`/api/meetings/${meetingId}`);
         if (!data || data.status !== 'success') throw new Error((data && data.detail) || '讀取失敗');
         const m = data.meeting;
+        state.currentMeetingDetail = m;
 
         document.getElementById('md-host').innerText = m.host_nickname || '(未知)';
         document.getElementById('md-mode').innerText = formatModeLabel(m.mode);
@@ -257,48 +260,6 @@ function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-export async function saveMeetingTranscriptFromInput() {
-    const meetingId = state.currentMeetingDetailId;
-    const input = document.getElementById('md-transcript-input');
-    const status = document.getElementById('md-transcript-status');
-    if (!meetingId || !input) return;
-
-    const entries = parseTranscriptInput(input.value);
-    if (!entries.length) {
-        if (status) status.innerText = '請先輸入逐字稿';
-        return;
-    }
-
-    const btn = document.getElementById('btn-md-save-transcript');
-    const oldText = btn ? btn.innerText : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = '儲存中...';
-    }
-    if (status) status.innerText = '';
-
-    try {
-        const { res, data } = await apiFetch(`/api/meetings/${meetingId}/transcripts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entries }),
-        });
-        if (!res.ok || !data || data.status !== 'success') {
-            throw new Error((data && data.detail) || '儲存失敗');
-        }
-        input.value = '';
-        if (status) status.innerText = t('已儲存 {saved} 段逐字稿', { saved: data.saved });
-    } catch (err) {
-        console.error('save transcript failed:', err);
-        if (status) status.innerText = t('儲存失敗: {error}', { error: err.message || err });
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = oldText;
-        }
-    }
-}
-
 export async function transcribeMeetingAudio() {
     const meetingId = state.currentMeetingDetailId;
     const input = document.getElementById('md-audio-input');
@@ -361,7 +322,9 @@ export async function generateMeetingNewspaper() {
         if (!res.ok || !data || data.status !== 'success') {
             throw new Error((data && data.detail) || '產生失敗');
         }
-        renderNewspaper(data.newspaper);
+        state.currentMeetingNewspaper = data.newspaper;
+        renderMeetingNews(state.currentMeetingDetail, data.newspaper);
+        switchView('view-meeting-news');
     } catch (err) {
         console.error('generate newspaper failed:', err);
         alert(t('產生聚會回顧報失敗:') + ' ' + (err.message || err));
@@ -383,7 +346,7 @@ async function loadMeetingNewspaper(meetingId) {
         if (!res.ok || !data || data.status !== 'success') {
             throw new Error((data && data.detail) || '讀取 newspaper 失敗');
         }
-        renderNewspaper(data.newspaper);
+        state.currentMeetingNewspaper = data.newspaper;
     } catch (err) {
         console.warn('load newspaper skipped:', err);
         resetNewspaperPanel();
@@ -399,10 +362,9 @@ async function loadMeetingTranscripts(meetingId) {
         if (!res.ok || !data || data.status !== 'success') {
             throw new Error((data && data.detail) || `HTTP ${res.status}`);
         }
-        const lines = (data.transcripts || []).map(entry => {
-            const speaker = entry.speaker_name || entry.speaker_uid || 'Speaker';
-            return `${speaker}：${entry.text || ''}`;
-        });
+        const lines = (data.transcripts || [])
+            .map(entry => entry.text || '')
+            .filter(Boolean);
         input.value = lines.join('\n');
         if (status && lines.length === 0) status.innerText = '這次聚會沒有逐字稿記錄';
     } catch (err) {
@@ -411,154 +373,8 @@ async function loadMeetingTranscripts(meetingId) {
     }
 }
 
-function parseTranscriptInput(raw) {
-    const lines = String(raw || '')
-        .split('\n')
-        .map(line => line.trim())
-        .filter(Boolean);
-
-    const currentUid = state.currentUser?.uid || state.userId || 'manual';
-    const currentName =
-        state.currentProfile?.nickname ||
-        state.myNickname ||
-        state.currentUser?.displayName ||
-        '我';
-
-    return lines.map((line, i) => {
-        const match = line.match(/^([^:：]{1,30})[:：]\s*(.+)$/);
-        const speakerName = match ? match[1].trim() : currentName;
-        const text = match ? match[2].trim() : line;
-        const member = findMemberByName(speakerName);
-        return {
-            speaker_uid: member?.uid || currentUid,
-            speaker_name: member?.nickname || speakerName,
-            text,
-            started_at_ms: i * 1000,
-            duration_sec: Math.max(2, Math.min(30, Math.round(text.length / 4))),
-        };
-    }).filter(entry => entry.text);
-}
-
-function findMemberByName(name) {
-    const norm = String(name || '').trim().toLowerCase();
-    if (!norm) return null;
-    return (state.currentMeetingMembers || []).find(m =>
-        String(m.nickname || '').trim().toLowerCase() === norm ||
-        String(m.uid || '').trim().toLowerCase() === norm
-    ) || null;
-}
-
 function resetNewspaperPanel() {
     state.currentMeetingNewspaper = null;
-    const result = document.getElementById('md-newspaper-result');
-    const empty = document.getElementById('md-newspaper-empty');
     const status = document.getElementById('md-transcript-status');
-    if (result) result.style.display = 'none';
-    if (empty) empty.style.display = '';
     if (status) status.innerText = '';
-}
-
-function renderNewspaper(news) {
-    state.currentMeetingNewspaper = news;
-    const result = document.getElementById('md-newspaper-result');
-    const empty = document.getElementById('md-newspaper-empty');
-    if (!result || !news) return;
-
-    if (empty) empty.style.display = 'none';
-    result.style.display = '';
-
-    const cover = document.getElementById('md-news-cover');
-    const coverPath = news.cover_photo && news.cover_photo.content_path;
-    if (cover) {
-        cover.style.display = coverPath ? '' : 'none';
-        cover.style.backgroundImage = '';
-        if (coverPath) {
-            setProtectedImage(cover, coverPath, { background: true }).catch(err => {
-                console.warn('load protected newspaper cover failed:', err);
-            });
-        }
-    }
-
-    setText('md-news-subtitle', news.subtitle || 'Gathering recap');
-    setText('md-news-title', news.title || 'Party Newspaper');
-    setText('md-news-lead', news.lead || '');
-
-    const highlightsSection = document.getElementById('md-news-highlights-section');
-    const highlightList = document.getElementById('md-news-highlights');
-    if (highlightList) {
-        highlightList.innerHTML = '';
-        const highlights = news.highlights || [];
-        highlights.forEach(item => {
-            const li = document.createElement('li');
-            li.innerText = item;
-            highlightList.appendChild(li);
-        });
-        if (highlightsSection) {
-            highlightsSection.style.display = highlights.length ? '' : 'none';
-        }
-    }
-
-    const keyList = document.getElementById('md-news-keypoints');
-    if (keyList) {
-        keyList.innerHTML = '';
-        (news.key_points || []).forEach(item => {
-            const li = document.createElement('li');
-            const speaker = item.speaker ? `<strong>${escHtml(item.speaker)}</strong> ` : '';
-            li.innerHTML = `${speaker}${escHtml(item.text || '')}`;
-            keyList.appendChild(li);
-        });
-    }
-
-    const topics = document.getElementById('md-news-topics');
-    if (topics) {
-        topics.innerHTML = '';
-        (news.topics || []).forEach(topic => {
-            const pill = document.createElement('span');
-            pill.className = 'topic-pill';
-            pill.innerText = topic;
-            topics.appendChild(pill);
-        });
-    }
-
-    const participation = document.getElementById('md-news-participation');
-    if (participation) {
-        participation.innerHTML = '';
-        (news.participation || []).forEach(person => {
-            const row = document.createElement('div');
-            row.className = 'participation-item';
-            const score = Number(person.participation_score || 0);
-            row.innerHTML = `
-                <div>
-                    <strong>${escHtml(person.nickname || person.uid || 'Unknown')}</strong>
-                    <span>${escHtml(person.role || '')}</span>
-                </div>
-                <div class="participation-meter" aria-label="participation">
-                    <i style="width:${Math.max(0, Math.min(100, score))}%"></i>
-                </div>
-                <b>${score}</b>
-            `;
-            participation.appendChild(row);
-        });
-    }
-
-    const photoStrip = document.getElementById('md-news-photos');
-    if (photoStrip) {
-        photoStrip.innerHTML = '';
-        (news.photos || []).forEach(photo => {
-            const tile = document.createElement('div');
-            tile.className = 'newspaper-photo';
-            setProtectedImage(tile, photo.content_path, { background: true }).catch(err => {
-                console.warn('load protected newspaper photo failed:', err);
-            });
-            photoStrip.appendChild(tile);
-        });
-        if (!(news.photos || []).length) {
-            photoStrip.innerHTML = '<p class="hint">尚未上傳聚會照片</p>';
-        }
-    }
-}
-
-function setText(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = value;
 }
