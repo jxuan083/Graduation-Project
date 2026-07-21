@@ -60,6 +60,8 @@ export function init() {
         if (state.liveTranscript.active) stopLiveTranscript('已停止即時轉文字');
         closeMeetingCameraModal();
         state.meetingGroupPetFace = '';
+        state.meetingGroupPetName = '';
+        state.meetingGroupPetLevel = 1;
     });
 
     // 邀請朋友
@@ -74,16 +76,27 @@ export function init() {
 export function refreshFocusMascot() {
     const orb = document.getElementById('lottie-orb');
     const petImg = document.getElementById('focus-pet-face');
+    const identity = document.getElementById('focus-pet-identity');
+    const growthHint = document.getElementById('focus-pet-growth-hint');
+    const defaultText = document.getElementById('focus-default-mascot-text');
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (face) {
         petImg.src = face;
         petImg.style.display = '';
         orb.style.display = 'none';
+        document.getElementById('focus-pet-name').textContent = state.meetingGroupPetName || '群組寵物';
+        document.getElementById('focus-pet-level').textContent = `LV ${Number(state.meetingGroupPetLevel || 1)}`;
+        if (identity) identity.style.display = 'flex';
+        if (growthHint) growthHint.style.display = 'flex';
+        if (defaultText) defaultText.style.display = 'none';
     } else {
         petImg.removeAttribute('src');
         petImg.style.display = 'none';
         orb.style.display = '';
+        if (identity) identity.style.display = 'none';
+        if (growthHint) growthHint.style.display = 'none';
+        if (defaultText) defaultText.style.display = '';
     }
 }
 
@@ -211,7 +224,7 @@ function startLiveRecorderChunk() {
     }, live.chunkMs);
 }
 
-function stopLiveTranscript(message = '') {
+export function stopLiveTranscript(message = '') {
     const live = state.liveTranscript;
     live.active = false;
     stopBrowserLivePreview();

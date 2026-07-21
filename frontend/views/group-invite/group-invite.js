@@ -23,7 +23,7 @@ async function onShow() {
 
     // 確保有最新邀請碼
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=39');
         const full = await fetchGroupDetail(g.group_id);
         if (full) { state.currentGroupDetail = { ...g, ...full }; renderInviteCode(state.currentGroupDetail); }
     } catch (_) { /* 保留現有顯示 */ }
@@ -88,7 +88,7 @@ async function handleInvite(btn) {
     btn.disabled = true;
     btn.textContent = t('邀請中…');
     try {
-        const { addGroupMember } = await import('../../features/groups/controller.js');
+        const { addGroupMember } = await import('../../features/groups/controller.js?v=39');
         const { data } = await addGroupMember(groupId, btn.dataset.uid);
         if (data?.status === 'success') {
             btn.textContent = t('已加入');

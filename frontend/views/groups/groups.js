@@ -72,7 +72,7 @@ async function handleJoinByInvite() {
     const orig = btn.textContent;
     btn.textContent = t('加入中…');
     try {
-        const { getGroupInviteInfo, joinGroupByInviteCode, fetchMyGroups } = await import('../../features/groups/controller.js');
+        const { getGroupInviteInfo, joinGroupByInviteCode, fetchMyGroups } = await import('../../features/groups/controller.js?v=39');
         const { res, data: info } = await getGroupInviteInfo(code);
         if (!res.ok || !info?.name) {
             alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
@@ -113,7 +113,7 @@ async function handleCreateGroup() {
     const orig = btn.textContent;
     btn.textContent = t('建立中…');
     try {
-        const { createGroup, addGroupMember, fetchMyGroups } = await import('../../features/groups/controller.js');
+        const { createGroup, addGroupMember, fetchMyGroups } = await import('../../features/groups/controller.js?v=39');
         const { data } = await createGroup(name);
         const groupId = data?.group?.group_id || data?.group_id;
         if (!groupId) {

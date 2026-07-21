@@ -8,7 +8,7 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot } from '../views/focus/focus.js';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=39';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -34,6 +34,8 @@ function handleRoomUpdate(msg) {
     if (rs.host_uid) state.roomHostUid = rs.host_uid;
     // 本場聚會綁定群組的寵物臉（聚會中吉祥物）；沒綁群組 / 群組沒寵物則為空 → focus 顯示動畫球
     state.meetingGroupPetFace = rs.group_pet_face_url || '';
+    state.meetingGroupPetName = rs.group_pet_name || '';
+    state.meetingGroupPetLevel = Number(rs.group_pet_level || 1);
     refreshFocusMascot();
     renderMemberList(rs.members || {});
     if (state.amIHost) {
@@ -55,6 +57,7 @@ function handleRoomUpdate(msg) {
         // 這條路徑沒收到 SESSION_ENDED，拿不到分數與排行；顯示 — 而不是誤導的 0
         const scoreEl = document.getElementById('summary-score');
         if (scoreEl) scoreEl.innerText = '—';
+        renderSummaryPet(rs);
         state.currentPhase = 'SUMMARY';
         document.body.className = '';
         if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
@@ -92,6 +95,9 @@ function handleSyncStarted() {
 }
 
 function handleSessionEnded(msg) {
+    if (state.liveTranscript?.active) {
+        stopLiveTranscript('聚會結束，已停止即時轉文字');
+    }
     const reason = msg.reason || 'host_ended';
     // 優先用後端傳來的值（已同步），fallback 到前端本地計算
     const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
@@ -101,6 +107,15 @@ function handleSessionEnded(msg) {
     document.getElementById('summary-deviations').innerText = state.myDeviations;
     const scoreEl = document.getElementById('summary-score');
     if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
+    const memberCountEl = document.getElementById('summary-member-count');
+    if (memberCountEl) memberCountEl.innerText = (msg.deviation_ranking || []).length || 0;
+    const mascotMessage = document.getElementById('summary-mascot-message');
+    if (mascotMessage) {
+        mascotMessage.innerText = state.myDeviations <= 3
+            ? '太棒了！你非常專注，獅子獲得了豐盛養分 🎉'
+            : '下次聚會再更專注一點，獅子會更健壯的！';
+    }
+    renderSummaryPet(msg);
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -127,6 +142,27 @@ function handleSessionEnded(msg) {
     state.deviationDeadline = null;
     closeWs();
     switchView('view-summary');
+}
+
+function renderSummaryPet(msg) {
+    const face = msg.group_pet_face_url || state.meetingGroupPetFace || '';
+    const petImg = document.getElementById('summary-pet-face');
+    const fallback = document.getElementById('summary-pet-fallback');
+    const xp = document.getElementById('summary-pet-xp');
+    if (petImg) {
+        petImg.src = face;
+        petImg.style.display = face ? '' : 'none';
+    }
+    if (fallback) fallback.style.display = face ? 'none' : '';
+    if (xp) {
+        const gain = Number(msg.pet_xp_gain || 0);
+        xp.textContent = gain > 0 ? `本場成長 +${gain} XP` : '';
+        xp.style.display = gain > 0 ? 'inline-flex' : 'none';
+    }
+    if (face) {
+        const mascotMessage = document.getElementById('summary-mascot-message');
+        if (mascotMessage) mascotMessage.textContent = `${msg.group_pet_name || state.meetingGroupPetName || '群組寵物'} 和大家一起完成了這場聚會。`;
+    }
 }
 
 // 聚會分數排行：分數由高到低（後端已排序），每列同時顯示分數與分心次數
@@ -281,4 +317,3 @@ function handleTabooEnded() {
     document.body.classList.add('mode-flow');
     try { showToast('關鍵字遊戲結束', 'info'); } catch (e) {}
 }
-

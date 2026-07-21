@@ -18,14 +18,14 @@
     <link rel="stylesheet" href="https://font.emtech.cc/css/TaipeiSansTC">
 
     <!-- 共用樣式 (warm-campfire redesign v=28) -->
-    <link rel="stylesheet" href="./styles/base.css?v=28">
-    <link rel="stylesheet" href="./styles/components.css?v=28">
-    <link rel="stylesheet" href="./styles/social.css?v=28">
-    <link rel="stylesheet" href="./styles/taboo.css?v=28">
-    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=28">
+    <link rel="stylesheet" href="./styles/base.css?v=39">
+    <link rel="stylesheet" href="./styles/components.css?v=39">
+    <link rel="stylesheet" href="./styles/social.css?v=39">
+    <link rel="stylesheet" href="./styles/taboo.css?v=39">
+    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=39">
 
     <!-- front-preview 淡色設計合併層（載入順序最後，覆蓋深色主題） -->
-    <link rel="stylesheet" href="./styles/redesign.css?v=28">
+    <link rel="stylesheet" href="./styles/redesign.css?v=39">
 
     <!-- Firebase (compat 全域) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -33,10 +33,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 
-    <!-- QR Code 掃描 + 產生 + Lottie -->
+    <!-- QR Code 掃描 + 產生 + 動畫 -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -61,7 +62,7 @@
                 <div id="user-menu-dropdown" class="user-menu" style="display:none;">
                     <button id="btn-open-profile" class="user-menu-item"><i data-lucide="user"></i> 個人資料</button>
                     <button id="btn-open-friends" class="user-menu-item"><i data-lucide="users"></i> 好友 <span id="menu-friends-badge" class="menu-badge" style="display:none;">0</span></button>
-                    <button id="btn-open-my-pet" class="user-menu-item"><i data-lucide="paw-print"></i> 我的寵物</button>
+                    <button id="btn-open-group-pets" class="user-menu-item"><i data-lucide="paw-print"></i> 群組寵物</button>
                     <button id="btn-open-leaderboard" class="user-menu-item"><i data-lucide="trophy"></i> 排行榜</button>
                     <button id="btn-menu-meetings" class="user-menu-item"><i data-lucide="calendar"></i> 聚會紀錄</button>
                     <button id="btn-enable-push" class="user-menu-item"><i data-lucide="bell"></i> 開啟通知</button>
@@ -87,6 +88,6 @@
     </div>
 
     <!-- App 進入點 (ES Module) -->
-    <script type="module" src="./main.js?v=28"></script>
+    <script type="module" src="./main.js?v=39"></script>
 </body>
 </html>

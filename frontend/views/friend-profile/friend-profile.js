@@ -45,6 +45,18 @@ function render(data) {
     const bio = document.getElementById('fp-bio');
     if (p.bio) { bio.textContent = p.bio; bio.style.display = ''; } else { bio.style.display = 'none'; }
 
+    // 興趣標籤（Tinder 風格 chip）
+    const interestsEl = document.getElementById('fp-interests');
+    const interests = Array.isArray(p.interests) ? p.interests : [];
+    if (interests.length) {
+        interestsEl.innerHTML = interests.map(tag =>
+            `<span class="interest-chip static">${escHtml(t(tag))}</span>`
+        ).join('');
+        interestsEl.style.display = '';
+    } else {
+        interestsEl.style.display = 'none';
+    }
+
     const av = document.getElementById('fp-avatar');
     if (p.photoURL) { av.innerHTML = `<img src="${escAttr(p.photoURL)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`; av.style.background = 'transparent'; }
     else { av.textContent = (p.nickname || p.handle || '?')[0].toUpperCase(); }
@@ -113,4 +125,5 @@ async function handleDelete() {
 }
 
 function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
-function escAttr(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function escAttr(s) { return escHtml(s); }

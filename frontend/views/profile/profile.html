@@ -27,6 +27,17 @@
         <textarea id="profile-bio" maxlength="200" class="text-input" rows="3" placeholder="一句話介紹自己（最多 200 字）"></textarea>
     </div>
 
+    <div class="setup-section">
+        <h3>興趣標籤</h3>
+        <p class="hint" style="margin-top:0;">最多可選 5 個，會顯示在你的個人頁</p>
+        <div id="profile-interests-selected" class="interest-chips interest-selected"></div>
+        <div id="profile-interests-presets" class="interest-chips"></div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <input id="profile-interest-input" type="text" maxlength="12" class="text-input" placeholder="自訂標籤（如：手沖咖啡）" style="flex:1; margin-bottom:0;" autocomplete="off">
+            <button id="btn-interest-add" class="btn secondary" style="width:auto; padding:10px 18px; margin-bottom:0; border-radius:var(--r-sm);">新增</button>
+        </div>
+    </div>
+
     <p id="profile-status" class="profile-status" style="text-align:center; margin-bottom:12px;"></p>
     <button id="btn-profile-save" class="btn primary">儲存</button>
 

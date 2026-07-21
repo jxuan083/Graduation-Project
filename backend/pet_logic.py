@@ -16,9 +16,19 @@ GROUP_PET_STAT_DEFAULTS = {
     "pet_cleanliness": 100.0,
 }
 GROUP_PET_DECAY_PER_HOUR = {
-    "pet_energy": 4.0,
-    "pet_happiness": 3.0,
-    "pet_cleanliness": 2.0,
+    # 一天未互動仍可維持可照顧狀態，避免隔夜直接歸零。
+    "pet_energy": 0.75,
+    "pet_happiness": 0.5,
+    "pet_cleanliness": 0.35,
+}
+GROUP_PET_ACTION_COOLDOWN_SECONDS = 10 * 60
+PET_MEETING_REMINDER_DAYS = 7
+PET_RESCUE_DAYS = 14
+PET_XP_PER_LEVEL = 100
+PET_ACCESSORY_UNLOCKS = {
+    3: "bell",
+    5: "bandana",
+    8: "medal",
 }
 
 
@@ -41,13 +51,15 @@ def elapsed_hours(last_updated: Any, now: datetime.datetime | None = None) -> fl
 
 
 def group_pet_status(energy: float, happiness: float, cleanliness: float) -> str:
-    if energy < 15:
+    if min(energy, happiness, cleanliness) < 10:
         return "CRITICAL"
-    if cleanliness < 25:
+    if cleanliness < 30:
         return "DIRTY"
-    if energy < 40 or happiness < 30:
+    if energy < 30:
         return "HUNGRY"
-    if energy > 75 and happiness > 70 and cleanliness > 70:
+    if happiness < 30:
+        return "LONELY"
+    if min(energy, happiness, cleanliness) > 75:
         return "HAPPY"
     return "NORMAL"
 
@@ -72,6 +84,87 @@ def group_pet_hp(stats: dict) -> int:
     return max(0, min(5, round(average / 20)))
 
 
+def group_pet_growth(data: dict) -> dict:
+    """以累積聚會 XP 推導等級、階段與解鎖物，避免儲存值互相漂移。"""
+    xp = max(0, int(data.get("pet_accumulated_score", 0) or 0))
+    level = xp // PET_XP_PER_LEVEL + 1
+    if level < 3:
+        stage = "YOUNG"
+    elif level < 6:
+        stage = "GROWING"
+    else:
+        stage = "PARTNER"
+    accessories = [key for unlock_level, key in PET_ACCESSORY_UNLOCKS.items() if level >= unlock_level]
+    return {
+        "pet_level": level,
+        "pet_xp": xp,
+        "pet_xp_current": xp % PET_XP_PER_LEVEL,
+        "pet_xp_to_next": PET_XP_PER_LEVEL,
+        "pet_stage": stage,
+        "pet_accessories": accessories,
+        "pet_meetings_completed": max(0, int(data.get("pet_meetings_completed", 0) or 0)),
+        "pet_last_session_score": data.get("pet_last_session_score"),
+        "pet_last_reward_xp": max(0, int(data.get("pet_last_reward_xp", 0) or 0)),
+    }
+
+
+def group_pet_meeting_state(data: dict, now: datetime.datetime | None = None) -> dict:
+    """依最後聚會時間判斷提醒／待救援狀態；新寵物以建立時間起算。"""
+    anchor = data.get("pet_last_session_at") or data.get("pet_face_updated_at") or data.get("created_at")
+    if _as_naive_utc(anchor) is None:
+        days_since = 0
+    else:
+        days_since = int(elapsed_hours(anchor, now) // 24)
+    is_caged = days_since >= PET_RESCUE_DAYS
+    return {
+        "pet_days_since_meeting": days_since,
+        "pet_meeting_warning": PET_MEETING_REMINDER_DAYS <= days_since < PET_RESCUE_DAYS,
+        "pet_is_caged": is_caged,
+        "pet_days_until_caged": max(0, PET_RESCUE_DAYS - days_since),
+    }
+
+
+def group_pet_session_xp(avg_score: int | float, duration_minutes: int | float) -> int:
+    """低頻聚會採高回饋：完成保底、時數為主，專注品質提供小幅加成。"""
+    score = max(0.0, min(100.0, float(avg_score)))
+    # 最多計入三小時，避免忘記結束房間造成異常灌值。
+    duration = max(0.0, min(180.0, float(duration_minutes)))
+    completion_xp = 35
+    duration_xp = round(duration * 1.25)
+    quality_xp = round(score * 0.25)
+    return completion_xp + duration_xp + quality_xp
+
+
+def cooldown_remaining_seconds(
+    last_action_at: Any,
+    now: datetime.datetime | None = None,
+    cooldown_seconds: int = GROUP_PET_ACTION_COOLDOWN_SECONDS,
+) -> int:
+    last = _as_naive_utc(last_action_at)
+    current = _as_naive_utc(now or datetime.datetime.utcnow())
+    if last is None or current is None:
+        return 0
+    elapsed = max(0.0, (current - last).total_seconds())
+    return max(0, int(cooldown_seconds - elapsed + 0.999))
+
+
+def apply_group_pet_action(stats: dict, action: str) -> dict:
+    """套用一次有效照顧動作；前置條件由 API 在 transaction 內檢查。"""
+    result = dict(stats)
+    if action == "feed":
+        result["pet_energy"] = min(100.0, result["pet_energy"] + 25)
+        result["pet_happiness"] = min(100.0, result["pet_happiness"] + 3)
+    elif action == "play":
+        result["pet_happiness"] = min(100.0, result["pet_happiness"] + 20)
+        result["pet_energy"] = max(0.0, result["pet_energy"] - 5)
+    elif action == "wipe":
+        result["pet_cleanliness"] = min(100.0, result["pet_cleanliness"] + 35)
+        result["pet_happiness"] = min(100.0, result["pet_happiness"] + 3)
+    else:
+        raise ValueError(f"unknown pet action: {action}")
+    return result
+
+
 def group_pet_display(data: dict, now: datetime.datetime | None = None) -> dict:
     stats = group_pet_current_stats(data, now)
     return {
@@ -83,48 +176,6 @@ def group_pet_display(data: dict, now: datetime.datetime | None = None) -> dict:
             stats["pet_energy"], stats["pet_happiness"], stats["pet_cleanliness"]
         ),
         "pet_hp": group_pet_hp(stats),
-    }
-
-
-def personal_pet_decay(data: dict, now: datetime.datetime | None = None) -> dict:
-    hours = elapsed_hours(data.get("my_pet_last_updated"), now)
-    hunger = int(data.get("my_pet_hunger", 70))
-    happiness = int(data.get("my_pet_happiness", 70))
-    energy = int(data.get("my_pet_energy", 80))
-    cleanliness = int(data.get("my_pet_cleanliness", 100))
-    is_sleeping = bool(data.get("my_pet_is_sleeping", False))
-    has_poop = bool(data.get("my_pet_has_poop", False))
-    has_pee = bool(data.get("my_pet_has_pee", False))
-
-    if hours > 0:
-        hunger = max(0, min(100, hunger - int(5 * hours)))
-        happiness = max(0, min(100, happiness - int(3 * hours)))
-        cleanliness = max(0, min(100, cleanliness - int(2 * hours)))
-        energy_delta = int((8 if is_sleeping else -4) * hours)
-        energy = max(0, min(100, energy + energy_delta))
-        has_poop = has_poop or hours >= 4
-        has_pee = has_pee or hours >= 3
-
-    if is_sleeping:
-        status = "SLEEPING"
-    elif has_poop or has_pee:
-        status = "DIRTY"
-    elif hunger < 20 or energy < 10:
-        status = "CRITICAL"
-    elif hunger < 40 or happiness < 30:
-        status = "HUNGRY"
-    elif hunger > 70 and happiness > 70 and energy > 60:
-        status = "HAPPY"
-    else:
-        status = "NORMAL"
-
-    return {
-        "my_pet_hunger": hunger,
-        "my_pet_happiness": happiness,
-        "my_pet_energy": energy,
-        "my_pet_cleanliness": cleanliness,
-        "my_pet_is_sleeping": is_sleeping,
-        "my_pet_has_poop": has_poop,
-        "my_pet_has_pee": has_pee,
-        "my_pet_status": status,
+        **group_pet_growth(data),
+        **group_pet_meeting_state(data, now),
     }

@@ -28,6 +28,11 @@
             <p id="pet-error" class="pet-cam-error" style="display:none;"></p>
         </div>
 
+        <div id="pet-capture-state" class="pet-capture-state" hidden>
+            <i data-lucide="pause"></i>
+            <span>已拍下</span>
+        </div>
+
         <!-- 底部：上傳 / 濾鏡輪盤(中間=快門) / 收藏 -->
         <div class="pet-cam-bottom">
             <button id="btn-pet-album" class="pet-cam-icon pet-cam-corner" aria-label="上傳照片"><i data-lucide="image"></i></button>
@@ -61,17 +66,17 @@
                 <label><span>旋轉</span><input id="pet-control-rotation" type="range" min="-30" max="30" value="0" /></label>
             </div>
             <div class="pet-sheet-actions">
+                <button id="btn-pet-retake" class="btn secondary"><i data-lucide="camera"></i> 重拍</button>
                 <button id="btn-pet-generate" class="btn secondary" disabled><i data-lucide="scan-face"></i> 自動定位</button>
                 <button id="btn-pet-reset" class="btn secondary" disabled><i data-lucide="rotate-ccw"></i> 重設</button>
-                <button id="btn-pet-download" class="btn secondary" disabled><i data-lucide="download"></i> 下載</button>
             </div>
             <div class="pet-sheet-actions">
-                <button id="btn-pet-set-avatar" class="btn primary" style="display:none;" disabled><i data-lucide="image-up"></i> 設為群組頭像</button>
-                <button id="btn-pet-adopt" class="btn primary" disabled><i data-lucide="heart"></i> 養它！</button>
-            </div>
-            <div id="pet-adopt-loading" style="display:none; padding:8px 0; text-align:center;">
-                <div class="spinner" style="margin:0 auto 4px; width:20px; height:20px;"></div>
-                <p class="hint" style="font-size:0.8rem;">上傳中…</p>
+                <label class="pet-create-field" id="pet-create-name-field">
+                    <span>寵物名字</span>
+                    <input id="pet-create-name" type="text" maxlength="20" placeholder="幫牠取一個名字" autocomplete="off">
+                    <small id="pet-create-name-error">建立後仍可再次改名</small>
+                </label>
+                <button id="btn-pet-set-avatar" class="btn primary" style="display:none;" disabled><i data-lucide="paw-print"></i> 建立群組寵物</button>
             </div>
         </div>
     </div>

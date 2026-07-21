@@ -1,17 +1,11 @@
 // views/meeting-setup/meeting-setup.js
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=39';
 import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-
-const DIFF_HINTS = {
-    L: '寬鬆模式：較長的緩衝時間，適合輕鬆聚會',
-    M: '標準模式：平衡體驗，多數場合適用',
-    H: '嚴格模式：短緩衝、高懲罰，適合上課或正式會議',
-};
 
 export function init() {
     register('view-meeting-setup', {
@@ -114,7 +108,6 @@ function selectContext(key, card) {
     document.querySelectorAll('.diff-btn').forEach(b => {
         b.classList.toggle('active-diff', b.dataset.diff === cfg.difficulty);
     });
-    updateDiffHint(cfg.difficulty);
     state.currentExpectedDuration = cfg.duration;
 }
 
@@ -124,15 +117,8 @@ function bindDiffBtns() {
             document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active-diff'));
             btn.classList.add('active-diff');
             state.currentDifficulty = btn.dataset.diff;
-            updateDiffHint(btn.dataset.diff);
         };
     });
-    updateDiffHint(state.currentDifficulty || 'M');
-}
-
-function updateDiffHint(diff) {
-    const el = document.getElementById('difficulty-hint');
-    if (el) el.textContent = DIFF_HINTS[diff] || '';
 }
 
 async function onSetupShow() {
@@ -145,7 +131,6 @@ async function onSetupShow() {
         c.classList.toggle('active-context', c.dataset.context === 'general'));
     document.querySelectorAll('.diff-btn').forEach(b =>
         b.classList.toggle('active-diff', b.dataset.diff === 'L'));
-    updateDiffHint('L');
 
     // 重設群組下拉為未選
     selectGroup('', '');
@@ -154,7 +139,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=39');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

@@ -34,8 +34,6 @@ export const dict = {
     '題庫管理': 'Question Bank',
     '自訂問答題目': 'Customize Q&A questions',
     '查看本週排名': 'See this week\'s ranking',
-    '我的寵物': 'My Pet',
-    '陪伴你的小可愛': 'Keep your buddy company',
     '等朋友一起聚會': 'Waiting for friends to gather',
     '也可以直接用手機相機掃 QR Code 加入': 'You can also join by scanning the QR code with your phone camera',
     '查看': 'View',
@@ -182,6 +180,42 @@ export const dict = {
     '還沒有訊息，說點什麼吧！': 'No messages yet — say something!',
     '輸入訊息…': 'Type a message…',
     '送出失敗：': 'Send failed: ',
+    '傳圖片': 'Send a photo',
+    '錄語音': 'Record a voice message',
+    '今天': 'Today',
+    '語音訊息': 'Voice message',
+    '播放失敗': 'Playback failed',
+    '上傳失敗：': 'Upload failed: ',
+    '圖片處理失敗': 'Failed to process image',
+    '這個瀏覽器不支援錄音': 'This browser does not support voice recording',
+    '無法取得麥克風權限': 'Microphone access denied',
+    '錄音太短': 'Recording too short',
+
+    // --- 個人資料：興趣標籤 ---
+    '興趣標籤': 'Interests',
+    '最多可選 5 個，會顯示在你的個人頁': 'Pick up to 5 — they will show on your profile',
+    '自訂標籤（如：手沖咖啡）': 'Custom tag (e.g. pour-over coffee)',
+    '最多只能選 {count} 個標籤': 'You can pick at most {count} tags',
+    '咖啡': 'Coffee',
+    '烹飪': 'Cooking',
+    '健身': 'Fitness',
+    '爬山': 'Hiking',
+    '露營': 'Camping',
+    '跑步': 'Running',
+    '游泳': 'Swimming',
+    '籃球': 'Basketball',
+    '羽球': 'Badminton',
+    '桌遊': 'Board Games',
+    '電玩': 'Gaming',
+    '追劇': 'Binge-watching',
+    '電影': 'Movies',
+    '音樂': 'Music',
+    '唱歌': 'Singing',
+    '攝影': 'Photography',
+    '閱讀': 'Reading',
+    '畫畫': 'Drawing',
+    '動漫': 'Anime',
+    '手作': 'Crafts',
 
     // --- 變數樣板（Phase 2 會以 t() 使用）---
     '加入群組「{name}」（{count} 位成員）？': 'Join group "{name}" ({count} members)?',
@@ -200,8 +234,6 @@ export const dict = {
     '選項 {num}': 'Option {num}',
     '本週(從 {month}/{day} 週一 00:00 起,台北時區)': 'This week (from {month}/{day} Mon 00:00, Taipei time)',
     '本週 {count} 場': '{count} meeting(s) this week',
-    '已儲存 {saved} 段逐字稿': 'Saved {saved} transcript segment(s)',
-    '儲存失敗: {error}': 'Save failed: {error}',
     '已轉錄並儲存 {saved} 段（{engine}）': 'Transcribed and saved {saved} segment(s) ({engine})',
     '音檔轉錄失敗: {error}': 'Audio transcription failed: {error}',
     '某段轉錄失敗: {error}': 'A transcript segment failed: {error}',
@@ -261,7 +293,6 @@ export const dict = {
     '更換頭像': 'Change Avatar',
     '儲存名稱': 'Save Name',
     '儲存題目': 'Save Question',
-    '儲存逐字稿': 'Save Transcript',
     '儲存到相簿': 'Save to Album',
     '選一題送出': 'Pick a Question to Send',
     '選一位成員作為群組寵物頭像': 'Select a member as the group pet avatar',
@@ -415,9 +446,6 @@ export const dict = {
     '嚴格': 'Strict',
     '標準': 'Standard',
     '輕鬆': 'Relaxed',
-    '嚴格模式：短緩衝、高懲罰，適合上課或正式會議': 'Strict mode: short buffer, high penalty — for class or formal meetings',
-    '標準模式：平衡體驗，多數場合適用': 'Standard mode: balanced experience for most occasions',
-    '寬鬆模式：較長的緩衝時間，適合輕鬆聚會': 'Relaxed mode: longer buffer time, for casual gatherings',
 
     // --- sync-ritual ---
     '參與度': 'Engagement',
@@ -438,7 +466,6 @@ export const dict = {
     '開始後會即時顯示預覽，並每 8 秒用 Whisper 轉錄一次。': 'Live preview starts immediately, with Whisper transcription every 8 seconds.',
     '聊天重點': 'Chat Highlights',
     '熱門話題': 'Hot Topics',
-    '每行一段，例如「Amy：今天那個遊戲很好笑」。儲存後可用來分析參與度與聊天重點。': 'One line per entry, e.g. "Amy: That game was so funny." Saved transcripts can be used to analyze engagement and highlights.',
     '這次聚會沒有逐字稿記錄': 'No transcript for this meeting',
 
     // --- photo wall ---
@@ -515,9 +542,6 @@ export const dict = {
     '🛁 清潔': '🛁 Cleanliness',
     '♥ 我的收藏': '♥ My Favorites',
     '還沒有寵物': 'No pet yet',
-    '還沒有個人寵物': 'No personal pet yet',
-    '你可以先建立個人寵物，或和朋友一起養群組寵物。': 'Create a personal pet, or raise a shared group pet with friends.',
-    '建立我的寵物': 'Create My Pet',
     '請先生成寵物臉再養它！': 'Please generate a pet face before taking care of it!',
     '請先在群組設定頁生成並設定寵物臉！': 'Please generate and set a pet face on the group settings page first!',
 
@@ -760,7 +784,6 @@ export const dict = {
     '— 聚會照片上傳／刪除／設封面，聚會中拍照不會觸發分心倒數': '— Meeting photo upload/delete/set cover; taking photos during meetings no longer triggers distraction countdown',
     '— 安全修正:(1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— Security fixes: (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
     '— (1) WebSocket 連線加上 Firebase ID token 驗證,防止冒充其他使用者(2) Firestore 規則收緊:其他人 email 不再能被任意登入者直接讀取(3) CHANGE_MODE 後端加上房主檢查 + mode 白名單': '— (1) WebSocket connection now validates Firebase ID token to prevent impersonation; (2) Firestore rules tightened: other users\' emails can no longer be read by arbitrary signed-in users; (3) CHANGE_MODE backend now checks host and whitelists mode values',
-    '（可選）': '(optional)',
 
     // --- 其他 JS 字串 ---
     '使用者': 'User',
@@ -783,7 +806,7 @@ export const dict = {
     '停止': 'Stop',
     '編輯': 'Edit',
 
-    // --- merged-main additions (pet-swap camera, my-pet delete, schedule gathering) ---
+    // --- merged-main additions (pet-swap camera, schedule gathering) ---
     '🗑️ 刪除': '🗑️ Delete',
     '上下': 'Up / Down',
     '左右': 'Left / Right',
@@ -1012,7 +1035,6 @@ export const dict = {
     '零分心且≥20分鐘 +10 · 房主 +5': 'Zero distractions & ≥20 min +10 · Host +5',
     // meeting-detail
     'Amy：今天那個遊戲很好笑\nKevin：大家都很投入\nMia：照片可以放到回顧裡': 'Amy: That game was hilarious\nKevin: Everyone was so into it\nMia: Put the photos in the recap',
-    '尚未產生聚會回顧報。儲存逐字稿或上傳照片後，按下「產生報紙」。': 'No recap generated yet. Save the transcript or upload photos, then tap "Generate Newspaper".',
     '本場亮點': 'Highlights',
     // pet-tamagotchi
     '更換背景': 'Change Background',
@@ -1105,12 +1127,10 @@ export const dict = {
     '😟 肚子餓': '😟 Hungry',
     '💀 危急': '💀 Critical',
     '寵物頭像': 'Pet avatar',
-    '個人寵物': 'Personal Pet',
     '刪除寵物': 'Delete pet',
     '寵物互動失敗': 'Pet interaction failed',
     '先生成一張寵物臉，再回來養它！': 'Generate a pet face first, then come back to raise it!',
     '改名失敗': 'Rename failed',
-    '確定要刪除個人寵物？': 'Delete your personal pet?',
     '刪除目標無效': 'Invalid delete target',
     '汪汪！你好！': 'Woof! Hello!',
     '今天天氣很好～': 'Lovely weather today~',

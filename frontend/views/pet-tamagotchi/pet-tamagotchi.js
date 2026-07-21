@@ -5,7 +5,7 @@ import { showToast } from '../../utils/toast.js';
 
 // ── 背景 ─────────────────────────────────────────────────────────────────────
 
-const BG_PRESETS = ['default','meadow','night','beach','forest','sunset','snow'];
+const BG_PRESETS = ['default','terrace','meadow','night','beach','forest','sunset','snow'];
 const BG_KEY     = 'pet_bg';
 const BG_IMG_KEY = 'pet_bg_img';
 const BG_POS_KEY = 'pet_bg_pos';
@@ -23,21 +23,27 @@ let _bgPosX = 50, _bgPosY = 50;
 let _bgKey   = 'default';
 let _bgDrag  = { active: false, startX: 0, startY: 0, basePosX: 50, basePosY: 50 };
 
+function scopedBgKey(baseKey) {
+    return _groupId ? `${baseKey}:${_groupId}` : baseKey;
+}
+
+function readBackgroundSetting(baseKey, fallback = null) {
+    return localStorage.getItem(scopedBgKey(baseKey)) ?? localStorage.getItem(baseKey) ?? fallback;
+}
+
 function loadBackground() {
-    const saved    = localStorage.getItem(BG_KEY) || 'default';
-    const savedImg = localStorage.getItem(BG_IMG_KEY) || null;
+    const savedValue = readBackgroundSetting(BG_KEY, 'default');
+    const saved    = ['default', 'terrace', 'custom'].includes(savedValue) ? savedValue : 'default';
+    const savedImg = readBackgroundSetting(BG_IMG_KEY, null);
     let savedPos = [50, 50];
     try {
-        const parsed = JSON.parse(localStorage.getItem(BG_POS_KEY) || '[50,50]');
+        const parsed = JSON.parse(readBackgroundSetting(BG_POS_KEY, '[50,50]'));
         if (Array.isArray(parsed) && parsed.length === 2 && parsed.every(Number.isFinite)) savedPos = parsed;
     } catch {
-        localStorage.removeItem(BG_POS_KEY);
+        localStorage.removeItem(scopedBgKey(BG_POS_KEY));
     }
     _bgPosX = savedPos[0]; _bgPosY = savedPos[1];
     applyBackground(saved, saved === 'custom' ? savedImg : null);
-    document.querySelectorAll('.bg-opt[data-bg]').forEach(b => {
-        b.classList.toggle('active', b.dataset.bg === saved);
-    });
 }
 
 function applyBackground(key, customUrl) {
@@ -53,7 +59,7 @@ function applyBackground(key, customUrl) {
         stage.style.backgroundSize     = 'cover';
         stage.style.cursor = 'grab';
         try {
-            localStorage.setItem(BG_IMG_KEY, customUrl);
+            localStorage.setItem(scopedBgKey(BG_IMG_KEY), customUrl);
         } catch {
             showToast('背景圖片太大，無法儲存在此裝置。');
         }
@@ -61,9 +67,15 @@ function applyBackground(key, customUrl) {
         stage.style.backgroundImage = BG_GRADIENTS[key];
     }
     _bgKey = key;
-    localStorage.setItem(BG_KEY, key);
+    localStorage.setItem(scopedBgKey(BG_KEY), key);
+    document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.toggle('active', b.dataset.bg === key));
+    document.querySelector('.bg-upload-label')?.classList.toggle('active', key === 'custom');
+    const uploadPreview = document.getElementById('bg-upload-preview');
+    if (uploadPreview && customUrl) uploadPreview.style.backgroundImage = `url("${customUrl.replaceAll('"', '%22')}")`;
     const hint = document.getElementById('pet-bg-drag-hint');
     if (hint) hint.style.display = key === 'custom' ? 'flex' : 'none';
+    const resetBtn = document.getElementById('btn-reset-bg-position');
+    if (resetBtn) resetBtn.style.display = key === 'custom' ? '' : 'none';
 }
 
 function setupCustomBgDrag() {
@@ -90,7 +102,40 @@ function setupCustomBgDrag() {
         if (!_bgDrag.active) return;
         _bgDrag.active     = false;
         stage.style.cursor = 'grab';
-        localStorage.setItem(BG_POS_KEY, JSON.stringify([_bgPosX, _bgPosY]));
+        localStorage.setItem(scopedBgKey(BG_POS_KEY), JSON.stringify([_bgPosX, _bgPosY]));
+    });
+}
+
+function closeBackgroundPicker() {
+    const picker = document.getElementById('pet-bg-picker');
+    const button = document.getElementById('btn-change-bg');
+    picker.style.display = 'none';
+    button.setAttribute('aria-expanded', 'false');
+}
+
+function prepareBackgroundImage(file) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            reject(new Error('請選擇圖片檔案'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('無法讀取這張圖片'));
+        reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error('這個圖片格式目前無法使用'));
+            image.onload = () => {
+                const maxEdge = 1600;
+                const ratio = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+                canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+                canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', .84));
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
     });
 }
 
@@ -98,20 +143,39 @@ function setupCustomBgDrag() {
 
 const SPEECHES = {
     NORMAL:   ['汪汪！你好！', '今天天氣很好～', '陪我玩嘛～', '我在這裡！'],
-    HAPPY:    ['好開心！好開心！🎉', '你真是個好主人！', '耶！耶！耶！', '汪汪！愛你！'],
-    SLEEPING: ['zzz...', '呼呼...', '嗯嗯...'],
-    HUNGRY:   ['肚子好餓... 🥺', '可以給我吃點東西嗎？', '嗚嗚... 好餓...'],
-    DIRTY:    ['我身上有臭臭... 😭', '快幫我擦一擦！', '好臭好臭！'],
-    CRITICAL: ['嗚嗚... 快撐不住了...', '求求你快救我... 💔', '好難受...'],
+    HAPPY:    ['今天狀態超好！', '大家陪我，我很開心！', '再一起完成一場聚會吧！'],
+    HUNGRY:   ['肚子有點餓了...', '先吃飽，才有力氣一起玩。'],
+    LONELY:   ['好久沒有一起玩了...', '陪我一下嘛。'],
+    DIRTY:    ['該整理一下了。', '幫我清潔一下吧！'],
+    CRITICAL: ['我現在很需要大家照顧...', '先看看哪個狀態最低。'],
+    RESCUE:   ['我被困住了…一起開場聚會救我出去！', '我在等大家，完成一場聚會牢籠就會打開。'],
+    MEETING_WARNING: ['有點想大家了，這週找時間聚一聚吧。', '好久沒一起專注了，我在等下一場聚會。'],
 };
 
-const STATUS_TEXT = { NORMAL:'正常', HAPPY:'開心', HUNGRY:'飢餓', DIRTY:'需清潔', CRITICAL:'危急', SLEEPING:'睡覺' };
-const STATUS_EMOJI = { NORMAL:'😊', HAPPY:'🎉', HUNGRY:'😢', DIRTY:'😷', CRITICAL:'💔', SLEEPING:'😴' };
+const STATUS_META = {
+    NORMAL:   { text: '狀態良好', icon: 'circle-check' },
+    HAPPY:    { text: '心情很好', icon: 'sparkles' },
+    HUNGRY:   { text: '需要餵食', icon: 'utensils' },
+    LONELY:   { text: '需要陪伴', icon: 'heart-handshake' },
+    DIRTY:    { text: '需要清潔', icon: 'droplets' },
+    CRITICAL: { text: '需要照顧', icon: 'triangle-alert' },
+};
+const STAGE_TEXT = { YOUNG: '幼年期', GROWING: '成長期', PARTNER: '夥伴期' };
+const ACCESSORY_META = {
+    bell:    { text: '默契鈴鐺', icon: 'bell' },
+    bandana: { text: '同行領巾', icon: 'flag-triangle-right' },
+    medal:   { text: '聚會勳章', icon: 'medal' },
+};
+const ACTION_LABELS = { feed: '餵食', wipe: '清潔', play: '玩耍' };
 
 function escHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
     })[char]);
+}
+
+function isLegacyOpaquePet(url) {
+    return /\.jpe?g(?:[?#]|$)/i.test(String(url || ''));
 }
 
 // ── 狀態 ─────────────────────────────────────────────────────────────────────
@@ -120,14 +184,18 @@ let _groupPet   = null;
 let _groupId    = null;
 let _isCreator  = false;
 let _entryMode  = 'list';   // 'list' | 'direct'
-let _myPets     = [];
+let _reactionTimer = null;
+let _groupPets  = [];
 let _pollTimer  = null;
+let _cooldownTimer = null;
+let _cooldownTickAt = 0;
+let _feedbackTimer = null;
 let _actionLock = false;
 let _clickIdx   = 0;
-// 刪除目標明確落在這裡，confirmDelete 只讀它 —— 不再靠殘留的 _groupPet._isPersonal
-// 猜（否則：從列表刪個人寵物會靜默失敗；進過個人寵物再刪群組寵物會誤刪個人寵物）
-let _pendingDelete = null;   // { kind: 'personal' | 'group', groupId }
+let _lastRenderedStatus = null;
+let _pendingDelete = null;   // { groupId }
 let _deleteBusy    = false;
+let _renameBusy    = false;
 
 const CLICK_CYCLE = [
     { anim: 'happy',   status: 'HAPPY'  },
@@ -162,30 +230,23 @@ export function init() {
     document.getElementById('btn-pet-feed').onclick  = () => doAction('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
-    document.getElementById('btn-pet-sleep').onclick = () => {
-        const sleeping = Boolean(_groupPet?._raw?.my_pet_is_sleeping);
-        doAction(sleeping ? 'wake' : 'sleep');
-    };
-    const openPersonalPetCreator = () => {
-        state.currentGroupDetail = null;
-        state.petSwapOrigin = 'personal';
-        state.petSwapTarget = state.currentUser
-            ? { uid: state.currentUser.uid, nickname: state.currentProfile?.nickname || state.currentUser.displayName || '' }
-            : null;
-        switchView('view-pet-swap');
-    };
-    document.getElementById('btn-go-pet-swap').onclick = openPersonalPetCreator;
-    document.getElementById('btn-create-personal-pet').onclick = openPersonalPetCreator;
     document.getElementById('btn-pet-tama-back-nopet').onclick = () => {
         if (_entryMode === 'direct') switchView('view-home');
         else showScreen('list');
     };
+    document.getElementById('btn-pet-retry').onclick = async () => {
+        showLoading(true);
+        if (_groupId) await loadGroupPet();
+        else await loadPetList();
+    };
 
     document.getElementById('pet-avatar-wrap').addEventListener('click', () => {
-        if (_actionLock) return;
+        if (_actionLock || _groupPet?.pet_is_caged) return;
         const s = CLICK_CYCLE[_clickIdx % CLICK_CYCLE.length];
         _clickIdx++;
-        applyAvatarState(s.anim);
+        applyAvatarState(s.anim, true);
+        playPetMotion('tap');
+        playPetReaction('tap', { pet_happiness: 1 });
         setSpeech(s.status);
     });
 
@@ -197,45 +258,55 @@ export function init() {
         if (e.key === 'Escape') closeRenameDialog();
     });
 
-    document.getElementById('btn-pet-delete').onclick = () => openDeleteDialog(
-        _groupPet?._isPersonal ? { kind: 'personal' } : { kind: 'group', groupId: _groupId }
-    );
+    document.getElementById('btn-pet-delete').onclick = () => openDeleteDialog({ groupId: _groupId });
     document.getElementById('btn-delete-confirm').onclick  = confirmDelete;
     document.getElementById('btn-delete-cancel').onclick   = closeDeleteDialog;
 
     // 背景切換
     document.getElementById('btn-change-bg').onclick = () => {
         const picker = document.getElementById('pet-bg-picker');
-        picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+        const opening = picker.style.display === 'none';
+        picker.style.display = opening ? 'block' : 'none';
+        document.getElementById('btn-change-bg').setAttribute('aria-expanded', String(opening));
     };
+    document.getElementById('btn-close-bg-picker').onclick = closeBackgroundPicker;
     document.querySelectorAll('.bg-opt[data-bg]').forEach(btn => {
         btn.onclick = () => {
             applyBackground(btn.dataset.bg);
-            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.getElementById('pet-bg-picker').style.display = 'none';
+            closeBackgroundPicker();
         };
     });
-    document.getElementById('bg-upload-input').onchange = (e) => {
+    document.getElementById('btn-reset-bg-position').onclick = () => {
+        _bgPosX = 50; _bgPosY = 50;
+        document.getElementById('pet-stage').style.backgroundPosition = '50% 50%';
+        localStorage.setItem(scopedBgKey(BG_POS_KEY), '[50,50]');
+        showToast('背景構圖已重設');
+    };
+    document.getElementById('bg-upload-input').onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
+        const uploadTile = document.querySelector('.bg-upload-label');
+        uploadTile.classList.add('is-loading');
+        try {
+            const imageUrl = await prepareBackgroundImage(file);
             _bgPosX = 50; _bgPosY = 50;
-            applyBackground('custom', ev.target.result);
-            document.querySelectorAll('.bg-opt[data-bg]').forEach(b => b.classList.remove('active'));
-            document.getElementById('pet-bg-picker').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
+            applyBackground('custom', imageUrl);
+            closeBackgroundPicker();
+        } catch (error) {
+            showToast(error.message || '背景處理失敗', 'warn');
+        } finally {
+            uploadTile.classList.remove('is-loading');
+            e.target.value = '';
+        }
     };
 
     setupCustomBgDrag();
+    document.addEventListener('visibilitychange', refreshWhenVisible);
 }
 
 // ── 進入 / 離開 ───────────────────────────────────────────────────────────────
 
 async function onShow() {
-    loadBackground();
     const directGroupId = state.tamagotchiGroupId || null;
 
     if (directGroupId) {
@@ -244,9 +315,11 @@ async function onShow() {
         _groupId    = directGroupId;
         _isCreator  = false;
         _groupPet   = null;
+        loadBackground();
         showLoading(true);
         await loadGroupPet();
         startPolling();
+        startCooldownTicker();
     } else {
         _entryMode = 'list';
         _groupId   = null;
@@ -256,20 +329,26 @@ async function onShow() {
     }
 }
 
-function onHide() { stopPolling(); }
+function onHide() {
+    stopPolling();
+    clearTimeout(_feedbackTimer);
+    _lastRenderedStatus = null;
+}
 
 // ── 列表模式 ─────────────────────────────────────────────────────────────────
 
 async function loadPetList() {
     try {
-        const { data } = await apiFetch('/api/my-pets');
-        _myPets = data?.pets || [];
+        const { res, data } = await apiFetch('/api/group-pets');
+        if (!res.ok) throw new Error(readApiError(data, '群組寵物載入失敗'));
+        _groupPets = data?.pets || [];
+        renderPetList();
+        showLoading(false);
     } catch (e) {
-        _myPets = [];
-        console.error('load my-pets error', e);
+        _groupPets = [];
+        console.error('load group-pets error', e);
+        showLoadError(e.message);
     }
-    renderPetList();
-    showLoading(false);
 }
 
 function renderPetList() {
@@ -277,57 +356,61 @@ function renderPetList() {
     const emptyEl = document.getElementById('pet-list-empty');
     listEl.innerHTML = '';
 
-    if (!_myPets.length) {
+    if (!_groupPets.length) {
         emptyEl.style.display = 'block';
         showScreen('list');
+        if (window.lucide) window.lucide.createIcons();
         return;
     }
     emptyEl.style.display = 'none';
 
-    _myPets.forEach(({ group_id, group_name, is_creator, kind, pet }) => {
+    _groupPets.forEach(({ group_id, group_name, is_creator, pet }, index) => {
         const energy  = pet.pet_energy ?? 50;
         const maxE    = pet.pet_max_energy ?? 100;
-        const hp      = pet.pet_hp ?? 5;
         const status  = pet.pet_status || 'NORMAL';
-        const isGroup = kind === 'group';
-
-        const card = document.createElement('div');
+        const statusMeta = STATUS_META[status] || STATUS_META.NORMAL;
+        const level = pet.pet_level ?? 1;
+        const isCaged = Boolean(pet.pet_is_caged);
+        const meetingWarning = Boolean(pet.pet_meeting_warning);
+        const visitorEntry = index === 0 && _groupPets.length > 1 ? _groupPets[1] : null;
+        const sceneClass = index % 2 === 0 ? 'scene-sunroom' : 'scene-terrace';
+        const card = document.createElement('article');
         card.className = 'pet-list-card';
+        card.style.setProperty('--pet-card-index', String(Math.min(8, index)));
         card.innerHTML = `
-            <img class="pet-list-avatar" src="${escHtml(pet.pet_face_url)}" alt="寵物頭像">
-            <div class="pet-list-info">
-                <div class="pet-list-name">${escHtml(pet.pet_name || (isGroup ? '群組寵物' : '我的寵物'))}</div>
-                <div class="pet-list-group">${escHtml(group_name)}</div>
-                <div class="pet-list-status">
-                    <span>${STATUS_EMOJI[status] || '😊'} ${STATUS_TEXT[status] || '正常'}</span>
-                    <span class="pet-list-energy">⚡ ${energy}/${maxE}</span>
+            <div class="pet-list-scene ${sceneClass}${isCaged ? ' is-caged' : ''}">
+                <span class="pet-list-scene-label">${index % 2 === 0 ? '晨光起居室' : '黃昏露台'}</span>
+                <div class="pet-list-pet-wrap">
+                    <img class="pet-list-avatar${isLegacyOpaquePet(pet.pet_face_url) ? ' pet-legacy-opaque' : ''}" src="${escHtml(pet.pet_face_url)}" alt="${escHtml(pet.pet_name || '群組寵物')}">
                 </div>
-                <div class="pet-list-hp">${
-                    Array.from({length: 5}, (_, i) =>
-                        `<span class="pet-hp-heart${i < hp ? '' : ' empty'}">❤️</span>`
-                    ).join('')
-                }</div>
+                ${visitorEntry && !isCaged ? `
+                    <div class="pet-list-visitor" aria-label="${escHtml(visitorEntry.pet.pet_name || '另一隻寵物')}來串門">
+                        <img class="${isLegacyOpaquePet(visitorEntry.pet.pet_face_url) ? 'pet-legacy-opaque' : ''}" src="${escHtml(visitorEntry.pet.pet_face_url)}" alt="">
+                        <span>${escHtml(visitorEntry.pet.pet_name || '朋友')}來串門</span>
+                    </div>` : ''}
+                ${isCaged ? `<div class="pet-list-cage" aria-hidden="true"><span></span><span></span><span></span><span></span></div>` : ''}
             </div>
-            <div class="pet-list-btns">
-                <button class="btn-care-pet">照顧</button>
-                ${is_creator ? `<button class="btn-del-list-pet" title="刪除寵物"><i data-lucide="trash-2"></i></button>` : ''}
+            <div class="pet-list-body">
+                <div class="pet-list-info">
+                    <div class="pet-list-group">${escHtml(group_name)}</div>
+                    <div class="pet-list-name">${escHtml(pet.pet_name || '群組寵物')}<span class="pet-list-level">LV ${level}</span></div>
+                    <div class="pet-list-status${isCaged ? ' status-rescue' : ''}">
+                        <span><i data-lucide="${isCaged ? 'lock-keyhole' : (meetingWarning ? 'calendar-clock' : statusMeta.icon)}"></i>${isCaged ? '等待大家開一場聚會救援' : (meetingWarning ? `${Number(pet.pet_days_until_caged || 0)} 天後需要救援` : statusMeta.text)}</span>
+                        ${isCaged ? '' : `<span class="pet-list-energy"><i data-lucide="utensils"></i>${energy}/${maxE}</span>`}
+                    </div>
+                </div>
+                <div class="pet-list-btns">
+                    <button class="btn-care-pet">${isCaged ? '去救援' : '進入'}<i data-lucide="arrow-up-right"></i></button>
+                    ${is_creator ? `<button class="btn-del-list-pet" title="刪除寵物"><i data-lucide="trash-2"></i></button>` : ''}
+                </div>
             </div>
         `;
 
-        card.querySelector('.btn-care-pet').onclick = () => {
-            if (isGroup) {
-                enterGroupPet(group_id, is_creator);
-            } else {
-                enterPersonalPet();
-            }
-        };
+        card.querySelector('.btn-care-pet').onclick = () => enterGroupPet(group_id, is_creator);
         if (is_creator) {
             card.querySelector('.btn-del-list-pet').onclick = (e) => {
                 e.stopPropagation();
-                openDeleteDialog(
-                    isGroup ? { kind: 'group', groupId: group_id }
-                            : { kind: 'personal' }
-                );
+                openDeleteDialog({ groupId: group_id });
             };
         }
 
@@ -340,56 +423,11 @@ function renderPetList() {
 
 // ── 單一寵物模式 ──────────────────────────────────────────────────────────────
 
-async function enterPersonalPet() {
-    stopPolling();
-    _groupId   = null;
-    _isCreator = true;
-    _groupPet  = null;
-    showLoading(true);
-
-    try {
-        const { data } = await apiFetch('/api/my-pet');
-        const p = data?.pet;
-        if (p) {
-            _groupPet = {
-                pet_face_url:   p.my_pet_image_url,
-                pet_name:       p.my_pet_name,
-                pet_energy:     p.my_pet_energy,
-                pet_max_energy: 100,
-                pet_hp:         5,
-                pet_status:     p.my_pet_status || 'NORMAL',
-                _groupName:     '個人寵物',
-                _isPersonal:    true,
-                _raw:           p,
-            };
-        }
-    } catch (e) { console.error(e); }
-
-    renderGroupMode();
-    showLoading(false);
-    startPersonalPolling();
-}
-
-let _personalPollTimer = null;
-function startPersonalPolling() {
-    _personalPollTimer = setInterval(async () => {
-        if (_actionLock || _groupId) return;
-        try {
-            const { data } = await apiFetch('/api/my-pet');
-            const p = data?.pet;
-            if (p && _groupPet?._isPersonal) {
-                _groupPet.pet_energy = p.my_pet_energy;
-                _groupPet.pet_status = p.my_pet_status || 'NORMAL';
-                _groupPet._raw = p;
-                renderGroupMode();
-            }
-        } catch (_) {}
-    }, 60_000);
-}
-
 function stopPolling() {
-    clearInterval(_pollTimer);         _pollTimer = null;
-    clearInterval(_personalPollTimer); _personalPollTimer = null;
+    clearInterval(_pollTimer);
+    _pollTimer = null;
+    clearInterval(_cooldownTimer);
+    _cooldownTimer = null;
 }
 
 async function enterGroupPet(groupId, isCreator) {
@@ -397,9 +435,11 @@ async function enterGroupPet(groupId, isCreator) {
     _groupId   = groupId;
     _isCreator = isCreator;
     _groupPet  = null;
+    loadBackground();
     showLoading(true);
     await loadGroupPet();
     startPolling();
+    startCooldownTicker();
 }
 
 async function loadGroupPet() {
@@ -408,6 +448,8 @@ async function loadGroupPet() {
             apiFetch(`/api/groups/${_groupId}/pet`),
             apiFetch(`/api/groups/${_groupId}`),
         ]);
+        if (!petRes.res.ok) throw new Error(readApiError(petRes.data, '寵物狀態載入失敗'));
+        if (!grpRes.res.ok) throw new Error(readApiError(grpRes.data, '群組資料載入失敗'));
         _groupPet = petRes.data?.pet || null;
         if (_groupPet) {
             _groupPet._groupName = grpRes.data?.group?.name || '群組';
@@ -417,76 +459,94 @@ async function loadGroupPet() {
             const myUid = state.currentUser?.uid;
             _isCreator  = myUid && grpRes.data?.group?.creator_uid === myUid;
         }
+        renderGroupMode();
+        showLoading(false);
     } catch (e) {
         console.error('load group pet error', e);
+        showLoadError(e.message);
     }
-    renderGroupMode();
-    showLoading(false);
 }
 
 async function doAction(action) {
-    if (_actionLock || !_groupPet?.pet_face_url) return;
+    if (_actionLock || !_groupPet?.pet_face_url || _groupPet?.pet_is_caged) return;
     _actionLock = true;
     setAllButtonsDisabled(true);
 
-    const animMap  = { feed: 'eating', wipe: 'wiping', play: 'playing', sleep: 'sleeping', wake: 'happy' };
+    const animMap  = { feed: 'eating', wipe: 'wiping', play: 'playing' };
     const tempAnim = animMap[action];
-    if (tempAnim) applyAvatarState(tempAnim);
+    if (tempAnim) applyAvatarState(tempAnim, true);
+    playPetMotion(action);
 
     try {
-        if (_groupPet._isPersonal) {
-            const { res, data } = await apiFetch('/api/my-pet/action', {
-                method: 'POST',
-                body: JSON.stringify({ action }),
-            });
-            if (!res.ok) throw new Error(data?.detail || '寵物互動失敗');
-            if (data?.pet) {
-                _groupPet.pet_energy = data.pet.my_pet_energy;
-                _groupPet.pet_status = data.pet.my_pet_status || 'NORMAL';
-                _groupPet._raw = data.pet;
+        const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        });
+        if (!res.ok) {
+            const remaining = Number(data?.detail?.cooldown_remaining_seconds || 0);
+            if (remaining && _groupPet) {
+                _groupPet.pet_cooldowns = { ...(_groupPet.pet_cooldowns || {}), [action]: remaining };
             }
-        } else {
-            const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet/action`, {
-                method: 'POST',
-                body: JSON.stringify({ action }),
-            });
-            if (!res.ok) throw new Error(data?.detail || '寵物互動失敗');
-            if (data?.pet_energy !== undefined && _groupPet) {
-                _groupPet.pet_energy      = data.pet_energy;
-                _groupPet.pet_happiness   = data.pet_happiness;
-                _groupPet.pet_cleanliness = data.pet_cleanliness;
-                _groupPet.pet_status      = data.pet_status;
-                _groupPet.pet_hp          = data.pet_hp;
-            }
+            throw new Error(readApiError(data, '寵物互動失敗'));
         }
+        if (data?.pet_energy !== undefined && _groupPet) {
+            _groupPet.pet_energy      = data.pet_energy;
+            _groupPet.pet_happiness   = data.pet_happiness;
+            _groupPet.pet_cleanliness = data.pet_cleanliness;
+            _groupPet.pet_status      = data.pet_status;
+            _groupPet.pet_hp          = data.pet_hp;
+            _groupPet.pet_cooldowns   = data.pet_cooldowns || _groupPet.pet_cooldowns || {};
+        }
+        const changeText = formatChanges(data?.changes || {});
+        showActionFeedback(`${ACTION_LABELS[action]}完成${changeText ? ` · ${changeText}` : ''}`, 'success');
+        playPetReaction(action, data?.changes || {});
+        setSpeech(_groupPet.pet_status || 'NORMAL', true);
     } catch (e) {
         console.error('pet action error', e);
+        playPetMotion('nope');
+        playPetReaction('nope');
+        showActionFeedback(e.message || '寵物互動失敗', 'warn');
         showToast(e.message || '寵物互動失敗', 'warn');
     }
 
-    await delay(tempAnim ? 680 : 0);
+    await delay(tempAnim ? 960 : 0);
     renderGroupMode();
-    setAllButtonsDisabled(false);
     _actionLock = false;
+    renderActionButtons();
 }
 
 function renderGroupMode() {
     if (!_groupPet?.pet_face_url) {
         showScreen('no-pet');
-        const personal = !_groupId;
-        document.getElementById('pet-no-pet-title').textContent = personal ? '還沒有個人寵物' : '群組還沒有設定寵物臉';
-        document.getElementById('pet-no-pet-desc').textContent = personal
-            ? '先生成一張寵物臉，再回來養它！'
-            : '請先在群組設定頁生成並設定寵物臉！';
-        document.getElementById('btn-go-pet-swap').style.display = personal ? '' : 'none';
+        document.getElementById('pet-no-pet-title').textContent = '群組還沒有設定寵物臉';
+        document.getElementById('pet-no-pet-desc').textContent = '請先在群組設定頁生成並設定寵物臉！';
         return;
     }
     showScreen('game');
 
-    const isPersonal = Boolean(_groupPet._isPersonal);
-    document.getElementById('pet-group-badge').style.display = isPersonal ? 'none' : 'inline-flex';
+    document.getElementById('pet-group-badge').style.display = 'inline-flex';
     document.getElementById('pet-group-name').textContent    = _groupPet._groupName || '群組';
-    document.getElementById('pet-tama-name').textContent = _groupPet.pet_name || (isPersonal ? '我的寵物' : '群組寵物');
+    document.getElementById('pet-tama-name').textContent = _groupPet.pet_name || '群組寵物';
+
+    const level = Number(_groupPet.pet_level || 1);
+    const xpCurrent = Number(_groupPet.pet_xp_current || 0);
+    const xpTarget = Number(_groupPet.pet_xp_to_next || 100);
+    document.getElementById('pet-level').textContent = level;
+    document.getElementById('pet-stage-label').textContent = STAGE_TEXT[_groupPet.pet_stage] || STAGE_TEXT.YOUNG;
+    document.getElementById('pet-xp-label').textContent = `${xpCurrent} / ${xpTarget} XP`;
+    const xpFill = document.getElementById('pet-xp-fill');
+    const xpPercent = Math.max(0, Math.min(100, Math.round(xpCurrent / xpTarget * 100)));
+    xpFill.style.transform = `scaleX(${xpPercent / 100})`;
+    xpFill.parentElement.setAttribute('aria-valuenow', String(xpPercent));
+    document.getElementById('pet-meeting-count').textContent = Number(_groupPet.pet_meetings_completed || 0);
+    const lastReward = document.getElementById('pet-last-reward');
+    if (_groupPet.pet_last_session_score !== null && _groupPet.pet_last_session_score !== undefined) {
+        lastReward.textContent = `上次 +${Number(_groupPet.pet_last_reward_xp || 0)} XP`;
+        lastReward.style.display = '';
+    } else {
+        lastReward.style.display = 'none';
+    }
+    renderUnlocks(_groupPet.pet_accessories || []);
 
     // 改名：群組建立者才能改
     document.getElementById('btn-pet-rename').style.display = _isCreator ? '' : 'none';
@@ -495,37 +555,7 @@ function renderGroupMode() {
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
-
-    document.getElementById('pet-personal-stats').style.display = isPersonal ? 'block' : 'none';
-    document.getElementById('pet-group-stats').style.display    = isPersonal ? 'none' : 'block';
-
-    if (isPersonal) {
-        const raw = _groupPet._raw || {};
-        const personalStats = {
-            hunger: raw.my_pet_hunger ?? 70,
-            happiness: raw.my_pet_happiness ?? 70,
-            energy: raw.my_pet_energy ?? _groupPet.pet_energy ?? 80,
-            clean: raw.my_pet_cleanliness ?? 100,
-        };
-        Object.entries(personalStats).forEach(([key, value]) => {
-            document.getElementById(`fill-${key}`).style.width = `${value}%`;
-            document.getElementById(`val-${key}`).textContent = value;
-        });
-        toggleIcon('pet-poop-icon', Boolean(raw.my_pet_has_poop));
-        toggleIcon('pet-pee-icon', Boolean(raw.my_pet_has_pee));
-        const sleeping = Boolean(raw.my_pet_is_sleeping);
-        document.getElementById('pet-zzz').style.display = sleeping ? 'block' : 'none';
-        const sleepButton = document.getElementById('btn-pet-sleep');
-        sleepButton.style.display = '';
-        sleepButton.querySelector('.icon-sleep').style.display = sleeping ? 'none' : '';
-        sleepButton.querySelector('.icon-wake').style.display = sleeping ? '' : 'none';
-        sleepButton.querySelector('span').textContent = sleeping ? '叫醒' : '睡覺';
-
-        const status = _groupPet.pet_status || 'NORMAL';
-        applyAvatarState(statusToAnimClass(status));
-        setSpeech(status);
-        return;
-    }
+    img.classList.toggle('pet-legacy-opaque', isLegacyOpaquePet(_groupPet.pet_face_url));
 
     const energy = _groupPet.pet_energy ?? 50;
     const maxE   = _groupPet.pet_max_energy ?? 100;
@@ -533,62 +563,119 @@ function renderGroupMode() {
     document.getElementById('fill-group-energy').style.width = Math.round(energy / maxE * 100) + '%';
     document.getElementById('val-group-energy').textContent  = energy;
 
-    // 快樂／清潔只有群組寵物有（個人寵物走舊的單一 energy 顯示，維持原狀）
     const happiness   = _groupPet.pet_happiness   ?? 0;
     const cleanliness = _groupPet.pet_cleanliness ?? 0;
     document.getElementById('fill-group-happiness').style.width = happiness + '%';
     document.getElementById('val-group-happiness').textContent  = happiness;
     document.getElementById('fill-group-clean').style.width     = cleanliness + '%';
     document.getElementById('val-group-clean').textContent      = cleanliness;
-    document.getElementById('fill-group-happiness').closest('.stat-row').style.display = isPersonal ? 'none' : '';
-    document.getElementById('fill-group-clean').closest('.stat-row').style.display     = isPersonal ? 'none' : '';
 
     const heartsEl = document.getElementById('pet-hp-hearts');
-    heartsEl.innerHTML = '';
-    for (let i = 0; i < 5; i++) {
-        const s = document.createElement('span');
-        s.className = 'pet-hp-heart' + (i < hp ? '' : ' empty');
-        s.textContent = '❤️';
-        heartsEl.appendChild(s);
-    }
-
-    toggleIcon('pet-poop-icon', false);
-    toggleIcon('pet-pee-icon',  false);
-    document.getElementById('pet-zzz').style.display        = 'none';
-    document.getElementById('btn-pet-sleep').style.display  = 'none';
+    heartsEl.innerHTML = Array.from({ length: 5 }, (_, i) =>
+        `<i data-lucide="heart" class="pet-hp-heart${i < hp ? ' is-filled' : ' empty'}"></i>`
+    ).join('');
 
     const status = _groupPet.pet_status || 'NORMAL';
-    applyAvatarState(statusToAnimClass(status));
-    setSpeech(status);
+    const isCaged = Boolean(_groupPet.pet_is_caged);
+    const meetingWarning = Boolean(_groupPet.pet_meeting_warning);
+    const rescueMemoryKey = `pet-was-caged:${_groupId}`;
+    const shouldPlayRelease = !isCaged && localStorage.getItem(rescueMemoryKey) === '1';
+    const statusMeta = STATUS_META[status] || STATUS_META.NORMAL;
+    const statusChip = document.getElementById('pet-status-chip');
+    const stage = document.getElementById('pet-stage');
+    const rescueOverlay = document.getElementById('pet-rescue-overlay');
+    stage.classList.toggle('is-caged', isCaged);
+    rescueOverlay.style.display = isCaged ? 'block' : 'none';
+    if (isCaged) {
+        localStorage.setItem(rescueMemoryKey, '1');
+        statusChip.className = 'pet-status-chip status-rescue';
+        statusChip.innerHTML = '<i data-lucide="lock-keyhole"></i><span>等待救援</span>';
+        applyAvatarState('rescue');
+        if (_lastRenderedStatus !== 'RESCUE') setSpeech('RESCUE', true);
+        _lastRenderedStatus = 'RESCUE';
+    } else if (meetingWarning) {
+        localStorage.removeItem(rescueMemoryKey);
+        statusChip.className = 'pet-status-chip status-warning';
+        statusChip.innerHTML = `<i data-lucide="calendar-clock"></i><span>${Number(_groupPet.pet_days_until_caged || 0)} 天後需要救援</span>`;
+        applyAvatarState(statusToAnimClass(status));
+        if (_lastRenderedStatus !== 'MEETING_WARNING') setSpeech('MEETING_WARNING', true);
+        _lastRenderedStatus = 'MEETING_WARNING';
+    } else {
+        localStorage.removeItem(rescueMemoryKey);
+        statusChip.className = `pet-status-chip status-${status.toLowerCase()}`;
+        statusChip.innerHTML = `<i data-lucide="${statusMeta.icon}"></i><span>${statusMeta.text}</span>`;
+        applyAvatarState(statusToAnimClass(status));
+        if (_lastRenderedStatus !== status) setSpeech(status, true);
+        _lastRenderedStatus = status;
+    }
+    renderActionButtons();
+    if (window.lucide) window.lucide.createIcons();
+    if (shouldPlayRelease) playPetRelease();
+}
+
+function playPetRelease() {
+    const stage = document.getElementById('pet-stage');
+    const overlay = document.getElementById('pet-rescue-overlay');
+    const copy = overlay?.querySelector('.pet-rescue-copy');
+    if (!stage || !overlay || !copy || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    copy.innerHTML = '<strong>救援成功</strong><span>聚會讓牢籠打開了，歡迎回來</span>';
+    overlay.style.display = 'block';
+    overlay.classList.remove('is-releasing');
+    void overlay.offsetWidth;
+    overlay.classList.add('is-releasing');
+    playPetMotion('play');
+    playPetReaction('play');
+    window.setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.classList.remove('is-releasing');
+        copy.innerHTML = '<strong>等你們來救我</strong><span>完成一場群組聚會，牢籠就會打開</span>';
+    }, 1250);
 }
 
 // ── 改名 ──────────────────────────────────────────────────────────────────────
 
 function openRenameDialog() {
+    if (_renameBusy) return;
     document.getElementById('pet-rename-input').value = _groupPet?.pet_name || '';
     document.getElementById('pet-rename-overlay').style.display = 'flex';
     document.getElementById('pet-rename-input').focus();
 }
 function closeRenameDialog() {
+    if (_renameBusy) return;
     document.getElementById('pet-rename-overlay').style.display = 'none';
 }
 async function confirmRename() {
-    const name = document.getElementById('pet-rename-input').value.trim().slice(0, 20);
-    closeRenameDialog();
-    if (!name || !_groupPet) return;
+    if (_renameBusy || !_groupPet) return;
+    const input = document.getElementById('pet-rename-input');
+    const button = document.getElementById('btn-rename-confirm');
+    const name = input.value.trim().slice(0, 20);
+    if (!name) {
+        input.setCustomValidity('請輸入寵物名字');
+        input.reportValidity();
+        input.focus();
+        return;
+    }
+    input.setCustomValidity('');
+    _renameBusy = true;
+    button.disabled = true;
+    button.textContent = '儲存中…';
     try {
-        const path = _groupPet._isPersonal ? '/api/my-pet' : `/api/groups/${_groupId}/pet`;
-        const body = _groupPet._isPersonal ? { name } : { pet_name: name };
-        const { res, data } = await apiFetch(path, {
+        const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet`, {
             method: 'PATCH',
-            body: JSON.stringify(body),
+            body: JSON.stringify({ pet_name: name }),
         });
         if (!res.ok) throw new Error(data?.detail || '改名失敗');
         if (_groupPet) _groupPet.pet_name = name;
         document.getElementById('pet-tama-name').textContent = name;
+        document.getElementById('pet-rename-overlay').style.display = 'none';
+        showToast('名字已更新');
     } catch (e) {
         console.error('rename error', e);
         showToast(e.message || '改名失敗', 'warn');
+    } finally {
+        _renameBusy = false;
+        button.disabled = false;
+        button.textContent = '確認';
     }
 }
 
@@ -596,10 +683,7 @@ async function confirmRename() {
 
 function openDeleteDialog(target) {
     _pendingDelete = target || null;
-    // 依對象換確認文案（個人寵物 vs 群組寵物）
-    const isPersonal = _pendingDelete?.kind === 'personal';
-    document.getElementById('pet-delete-title').textContent =
-        isPersonal ? '確定要刪除個人寵物？' : '確定要刪除群組寵物？';
+    document.getElementById('pet-delete-title').textContent = '確定要刪除群組寵物？';
     document.getElementById('pet-delete-overlay').style.display = 'flex';
 }
 function closeDeleteDialog() {
@@ -616,10 +700,7 @@ async function confirmDelete() {
     confirmBtn.disabled = cancelBtn.disabled = true;
 
     try {
-        if (target.kind === 'personal') {
-            const { res, data } = await apiFetch('/api/my-pet', { method: 'DELETE' });
-            if (!res.ok) throw new Error(data?.detail || '刪除失敗');
-        } else if (target.kind === 'group' && target.groupId) {
+        if (target.groupId) {
             const { res, data } = await apiFetch(`/api/groups/${target.groupId}/pet`, { method: 'DELETE' });
             if (!res.ok) throw new Error(data?.detail || '刪除失敗');
         } else {
@@ -645,7 +726,7 @@ async function confirmDelete() {
 
 function startPolling() {
     _pollTimer = setInterval(async () => {
-        if (_actionLock || !_groupId) return;
+        if (_actionLock || !_groupId || document.hidden) return;
         try {
             const { data } = await apiFetch(`/api/groups/${_groupId}/pet`);
             if (data?.pet) { _groupPet = { ..._groupPet, ...data.pet }; renderGroupMode(); }
@@ -660,6 +741,7 @@ function showScreen(which) {
     document.getElementById('pet-list-screen').style.display   = which === 'list'   ? 'block' : 'none';
     document.getElementById('pet-no-pet').style.display        = which === 'no-pet' ? 'block' : 'none';
     document.getElementById('pet-game-wrap').style.display     = which === 'game'   ? 'flex'  : 'none';
+    document.getElementById('pet-tama-error').style.display    = 'none';
 }
 
 function showLoading(show) {
@@ -668,34 +750,224 @@ function showLoading(show) {
         document.getElementById('pet-list-screen').style.display = 'none';
         document.getElementById('pet-no-pet').style.display      = 'none';
         document.getElementById('pet-game-wrap').style.display   = 'none';
+        document.getElementById('pet-tama-error').style.display  = 'none';
     }
 }
 
 // ── 小工具 ───────────────────────────────────────────────────────────────────
 
-function toggleIcon(id, show) {
-    const el = document.getElementById(id);
-    if (show) el.classList.add('show');
-    else       el.classList.remove('show');
+function applyAvatarState(cls, restart = false) {
+    const avatar = document.getElementById('pet-avatar-wrap');
+    if (!avatar) return;
+    const nextClass = `state-${cls}`;
+    if (restart || !avatar.classList.contains(nextClass)) {
+        avatar.className = 'pet-avatar-wrap';
+        if (restart) void avatar.offsetWidth;
+        avatar.classList.add(nextClass);
+    }
 }
 
-function applyAvatarState(cls) {
-    document.getElementById('pet-avatar-wrap').className = `pet-avatar-wrap state-${cls}`;
+function playPetReaction(action, changes = {}) {
+    const stage = document.getElementById('pet-stage');
+    const layer = document.getElementById('pet-reaction-layer');
+    if (!stage || !layer) return;
+
+    const reactionClasses = ['reaction-feed', 'reaction-wipe', 'reaction-play', 'reaction-tap', 'reaction-nope'];
+    stage.classList.remove(...reactionClasses);
+    layer.replaceChildren();
+    if (_reactionTimer) clearTimeout(_reactionTimer);
+
+    const reactionClass = `reaction-${action}`;
+    void stage.offsetWidth;
+    stage.classList.add(reactionClass);
+
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && action !== 'nope') {
+        const vectors = [
+            [-52, -54], [-30, -78], [0, -88], [32, -74], [54, -48], [-58, -18], [58, -12],
+        ];
+        vectors.forEach(([x, y], index) => {
+            const particle = document.createElement('span');
+            particle.className = `pet-reaction-particle particle-${action}`;
+            particle.style.setProperty('--particle-x', `${x}px`);
+            particle.style.setProperty('--particle-y', `${y}px`);
+            particle.style.setProperty('--particle-delay', `${index * 24}ms`);
+            layer.appendChild(particle);
+        });
+
+        const positiveChange = Object.entries(changes).find(([, value]) => Number(value) > 0);
+        if (positiveChange) {
+            const [key, value] = positiveChange;
+            const labels = { pet_energy: '飽食', pet_happiness: '快樂', pet_cleanliness: '清潔' };
+            const score = document.createElement('span');
+            score.className = 'pet-float-score';
+            score.textContent = `+${value} ${labels[key] || ''}`.trim();
+            layer.appendChild(score);
+        }
+    }
+
+    _reactionTimer = window.setTimeout(() => {
+        stage.classList.remove(reactionClass);
+        layer.replaceChildren();
+        _reactionTimer = null;
+    }, 1050);
+}
+
+function playPetMotion(action) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof window.gsap === 'undefined') return;
+    const avatar = document.getElementById('pet-avatar-wrap');
+    const shadow = document.querySelector('#pet-stage .pet-ground-shadow');
+    if (!avatar || !shadow) return;
+
+    const gsap = window.gsap;
+    gsap.killTweensOf([avatar, shadow]);
+    gsap.set(avatar, { transformOrigin: '50% 100%' });
+
+    const timeline = gsap.timeline({
+        defaults: { ease: 'power2.inOut' },
+        onComplete: () => gsap.set([avatar, shadow], { clearProps: 'transform' }),
+    });
+
+    if (action === 'feed') {
+        timeline
+            .to(avatar, { duration: .11, y: -4, scaleX: .92, scaleY: 1.08 })
+            .to(avatar, { duration: .15, y: 8, scaleX: 1.12, scaleY: .88, ease: 'power3.in' })
+            .to(avatar, { duration: .14, y: -7, scaleX: .96, scaleY: 1.06, ease: 'back.out(2.2)' })
+            .to(avatar, { duration: .13, y: 3, scaleX: 1.06, scaleY: .94 })
+            .to(avatar, { duration: .22, y: 0, scaleX: 1, scaleY: 1, ease: 'elastic.out(1,.45)' });
+    } else if (action === 'play' || action === 'tap') {
+        timeline
+            .to(avatar, { duration: .13, y: 5, rotation: -3, scaleX: 1.1, scaleY: .88, ease: 'power2.in' })
+            .to(avatar, { duration: .24, y: action === 'play' ? -32 : -20, rotation: 7, scaleX: .94, scaleY: 1.08, ease: 'power3.out' })
+            .to(avatar, { duration: .18, y: 3, rotation: -2, scaleX: 1.12, scaleY: .86, ease: 'power2.in' })
+            .to(avatar, { duration: .25, y: 0, rotation: 0, scaleX: 1, scaleY: 1, ease: 'elastic.out(1,.42)' });
+    } else if (action === 'wipe') {
+        timeline
+            .to(avatar, { duration: .1, y: 3, scaleX: 1.06, scaleY: .92 })
+            .to(avatar, { duration: .14, x: -9, rotation: -8, scaleX: .98, scaleY: 1.03 })
+            .to(avatar, { duration: .17, x: 9, rotation: 8, scaleX: 1.02, scaleY: .98 })
+            .to(avatar, { duration: .14, x: -5, rotation: -4 })
+            .to(avatar, { duration: .23, x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, ease: 'back.out(2)' });
+    } else if (action === 'nope') {
+        timeline
+            .to(avatar, { duration: .08, x: -7, rotation: -3 })
+            .to(avatar, { duration: .1, x: 7, rotation: 3, repeat: 2, yoyo: true })
+            .to(avatar, { duration: .16, x: 0, rotation: 0, ease: 'back.out(2)' });
+    }
+
+    if (action !== 'nope') {
+        timeline
+            .to(shadow, { duration: .14, scaleX: 1.14, scaleY: .78, opacity: .25 }, 0)
+            .to(shadow, { duration: .25, scaleX: .66, scaleY: .66, opacity: .12 }, .15)
+            .to(shadow, { duration: .28, scaleX: 1, scaleY: 1, opacity: .22, ease: 'back.out(2)' }, .48);
+    }
 }
 
 function statusToAnimClass(status) {
-    return { NORMAL:'idle', HAPPY:'happy', SLEEPING:'sleeping', HUNGRY:'hungry', DIRTY:'dirty', CRITICAL:'critical' }[status] || 'idle';
+    return { NORMAL:'idle', HAPPY:'happy', HUNGRY:'hungry', LONELY:'hungry', DIRTY:'dirty', CRITICAL:'critical' }[status] || 'idle';
 }
 
-function setSpeech(status) {
+function setSpeech(status, force = false) {
     const lines = SPEECHES[status] || SPEECHES.NORMAL;
-    document.getElementById('pet-speech').textContent = lines[Math.floor(Math.random() * lines.length)];
+    const el = document.getElementById('pet-speech');
+    if (force || !el.textContent) el.textContent = lines[Math.floor(Math.random() * lines.length)];
 }
 
 function setAllButtonsDisabled(disabled) {
-    ['btn-pet-feed','btn-pet-wipe','btn-pet-play','btn-pet-sleep'].forEach(id => {
-        document.getElementById(id).disabled = disabled;
-    });
+    _actionLock = disabled;
+    renderActionButtons();
+}
+
+function renderActionButtons() {
+    const cooldowns = _groupPet?.pet_cooldowns || {};
+    const isCaged = Boolean(_groupPet?.pet_is_caged);
+    for (const action of ['feed', 'wipe', 'play']) {
+        const remaining = Math.max(0, Math.ceil(Number(cooldowns[action] || 0)));
+        const button = document.getElementById(`btn-pet-${action}`);
+        const stateEl = document.getElementById(`pet-${action}-state`);
+        button.disabled = _actionLock || remaining > 0 || isCaged;
+        button.classList.toggle('is-cooling', remaining > 0);
+        stateEl.textContent = isCaged ? '完成聚會解鎖' : (remaining > 0 ? formatCooldown(remaining) : '可互動');
+    }
+}
+
+function startCooldownTicker() {
+    clearInterval(_cooldownTimer);
+    _cooldownTickAt = Date.now();
+    _cooldownTimer = setInterval(() => {
+        const now = Date.now();
+        const elapsedSeconds = Math.max(1, Math.floor((now - _cooldownTickAt) / 1000));
+        _cooldownTickAt = now;
+        if (!_groupPet?.pet_cooldowns) return;
+        let changed = false;
+        for (const action of ['feed', 'wipe', 'play']) {
+            const current = Number(_groupPet.pet_cooldowns[action] || 0);
+            if (current > 0) {
+                _groupPet.pet_cooldowns[action] = Math.max(0, current - elapsedSeconds);
+                changed = true;
+            }
+        }
+        if (changed && !document.hidden) renderActionButtons();
+    }, 1000);
+}
+
+async function refreshWhenVisible() {
+    if (document.hidden || !_groupId || _actionLock) return;
+    try {
+        const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet`);
+        if (res.ok && data?.pet) {
+            _groupPet = { ..._groupPet, ...data.pet };
+            renderGroupMode();
+        }
+    } catch (_) {}
+}
+
+function renderUnlocks(accessories) {
+    const wrap = document.getElementById('pet-unlocks');
+    const items = document.getElementById('pet-unlock-items');
+    const known = accessories.map(key => ACCESSORY_META[key]).filter(Boolean);
+    wrap.style.display = known.length ? 'flex' : 'none';
+    items.innerHTML = known.map(item =>
+        `<span class="pet-unlock-chip"><i data-lucide="${item.icon}"></i>${item.text}</span>`
+    ).join('');
+}
+
+function showActionFeedback(message, tone = 'success') {
+    const el = document.getElementById('pet-action-feedback');
+    clearTimeout(_feedbackTimer);
+    el.textContent = message;
+    el.className = `pet-action-feedback is-visible ${tone === 'warn' ? 'is-warn' : 'is-success'}`;
+    _feedbackTimer = setTimeout(() => { el.className = 'pet-action-feedback'; }, 3600);
+}
+
+function showLoadError(message) {
+    showLoading(false);
+    document.getElementById('pet-list-screen').style.display = 'none';
+    document.getElementById('pet-no-pet').style.display = 'none';
+    document.getElementById('pet-game-wrap').style.display = 'none';
+    document.getElementById('pet-error-message').textContent = message || '請檢查網路後再試一次。';
+    document.getElementById('pet-tama-error').style.display = 'block';
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function readApiError(data, fallback) {
+    const detail = data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (detail && typeof detail.message === 'string') return detail.message;
+    return fallback;
+}
+
+function formatCooldown(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return minutes > 0 ? `${minutes}:${String(rest).padStart(2, '0')} 後` : `${rest} 秒後`;
+}
+
+function formatChanges(changes) {
+    const labels = { pet_energy: '飽食', pet_happiness: '快樂', pet_cleanliness: '清潔' };
+    return Object.entries(changes)
+        .filter(([, value]) => Number(value) !== 0)
+        .map(([key, value]) => `${labels[key] || key} ${Number(value) > 0 ? '+' : ''}${value}`)
+        .join('、');
 }
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

@@ -1,6 +1,4 @@
 import { register, switchView } from '../../core/router.js';
-import { apiFetch } from '../../core/api.js';
-import { storage } from '../../core/firebase.js';
 import { state } from '../../core/state.js';
 import { t } from '../../core/i18n.js';
 
@@ -19,6 +17,8 @@ const LEFT_EYE_OUTER = 33;
 const RIGHT_EYE_OUTER = 263;
 
 const ANIMALS = ['dog', 'cat', 'rabbit', 'fox'];
+const BODY_TO_ANIMAL = { '🐶': 'dog', '🐱': 'cat', '🐰': 'rabbit', '🦊': 'fox' };
+const ANIMAL_TO_BODY = { dog: '🐶', cat: '🐱', rabbit: '🐰', fox: '🦊' };
 const animalImages = {};
 let customImage = null;
 
@@ -36,6 +36,9 @@ let cameraStream = null;
 let videoLoopId = null;
 let facingMode = 'user';
 let lastTapAt = 0;
+let captureOrigin = null;     // 'video' | 'image' | null
+let captureBusy = false;
+let isCaptured = false;
 
 // 抖動平滑（One-Euro filter）：大廠濾鏡不抖的關鍵，去 jitter 但不延遲
 let euro = null;
@@ -83,7 +86,7 @@ export function init() {
     });
 
     document.getElementById('btn-pet-swap-back').onclick = () => {
-        switchView(state.petSwapOrigin === 'personal' ? 'view-pet-tamagotchi' : 'view-group-setup');
+        switchView('view-group-setup');
     };
     document.getElementById('btn-pet-camera').onclick = startLiveCamera;
     document.getElementById('btn-pet-flip').onclick = flipCamera;
@@ -106,9 +109,13 @@ export function init() {
     // 結果 sheet 動作
     document.getElementById('btn-pet-generate').onclick = detectAndRender;
     document.getElementById('btn-pet-reset').onclick = resetFilterControls;
-    document.getElementById('btn-pet-download').onclick = downloadCanvas;
+    document.getElementById('btn-pet-retake').onclick = retakePhoto;
     document.getElementById('btn-pet-set-avatar').onclick = setAsGroupAvatar;
-    document.getElementById('btn-pet-adopt').onclick = adoptPet;
+    document.getElementById('pet-create-name').addEventListener('input', () => {
+        const hint = document.getElementById('pet-create-name-error');
+        hint.textContent = '建立後仍可再次改名';
+        hint.classList.remove('is-error');
+    });
     ['pet-control-scale', 'pet-control-x', 'pet-control-y', 'pet-control-rotation'].forEach(id => {
         document.getElementById(id).addEventListener('input', renderFilter);
     });
@@ -166,10 +173,12 @@ function updateActiveFromScroll() {
     if (animal !== 'add') {
         selectedAnimal = animal;
         renderFilter();
+        syncResultButtons();
     }
 }
 
 function onStageTap(e) {
+    if (isCaptured) return;
     if (e.target.closest('button') || e.target.closest('.pet-cam-top') || e.target.closest('.pet-cam-bottom')) return;
     const now = Date.now();
     if (now - lastTapAt < 300) flipCamera();
@@ -184,14 +193,67 @@ function toggleFavorite() {
 }
 
 // ── 拍照：開啟結果 sheet（微調 / 下載 / 設頭像 / 養它） ──
-function capturePhoto() {
+async function capturePhoto() {
+    if (captureBusy || isCaptured) return;
     if (!sourceReady()) {
         setStatus('先開啟鏡頭或上傳照片，再拍照。');
         return;
     }
-    renderFilter();
-    syncResultButtons();
-    openSheet('pet-result-sheet');
+    captureBusy = true;
+    captureOrigin = sourceMode;
+    try {
+        if (sourceMode === 'video') {
+            cancelVideoLoop();
+            const video = getVideo();
+            let frozenFrame;
+            if (typeof createImageBitmap === 'function') {
+                frozenFrame = await createImageBitmap(video);
+            } else {
+                const fallback = document.createElement('canvas');
+                fallback.width = getCanvas().width;
+                fallback.height = getCanvas().height;
+                fallback.getContext('2d').drawImage(video, 0, 0, fallback.width, fallback.height);
+                frozenFrame = fallback;
+            }
+            const frozenLandmarks = currentLandmarks;
+            sourceImage = frozenFrame;
+            sourceMode = 'image';
+            stopLiveCamera();
+            currentLandmarks = frozenLandmarks;
+        }
+        isCaptured = true;
+        setCapturedUi(true);
+        renderFilter();
+        syncResultButtons();
+        setStatus('畫面已暫停。確認構圖與名字後建立，或選擇重拍。');
+        openSheet('pet-result-sheet');
+    } catch (err) {
+        showError(err.message || '無法擷取目前畫面，請重試。');
+        if (sourceMode === 'video') startVideoLoop();
+    } finally {
+        captureBusy = false;
+    }
+}
+
+async function retakePhoto() {
+    if (captureBusy) return;
+    closeSheet('pet-result-sheet');
+    setCapturedUi(false);
+    const shouldRestartCamera = captureOrigin === 'video';
+    isCaptured = false;
+    captureOrigin = null;
+    if (shouldRestartCamera) {
+        sourceImage?.close?.();
+        sourceImage = null;
+        await startLiveCamera();
+    } else {
+        setStatus('可調整身體或重新選擇照片，再按中間圓圈確認。');
+    }
+}
+
+function setCapturedUi(captured) {
+    document.getElementById('pet-cam-stage').classList.toggle('is-captured', captured);
+    document.getElementById('pet-capture-state').hidden = !captured;
 }
 
 async function handleFile(file) {
@@ -242,6 +304,9 @@ async function handleCustomFilter(file) {
 
 async function startLiveCamera() {
     hideError();
+    isCaptured = false;
+    captureOrigin = null;
+    setCapturedUi(false);
     stopLiveCamera();
     if (sourceUrl) { URL.revokeObjectURL(sourceUrl); sourceUrl = ''; }
     sourceImage = null;
@@ -489,16 +554,9 @@ function renderFilter() {
     drawFaceCutout(ctx, pts, anchor);
 }
 
-// 柔和徑向漸層底，取代死白（少一個廉價破綻）
+// 儲存時保留透明底，才能自然疊在任何寵物場景上。
 function paintBackground(ctx, canvas) {
-    const g = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height * 0.42, canvas.height * 0.08,
-        canvas.width / 2, canvas.height / 2, canvas.height * 0.78,
-    );
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#e7ecf3');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function sourceReady() {
@@ -606,104 +664,60 @@ function resetControlValues() {
     document.getElementById('pet-control-rotation').value = '0';
 }
 
-function downloadCanvas() {
-    if (!sourceMode) return;
-    renderFilter();
-    const a = document.createElement('a');
-    a.href = getCanvas().toDataURL('image/jpeg', 0.92);
-    a.download = 'pet-face.jpg';
-    a.click();
-}
-
 async function getRenderedBlob() {
     if (!sourceMode) throw new Error('請先載入照片或啟動鏡頭');
+    if (!currentLandmarks) throw new Error('尚未辨識到臉，請換一張正面照片或重新拍攝');
+    if (!ANIMAL_TO_BODY[selectedAnimal]) throw new Error('請選擇狗、貓、兔或狐狸身體');
     renderFilter();
     const canvas = getCanvas();
     return await new Promise((resolve, reject) => {
         canvas.toBlob((blob) => {
             if (!blob) reject(new Error('無法輸出圖片'));
             else resolve(blob);
-        }, 'image/jpeg', 0.92);
+        }, 'image/png');
     });
 }
 
 async function setAsGroupAvatar() {
     const groupId = state.currentGroupDetail?.group_id;
     if (!groupId) { showError('目前不是從群組頁進來，不能設為群組頭像。'); return; }
+    const nameInput = document.getElementById('pet-create-name');
+    const nameError = document.getElementById('pet-create-name-error');
+    const petName = nameInput.value.trim().slice(0, 20);
+    const petBodyEmoji = ANIMAL_TO_BODY[selectedAnimal];
+    if (!petName) {
+        nameError.textContent = '請先幫寵物取名字';
+        nameError.classList.add('is-error');
+        nameInput.focus();
+        return;
+    }
     try {
         hideError();
         const btn = document.getElementById('btn-pet-set-avatar');
         btn.disabled = true;
-        btn.innerHTML = '設定中…';
+        btn.innerHTML = '建立中…';
         const blob = await getRenderedBlob();
-        const { setGroupPetFace } = await import('../../features/groups/controller.js');
-        const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid);
+        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=39');
+        const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji);
         if (!res.ok || data?.status !== 'success') throw new Error(data?.detail || `HTTP ${res.status}`);
-        setStatus('已設成群組頭像。');
-        closeSheet('pet-result-sheet');
-        switchView('view-group-setup');
-    } catch (err) {
-        const btn = document.getElementById('btn-pet-set-avatar');
-        btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="image-up"></i> 設為群組頭像';
-        if (window.lucide) window.lucide.createIcons();
-        showError(err.message || String(err));
-    }
-}
-
-async function adoptPet() {
-    if (!state.currentUser) { showError('請先登入才能養寵物。'); return; }
-    const adoptBtn = document.getElementById('btn-pet-adopt');
-    const adoptLoad = document.getElementById('pet-adopt-loading');
-    adoptBtn.disabled = true;
-    adoptLoad.style.display = 'block';
-    hideError();
-    try {
-        const blob = await getRenderedBlob();
-        const uid = state.currentUser.uid;
-        const file = new File([blob], 'pet.jpg', { type: 'image/jpeg' });
-        const toUpload = await compressImage(file, 512, 0.85);
-        const ref = storage.ref().child(`pet-images/${uid}/pet.jpg`);
-        const snap = await ref.put(toUpload, { contentType: 'image/jpeg' });
-        const imageUrl = await snap.ref.getDownloadURL();
-        const animal = ANIMALS.includes(selectedAnimal) ? selectedAnimal : 'dog';
-        const { res, data } = await apiFetch('/api/my-pet/setup', {
-            method: 'POST',
-            body: JSON.stringify({ image_url: imageUrl, animal, name: '' }),
-        });
-        if (!res.ok) {
-            throw new Error(data?.detail || t('建立寵物失敗（HTTP {status}）', { status: res.status }));
-        }
-        setStatus('已成功建立你的寵物。');
+        state.currentGroupDetail = {
+            ...state.currentGroupDetail,
+            pet_face_url: data.pet_face_url,
+            pet_name: petName,
+            pet_body_emoji: petBodyEmoji,
+        };
+        state.tamagotchiGroupId = groupId;
+        state.petSwapTarget = null;
+        setStatus('寵物建立完成。');
         closeSheet('pet-result-sheet');
         switchView('view-pet-tamagotchi');
     } catch (err) {
+        const btn = document.getElementById('btn-pet-set-avatar');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="paw-print"></i> 建立群組寵物';
+        if (window.lucide) window.lucide.createIcons();
         showError(err.message || String(err));
-    } finally {
-        adoptBtn.disabled = false;
-        adoptLoad.style.display = 'none';
     }
-}
-
-function compressImage(file, maxPx, quality) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-            URL.revokeObjectURL(url);
-            let { width, height } = img;
-            if (width > maxPx || height > maxPx) {
-                if (width > height) { height = Math.round(height * maxPx / width); width = maxPx; }
-                else { width = Math.round(width * maxPx / height); height = maxPx; }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
-            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', quality);
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-        img.src = url;
-    });
 }
 
 // ── sheet 開關 ──
@@ -719,11 +733,9 @@ function syncResultButtons() {
     const ready = sourceReady();
     document.getElementById('btn-pet-generate').disabled = !ready || sourceMode === 'video';
     document.getElementById('btn-pet-reset').disabled = !ready;
-    document.getElementById('btn-pet-download').disabled = !ready;
-    document.getElementById('btn-pet-adopt').disabled = !ready;
     const avatarBtn = document.getElementById('btn-pet-set-avatar');
     avatarBtn.style.display = state.currentGroupDetail?.group_id ? '' : 'none';
-    avatarBtn.disabled = !ready;
+    avatarBtn.disabled = !ready || !currentLandmarks || !ANIMAL_TO_BODY[selectedAnimal];
     document.getElementById('pet-filter-controls').classList.toggle('is-disabled', !ready);
 }
 
@@ -735,7 +747,11 @@ function resetView() {
     sourceImage = null;
     currentLandmarks = null;
     sourceMode = null;
-    selectedAnimal = 'dog';
+    captureOrigin = null;
+    captureBusy = false;
+    isCaptured = false;
+    setCapturedUi(false);
+    selectedAnimal = BODY_TO_ANIMAL[state.currentGroupDetail?.pet_body_emoji] || 'dog';
     resetControlValues();
     const canvas = getCanvas();
     canvas.width = 1; canvas.height = 1;
@@ -744,8 +760,15 @@ function resetView() {
     setLoading(false);
     hideError();
     setStatus('開啟鏡頭，左右滑選濾鏡，點中間圓圈拍照。');
-    document.getElementById('pet-adopt-loading').style.display = 'none';
     document.getElementById('pet-album-input').value = '';
+    const nameInput = document.getElementById('pet-create-name');
+    const nameError = document.getElementById('pet-create-name-error');
+    nameInput.value = state.currentGroupDetail?.pet_name || '';
+    nameError.textContent = '建立後仍可再次改名';
+    nameError.classList.remove('is-error');
+    document.querySelectorAll('.pet-filter-dot[data-animal]').forEach(dot => {
+        dot.classList.toggle('active', dot.dataset.animal === selectedAnimal);
+    });
 }
 
 function setLoading(loading) {
