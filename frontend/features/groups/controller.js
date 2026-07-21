@@ -77,10 +77,12 @@ export async function refreshGroupInviteCode(groupId) {
 }
 
 // 把生成好的寵物臉 blob 設為群組頭像（multipart，需自行移除 Content-Type 讓瀏覽器帶 boundary）
-export async function setGroupPetFace(groupId, blob, targetUid) {
+export async function setGroupPetFace(groupId, blob, targetUid, petName, petBodyEmoji) {
     const formData = new FormData();
-    formData.append('file', blob, 'pet_face.jpg');
+    formData.append('file', blob, 'pet_face.png');
     if (targetUid) formData.append('target_uid', targetUid);
+    formData.append('pet_name', petName);
+    formData.append('pet_body_emoji', petBodyEmoji);
 
     const headers = await getAuthHeaders();
     delete headers['Content-Type'];

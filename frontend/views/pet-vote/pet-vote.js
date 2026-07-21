@@ -3,7 +3,7 @@
 // 確認 → 進生成寵物臉（view-pet-swap，接現有合成流程）。
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { PET_BODY_OPTIONS } from '../../core/config.js';
+import { PET_BODY_OPTIONS } from '../../core/config.js?v=39';
 import { t } from '../../core/i18n.js';
 
 const BODY_LABELS = {
@@ -33,7 +33,7 @@ async function onShow() {
     renderMembers(g);
 
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=39');
         const full = await fetchGroupDetail(currentGroupId);
         if (full) {
             state.currentGroupDetail = { ...g, ...full };
@@ -82,10 +82,10 @@ function renderMembers(g) {
 async function handleVote(targetUid) {
     if (!currentGroupId) return;
     try {
-        const { voteForPet } = await import('../../features/groups/controller.js');
+        const { voteForPet } = await import('../../features/groups/controller.js?v=39');
         const { data } = await voteForPet(currentGroupId, targetUid);
         if (data?.status === 'success') {
-            const { fetchGroupDetail } = await import('../../features/groups/controller.js');
+            const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=39');
             const full = await fetchGroupDetail(currentGroupId);
             if (full) { state.currentGroupDetail = { ...state.currentGroupDetail, ...full }; renderMembers(full); }
         } else {
@@ -122,12 +122,17 @@ async function handleConfirm() {
     const orig = btn.textContent;
     btn.textContent = t('儲存中…');
     try {
-        const { updatePet } = await import('../../features/groups/controller.js');
+        const { updatePet } = await import('../../features/groups/controller.js?v=39');
         const { data } = await updatePet(currentGroupId, { pet_body_emoji: selectedBody });
         if (data?.status !== 'success') {
             alert(t('更新失敗：') + (data?.detail || JSON.stringify(data)));
             return;
         }
+        // 讓下一頁立即套用剛選的身體，不等下次向後端重新載入。
+        state.currentGroupDetail = {
+            ...state.currentGroupDetail,
+            pet_body_emoji: selectedBody,
+        };
         // 帶入投票最高票者作為要拍攝的臉（pet-swap 用 state.petSwapTarget）
         const g = state.currentGroupDetail;
         const winner = pickWinner(g);

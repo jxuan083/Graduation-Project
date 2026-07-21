@@ -5,7 +5,7 @@ import { events } from '../../core/events.js';
 import { startQrScanner } from '../scanner/scanner.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=39';
 import { t } from '../../core/i18n.js';
 
 let _groupsCacheTs = 0;

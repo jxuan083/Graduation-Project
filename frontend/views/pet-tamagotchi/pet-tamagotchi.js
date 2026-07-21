@@ -164,6 +164,10 @@ function escHtml(value) {
     })[char]);
 }
 
+function isLegacyOpaquePet(url) {
+    return /\.jpe?g(?:[?#]|$)/i.test(String(url || ''));
+}
+
 // ── 狀態 ─────────────────────────────────────────────────────────────────────
 
 let _groupPet   = null;
@@ -181,6 +185,7 @@ let _clickIdx   = 0;
 let _lastRenderedStatus = null;
 let _pendingDelete = null;   // { groupId }
 let _deleteBusy    = false;
+let _renameBusy    = false;
 
 const CLICK_CYCLE = [
     { anim: 'happy',   status: 'HAPPY'  },
@@ -366,11 +371,11 @@ function renderPetList() {
             <div class="pet-list-scene ${sceneClass}${isCaged ? ' is-caged' : ''}">
                 <span class="pet-list-scene-label">${index % 2 === 0 ? '晨光起居室' : '黃昏露台'}</span>
                 <div class="pet-list-pet-wrap">
-                    <img class="pet-list-avatar" src="${escHtml(pet.pet_face_url)}" alt="${escHtml(pet.pet_name || '群組寵物')}">
+                    <img class="pet-list-avatar${isLegacyOpaquePet(pet.pet_face_url) ? ' pet-legacy-opaque' : ''}" src="${escHtml(pet.pet_face_url)}" alt="${escHtml(pet.pet_name || '群組寵物')}">
                 </div>
                 ${visitorEntry && !isCaged ? `
                     <div class="pet-list-visitor" aria-label="${escHtml(visitorEntry.pet.pet_name || '另一隻寵物')}來串門">
-                        <img src="${escHtml(visitorEntry.pet.pet_face_url)}" alt="">
+                        <img class="${isLegacyOpaquePet(visitorEntry.pet.pet_face_url) ? 'pet-legacy-opaque' : ''}" src="${escHtml(visitorEntry.pet.pet_face_url)}" alt="">
                         <span>${escHtml(visitorEntry.pet.pet_name || '朋友')}來串門</span>
                     </div>` : ''}
                 ${isCaged ? `<div class="pet-list-cage" aria-hidden="true"><span></span><span></span><span></span><span></span></div>` : ''}
@@ -540,6 +545,7 @@ function renderGroupMode() {
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
+    img.classList.toggle('pet-legacy-opaque', isLegacyOpaquePet(_groupPet.pet_face_url));
 
     const energy = _groupPet.pet_energy ?? 50;
     const maxE   = _groupPet.pet_max_energy ?? 100;
@@ -619,17 +625,30 @@ function playPetRelease() {
 // ── 改名 ──────────────────────────────────────────────────────────────────────
 
 function openRenameDialog() {
+    if (_renameBusy) return;
     document.getElementById('pet-rename-input').value = _groupPet?.pet_name || '';
     document.getElementById('pet-rename-overlay').style.display = 'flex';
     document.getElementById('pet-rename-input').focus();
 }
 function closeRenameDialog() {
+    if (_renameBusy) return;
     document.getElementById('pet-rename-overlay').style.display = 'none';
 }
 async function confirmRename() {
-    const name = document.getElementById('pet-rename-input').value.trim().slice(0, 20);
-    closeRenameDialog();
-    if (!name || !_groupPet) return;
+    if (_renameBusy || !_groupPet) return;
+    const input = document.getElementById('pet-rename-input');
+    const button = document.getElementById('btn-rename-confirm');
+    const name = input.value.trim().slice(0, 20);
+    if (!name) {
+        input.setCustomValidity('請輸入寵物名字');
+        input.reportValidity();
+        input.focus();
+        return;
+    }
+    input.setCustomValidity('');
+    _renameBusy = true;
+    button.disabled = true;
+    button.textContent = '儲存中…';
     try {
         const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet`, {
             method: 'PATCH',
@@ -638,9 +657,15 @@ async function confirmRename() {
         if (!res.ok) throw new Error(data?.detail || '改名失敗');
         if (_groupPet) _groupPet.pet_name = name;
         document.getElementById('pet-tama-name').textContent = name;
+        document.getElementById('pet-rename-overlay').style.display = 'none';
+        showToast('名字已更新');
     } catch (e) {
         console.error('rename error', e);
         showToast(e.message || '改名失敗', 'warn');
+    } finally {
+        _renameBusy = false;
+        button.disabled = false;
+        button.textContent = '確認';
     }
 }
 

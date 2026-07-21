@@ -56,7 +56,7 @@ async function onShow() {
     renderMeetings(g.group_id);
 
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=39');
         const full = await fetchGroupDetail(g.group_id);
         if (full) {
             state.currentGroupDetail = { ...g, ...full };

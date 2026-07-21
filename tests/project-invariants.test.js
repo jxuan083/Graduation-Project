@@ -44,6 +44,31 @@ test('pet feature is group-only', () => {
   assert.doesNotMatch(storageRules, /match \/pet-images\//);
 });
 
+test('created group pets keep a transparent background and persist the chosen body and name', () => {
+  const backend = read('backend/main.py');
+  const controller = read('frontend/features/groups/controller.js');
+  const petSwap = read('frontend/views/pet-swap/pet-swap.js');
+  assert.match(petSwap, /ctx\.clearRect\(0, 0, canvas\.width, canvas\.height\)/);
+  assert.match(petSwap, /canvas\.toBlob[\s\S]*?'image\/png'/);
+  assert.match(controller, /formData\.append\('pet_name', petName\)/);
+  assert.match(controller, /formData\.append\('pet_body_emoji', petBodyEmoji\)/);
+  assert.match(backend, /"pet_name": clean_name/);
+  assert.match(backend, /"pet_body_emoji": clean_body/);
+});
+
+test('camera capture freezes one frame and stops the live stream before confirmation', () => {
+  const petSwap = read('frontend/views/pet-swap/pet-swap.js');
+  const captureStart = petSwap.indexOf('async function capturePhoto');
+  const captureEnd = petSwap.indexOf('\nasync function retakePhoto', captureStart);
+  const capture = petSwap.slice(captureStart, captureEnd);
+  assert.match(capture, /cancelVideoLoop\(\)/);
+  assert.match(capture, /await createImageBitmap\(video\)/);
+  assert.match(capture, /sourceMode = 'image'/);
+  assert.match(capture, /stopLiveCamera\(\)/);
+  assert.ok(capture.indexOf("sourceMode = 'image'") < capture.indexOf('stopLiveCamera()'));
+  assert.match(capture, /setCapturedUi\(true\)/);
+});
+
 test('group pet is included in linked meeting rooms without requiring a target user', () => {
   const backend = read('backend/main.py');
   const createRoomStart = backend.indexOf('async def create_room');

@@ -40,4 +40,5 @@ export const CONTEXT_CONFIGS = {
 
 export const DIFFICULTY_LABELS = { L: '輕鬆', M: '標準', H: '嚴格' };
 
-export const PET_BODY_OPTIONS = ['🐰', '🐻', '🐱', '🐶', '🦊', '🐸', '🐧', '🐼', '🐨', '🐯'];
+// 目前有對應透明素材的四種身體；避免顯示能選、實際卻不生效的假選項。
+export const PET_BODY_OPTIONS = ['🐶', '🐱', '🐰', '🦊'];

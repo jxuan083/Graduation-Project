@@ -2454,7 +2454,7 @@ CONTEXT_DEFAULTS: Dict[str, dict] = {
 
 VALID_CONTEXTS = set(CONTEXT_DEFAULTS.keys())
 VALID_DIFFICULTIES = {"L", "M", "H"}
-PET_BODY_OPTIONS = ["🐰", "🐻", "🐱", "🐶", "🦊", "🐸", "🐧", "🐼", "🐨", "🐯"]
+PET_BODY_OPTIONS = ["🐶", "🐱", "🐰", "🦊"]
 
 
 def get_session_params(context: str, difficulty: str) -> dict:
@@ -2946,6 +2946,8 @@ async def set_group_pet_face(
     group_id: str,
     file: UploadFile = File(...),
     target_uid: Optional[str] = Form(default=None),
+    pet_name: Optional[str] = Form(default=None),
+    pet_body_emoji: Optional[str] = Form(default=None),
     decoded: dict = Depends(verify_token),
 ):
     """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。只有群組建立者可設定。"""
@@ -2960,6 +2962,14 @@ async def set_group_pet_face(
     data = snap.to_dict() or {}
     if uid != data.get("creator_uid"):
         raise HTTPException(status_code=403, detail="只有群組建立者可以設定寵物臉")
+    clean_name = (pet_name or data.get("pet_name") or "群組寵物").strip()[:20]
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="請幫寵物取名字")
+    clean_body = pet_body_emoji or data.get("pet_body_emoji") or "🐶"
+    if clean_body not in PET_BODY_OPTIONS:
+        if pet_body_emoji:
+            raise HTTPException(status_code=400, detail="請選擇有效的寵物身體")
+        clean_body = "🐶"  # 舊版未支援的 emoji 自動移轉為有實際素材的預設身體
 
     # 🔒 content_type 白名單（沿用照片那套，排除 SVG 等可執行內容）
     ALLOWED = {"image/jpeg", "image/png", "image/webp"}
@@ -2987,6 +2997,8 @@ async def set_group_pet_face(
             "pet_face_path": blob_name,
             "pet_face_updated_at": firestore.SERVER_TIMESTAMP,
             "pet_face_target_uid": target_uid or None,
+            "pet_name": clean_name,
+            "pet_body_emoji": clean_body,
             # 設臉＝寵物誕生，補齊養成欄位並起算衰減 anchor（缺才補，不覆蓋既有進度）
             "pet_last_updated": firestore.SERVER_TIMESTAMP,
         }
