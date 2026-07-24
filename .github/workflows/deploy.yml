@@ -1,12 +1,25 @@
-name: Deploy
+name: CI and Manual Deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: What should be deployed after verification?
+        required: true
+        default: verify-only
+        type: choice
+        options:
+          - verify-only
+          - frontend
+          - all
 
-# 同 branch 同時只跑一條，新 push 會取消舊的
+# push / PR 自動跑 CI；部署只允許從 GitHub Actions 手動觸發。
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: ci-deploy-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -16,7 +29,7 @@ env:
   IMAGE: asia-east1-docker.pkg.dev/graduation-6ae65/cloud-run-source-deploy/phubbing-backend
 
 jobs:
-  # ── Deploy gate: 任何靜態檢查或測試失敗都不得上線 ──
+  # ── CI gate: push、PR、手動部署都必須先通過 ──
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +58,9 @@ jobs:
   # ── Frontend: Firebase Hosting ──
   deploy-frontend:
     needs: verify
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.deploy_target == 'frontend' || inputs.deploy_target == 'all')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,6 +87,9 @@ jobs:
   # ── Backend: Cloud Run ──
   deploy-backend:
     needs: verify
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.deploy_target == 'all'
     runs-on: ubuntu-latest
     permissions:
       contents: read

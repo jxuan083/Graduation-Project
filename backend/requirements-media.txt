@@ -1,0 +1,5 @@
+# Optional media / AI dependencies. Install only when testing STT or LLM enhancements.
+numpy==2.4.6
+openai-whisper==20250625
+whisperx==3.8.6
+openai==2.45.0

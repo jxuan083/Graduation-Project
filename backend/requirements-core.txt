@@ -1,0 +1,9 @@
+# Core API dependencies for local development and non-media tests.
+fastapi==0.139.0
+uvicorn==0.51.0
+websockets==16.1
+firebase-admin==7.5.0
+qrcode==8.2
+python-multipart==0.0.32
+Pillow==12.3.0
+pydantic==2.13.4
