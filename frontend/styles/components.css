@@ -24,6 +24,12 @@
   backdrop-filter: blur(8px);
 }
 
+#auth-logged-out {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .auth-avatar {
   width: 28px;
   height: 28px;
@@ -42,19 +48,26 @@
 }
 
 .btn-auth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
   background: var(--accent-color);
   color: white;
   border: none;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 11px;
+  font-size: 0.84rem;
+  font-weight: 650;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0;
+  transition: background .16s, border-color .16s, box-shadow .16s, transform .12s, opacity .15s;
 }
+.btn-auth svg { width: 15px; height: 15px; stroke-width: 2; }
 
-.btn-auth:hover { opacity: 0.9; }
-.btn-auth:active { transform: scale(0.97); }
+.btn-auth:hover { opacity: 0.94; }
+.btn-auth:active { transform: translateY(1px) scale(0.985); }
 
 .btn-auth-small {
   background: rgba(255,255,255,0.12);

@@ -4,13 +4,14 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId } from './router.js';
-import { doGoogleLogin, doSignOut } from './firebase.js';
+import { doGoogleLogin, doLocalDevLogin, doSignOut } from './firebase.js';
+import { FIREBASE_EMULATORS } from './config.js';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=39';
-import { openFriendsView } from '../views/friends/friends.js?v=39';
+import { openProfileView } from '../views/profile/profile.js?v=40';
+import { openFriendsView } from '../views/friends/friends.js?v=40';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -19,6 +20,11 @@ import { t } from './i18n.js';
 export function initChrome() {
     // ===== Auth bar =====
     document.getElementById('btn-google-login').onclick = doGoogleLogin;
+    const devLoginButton = document.getElementById('btn-dev-login');
+    if (devLoginButton) {
+        devLoginButton.style.display = FIREBASE_EMULATORS.enabled ? 'inline-flex' : 'none';
+        devLoginButton.onclick = doLocalDevLogin;
+    }
 
     const userMenuToggle = document.getElementById('btn-user-menu-toggle');
     const userMenuDropdown = document.getElementById('user-menu-dropdown');

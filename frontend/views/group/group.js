@@ -26,12 +26,18 @@ export function init() {
         if (state.currentGroupDetail) switchView('view-group-chat');
     };
 
-    // 寵物投票 / 更新寵物 → 獨立寵物投票頁
-    document.getElementById('btn-group-pet-vote').onclick = () => {
-        if (state.currentGroupDetail) switchView('view-pet-vote');
+    // 建立 / 更新群組寵物 → 直接進拍照合成，不再走投票流程。
+    document.getElementById('btn-group-pet-create').onclick = () => {
+        if (!state.currentGroupDetail) return;
+        state.petSwapTarget = null;
+        state.petSwapReturnView = 'view-group';
+        switchView('view-pet-swap');
     };
     document.getElementById('btn-group-pet-regen').onclick = () => {
-        if (state.currentGroupDetail) switchView('view-pet-vote');
+        if (!state.currentGroupDetail) return;
+        state.petSwapTarget = null;
+        state.petSwapReturnView = 'view-group';
+        switchView('view-pet-swap');
     };
 
     document.getElementById('btn-group-pet-tama').onclick = () => {
@@ -56,7 +62,7 @@ async function onShow() {
     renderMeetings(g.group_id);
 
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=39');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=40');
         const full = await fetchGroupDetail(g.group_id);
         if (full) {
             state.currentGroupDetail = { ...g, ...full };

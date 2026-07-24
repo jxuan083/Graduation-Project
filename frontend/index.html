@@ -18,14 +18,14 @@
     <link rel="stylesheet" href="https://font.emtech.cc/css/TaipeiSansTC">
 
     <!-- 共用樣式 (warm-campfire redesign v=28) -->
-    <link rel="stylesheet" href="./styles/base.css?v=39">
-    <link rel="stylesheet" href="./styles/components.css?v=39">
-    <link rel="stylesheet" href="./styles/social.css?v=39">
-    <link rel="stylesheet" href="./styles/taboo.css?v=39">
-    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=39">
+    <link rel="stylesheet" href="./styles/base.css?v=40">
+    <link rel="stylesheet" href="./styles/components.css?v=40">
+    <link rel="stylesheet" href="./styles/social.css?v=40">
+    <link rel="stylesheet" href="./styles/taboo.css?v=40">
+    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=40">
 
     <!-- front-preview 淡色設計合併層（載入順序最後，覆蓋深色主題） -->
-    <link rel="stylesheet" href="./styles/redesign.css?v=39">
+    <link rel="stylesheet" href="./styles/redesign.css?v=40">
 
     <!-- Firebase (compat 全域) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -50,7 +50,14 @@
                 <button type="button" data-lang="en" class="lang-btn">EN</button>
             </div>
             <div id="auth-logged-out">
-                <button id="btn-google-login" class="btn-auth">使用 Google 登入</button>
+                <button id="btn-dev-login" class="btn-auth btn-dev-auth" style="display:none;">
+                    <i data-lucide="terminal"></i>
+                    本機快速登入
+                </button>
+                <button id="btn-google-login" class="btn-auth">
+                    <i data-lucide="user-round"></i>
+                    登入
+                </button>
             </div>
             <div id="auth-logged-in" style="display:none;">
                 <button id="btn-user-menu-toggle" class="user-menu-toggle" aria-haspopup="true" aria-expanded="false">
@@ -88,6 +95,6 @@
     </div>
 
     <!-- App 進入點 (ES Module) -->
-    <script type="module" src="./main.js?v=39"></script>
+    <script type="module" src="./main.js?v=40"></script>
 </body>
 </html>

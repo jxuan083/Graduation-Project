@@ -2,10 +2,11 @@
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
-import { startQrScanner } from '../scanner/scanner.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=39';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=40';
+import { doGoogleLogin, doLocalDevLogin } from '../../core/firebase.js';
+import { FIREBASE_EMULATORS } from '../../core/config.js';
 import { t } from '../../core/i18n.js';
 
 let _groupsCacheTs = 0;
@@ -22,6 +23,19 @@ export function init() {
     // 題庫
     document.getElementById('btn-question-library').onclick = openQuestionBank;
 
+    // 第一次進站預設展開三步引導；看過後保留可再次展開的入口。
+    const guideToggle = document.getElementById('btn-home-guide');
+    const guidePanel = document.getElementById('home-guide-panel');
+    if (guideToggle && guidePanel) {
+        const hasSeenGuide = localStorage.getItem('phubbing_landing_guide_seen') === '1';
+        setGuideExpanded(!hasSeenGuide);
+        guideToggle.onclick = () => {
+            const nextExpanded = guideToggle.getAttribute('aria-expanded') !== 'true';
+            setGuideExpanded(nextExpanded);
+            if (!nextExpanded) localStorage.setItem('phubbing_landing_guide_seen', '1');
+        };
+    }
+
     // 好友邀請橫幅「查看」
     const bannerView = document.getElementById('btn-incoming-banner-view');
     if (bannerView) bannerView.onclick = () => openFriendsView('incoming');
@@ -31,17 +45,39 @@ export function init() {
 
     // 底部功能列
     document.getElementById('btn-create-room').onclick = handleCreateRoom;
-    document.getElementById('btn-scan-qr').onclick = startQrScanner;
-    document.getElementById('btn-home-schedule').onclick = openScheduleSheet;
+    document.getElementById('btn-scan-qr').onclick = () => switchView('view-join-method');
     document.getElementById('btn-open-groups').onclick = () => switchView('view-groups');
+    document.getElementById('btn-open-friends').onclick = () => openFriendsView('add');
+    document.getElementById('btn-home-more-slot').onclick = () => {};
+    document.getElementById('btn-home-manage-groups').onclick = () => switchView('view-groups');
 
     // 預約聚會 sheet
+    const scheduleButton = document.getElementById('btn-home-schedule');
+    if (scheduleButton) scheduleButton.onclick = openScheduleSheet;
     document.getElementById('btn-sch-cancel').onclick = () => { document.getElementById('home-schedule-sheet').hidden = true; };
     document.getElementById('btn-sch-ics').onclick = createScheduleIcs;
+
+    const homeGoogleLogin = document.getElementById('btn-home-google-login');
+    if (homeGoogleLogin) homeGoogleLogin.onclick = doGoogleLogin;
+    const homeDevLogin = document.getElementById('btn-home-dev-login');
+    if (homeDevLogin) {
+        homeDevLogin.style.display = FIREBASE_EMULATORS.enabled ? 'inline-flex' : 'none';
+        homeDevLogin.onclick = doLocalDevLogin;
+    }
+    const homeJoinGuest = document.getElementById('btn-home-join-guest');
+    if (homeJoinGuest) homeJoinGuest.onclick = () => switchView('view-join-method');
 
     // 登入/登出後刷新群組
     events.on('auth:logged-in', () => { _groupsCacheTs = 0; renderGroups(); });
     events.on('auth:logged-out', () => { _groupsCacheTs = 0; renderGroups(); });
+}
+
+function setGuideExpanded(expanded) {
+    const toggle = document.getElementById('btn-home-guide');
+    const panel = document.getElementById('home-guide-panel');
+    if (!toggle || !panel) return;
+    toggle.setAttribute('aria-expanded', String(expanded));
+    panel.hidden = !expanded;
 }
 
 // ── 群組九宮格 ──
@@ -91,7 +127,7 @@ function paintGroups(groups) {
         const name = escapeHtml(g.name || t('未命名群組'));
         const img = g.pet_face_url
             ? `<img src="${escapeAttr(g.pet_face_url)}" alt="">`
-            : '🐾';
+            : '<i data-lucide="paw-print" aria-hidden="true"></i>';
         return `<button class="group-card" data-group-id="${escapeAttr(g.group_id)}" data-group-name="${escapeAttr(g.name || '')}">
             <div class="group-img-area">${img}</div>
             <span class="group-name">${name}</span>
@@ -101,6 +137,7 @@ function paintGroups(groups) {
     grid.querySelectorAll('.group-card').forEach(card => {
         card.onclick = () => openGroup(card.dataset.groupId, card.dataset.groupName);
     });
+    if (window.lucide) window.lucide.createIcons();
 }
 
 function filterGroups(qRaw) {
@@ -123,7 +160,11 @@ function openGroup(groupId, groupName) {
 
 function handleCreateRoom() {
     if (!state.currentUser) {
-        alert(t('請先用 Google 登入才能發起聚會'));
+        const devLogin = document.getElementById('btn-home-dev-login');
+        if (devLogin && FIREBASE_EMULATORS.enabled) {
+            devLogin.focus();
+        }
+        alert(t('請先登入，才能保存房間與聚會回顧'));
         return;
     }
     switchView('view-meeting-setup');

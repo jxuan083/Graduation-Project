@@ -11,7 +11,10 @@ export function cleanupSession() {
     state.amIHost = false;
     state.currentPhase = 'HOME';
     state.roomHostUid = null;
+    state.roomMembers = {};
     state.myNickname = '';
+    state.myProgress = 0;
+    state.isReady = false;
     state.totalDeviations = 0;
     state.myDeviations = 0;
     document.body.className = '';

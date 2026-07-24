@@ -24,6 +24,14 @@ test('security rules are deployed together with Hosting', () => {
     assert.match(workflow, /--only hosting,firestore:rules,storage/);
 });
 
+test('pushes and pull requests verify automatically but deployment stays manual', () => {
+    const workflow = read('.github/workflows/deploy.yml');
+    assert.match(workflow, /pull_request:\s*\n\s+branches: \[main\]/);
+    assert.match(workflow, /workflow_dispatch:\s*\n\s+inputs:/);
+    assert.match(workflow, /deploy-frontend:[\s\S]*?github\.event_name == 'workflow_dispatch'/);
+    assert.match(workflow, /deploy-backend:[\s\S]*?github\.event_name == 'workflow_dispatch'/);
+});
+
 test('client cannot directly overwrite user system fields', () => {
     const rules = read('firestore.rules');
     const userBlock = rules.match(/match \/users\/\{uid\}\s*\{([\s\S]*?)match \/questions/)?.[1] || '';
@@ -78,6 +86,26 @@ test('group pet is included in linked meeting rooms without requiring a target u
   assert.doesNotMatch(createRoom, /gd\.get\("pet_target_uid"\).*pet_face_url/);
   assert.match(createRoom, /"group_pet_name": group_pet_name/);
   assert.match(createRoom, /"group_pet_level": group_pet_level/);
+});
+
+test('landing explains the shared gathering loop before secondary features', () => {
+  const home = read('frontend/views/home/home.html');
+  assert.match(home, /手機可以留在手上/);
+  assert.match(home, /注意力留在彼此身上/);
+  assert.match(home, /揪齊夥伴[\s\S]*一起定錨[\s\S]*專心相聚/);
+  assert.match(home, /只要更了解彼此/);
+});
+
+test('shared anchor exposes every member progress and tactile completion feedback', () => {
+  const html = read('frontend/views/sync-ritual/sync-ritual.html');
+  const frontend = read('frontend/views/sync-ritual/sync-ritual.js');
+  const backend = read('backend/main.py');
+  assert.match(html, /id="sync-member-grid"/);
+  assert.match(html, /id="sync-complete-overlay"/);
+  assert.match(frontend, /renderSyncMembers/);
+  assert.match(frontend, /navigator\.vibrate/);
+  assert.match(backend, /\[START_SYNC\] rejected:[\s\S]*?host_uid/);
+  assert.match(backend, /all\(m\.get\("progress", 0\) == 100/);
 });
 
 test('unused Firebase Functions package is not part of the deploy surface', () => {

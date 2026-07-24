@@ -1,5 +1,6 @@
 // core/config.js — 全域常數
 const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const IS_LOCAL_FRONTEND = isLocalFrontend;
 export const BACKEND_HOST = isLocalFrontend
     ? '127.0.0.1:8080'
     : 'phubbing-backend-798458690617.asia-east1.run.app';
@@ -7,6 +8,13 @@ export const BACKEND_HOST = isLocalFrontend
 export const isSecure = window.location.protocol === 'https:';
 export const HTTP_PROTOCOL = isSecure ? 'https://' : 'http://';
 export const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
+
+export const FIREBASE_EMULATORS = {
+    enabled: isLocalFrontend,
+    authHost: 'http://127.0.0.1:9099',
+    storageHost: '127.0.0.1',
+    storagePort: 9199,
+};
 
 export const firebaseConfig = {
     apiKey: "AIzaSyBD_Q2H2H7HalmKV2A4TT1I2J9md9Mtq3k",

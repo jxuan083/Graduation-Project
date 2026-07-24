@@ -1,0 +1,27 @@
+<section id="view-join-method" class="view page-view">
+    <div class="page-header">
+        <button id="btn-join-method-back" class="btn-back" aria-label="返回">
+            <svg width="16" height="13" viewBox="0 0 26 14.73" fill="none"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="#4f351a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="page-title">加入聚會</span>
+    </div>
+
+    <div class="join-method-body">
+        <button id="btn-join-method-scan" class="join-method-primary" type="button">
+            <span class="join-method-icon"><i data-lucide="scan-line"></i></span>
+            <span>
+                <strong>掃 QR Code</strong>
+                <small>掃房主畫面上的邀請碼，最快加入。</small>
+            </span>
+        </button>
+
+        <div class="join-method-divider"><span>或</span></div>
+
+        <div class="join-method-card">
+            <label class="pet-field"><span>聚會碼或邀請連結</span>
+                <input id="join-method-code" type="text" placeholder="輸入房主分享的代碼" maxlength="80" autocomplete="off" /></label>
+            <button id="btn-join-method-code" class="btn primary" type="button">下一步</button>
+            <p class="hint">支援房間代碼，或包含 <code>?room=</code> 的邀請連結。</p>
+        </div>
+    </div>
+</section>

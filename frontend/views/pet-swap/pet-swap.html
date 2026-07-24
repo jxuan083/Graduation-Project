@@ -21,6 +21,7 @@
             <button id="btn-pet-swap-back" class="pet-cam-icon" aria-label="返回"><i data-lucide="chevron-down"></i></button>
             <button id="btn-pet-flip" class="pet-cam-icon" aria-label="翻轉鏡頭"><i data-lucide="refresh-cw"></i></button>
         </div>
+        <button id="btn-pet-retake" class="pet-cam-icon pet-retake-x" aria-label="重拍" hidden><i data-lucide="x"></i></button>
 
         <!-- 提示／錯誤 -->
         <div class="pet-cam-toast">
@@ -66,7 +67,6 @@
                 <label><span>旋轉</span><input id="pet-control-rotation" type="range" min="-30" max="30" value="0" /></label>
             </div>
             <div class="pet-sheet-actions">
-                <button id="btn-pet-retake" class="btn secondary"><i data-lucide="camera"></i> 重拍</button>
                 <button id="btn-pet-generate" class="btn secondary" disabled><i data-lucide="scan-face"></i> 自動定位</button>
                 <button id="btn-pet-reset" class="btn secondary" disabled><i data-lucide="rotate-ccw"></i> 重設</button>
             </div>

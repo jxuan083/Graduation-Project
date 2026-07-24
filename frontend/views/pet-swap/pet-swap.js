@@ -86,7 +86,7 @@ export function init() {
     });
 
     document.getElementById('btn-pet-swap-back').onclick = () => {
-        switchView('view-group-setup');
+        switchView(state.petSwapReturnView || 'view-group');
     };
     document.getElementById('btn-pet-camera').onclick = startLiveCamera;
     document.getElementById('btn-pet-flip').onclick = flipCamera;
@@ -254,6 +254,7 @@ async function retakePhoto() {
 function setCapturedUi(captured) {
     document.getElementById('pet-cam-stage').classList.toggle('is-captured', captured);
     document.getElementById('pet-capture-state').hidden = !captured;
+    document.getElementById('btn-pet-retake').hidden = !captured;
 }
 
 async function handleFile(file) {
@@ -697,7 +698,7 @@ async function setAsGroupAvatar() {
         btn.disabled = true;
         btn.innerHTML = '建立中…';
         const blob = await getRenderedBlob();
-        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=39');
+        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=40');
         const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji);
         if (!res.ok || data?.status !== 'success') throw new Error(data?.detail || `HTTP ${res.status}`);
         state.currentGroupDetail = {

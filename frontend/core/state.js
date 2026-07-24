@@ -27,6 +27,7 @@ export const state = {
     myNickname: '',
     currentRoomMode: 'GATHERING',
     currentPhase: 'HOME',
+    roomMembers: {},
     sessionStartTime: null,
     totalDeviations: 0,        // 整個房間的分心總次數
     myDeviations: 0,           // 我自己的分心次數
@@ -46,6 +47,7 @@ export const state = {
     currentGroupDetail: null,       // 正在查看的群組 detail
     pendingGroupInviteCode: null,   // URL ?group_invite=CODE 暫存
     petSwapTarget: null,            // { uid, nickname } 要生成寵物臉的成員
+    petSwapReturnView: 'view-group', // 寵物拍攝頁返回位置
 
     // === Sync Ritual ===
     holdInterval: null,

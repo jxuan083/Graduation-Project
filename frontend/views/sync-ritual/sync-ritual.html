@@ -1,26 +1,36 @@
 <section id="view-sync-ritual" class="view">
-    <h2 class="hs-title">一起準備</h2>
-    <p class="hs-hint">所有成員持續按住按鈕<br>直到圓圈填滿才能開始</p>
+    <div class="sync-ritual-heading">
+        <p class="sync-eyebrow"><i data-lucide="circle-dot"></i> 共同定錨</p>
+        <h2 class="hs-title">一起按住，直到每個人都準備好</h2>
+        <p class="hs-hint">手指留在按鈕上。當所有人的圓圈都完成，聚會才會開始。</p>
+    </div>
 
     <div class="hs-ring-wrap">
         <div class="hs-pulse-ring" id="sync-pulse"></div>
         <svg width="260" height="260" viewBox="0 0 260 260" style="position:absolute;">
             <circle cx="130" cy="130" r="110" fill="none" stroke="rgba(79,53,26,0.10)" stroke-width="14"/>
             <circle id="sync-progress-fill" cx="130" cy="130" r="110" fill="none"
-                stroke="url(#sync-grad)" stroke-width="14" stroke-linecap="round"
+                stroke="#5f8f4f" stroke-width="14" stroke-linecap="round"
                 stroke-dasharray="691.15" stroke-dashoffset="691.15"
                 transform="rotate(-90 130 130)"/>
-            <defs>
-                <linearGradient id="sync-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#AD5793"/>
-                    <stop offset="100%" stop-color="#B89825"/>
-                </linearGradient>
-            </defs>
         </svg>
-        <button class="hs-hold-btn" id="btn-sync-hold" type="button">
-            <span class="hs-hold-label" id="sync-hold-label">長按</span>
+        <button class="hs-hold-btn" id="btn-sync-hold" type="button" aria-label="按住完成共同定錨">
+            <span class="hs-hold-icon" aria-hidden="true"><i data-lucide="hand"></i></span>
+            <span class="hs-hold-label" id="sync-hold-label">按住定錨</span>
+            <span class="hs-hold-percent" id="sync-hold-percent">0%</span>
         </button>
     </div>
 
-    <p class="hs-progress-text" id="sync-progress-text">按住按鈕直到圓圈填滿</p>
+    <div class="sync-shared-status" role="status" aria-live="polite">
+        <strong id="sync-progress-text">等大家一起按住</strong>
+        <span id="sync-progress-detail">每個人都完成後，聚會才會開始</span>
+    </div>
+
+    <div id="sync-member-grid" class="sync-member-grid" aria-label="成員定錨進度"></div>
+
+    <div id="sync-complete-overlay" class="sync-complete-overlay" hidden aria-live="assertive">
+        <div class="sync-complete-mark"><i data-lucide="check"></i></div>
+        <strong>我們準備好了</strong>
+        <span>把注意力留給眼前的人</span>
+    </div>
 </section>

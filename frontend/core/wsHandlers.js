@@ -8,7 +8,12 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=39';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=40';
+import {
+    renderSyncMembers,
+    resetSyncRitual,
+    showAnchorEstablished,
+} from '../views/sync-ritual/sync-ritual.js?v=40';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -36,8 +41,10 @@ function handleRoomUpdate(msg) {
     state.meetingGroupPetFace = rs.group_pet_face_url || '';
     state.meetingGroupPetName = rs.group_pet_name || '';
     state.meetingGroupPetLevel = Number(rs.group_pet_level || 1);
+    state.roomMembers = rs.members || {};
     refreshFocusMascot();
-    renderMemberList(rs.members || {});
+    renderMemberList(state.roomMembers);
+    if (state.currentPhase === 'SYNC') renderSyncMembers(state.roomMembers);
     if (state.amIHost) {
         const startBtn = document.getElementById('btn-start-sync');
         if (startBtn) startBtn.classList.remove('disabled');
@@ -77,20 +84,10 @@ function handleRoomCancelled() {
     switchView('view-home');
 }
 
-function handleSyncStarted() {
+function handleSyncStarted(msg) {
     state.currentPhase = 'SYNC';
-    state.isReady = false;
-    state.myProgress = 0;
-    const progressFill = document.getElementById('sync-progress-fill');
-    if (progressFill) {
-        progressFill.style.width = '0%';
-        progressFill.style.background = "linear-gradient(90deg, #3b82f6, #10b981)";
-    }
-    const btnHold = document.getElementById('btn-sync-hold');
-    if (btnHold) {
-        btnHold.innerText = "HOLD";
-        btnHold.style.background = "";
-    }
+    state.roomMembers = msg.members || state.roomMembers || {};
+    resetSyncRitual(state.roomMembers);
     switchView('view-sync-ritual');
 }
 
@@ -203,16 +200,20 @@ function escHtml(s) {
 function handleAnchorEstablished() {
     state.currentPhase = 'ACTIVE';
     state.sessionStartTime = Date.now();
-    switchView('view-focus');
-    document.body.classList.add('mode-flow');
-    if (state.amIHost) {
-        document.getElementById('host-only-controls').style.display = 'block';
-    }
+    showAnchorEstablished().then(() => {
+        switchView('view-focus');
+        document.body.classList.add('mode-flow');
+        if (state.amIHost) {
+            document.getElementById('host-only-controls').style.display = 'block';
+        }
+    });
 }
 
 function handleProgressUpdate(msg) {
-    // PROGRESS_UPDATE 在 SYNC 階段使用,目前單純更新成員清單就好
-    if (msg.members) renderMemberList(msg.members);
+    if (!msg.members) return;
+    state.roomMembers = msg.members;
+    renderMemberList(msg.members);
+    renderSyncMembers(msg.members);
 }
 
 function handleDeviationRecorded(msg) {

@@ -43,13 +43,6 @@ export async function removeGroupMember(groupId, targetUid) {
     return apiFetch(`/api/groups/${groupId}/members/${targetUid}`, { method: 'DELETE' });
 }
 
-export async function voteForPet(groupId, targetUid) {
-    return apiFetch(`/api/groups/${groupId}/pet/vote`, {
-        method: 'POST',
-        body: JSON.stringify({ target_uid: targetUid }),
-    });
-}
-
 export async function updatePet(groupId, fields) {
     return apiFetch(`/api/groups/${groupId}/pet`, {
         method: 'PATCH',

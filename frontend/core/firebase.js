@@ -1,7 +1,7 @@
 // core/firebase.js — Firebase 初始化 + auth helpers
 // Firebase compat SDK 用 <script> 載入,所以 `firebase` 是 window 上的全域物件
 
-import { firebaseConfig, HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
+import { firebaseConfig, FIREBASE_EMULATORS, HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
 import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
@@ -11,6 +11,11 @@ firebase.initializeApp(firebaseConfig);
 export const auth = firebase.auth();
 export const storage = firebase.storage();
 export const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+if (FIREBASE_EMULATORS.enabled) {
+    auth.useEmulator(FIREBASE_EMULATORS.authHost, { disableWarnings: true });
+    storage.useEmulator(FIREBASE_EMULATORS.storageHost, FIREBASE_EMULATORS.storagePort);
+}
 
 // 取得當前可顯示的暱稱
 export function getDisplayNickname() {
@@ -73,6 +78,28 @@ export async function doGoogleLogin() {
     } catch (err) {
         console.error('Google sign-in failed:', err);
         alert(t('Google 登入失敗:') + (err.message || err));
+    }
+}
+
+export async function doLocalDevLogin() {
+    if (!FIREBASE_EMULATORS.enabled) return;
+    const suffix = localStorage.getItem('phubbing_dev_user_suffix') || String(Date.now()).slice(-6);
+    localStorage.setItem('phubbing_dev_user_suffix', suffix);
+    const email = `local-${suffix}@phubbing.test`;
+    const password = 'local-dev-password';
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+    } catch (err) {
+        if (err && err.code === 'auth/user-not-found') {
+            const credential = await auth.createUserWithEmailAndPassword(email, password);
+            await credential.user.updateProfile({ displayName: '本機測試成員' });
+            await fetchMyProfile();
+            events.emit('auth:logged-in', credential.user);
+            events.emit('auth:changed', credential.user);
+            return;
+        }
+        console.error('Local dev sign-in failed:', err);
+        alert(t('本機登入失敗:') + (err.message || err));
     }
 }
 
