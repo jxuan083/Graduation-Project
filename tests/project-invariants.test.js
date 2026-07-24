@@ -158,10 +158,14 @@ test('meeting photos are not made public during upload', () => {
 });
 
 test('backend direct dependencies are pinned', () => {
-  const requirements = read('backend/requirements.txt')
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line && !line.startsWith('#'));
-  assert.ok(requirements.length > 0);
-  for (const requirement of requirements) assert.match(requirement, /^[A-Za-z0-9_.-]+==[^=\s]+$/);
+  for (const file of ['backend/requirements.txt', 'backend/requirements-core.txt', 'backend/requirements-media.txt']) {
+    const requirements = read(file)
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+    assert.ok(requirements.length > 0, `${file} must list at least one dependency`);
+    for (const requirement of requirements) {
+      assert.match(requirement, /^[A-Za-z0-9_.-]+==[^=\s]+$/, `${file}: ${requirement}`);
+    }
+  }
 });
