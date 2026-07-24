@@ -96,6 +96,17 @@ test('landing explains the shared gathering loop before secondary features', () 
   assert.match(home, /只要更了解彼此/);
 });
 
+test('scheduled gathering lives under the start gathering flow', () => {
+  const home = read('frontend/views/home/home.html');
+  const setupHtml = read('frontend/views/meeting-setup/meeting-setup.html');
+  const setupJs = read('frontend/views/meeting-setup/meeting-setup.js');
+  assert.doesNotMatch(home, /home-schedule-sheet|btn-home-schedule/);
+  assert.match(setupHtml, /立即開始[\s\S]*預約聚會/);
+  assert.match(setupHtml, /id="setup-schedule-panel"/);
+  assert.match(setupJs, /function createScheduleIcs/);
+  assert.match(setupJs, /PRODID:-\/\/phubbing\/\/meeting-setup\/\/TW/);
+});
+
 test('shared anchor exposes every member progress and tactile completion feedback', () => {
   const html = read('frontend/views/sync-ritual/sync-ritual.html');
   const frontend = read('frontend/views/sync-ritual/sync-ritual.js');

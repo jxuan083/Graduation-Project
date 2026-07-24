@@ -145,23 +145,4 @@
         </button>
     </div>
 
-    <!-- 預約聚會（底部彈出，沿用 .ics 產生邏輯） -->
-    <div id="home-schedule-sheet" class="pet-sheet" hidden>
-        <div class="pet-sheet-grip"></div>
-        <div class="pet-sheet-body">
-            <h3 class="pet-sheet-title"><i data-lucide="calendar-plus"></i> 預約聚會</h3>
-            <label class="pet-field"><span>聚會名稱</span>
-                <input id="sch-title" type="text" placeholder="例如：週五放下手機聚一聚" maxlength="40" /></label>
-            <label class="pet-field"><span>時間</span>
-                <input id="sch-time" type="datetime-local" /></label>
-            <label class="pet-field"><span>地點（選填）</span>
-                <input id="sch-place" type="text" placeholder="例如：路易莎信義店" maxlength="60" /></label>
-            <div class="pet-sheet-actions">
-                <button id="btn-sch-cancel" class="btn secondary">取消</button>
-                <button id="btn-sch-ics" class="btn primary"><i data-lucide="calendar-check"></i> 加入行事曆並邀請</button>
-            </div>
-            <p class="hint" style="font-size:0.78rem; margin-top:6px;">會產生一個 .ics 邀請檔，可加進行事曆、傳給朋友。</p>
-        </div>
-    </div>
-
 </section>

@@ -14,6 +14,7 @@ export function init() {
     });
 
     buildContextGrid();
+    bindStartMode();
     bindDiffBtns();
     bindGroupDropdown();
 
@@ -21,6 +22,29 @@ export function init() {
     if (btnConfirm) btnConfirm.onclick = handleConfirm;
     const btnCancel = document.getElementById('btn-cancel-setup');
     if (btnCancel) btnCancel.onclick = () => switchView('view-home');
+    const btnSchedule = document.getElementById('btn-setup-sch-ics');
+    if (btnSchedule) btnSchedule.onclick = createScheduleIcs;
+}
+
+function bindStartMode() {
+    document.querySelectorAll('#view-meeting-setup .cp-mode-btn').forEach(btn => {
+        btn.onclick = () => setStartMode(btn.dataset.mode || 'now');
+    });
+}
+
+function setStartMode(mode) {
+    const isSchedule = mode === 'schedule';
+    const nowPanel = document.getElementById('setup-now-panel');
+    const schedulePanel = document.getElementById('setup-schedule-panel');
+    if (nowPanel) nowPanel.hidden = isSchedule;
+    if (schedulePanel) schedulePanel.hidden = !isSchedule;
+    document.querySelectorAll('#view-meeting-setup .cp-mode-btn').forEach(btn => {
+        const active = btn.dataset.mode === mode;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', String(active));
+    });
+    if (isSchedule) primeScheduleTime();
+    if (window.lucide) window.lucide.createIcons();
 }
 
 // ── 自訂群組下拉 ──
@@ -126,6 +150,7 @@ async function onSetupShow() {
     state.currentDifficulty = 'L';
     state.currentExpectedDuration = 90;
     state.currentGroupId = null;
+    setStartMode('now');
 
     document.querySelectorAll('.cp-sit-btn').forEach(c =>
         c.classList.toggle('active-context', c.dataset.context === 'general'));
@@ -201,4 +226,44 @@ async function handleConfirm() {
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '建立聚會室'; }
     }
+}
+
+function primeScheduleTime() {
+    const input = document.getElementById('setup-sch-time');
+    if (!input || input.value) return;
+    const when = new Date(Date.now() + 60 * 60 * 1000);
+    when.setSeconds(0, 0);
+    input.value = new Date(when.getTime() - when.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function createScheduleIcs() {
+    const title = (document.getElementById('setup-sch-title')?.value || t('放下手機聚一聚')).trim();
+    const timeVal = document.getElementById('setup-sch-time')?.value || '';
+    const place = (document.getElementById('setup-sch-place')?.value || '').trim();
+    if (!timeVal) { alert(t('請先選聚會時間')); return; }
+    const start = new Date(timeVal);
+    if (isNaN(start.getTime())) { alert(t('時間格式不正確')); return; }
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const esc = s => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+    const utc = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const frontendUrl = window.location.protocol + '//' + window.location.host;
+    const description = `${t('來自 Phubbing：手機可以留在手上，注意力留在彼此身上。')} ${frontendUrl}`;
+    const ics = [
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//phubbing//meeting-setup//TW', 'CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${Date.now()}@phubbing`,
+        `DTSTAMP:${utc(new Date())}`,
+        `DTSTART:${utc(start)}`,
+        `DTEND:${utc(end)}`,
+        `SUMMARY:${esc(title)}`,
+        place ? `LOCATION:${esc(place)}` : '',
+        `DESCRIPTION:${esc(description)}`,
+        'END:VEVENT', 'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${title}.ics`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

@@ -7,6 +7,18 @@
         <span class="page-title">發起聚會</span>
     </div>
 
+    <div class="cp-start-mode" role="tablist" aria-label="發起方式">
+        <button id="btn-setup-now" class="cp-mode-btn active" type="button" data-mode="now" role="tab" aria-selected="true">
+            <i data-lucide="play"></i>
+            立即開始
+        </button>
+        <button id="btn-setup-schedule" class="cp-mode-btn" type="button" data-mode="schedule" role="tab" aria-selected="false">
+            <i data-lucide="calendar-plus"></i>
+            預約聚會
+        </button>
+    </div>
+
+    <div id="setup-now-panel">
     <!-- 選擇場景（真實 context，由 buildContextGrid 從 CONTEXT_CONFIGS 產生） -->
     <p class="cp-section-label">選擇場景</p>
     <div id="context-grid" class="cp-situation-grid"></div>
@@ -29,5 +41,24 @@
     </div>
 
     <button class="btn-primary" id="btn-confirm-setup" type="button" style="margin-top:24px;">建立聚會室</button>
+    </div>
+
+    <div id="setup-schedule-panel" class="cp-schedule-panel" hidden>
+        <p class="cp-section-label">預約資訊</p>
+        <label class="cp-field"><span>聚會名稱</span>
+            <input id="setup-sch-title" type="text" placeholder="例如：週五放下手機聚一聚" maxlength="40" />
+        </label>
+        <label class="cp-field"><span>時間</span>
+            <input id="setup-sch-time" type="datetime-local" />
+        </label>
+        <label class="cp-field"><span>地點（選填）</span>
+            <input id="setup-sch-place" type="text" placeholder="例如：咖啡廳、教室、家裡" maxlength="60" />
+        </label>
+        <button id="btn-setup-sch-ics" class="btn-primary" type="button" style="margin-top:12px;">
+            <i data-lucide="calendar-check"></i>
+            加入行事曆並邀請
+        </button>
+        <p class="cp-help">會產生一個 .ics 邀請檔，可加進行事曆、傳給朋友。真正聚會時再回來發起房間。</p>
+    </div>
 
 </section>

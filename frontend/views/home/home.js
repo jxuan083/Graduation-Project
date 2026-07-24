@@ -51,12 +51,6 @@ export function init() {
     document.getElementById('btn-home-more-slot').onclick = () => {};
     document.getElementById('btn-home-manage-groups').onclick = () => switchView('view-groups');
 
-    // 預約聚會 sheet
-    const scheduleButton = document.getElementById('btn-home-schedule');
-    if (scheduleButton) scheduleButton.onclick = openScheduleSheet;
-    document.getElementById('btn-sch-cancel').onclick = () => { document.getElementById('home-schedule-sheet').hidden = true; };
-    document.getElementById('btn-sch-ics').onclick = createScheduleIcs;
-
     const homeGoogleLogin = document.getElementById('btn-home-google-login');
     if (homeGoogleLogin) homeGoogleLogin.onclick = doGoogleLogin;
     const homeDevLogin = document.getElementById('btn-home-dev-login');
@@ -168,47 +162,6 @@ function handleCreateRoom() {
         return;
     }
     switchView('view-meeting-setup');
-}
-
-// ── 預約聚會：產生 .ics 邀請檔 ──
-function openScheduleSheet() {
-    const when = new Date(Date.now() + 60 * 60 * 1000);
-    when.setSeconds(0, 0);
-    const local = new Date(when.getTime() - when.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    document.getElementById('sch-time').value = local;
-    document.getElementById('home-schedule-sheet').hidden = false;
-    if (window.lucide) window.lucide.createIcons();
-}
-
-function createScheduleIcs() {
-    const title = (document.getElementById('sch-title').value || t('放下手機聚一聚')).trim();
-    const timeVal = document.getElementById('sch-time').value;
-    const place = (document.getElementById('sch-place').value || '').trim();
-    if (!timeVal) { alert(t('請先選聚會時間')); return; }
-    const start = new Date(timeVal);
-    if (isNaN(start.getTime())) { alert(t('時間格式不正確')); return; }
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-    const esc = s => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
-    const utc = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const ics = [
-        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//phubbing//home//TW', 'CALSCALE:GREGORIAN',
-        'BEGIN:VEVENT',
-        `UID:${Date.now()}@phubbing`,
-        `DTSTAMP:${utc(new Date())}`,
-        `DTSTART:${utc(start)}`,
-        `DTEND:${utc(end)}`,
-        `SUMMARY:${esc(title)}`,
-        place ? `LOCATION:${esc(place)}` : '',
-        'DESCRIPTION:' + esc(t('來自 Phubbing：放下手機，好好相聚 🐾')),
-        'END:VEVENT', 'END:VCALENDAR',
-    ].filter(Boolean).join('\r\n');
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${title}.ics`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    document.getElementById('home-schedule-sheet').hidden = true;
 }
 
 // ── utils ──
