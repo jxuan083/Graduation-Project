@@ -6,6 +6,7 @@ import io
 import base64
 import socket
 import datetime
+import importlib.util
 import time
 import os
 import random
@@ -15,6 +16,7 @@ import tempfile
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth, messaging as fb_messaging
 from typing import Dict, Set, List, Optional
+from urllib.parse import quote
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -42,7 +44,18 @@ except Exception as _llm_err:  # noqa: BLE001
 
 # ===== Firebase Storage 設定 =====
 # 預設指向這個專案的 bucket；可以透過環境變數覆寫
+FIREBASE_PROJECT_ID = (
+    os.environ.get("FIREBASE_PROJECT_ID")
+    or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    or "graduation-6ae65"
+)
 STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "graduation-6ae65.firebasestorage.app")
+USING_FIREBASE_EMULATORS = bool(
+    os.environ.get("FIRESTORE_EMULATOR_HOST")
+    or os.environ.get("FIREBASE_AUTH_EMULATOR_HOST")
+    or os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST")
+    or os.environ.get("STORAGE_EMULATOR_HOST")
+)
 
 # ===== Speech-to-text 設定 =====
 # STT_ENGINE=openai-whisper 適合先做本機測試；STT_ENGINE=whisperx 可搭配 pyannote 做說話者分離。
@@ -63,7 +76,16 @@ _STT_MODEL_CACHE: Dict[str, object] = {}
 # 檢查是否已經有初始化的 Firebase App
 if not firebase_admin._apps:
     local_key_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-    if os.path.exists(local_key_path):
+    if USING_FIREBASE_EMULATORS:
+        try:
+            firebase_admin.initialize_app(options={
+                "projectId": FIREBASE_PROJECT_ID,
+                "storageBucket": STORAGE_BUCKET,
+            })
+            print(f"Firebase initialized for local emulators. Project: {FIREBASE_PROJECT_ID}")
+        except Exception as e:
+            print(f"Critical Error: Could not initialize Firebase emulator app: {e}")
+    elif os.path.exists(local_key_path):
         try:
             cred = credentials.Certificate(local_key_path)
             firebase_admin.initialize_app(cred, options={"storageBucket": STORAGE_BUCKET})
@@ -78,8 +100,19 @@ if not firebase_admin._apps:
         except Exception as e:
             print(f"Critical Error: Could not initialize Firebase with default credentials: {e}")
 
+def _create_firestore_client():
+    if USING_FIREBASE_EMULATORS:
+        from google.auth.credentials import AnonymousCredentials
+        from google.cloud import firestore as gc_firestore
+        return gc_firestore.Client(
+            project=FIREBASE_PROJECT_ID,
+            credentials=AnonymousCredentials(),
+        )
+    return firestore.client()
+
+
 # 取得 Firestore 實例
-db = firestore.client()
+db = _create_firestore_client()
 
 app = FastAPI()
 
@@ -127,6 +160,59 @@ async def get_version():
     return {"version": BACKEND_VERSION, "build_date": BACKEND_BUILD_DATE}
 
 
+@app.get("/api/health")
+async def get_health():
+    """本機與部署前檢查用；不丟 500，讓 caller 能看到是哪個 capability 失效。"""
+    health = {
+        "status": "ok",
+        "version": BACKEND_VERSION,
+        "build_date": BACKEND_BUILD_DATE,
+        "firebase": {
+            "initialized": bool(firebase_admin._apps),
+            "project_id": FIREBASE_PROJECT_ID,
+            "storage_bucket": STORAGE_BUCKET,
+            "using_emulators": USING_FIREBASE_EMULATORS,
+            "emulators": {
+                "auth": os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", ""),
+                "firestore": os.environ.get("FIRESTORE_EMULATOR_HOST", ""),
+                "storage": os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST") or os.environ.get("STORAGE_EMULATOR_HOST", ""),
+            },
+        },
+        "capabilities": {
+            "llm_newspaper": llm is not None,
+            "stt_engine": STT_ENGINE,
+            "openai_whisper_installed": importlib.util.find_spec("whisper") is not None,
+            "whisperx_installed": importlib.util.find_spec("whisperx") is not None,
+        },
+        "checks": {},
+    }
+
+    try:
+        await asyncio.wait_for(
+            asyncio.to_thread(lambda: list(db.collection("rooms").limit(1).stream())),
+            timeout=2.0,
+        )
+        health["checks"]["firestore"] = "ok"
+    except asyncio.TimeoutError:
+        health["status"] = "degraded"
+        health["checks"]["firestore"] = "timeout"
+    except Exception as e:
+        health["status"] = "degraded"
+        health["checks"]["firestore"] = f"error: {e}"
+
+    try:
+        bucket = await asyncio.wait_for(asyncio.to_thread(_storage_bucket), timeout=2.0)
+        health["checks"]["storage"] = "ok" if bucket else "unavailable"
+    except asyncio.TimeoutError:
+        health["status"] = "degraded"
+        health["checks"]["storage"] = "timeout"
+    except Exception as e:
+        health["status"] = "degraded"
+        health["checks"]["storage"] = f"error: {e}"
+
+    return health
+
+
 def make_qr_base64(data: str) -> str:
     qr = qrcode.QRCode(box_size=10, border=4)
     qr.add_data(data)
@@ -138,8 +224,29 @@ def make_qr_base64(data: str) -> str:
 
 
 def _storage_bucket():
+    if USING_FIREBASE_EMULATORS:
+        from google.auth.credentials import AnonymousCredentials
+        from google.cloud import storage as gc_storage
+        client = gc_storage.Client(
+            project=FIREBASE_PROJECT_ID,
+            credentials=AnonymousCredentials(),
+        )
+        return client.bucket(STORAGE_BUCKET)
     from firebase_admin import storage as fb_storage
     return fb_storage.bucket()
+
+
+def _storage_media_url(blob_name: str) -> str:
+    if USING_FIREBASE_EMULATORS:
+        host = (
+            os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST")
+            or os.environ.get("STORAGE_EMULATOR_HOST")
+            or "127.0.0.1:9199"
+        )
+        if not host.startswith(("http://", "https://")):
+            host = f"http://{host}"
+        return f"{host}/v0/b/{STORAGE_BUCKET}/o/{quote(blob_name, safe='')}?alt=media"
+    return f"https://storage.googleapis.com/{STORAGE_BUCKET}/{quote(blob_name)}"
 
 
 @app.get("/api/qrcode")
@@ -2480,10 +2587,6 @@ class AddGroupMemberPayload(BaseModel):
     email: Optional[str] = None
 
 
-class PetVotePayload(BaseModel):
-    target_uid: str
-
-
 class UpdatePetPayload(BaseModel):
     pet_body_emoji: Optional[str] = None
     pet_name: Optional[str] = None
@@ -2550,8 +2653,6 @@ async def create_group(payload: CreateGroupPayload, decoded: dict = Depends(veri
         # 寵物臉（同時當群組頭像）
         "pet_face_url": None,
         "pet_face_path": None,
-        # 寵物投票
-        "pet_votes": {},   # {voter_uid: target_uid}
         # 邀請碼
         "invite_code": _generate_invite_code(),
     }
@@ -2820,55 +2921,13 @@ async def remove_group_member(group_id: str, target_uid: str, decoded: dict = De
         raise HTTPException(status_code=403, detail="無權限移除此成員")
     if data.get("creator_uid") == target_uid:
         raise HTTPException(status_code=400, detail="不能移除建立者")
-    votes = data.get("pet_votes") or {}
-    cleaned_votes = {
-        voter: voted_for for voter, voted_for in votes.items()
-        if voter != target_uid and voted_for != target_uid
-    }
     updates = {
         "member_uids": firestore.ArrayRemove([target_uid]),
-        "pet_votes": cleaned_votes,
     }
     if data.get("pet_target_uid") == target_uid:
         updates["pet_target_uid"] = None
     doc_ref.update(updates)
     return {"status": "success"}
-
-
-@app.post("/api/groups/{group_id}/pet/vote")
-async def vote_pet(group_id: str, payload: PetVotePayload, decoded: dict = Depends(verify_token)):
-    """投票誰當寵物（每人一票，可改票）"""
-    uid = decoded.get("uid") or decoded.get("user_id")
-    if not uid:
-        raise HTTPException(status_code=401, detail="Token 內無 uid")
-    doc_ref = db.collection("groups").document(group_id)
-    doc = doc_ref.get()
-    if not doc.exists:
-        raise HTTPException(status_code=404, detail="找不到群組")
-    data = doc.to_dict() or {}
-    members = data.get("member_uids") or []
-    if uid not in members:
-        raise HTTPException(status_code=403, detail="你不是群組成員")
-    if payload.target_uid not in members:
-        raise HTTPException(status_code=400, detail="被投票者不在群組中")
-
-    doc_ref.update({f"pet_votes.{uid}": payload.target_uid})
-
-    # 重新計票
-    updated = doc_ref.get().to_dict() or {}
-    votes = updated.get("pet_votes") or {}
-    tally: Dict[str, int] = {}
-    for v in votes.values():
-        tally[v] = tally.get(v, 0) + 1
-
-    # 若所有成員都投票完畢，自動確定寵物
-    if len(votes) >= len(members):
-        winner = max(tally, key=lambda x: tally[x])
-        doc_ref.update({"pet_target_uid": winner})
-        return {"status": "success", "tally": tally, "confirmed_pet_uid": winner}
-
-    return {"status": "success", "tally": tally, "votes_cast": len(votes), "members_total": len(members)}
-
 
 @app.patch("/api/groups/{group_id}/pet")
 async def update_pet(group_id: str, payload: UpdatePetPayload, decoded: dict = Depends(verify_token)):
@@ -2936,7 +2995,6 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
         "pet": pet_fields,
         "pet_person": pet_person_profile,
         "pet_body_options": PET_BODY_OPTIONS,
-        "votes": data.get("pet_votes", {}),
         "member_count": len(data.get("member_uids", [])),
     }
 
@@ -2988,8 +3046,9 @@ async def set_group_pet_face(
         bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
-        blob.make_public()
-        public_url = blob.public_url
+        if not USING_FIREBASE_EMULATORS:
+            blob.make_public()
+        public_url = _storage_media_url(blob_name)
 
         old_path = data.get("pet_face_path")
         face_updates = {
@@ -3715,14 +3774,27 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
             # 0. 房主按「開始同步定錨」→ 廣播給全員一起進 HOLD 介面
             if action == "START_SYNC":
+                if rooms[room_id].get("host_uid") != user_id:
+                    print(f"[START_SYNC] rejected: user={user_id} is not host of room {room_id}")
+                    continue
+                if rooms[room_id].get("status") != "WAITING":
+                    print(f"[START_SYNC] rejected: room={room_id} status is not WAITING")
+                    continue
+
                 rooms[room_id]["status"] = "SYNCING"
+                for member in rooms[room_id]["members"].values():
+                    member["progress"] = 0
                 try:
-                    db.collection("rooms").document(room_id).update({"status": "SYNCING"})
+                    db.collection("rooms").document(room_id).update({
+                        "status": "SYNCING",
+                        "members": rooms[room_id]["members"],
+                    })
                 except Exception as e:
                     print(f"Error updating status to SYNCING in Firestore: {e}")
 
                 await manager.broadcast_to_room(room_id, {
-                    "type": "SYNC_STARTED"
+                    "type": "SYNC_STARTED",
+                    "members": rooms[room_id]["members"],
                 })
                 continue
 
@@ -4109,10 +4181,18 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
             # 4. 同步進度
             elif action == "SYNC_PROGRESS":
-                progress = data.get("progress", 0)
+                if rooms[room_id].get("status") != "SYNCING":
+                    continue
+                try:
+                    progress = max(0, min(100, int(data.get("progress", 0))))
+                except (TypeError, ValueError):
+                    progress = 0
+                if user_id not in rooms[room_id]["members"]:
+                    continue
                 rooms[room_id]["members"][user_id]["progress"] = progress
 
-                all_100 = all(m["progress"] == 100 for m in rooms[room_id]["members"].values())
+                members = rooms[room_id]["members"]
+                all_100 = bool(members) and all(m.get("progress", 0) == 100 for m in members.values())
 
                 if all_100 and rooms[room_id]["status"] != "ACTIVE":
                     rooms[room_id]["status"] = "ACTIVE"
