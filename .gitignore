@@ -35,6 +35,12 @@ Thumbs.db
 # Frontend / Node
 node_modules/
 dist/
+DerivedData/
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+android/.gradle/
+android/**/build/
 .env
 .env.local
 .env.development.local
@@ -46,6 +52,7 @@ yarn-error.log*
 firebase-debug.log*
 firestore-debug.log*
 .firebase/
+.emulator-data/
 serviceAccountKey.json
 
 # Firebase 金鑰 (極度重要！)

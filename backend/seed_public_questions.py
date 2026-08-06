@@ -1,31 +1,80 @@
 """
 一次性腳本：把預設的公共題庫塞到 Firestore 的 public_questions collection。
 
-使用方式（本地端需要 serviceAccountKey.json）：
-    cd backend
-    python seed_public_questions.py
+使用方式（本機 emulator）：
+    FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_PROJECT_ID=graduation-6ae65 .venv/bin/python backend/seed_public_questions.py
 
-在 Cloud Shell 或有 Application Default Credentials 的環境直接跑也可以。
+正式 Firestore 需要 serviceAccountKey.json 或 Application Default Credentials。
 重複執行：會用固定 doc id (pub_XX) 覆蓋，不會重複塞。
 """
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.auth.credentials import AnonymousCredentials
+from google.cloud import firestore as google_firestore
 import os
 import sys
 
+WRITE_TIMEOUT_SECONDS = 5
+
 
 def init_firebase():
+    emulator_host = os.environ.get("FIRESTORE_EMULATOR_HOST")
+    project_id = (
+        os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("FIREBASE_PROJECT_ID")
+    )
+
     if firebase_admin._apps:
+        if emulator_host:
+            print(f"✓ Firebase already initialized; target=emulator ({emulator_host}), project={project_id or 'unknown'}")
+        else:
+            print("✓ Firebase already initialized; target=production Firestore")
         return
+
+    if emulator_host:
+        if not project_id:
+            raise RuntimeError(
+                "FIRESTORE_EMULATOR_HOST 已設定，但缺少 project id。"
+                "請設定 GOOGLE_CLOUD_PROJECT 或 FIREBASE_PROJECT_ID。"
+            )
+        firebase_admin.initialize_app(options={"projectId": project_id})
+        print(f"✓ Firebase initialized for Firestore emulator ({emulator_host}), project={project_id}")
+        print("⚠ 本次 seed 只會寫入本機 Firestore emulator，不會寫入正式 Firestore。")
+        return
+
     key_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
     if os.path.exists(key_path):
         cred = credentials.Certificate(key_path)
         firebase_admin.initialize_app(cred)
         print(f"✓ Firebase initialized with {key_path}")
+        print("⚠ 本次 seed 目標是正式 Firestore。確認這是你要的環境。")
     else:
-        firebase_admin.initialize_app()
-        print("✓ Firebase initialized with Application Default Credentials")
+        raise RuntimeError(
+            "找不到本機 Firestore emulator 設定，也找不到 backend/serviceAccountKey.json。\n"
+            "本機開發請先用 ./scripts/dev.sh 啟動 emulator，或至少設定：\n"
+            "  FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_PROJECT_ID=graduation-6ae65\n"
+            "此腳本不會在缺少明確目標時嘗試 Application Default Credentials，以避免誤寫正式 Firestore。"
+        )
+
+
+def get_firestore_client():
+    emulator_host = os.environ.get("FIRESTORE_EMULATOR_HOST")
+    if emulator_host:
+        project_id = (
+            os.environ.get("GOOGLE_CLOUD_PROJECT")
+            or os.environ.get("FIREBASE_PROJECT_ID")
+        )
+        if not project_id:
+            raise RuntimeError(
+                "FIRESTORE_EMULATOR_HOST 已設定，但缺少 project id。"
+                "請設定 GOOGLE_CLOUD_PROJECT 或 FIREBASE_PROJECT_ID。"
+            )
+        return google_firestore.Client(
+            project=project_id,
+            credentials=AnonymousCredentials(),
+        )
+    return firestore.client()
 
 
 # ============ 30 題公共題目 ============
@@ -79,7 +128,10 @@ PUBLIC_QUESTIONS = [
 
 def seed():
     init_firebase()
-    db = firestore.client()
+    emulator_host = os.environ.get("FIRESTORE_EMULATOR_HOST")
+    target = f"emulator ({emulator_host})" if emulator_host else "production Firestore"
+    print(f"Seed target: {target}")
+    db = get_firestore_client()
     col = db.collection("public_questions")
 
     written = 0
@@ -93,11 +145,11 @@ def seed():
             "correct_index": None,
             "source": "seed",
         }
-        col.document(doc_id).set(payload)
+        col.document(doc_id).set(payload, timeout=WRITE_TIMEOUT_SECONDS, retry=None)
         written += 1
         print(f"  [{doc_id}] {q['question']}  → {len(q['options'])} 個選項")
 
-    print(f"\n✓ 共寫入 {written} 題公共題目到 public_questions collection")
+    print(f"\n✓ 共寫入 {written} 題公共題目到 public_questions collection ({target})")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@
 ## 🚀 快速開始
 
 ```bash
-# 在本機跑
+# 在本機跑，不需要 gcloud auth，也不會連正式 Firestore
 git clone <this-repo>
 cd Graduation-Project
 
@@ -21,13 +21,86 @@ cd Graduation-Project
 ./scripts/dev.sh
 ```
 
+首次冷啟流程：
+
+```bash
+# 1. 啟動本機 Firebase emulators + backend
+./scripts/dev.sh
+
+# 2. 另開一個 terminal，只在第一次建立本機資料時 seed 公共題庫
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_PROJECT_ID=graduation-6ae65 .venv/bin/python backend/seed_public_questions.py
+
+# 3. 驗證 backend 健康狀態
+curl http://127.0.0.1:8080/api/health
+```
+
+本機 emulator 資料會存放在 `.emulator-data/`，`./scripts/dev.sh` 結束時會自動 export，下次啟動會自動 import；公共題庫 seed 通常只需要跑一次。
+
 本機預設入口：
 
 - Frontend: `http://127.0.0.1:5002`
 - Backend: `http://127.0.0.1:8080`
 - Health: `http://127.0.0.1:8080/api/health`
+- Emulator UI: `http://127.0.0.1:4000`
 
-> Production 或直接連雲端 Firebase 時才需要 `serviceAccountKey.json` 或 Application Default Credentials。不要 commit 任何金鑰。
+### 用手機連本機環境
+
+`./scripts/dev.sh` 啟動後會直接印出手機用的網址。手機與電腦必須在**同一個 WiFi**，然後開：
+
+```
+http://<你的電腦 LAN IP>:5002
+```
+
+emulator 已設定 `host: 0.0.0.0` 對外開放，`dev.sh` 也會自動把 LAN IP 加進 CORS 白名單，`frontend/core/config.js` 會把私有網段 IP 視為本機（所以手機不會誤連正式 Cloud Run）。
+
+兩台裝置各開一次就能測多人定錨；這是目前唯一還沒做過真實驗證的核心流程。
+
+已知限制：
+
+- `http://` 不是 secure context，**QR 掃描（相機）在手機上會被瀏覽器擋掉**，測試加入房間請用手動輸入房間碼。要修得用 `mkcert` 之類的工具做本地 HTTPS。
+- **iOS Safari 不支援 `navigator.vibrate`**，`sync-ritual` 與 `buffer` 的震動回饋在 iPhone 上會靜默失效（Android Chrome 正常）。
+- 連不上先檢查 macOS 防火牆，以及是否連到訪客網路 / AP 隔離的 WiFi。
+
+### 原生 app 開發（Capacitor）
+
+這個 repo 用 Capacitor 把 `frontend/` 直接包成 iOS / Android 原生殼，不做 Swift/Kotlin 重寫，也沒有 frontend build step。
+
+```bash
+# 安裝 JS/Capacitor dependencies
+npm install
+
+# 啟動本機 Firebase emulators + FastAPI + Hosting
+./scripts/dev.sh
+```
+
+原生殼裡的頁面會從 `capacitor://localhost` 載入，不能用 `window.location.hostname` 推導後端，否則會連到手機自己的 localhost。開發機 LAN IP 請用下列任一方式設定，不要把個人 LAN IP commit 進 repo：
+
+```js
+// 方式一：暫時修改 frontend/native-runtime-config.js，sync 後跑實機
+window.PHUBBING_NATIVE_CONFIG = {
+    devHost: '你的 Mac LAN IP',
+    backendHost: 'phubbing-backend-798458690617.asia-east1.run.app',
+};
+
+// 方式二：用 Safari / Chrome Web Inspector 寫入，之後 app 會記住
+localStorage.setItem('phubbing_native_dev_host', '你的 Mac LAN IP');
+```
+
+設定後同步 web assets 與 native plugin：
+
+```bash
+npx cap sync
+npx cap open ios
+npx cap open android
+```
+
+iOS 實機：用 Xcode 開啟 `ios/App/App.xcodeproj`，在 Signing & Capabilities 選自己的 Personal Team，Bundle Identifier 保持 `tw.edu.nccu.phubbinganchor` 或改成自己帳號可簽的唯一值，選實機後 Run。免費 Apple Personal Team 只能本機安裝，簽章通常 7 天到期，不能 TestFlight，也不能上架 App Store。
+
+Android 實機：用 Android Studio 開啟 `android/`，等待 Gradle sync，開啟 USB debugging 後選實機 Run。
+
+本機原生開發會使用 `http://<devHost>:8080`、`ws://<devHost>:8080`、Firebase Auth emulator `http://<devHost>:9099`、Storage emulator `<devHost>:9199`。沒設定 dev host 時，原生殼會走 production backend host；正式上架前應移除 iOS/Android 的開發用 cleartext HTTP 例外，讓 production 全部走 HTTPS。
+
+Production 或直接連雲端 Firebase 時才需要 `serviceAccountKey.json` 或明確憑證。一般本機開發不要跑 `gcloud auth`，也不要 commit 任何金鑰。
 
 ---
 
