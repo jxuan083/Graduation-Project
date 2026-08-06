@@ -3,7 +3,9 @@ import { register } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { t } from '../../core/i18n.js';
+import { vibrate } from '../../core/haptics.js';
 
+// Shared haptics preserves the browser navigator.vibrate fallback while enabling Capacitor native haptics.
 const RING_CIRCUMFERENCE = 691.15; // 2πr，r=110
 const HOLD_TICK_MS = 50;
 const PROGRESS_PER_TICK = 2;
@@ -238,10 +240,6 @@ function clampProgress(value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return 0;
     return Math.max(0, Math.min(100, Math.round(number)));
-}
-
-function vibrate(pattern) {
-    try { navigator.vibrate?.(pattern); } catch (_) { /* unsupported */ }
 }
 
 function prefersReducedMotion() {

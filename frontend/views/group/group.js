@@ -1,6 +1,6 @@
 // views/group/group.js — 群組詳情頁（front-preview screen-group）
 // 中樞頁：成員、群組寵物（空/有）、最近聚會；再導向設定/聊天/邀請/寵物養成。
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { t } from '../../core/i18n.js';
@@ -15,7 +15,7 @@ export function init() {
         onShow: onShow,
     });
 
-    document.getElementById('btn-group-back').onclick = () => switchView('view-home');
+    document.getElementById('btn-group-back').onclick = back;
 
     document.getElementById('btn-group-settings').onclick = () => {
         if (state.currentGroupDetail) switchView('view-group-setup');
@@ -53,7 +53,7 @@ export function init() {
 
 async function onShow() {
     const g = state.currentGroupDetail;
-    if (!g) { switchView('view-home'); return; }
+    if (!g) { switchView('view-home', { replace: true }); return; }
 
     // 先用手上的基本資料畫，再抓完整詳情
     document.getElementById('group-title').textContent = g.name || t('群組');
@@ -62,7 +62,7 @@ async function onShow() {
     renderMeetings(g.group_id);
 
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=40');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=49');
         const full = await fetchGroupDetail(g.group_id);
         if (full) {
             state.currentGroupDetail = { ...g, ...full };

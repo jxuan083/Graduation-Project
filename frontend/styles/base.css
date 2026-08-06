@@ -4,6 +4,11 @@
    TOKENS
    ============================================================ */
 :root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+
   /* Backgrounds — warm campfire (solid material surfaces, not glass) */
   --bg:           #1c1714;
   --bg-surface:   #241c17;
@@ -24,11 +29,34 @@
   --accent-color: #ff7a3c;   /* backward compat: was cold blue, now ember */
   --accent-hover: #e8530f;
 
-  /* Radius */
-  --r-sm:   12px;
-  --r-md:   18px;
-  --r-lg:   26px;
+  /* Radius: four-tier system */
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   20px;
   --r-pill: 999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Type scale */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 22px;
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 320ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
 
   /* Depth system — de-flatten */
   --shadow-1:    0 1px 2px rgba(0,0,0,.40), 0 4px 12px rgba(0,0,0,.35);
@@ -46,6 +74,37 @@
   --font-family:  'TaipeiSansTC', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'TaipeiSansTC', system-ui, sans-serif;
   --font-hand:    'TaipeiSansTC', system-ui, sans-serif;
+}
+
+/* ============================================================
+   原生手感（去掉「這是網頁」的痕跡）
+   ------------------------------------------------------------
+   刻意「不」用 user-scalable=no 來擋雙擊放大：那會連視障使用者的
+   雙指縮放一起擋掉，是無障礙問題，Apple 審核也可能因此退件。
+   touch-action: manipulation 只關掉「雙擊縮放」，保留雙指縮放。
+   ============================================================ */
+html {
+  touch-action: manipulation;               /* 關雙擊縮放，留雙指縮放 */
+  -webkit-text-size-adjust: 100%;           /* 旋轉時字級不會自己跳動 */
+}
+
+body {
+  -webkit-touch-callout: none;              /* 長按不跳「拷貝／查詢」選單 */
+  -webkit-tap-highlight-color: transparent; /* 點擊不閃灰色方塊 */
+  overscroll-behavior: none;                /* 拉到底不出現整頁橡皮筋 */
+}
+
+/* 可捲區域維持慣性捲動，但不把橡皮筋傳遞到整個頁面 */
+.scroll-body, .groups-scroll, .view {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* 輸入框仍要能選字與貼上，不能被全域的 user-select: none 蓋掉 */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* ============================================================
@@ -72,7 +131,7 @@ body {
   align-items: flex-start;
   min-height: 100vh;
   overflow-y: auto;
-  transition: background-color 1s ease;
+  transition: background-color var(--motion-slow) var(--ease-standard);
 }
 
 /* paper / film grain overlay — kills the clean "AI plastic" feel */
@@ -104,8 +163,8 @@ body.mode-class     { background-color: #14331f !important; }
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 24px;
-  padding-top: 72px;
+  padding: calc(24px + var(--safe-area-top)) calc(24px + var(--safe-area-right)) calc(24px + var(--safe-area-bottom)) calc(24px + var(--safe-area-left));
+  padding-top: calc(72px + var(--safe-area-top));
 }
 
 #app {
@@ -125,9 +184,24 @@ body.mode-class     { background-color: #14331f !important; }
   align-items: center;
   flex-grow: 1;
   text-align: center;
-  animation: fadeIn 0.35s ease forwards;
+  /* 不能用 forwards：它會讓 translateY(0) 永久留在 .view 上，
+     而帶 transform 的祖先會成為 fixed 子元素的 containing block。
+     結束狀態本來就等於自然狀態，forwards 是多餘的。 */
+  animation: fadeIn var(--motion-slow) var(--ease-standard);
 }
 .view.active { display: flex; }
+
+.view.nav-edge-pan-active {
+  transform: translate3d(var(--nav-pan-x, 0px), 0, 0);
+  box-shadow: -18px 0 34px rgba(79,53,26,.18);
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.view.nav-edge-pan-commit,
+.view.nav-edge-pan-cancel {
+  transition: transform var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard);
+}
 
 /* Page-style views (have headers, left-aligned content) */
 .view.page-view {
@@ -153,7 +227,7 @@ body.mode-class     { background-color: #14331f !important; }
 
 .btn-back {
   width: 36px; height: 36px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text-primary);
@@ -161,7 +235,7 @@ body.mode-class     { background-color: #14331f !important; }
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--motion-base) var(--ease-standard);
 }
 .btn-back:hover { background: var(--bg-surface-2); }
 
@@ -191,11 +265,11 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s, box-shadow 0.2s;
+  transition: transform var(--motion-fast) var(--ease-standard), opacity var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard);
   margin-bottom: 12px;
   letter-spacing: 0.01em;
 }
-.btn:active { transform: translateY(1px) scale(0.995); }
+.btn:active { transform: translateY(2px) scale(0.985); }
 
 .btn.primary {
   background: linear-gradient(145deg, #ff8e54 0%, var(--accent-fire) 45%, var(--accent-fire2) 100%);
@@ -219,6 +293,15 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   opacity: 0.4;
   pointer-events: none;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 /* Blue-accent primary (for meeting/session actions) */
@@ -346,7 +429,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
 .campfire-bubble:nth-child(2) { background: #0369a1; top: 15%; right: 8%; animation-delay: 0.8s; }
 .campfire-bubble:nth-child(3) { background: #b45309; bottom: 25%; left: 2%; animation-delay: 1.5s; }
 .campfire-bubble:nth-child(4) { background: #be185d; bottom: 22%; right: 5%; animation-delay: 2.1s; }
-.campfire-bubble:nth-child(5) { background: #065f46; top: 45%; left: 0%; animation-delay: 0.4s; }
+.campfire-bubble:nth-child(5) { background: #065f46; top: 45%; left: 0%; animation-delay: var(--motion-slow); }
 
 @keyframes bubbleFloat {
   0%,100% { transform: translateY(0); }
@@ -371,7 +454,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
 .campfire-online::before {
   content: '';
   width: 7px; height: 7px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   background: #34d399;
   display: inline-block;
   box-shadow: 0 0 6px rgba(52,211,153,0.7);
@@ -430,7 +513,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  transition: background var(--motion-base), border-color var(--motion-base), transform var(--motion-fast);
   text-align: left;
   font-family: inherit;
   color: var(--text-primary);
@@ -488,7 +571,7 @@ p  { font-size: 1rem; color: var(--text-secondary); margin-bottom: 20px; }
   font-size: 1rem;
   font-family: inherit;
   resize: vertical;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--motion-base), box-shadow var(--motion-base);
 }
 .text-input:focus, .profile-input:focus, .qedit-input:focus {
   outline: none;
@@ -548,7 +631,7 @@ select.text-input {
   background: rgba(255,255,255,0.04);
   border: 1.5px solid transparent;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--motion-base), background var(--motion-base);
   color: var(--text-primary);
   font-family: inherit;
 }
@@ -634,12 +717,12 @@ select.text-input {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-fire), #ff9a53);
   border-radius: var(--r-pill);
-  transition: width 0.1s linear;
+  transition: width var(--motion-fast) linear;
 }
 
 .btn-circular {
   width: 120px; height: 120px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   border: none;
   background: linear-gradient(135deg, var(--accent-fire), #c0392b);
   color: #fff;
@@ -648,7 +731,7 @@ select.text-input {
   font-family: inherit;
   box-shadow: 0 10px 28px rgba(255,107,53,0.5);
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform var(--motion-base) cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .btn-circular:active {
   transform: scale(0.85);
@@ -744,7 +827,7 @@ select.text-input {
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  transition: all 0.18s;
+  transition: all var(--motion-base);
   margin-bottom: 8px;
 }
 .qa-option-btn:hover:not(:disabled) {
@@ -782,7 +865,7 @@ select.text-input {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  transition: background 0.15s, transform 0.1s;
+  transition: background var(--motion-base), transform var(--motion-fast);
   cursor: default;
 }
 .group-card:hover { background: var(--bg-surface-2); }
@@ -790,7 +873,7 @@ select.text-input {
 .group-card-main { display: flex; align-items: center; gap: 14px; }
 .group-pet-icon  { font-size: 2rem; }
 .group-avatar-img {
-  width: 44px; height: 44px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: var(--r-pill);
   object-fit: cover; flex-shrink: 0;
   border: 2px solid var(--border);
 }
@@ -862,7 +945,7 @@ select.text-input {
   border-radius: var(--r-sm);
   padding: 6px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--motion-base), background var(--motion-base);
 }
 .pet-body-btn:hover { border-color: var(--border-2); }
 .pet-body-btn.active-body {
@@ -880,8 +963,22 @@ select.text-input {
 }
 .pet-head-placeholder { font-size: 2.4rem; }
 .pet-head-img {
-  width: 64px; height: 64px; border-radius: 50%;
+  width: 64px; height: 64px; border-radius: var(--r-pill);
   object-fit: cover; border: 2px solid var(--border);
 }
 .pet-body-emoji       { font-size: 3rem; }
 .pet-name             { font-size: 0.88rem; color: var(--text-secondary); }
+
+/* ============================================================
+   iOS 輸入框自動放大的唯一正解
+   ------------------------------------------------------------
+   WKWebView / Safari 在輸入框 font-size < 16px 時，聚焦會自動把整個
+   畫面 zoom in（例如加入聚會輸入房間代碼）。這不是 bug，是系統行為，
+   只有把字級提到 16px 才會停止。用 pointer: coarse 限定觸控裝置，
+   桌機維持原本的設計字級。
+   ============================================================ */
+@media (pointer: coarse) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}

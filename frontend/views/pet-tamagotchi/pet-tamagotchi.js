@@ -1,4 +1,4 @@
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
@@ -203,7 +203,7 @@ export function init() {
     });
 
     // 列表畫面
-    document.getElementById('btn-pet-list-back').onclick = () => switchView('view-home');
+    document.getElementById('btn-pet-list-back').onclick = back;
 
     // 遊戲畫面
     document.getElementById('btn-pet-tama-back').onclick = () => {
@@ -211,7 +211,7 @@ export function init() {
         _groupId  = null;
         _groupPet = null;
         if (_entryMode === 'direct') {
-            switchView('view-home');
+            back();
         } else {
             showScreen('list');
         }
@@ -221,7 +221,7 @@ export function init() {
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
     document.getElementById('btn-pet-tama-back-nopet').onclick = () => {
-        if (_entryMode === 'direct') switchView('view-home');
+        if (_entryMode === 'direct') back();
         else showScreen('list');
     };
     document.getElementById('btn-pet-retry').onclick = async () => {

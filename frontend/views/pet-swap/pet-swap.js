@@ -1,4 +1,4 @@
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { t } from '../../core/i18n.js';
 
@@ -86,7 +86,7 @@ export function init() {
     });
 
     document.getElementById('btn-pet-swap-back').onclick = () => {
-        switchView(state.petSwapReturnView || 'view-group');
+        back();
     };
     document.getElementById('btn-pet-camera').onclick = startLiveCamera;
     document.getElementById('btn-pet-flip').onclick = flipCamera;
@@ -698,7 +698,7 @@ async function setAsGroupAvatar() {
         btn.disabled = true;
         btn.innerHTML = '建立中…';
         const blob = await getRenderedBlob();
-        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=40');
+        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=49');
         const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji);
         if (!res.ok || data?.status !== 'success') throw new Error(data?.detail || `HTTP ${res.status}`);
         state.currentGroupDetail = {

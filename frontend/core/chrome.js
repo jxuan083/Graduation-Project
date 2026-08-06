@@ -4,14 +4,16 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId } from './router.js';
-import { doGoogleLogin, doLocalDevLogin, doSignOut } from './firebase.js';
+import { doSignOut } from './firebase.js';
 import { FIREBASE_EMULATORS } from './config.js';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
+import { openLoginMethodSheet } from './login-sheet.js';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=40';
-import { openFriendsView } from '../views/friends/friends.js?v=40';
+import { openProfileView } from '../views/profile/profile.js?v=49';
+import { openFriendsView } from '../views/friends/friends.js?v=49';
+import { handleCreateRoom } from '../views/home/home.js?v=49';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -19,11 +21,11 @@ import { t } from './i18n.js';
 
 export function initChrome() {
     // ===== Auth bar =====
-    document.getElementById('btn-google-login').onclick = doGoogleLogin;
+    document.getElementById('btn-google-login').onclick = openLoginMethodSheet;
     const devLoginButton = document.getElementById('btn-dev-login');
     if (devLoginButton) {
         devLoginButton.style.display = FIREBASE_EMULATORS.enabled ? 'inline-flex' : 'none';
-        devLoginButton.onclick = doLocalDevLogin;
+        devLoginButton.onclick = openLoginMethodSheet;
     }
 
     const userMenuToggle = document.getElementById('btn-user-menu-toggle');
@@ -57,6 +59,8 @@ export function initChrome() {
     }
     document.getElementById('btn-logout').onclick = () => { closeMenu(); handleLogout(); };
 
+    initBottomNavigation();
+
     // ===== 「返回聚會」浮動按鈕 =====
     const btnResume = document.getElementById('btn-resume-meeting');
     if (btnResume) btnResume.onclick = resumeMeeting;
@@ -85,6 +89,60 @@ export function initChrome() {
     events.on('view:changed', ({ viewId }) => refreshAuthBarVisibility(viewId));
 
     renderAuthBar();
+}
+
+const BOTTOM_NAV_CURRENT_BY_VIEW = new Map([
+    ['view-groups', 'btn-open-groups'],
+    ['view-group', 'btn-open-groups'],
+    ['view-group-setup', 'btn-open-groups'],
+    ['view-group-invite', 'btn-open-groups'],
+    ['view-group-chat', 'btn-open-groups'],
+    ['view-friends', 'btn-open-friends'],
+    ['view-friend-profile', 'btn-open-friends'],
+    ['view-join-method', 'btn-scan-qr'],
+    ['view-scanner', 'btn-scan-qr'],
+    ['view-join', 'btn-scan-qr'],
+    ['view-meeting-setup', 'btn-create-room'],
+    ['view-more', 'btn-home-more-slot'],
+]);
+
+function initBottomNavigation() {
+    const bar = document.querySelector('.bottom-bar');
+    if (!bar) return;
+
+    const groups = bar.querySelector('#btn-open-groups');
+    const friends = bar.querySelector('#btn-open-friends');
+    const create = bar.querySelector('#btn-create-room');
+    const join = bar.querySelector('#btn-scan-qr');
+    const moreSlot = bar.querySelector('#btn-home-more-slot');
+
+    if (groups) groups.onclick = () => switchView('view-groups');
+    if (friends) friends.onclick = () => openFriendsView('add');
+    if (create) create.onclick = handleCreateRoom;
+    if (join) join.onclick = () => switchView('view-join-method');
+    // 「更多」目前只是預設的空白版面，功能待定。
+    if (moreSlot) {
+        moreSlot.removeAttribute('aria-disabled');
+        moreSlot.onclick = () => switchView('view-more');
+    }
+
+    events.on('view:changed', ({ viewId }) => refreshBottomNavigation(viewId));
+    refreshBottomNavigation(getActiveViewElement()?.id || 'view-home');
+}
+
+function refreshBottomNavigation(viewId) {
+    const bar = document.querySelector('.bottom-bar');
+    if (!bar) return;
+
+    const hidden = isMeetingViewId(viewId);
+    bar.classList.toggle('is-hidden', hidden);
+    bar.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    document.body.classList.toggle('bottom-nav-hidden', hidden);
+
+    const currentButtonId = BOTTOM_NAV_CURRENT_BY_VIEW.get(viewId) || null;
+    bar.querySelectorAll('.btn-bottom').forEach((button) => {
+        button.classList.toggle('is-current', button.id === currentButtonId);
+    });
 }
 
 function refreshAuthBarVisibility(viewId) {
@@ -146,7 +204,7 @@ async function handleLogout() {
             }
         }
         cleanupSession();
-        switchView('view-home');
+        switchView('view-home', { replace: true });
     }
     await doSignOut();
 }
@@ -216,7 +274,7 @@ function refreshResumeMeetingBtn() {
 
 function resumeMeeting() {
     if (state.lastMeetingView) {
-        switchView(state.lastMeetingView.id);
+        switchView(state.lastMeetingView.id, { replace: true });
     }
     refreshResumeMeetingBtn();
 }

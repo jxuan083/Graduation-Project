@@ -9,16 +9,17 @@
 //   7. 依 URL 決定初始 view (?room=xxx → join,否則 → home)
 
 import { state } from './core/state.js';
-import { switchView, register } from './core/router.js';
+import { switchView, register, initNavigationRuntime } from './core/router.js';
 import { listenAuthChanges } from './core/firebase.js';
 import { loadBackendVersion, apiFetch } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js';
-import { showJoinView } from './views/join/join.js?v=40';
+import { initButtonHaptics } from './core/haptics.js';
+import { showJoinView } from './views/join/join.js?v=49';
 import { events } from './core/events.js';
-import { initI18n, t } from './core/i18n.js?v=40';
+import { initI18n, t } from './core/i18n.js?v=49';
 
-const ASSET_VERSION = '40';
+const ASSET_VERSION = '49';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -33,46 +34,48 @@ const VIEW_NAMES = [
     'group-chat', 'friend-profile',
     'pet-swap',
     'pet-tamagotchi',
+    'more',
 ];
 
 // ===== view 模組(動態 import,parallel) =====
 const VIEW_MODULES = {
-    'home':              () => import('./views/home/home.js?v=40'),
-    'scanner':           () => import('./views/scanner/scanner.js?v=40'),
-    'meetings':          () => import('./views/meetings/meetings.js?v=40'),
-    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=40'),
-    'friends':           () => import('./views/friends/friends.js?v=40'),
-    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=40'),
-    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=40'),
-    'question-bank':     () => import('./views/question-bank/question-bank.js?v=40'),
-    'question-edit':     () => import('./views/question-edit/question-edit.js?v=40'),
-    'qa-source':         () => import('./views/qa-source/qa-source.js?v=40'),
-    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=40'),
-    'profile':           () => import('./views/profile/profile.js?v=40'),
-    'join-method':       () => import('./views/join-method/join-method.js?v=40'),
-    'join':              () => import('./views/join/join.js?v=40'),
-    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=40'),
-    'host-room':         () => import('./views/host-room/host-room.js?v=40'),
-    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=40'),
-    'focus':             () => import('./views/focus/focus.js?v=40'),
-    'qa-game':           () => import('./views/qa-game/qa-game.js?v=40'),
-    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=40'),
-    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=40'),
-    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=40'),
-    'buffer':            () => import('./views/buffer/buffer.js?v=40'),
-    'summary':           () => import('./views/summary/summary.js?v=40'),
-    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=40'),
-    'member-preview':    () => import('./views/member-preview/member-preview.js?v=40'),
-    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=40'),
-    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=40'),
-    'groups':            () => import('./views/groups/groups.js?v=40'),
-    'group':             () => import('./views/group/group.js?v=40'),
-    'group-setup':       () => import('./views/group-setup/group-setup.js?v=40'),
-    'group-invite':      () => import('./views/group-invite/group-invite.js?v=40'),
-    'group-chat':        () => import('./views/group-chat/group-chat.js?v=40'),
-    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=40'),
-    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=40'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=40'),
+    'home':              () => import('./views/home/home.js?v=49'),
+    'more':              () => import('./views/more/more.js?v=49'),
+    'scanner':           () => import('./views/scanner/scanner.js?v=49'),
+    'meetings':          () => import('./views/meetings/meetings.js?v=49'),
+    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=49'),
+    'friends':           () => import('./views/friends/friends.js?v=49'),
+    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=49'),
+    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=49'),
+    'question-bank':     () => import('./views/question-bank/question-bank.js?v=49'),
+    'question-edit':     () => import('./views/question-edit/question-edit.js?v=49'),
+    'qa-source':         () => import('./views/qa-source/qa-source.js?v=49'),
+    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=49'),
+    'profile':           () => import('./views/profile/profile.js?v=49'),
+    'join-method':       () => import('./views/join-method/join-method.js?v=49'),
+    'join':              () => import('./views/join/join.js?v=49'),
+    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=49'),
+    'host-room':         () => import('./views/host-room/host-room.js?v=49'),
+    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=49'),
+    'focus':             () => import('./views/focus/focus.js?v=49'),
+    'qa-game':           () => import('./views/qa-game/qa-game.js?v=49'),
+    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=49'),
+    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=49'),
+    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=49'),
+    'buffer':            () => import('./views/buffer/buffer.js?v=49'),
+    'summary':           () => import('./views/summary/summary.js?v=49'),
+    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=49'),
+    'member-preview':    () => import('./views/member-preview/member-preview.js?v=49'),
+    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=49'),
+    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=49'),
+    'groups':            () => import('./views/groups/groups.js?v=49'),
+    'group':             () => import('./views/group/group.js?v=49'),
+    'group-setup':       () => import('./views/group-setup/group-setup.js?v=49'),
+    'group-invite':      () => import('./views/group-invite/group-invite.js?v=49'),
+    'group-chat':        () => import('./views/group-chat/group-chat.js?v=49'),
+    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=49'),
+    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=49'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=49'),
 };
 
 async function loadAllViewHtml() {
@@ -139,28 +142,34 @@ async function boot() {
         // 2. 初始化各 view 的事件綁定 + router 註冊
         await initAllViews();
 
-        // 3. 初始化 Lucide icons（HTML 全部插入後才能跑）
+        // 3. 初始化 mobile/browser navigation runtime（views 註冊後才能接管返回）
+        initNavigationRuntime();
+
+        // 4. 初始化 Lucide icons（HTML 全部插入後才能跑）
         if (window.lucide) window.lucide.createIcons();
 
-        // 3.5 初始化 i18n（HTML 已插入、icons 已建立後）
+        // 4.25 初始化全域按鈕觸覺回饋
+        initButtonHaptics();
+
+        // 4.5 初始化 i18n（HTML 已插入、icons 已建立後）
         initI18n();
 
-        // 4. 註冊 WebSocket 訊息 handler
+        // 5. 註冊 WebSocket 訊息 handler
         registerAllWsHandlers();
 
-        // 5. 初始化 chrome (auth bar / 浮動鈕 / 橫幅)
+        // 6. 初始化 chrome (auth bar / 浮動鈕 / 橫幅)
         initChrome();
 
-        // 6. 啟動 Firebase auth listener
+        // 7. 啟動 Firebase auth listener
         listenAuthChanges();
 
-        // 7. 載入後端版本顯示
+        // 8. 載入後端版本顯示
         loadBackendVersion();
 
-        // 8. Lottie 動畫
+        // 9. Lottie 動畫
         initLottie();
 
-        // 9. 依 URL 決定起始畫面
+        // 10. 依 URL 決定起始畫面
         const urlParams = new URLSearchParams(window.location.search);
         const roomFromUrl = urlParams.get('room');
         const groupInviteCode = urlParams.get('group_invite');
@@ -173,15 +182,15 @@ async function boot() {
             // Clean up URL without reload
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
             window.history.replaceState({}, '', cleanUrl);
-            switchView('view-home');
+            switchView('view-home', { replace: true });
             handleGroupInviteOnBoot(groupInviteCode);
         } else if (addFriendHandle) {
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
             window.history.replaceState({}, '', cleanUrl);
-            switchView('view-home');
+            switchView('view-home', { replace: true });
             handleAddFriendOnBoot(addFriendHandle);
         } else {
-            switchView('view-home');
+            switchView('view-home', { replace: true });
         }
 
         console.log('[main] App booted successfully');
@@ -203,7 +212,7 @@ function handleGroupInviteOnBoot(code) {
             return;
         }
         try {
-            const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js?v=40');
+            const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js?v=49');
             const { res, data: info } = await getGroupInviteInfo(code);
             if (!res.ok || !info?.name) {
                 alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
@@ -211,7 +220,7 @@ function handleGroupInviteOnBoot(code) {
             }
             if (info.already_member) {
                 alert(t('你已經是「{name}」的成員了！', { name: info.name }));
-                switchView('view-groups');
+                switchView('view-groups', { replace: true });
                 return;
             }
             const ok = confirm(t('加入群組「{name}」（{count} 位成員）？', { name: info.name, count: info.member_count }));
@@ -219,7 +228,7 @@ function handleGroupInviteOnBoot(code) {
             const { data: joinData } = await joinGroupByInviteCode(code);
             if (joinData?.status === 'success') {
                 alert(t('成功加入群組！'));
-                switchView('view-groups');
+                switchView('view-groups', { replace: true });
             } else {
                 alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
             }
@@ -247,7 +256,7 @@ function handleAddFriendOnBoot(handle) {
             const { res, data } = await apiFetch(`/api/users/by_handle/${encodeURIComponent(handle)}`);
             if (res.ok && data?.profile?.uid) {
                 state.friendProfileUid = data.profile.uid;
-                switchView('view-friend-profile');
+                switchView('view-friend-profile', { replace: true });
             } else {
                 alert(t('找不到這個 ID 的使用者'));
             }

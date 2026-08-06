@@ -8,12 +8,12 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=40';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=49';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=40';
+} from '../views/sync-ritual/sync-ritual.js?v=49';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -53,7 +53,7 @@ function handleRoomUpdate(msg) {
     if (!state.amIHost && rs.status === 'ACTIVE' && state.currentPhase !== 'ACTIVE') {
         state.currentPhase = 'ACTIVE';
         if (rs.mode) updateThemeByMode(rs.mode);
-        switchView('view-focus');
+        switchView('view-focus', { replace: true });
         try { showToast('已加入進行中的聚會', 'success'); } catch (e) {}
     }
     // 聚會已結束但尚未跳到結算（例如重連錯過 SESSION_ENDED）
@@ -71,7 +71,7 @@ function handleRoomUpdate(msg) {
         if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
         state.deviationDeadline = null;
         closeWs();
-        switchView('view-summary');
+        switchView('view-summary', { replace: true });
     }
 }
 
@@ -81,14 +81,14 @@ function handleRoomCancelled() {
         catch (e) { alert(t('聚會已被房主取消')); }
     }
     cleanupSession();
-    switchView('view-home');
+    switchView('view-home', { replace: true });
 }
 
 function handleSyncStarted(msg) {
     state.currentPhase = 'SYNC';
     state.roomMembers = msg.members || state.roomMembers || {};
     resetSyncRitual(state.roomMembers);
-    switchView('view-sync-ritual');
+    switchView('view-sync-ritual', { replace: true });
 }
 
 function handleSessionEnded(msg) {
@@ -138,7 +138,7 @@ function handleSessionEnded(msg) {
     if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
     state.deviationDeadline = null;
     closeWs();
-    switchView('view-summary');
+    switchView('view-summary', { replace: true });
 }
 
 function renderSummaryPet(msg) {
@@ -201,7 +201,7 @@ function handleAnchorEstablished() {
     state.currentPhase = 'ACTIVE';
     state.sessionStartTime = Date.now();
     showAnchorEstablished().then(() => {
-        switchView('view-focus');
+        switchView('view-focus', { replace: true });
         document.body.classList.add('mode-flow');
         if (state.amIHost) {
             document.getElementById('host-only-controls').style.display = 'block';
@@ -231,7 +231,7 @@ function handleModeChanged(msg) {
 
 function handleQaStarted(msg) {
     state.currentPhase = 'QA_GAME';
-    switchView('view-qa-game');
+    switchView('view-qa-game', { replace: true });
 
     const questionEl = document.getElementById('qa-question-text');
     const container = document.getElementById('qa-options-container');
@@ -299,7 +299,7 @@ function handleQaFinished(msg) {
         if (countdown <= 0) {
             clearInterval(intv);
             state.currentPhase = 'ACTIVE';
-            switchView('view-focus');
+            switchView('view-focus', { replace: true });
             document.body.classList.add('mode-flow');
             if (statusEl) statusEl.innerText = '';
         }
@@ -314,7 +314,7 @@ function handleTabooStarted() {
 function handleTabooEnded() {
     cleanupTabooLocalState();
     state.currentPhase = 'ACTIVE';
-    switchView('view-focus');
+    switchView('view-focus', { replace: true });
     document.body.classList.add('mode-flow');
     try { showToast('關鍵字遊戲結束', 'info'); } catch (e) {}
 }

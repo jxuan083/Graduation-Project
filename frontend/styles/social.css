@@ -12,7 +12,7 @@
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   margin-bottom: 6px;
 }
 
@@ -30,7 +30,7 @@
 .member-tag {
   font-size: 0.78rem;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   flex-shrink: 0;
 }
 
@@ -61,12 +61,12 @@
 .member-action-btn {
   font-size: 0.8rem;
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
   color: #e5e7eb;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--motion-base);
 }
 
 .member-action-btn:hover:not(:disabled) {
@@ -114,7 +114,7 @@
   overflow-y: auto;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 10px;
   margin-bottom: 12px;
 }
@@ -142,7 +142,7 @@
   border-bottom: 2px solid transparent;
   color: #94a3b8;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--motion-base);
   border-radius: 0;
 }
 
@@ -175,13 +175,13 @@
   padding: 10px 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .friend-avatar {
   width: 42px;
   height: 42px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   object-fit: cover;
   background: rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
@@ -216,12 +216,12 @@
 .btn-mini {
   font-size: 0.82rem;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.05);
   color: #e5e7eb;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--motion-base);
 }
 
 .btn-mini:hover {
@@ -252,7 +252,7 @@
 #friends-add-email {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.25);
   color: #f1f5f9;
@@ -277,7 +277,7 @@
   padding: 10px 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
 
 .leaderboard-row.me {
@@ -297,7 +297,7 @@
 .lb-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   object-fit: cover;
   background: rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
@@ -336,7 +336,7 @@
 .member-preview-card {
   position: relative;
   background: #1e293b;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 28px 24px 24px;
   max-width: 360px;
   width: 90%;
@@ -348,7 +348,7 @@
 .member-preview-avatar {
   width: 96px;
   height: 96px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   object-fit: cover;
   background: rgba(255, 255, 255, 0.08);
   margin-bottom: 12px;
@@ -383,12 +383,12 @@
   width: 100%;
   max-width: 520px;
   margin: 0 auto 16px;
-  padding: 12px 16px;
+  padding: 12px calc(16px + var(--safe-area-right)) 12px calc(16px + var(--safe-area-left));
   background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(167, 139, 250, 0.22));
   border: 1px solid rgba(96, 165, 250, 0.45);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   box-shadow: 0 4px 14px rgba(96, 165, 250, 0.15);
-  animation: bannerSlideIn 0.35s ease-out;
+  animation: bannerSlideIn var(--motion-slow) ease-out;
 }
 
 @keyframes bannerSlideIn {
@@ -424,7 +424,7 @@
   width: 8px;
   height: 8px;
   background: #ef4444;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   display: inline-block;
   margin-left: 4px;
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
@@ -438,7 +438,7 @@
   font-size: 0.72rem;
   font-weight: 700;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   margin-left: 4px;
   min-width: 18px;
   text-align: center;
@@ -447,7 +447,7 @@
 /* Toast */
 .toast-container {
   position: fixed;
-  top: 80px;
+  top: calc(80px + var(--safe-area-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -456,20 +456,20 @@
   gap: 8px;
   pointer-events: none;
   width: max-content;
-  max-width: 90vw;
+  max-width: calc(90vw - var(--safe-area-left) - var(--safe-area-right));
 }
 
 .toast {
   background: rgba(30, 41, 59, 0.95);
   color: #f1f5f9;
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid rgba(96, 165, 250, 0.4);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   font-size: 0.9rem;
   opacity: 0;
   transform: translateY(-10px);
-  transition: opacity 0.22s, transform 0.22s;
+  transition: opacity var(--motion-base), transform var(--motion-base);
 }
 
 .toast.show {
@@ -480,19 +480,19 @@
 /* 「返回聚會」浮動按鈕 */
 .btn-resume-meeting {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: calc(24px + var(--safe-area-bottom));
+  right: calc(24px + var(--safe-area-right));
   z-index: 8888;
   padding: 12px 20px;
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: #fff;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 0.95rem;
   font-weight: 600;
   box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform var(--motion-base), box-shadow var(--motion-base);
   animation: resumePulse 2.4s ease-in-out infinite;
 }
 
@@ -520,8 +520,8 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
-  animation: modalFadeIn 0.18s ease-out;
+  padding: calc(20px + var(--safe-area-top)) calc(20px + var(--safe-area-right)) calc(20px + var(--safe-area-bottom)) calc(20px + var(--safe-area-left));
+  animation: modalFadeIn var(--motion-base) ease-out;
 }
 
 .modal-overlay.hidden {
@@ -535,7 +535,7 @@
 
 /* modal 內的卡片動畫（讓 .member-preview-card 進場時有輕微縮放） */
 .modal-overlay .member-preview-card {
-  animation: modalCardIn 0.2s ease-out;
+  animation: modalCardIn var(--motion-base) ease-out;
 }
 
 @keyframes modalCardIn {
@@ -550,7 +550,7 @@
   right: 10px;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   border: none;
   background: rgba(255, 255, 255, 0.08);
   color: #cbd5e1;
@@ -560,7 +560,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition: background var(--motion-base), color var(--motion-base), transform var(--motion-base);
   padding: 0;
 }
 
@@ -592,14 +592,14 @@
 .invite-card {
   position: relative;
   background: #1e293b;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 28px 24px 24px;
   max-width: 400px;
   width: 92%;
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  animation: modalCardIn 0.2s ease-out;
+  animation: modalCardIn var(--motion-base) ease-out;
 }
 
 .invite-card h3 {
@@ -621,6 +621,5 @@
   height: auto;
   background: #fff;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
 }
-

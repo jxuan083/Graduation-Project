@@ -1,6 +1,6 @@
 // views/group-invite/group-invite.js — 邀請成員（front-preview screen-group-invite）
 // 邀請碼（複製連結）+ 直接邀請好友（加入群組，接現有後端）。
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { t } from '../../core/i18n.js';
@@ -11,19 +11,19 @@ export function init() {
         onShow,
     });
 
-    document.getElementById('btn-group-invite-back').onclick = () => switchView('view-group');
+    document.getElementById('btn-group-invite-back').onclick = back;
     document.getElementById('gi-copy-btn').onclick = handleCopyInvite;
 }
 
 async function onShow() {
     const g = state.currentGroupDetail;
-    if (!g) { switchView('view-home'); return; }
+    if (!g) { switchView('view-home', { replace: true }); return; }
     renderInviteCode(g);
     loadFriends();
 
     // 確保有最新邀請碼
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=40');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=49');
         const full = await fetchGroupDetail(g.group_id);
         if (full) { state.currentGroupDetail = { ...g, ...full }; renderInviteCode(state.currentGroupDetail); }
     } catch (_) { /* 保留現有顯示 */ }
@@ -88,7 +88,7 @@ async function handleInvite(btn) {
     btn.disabled = true;
     btn.textContent = t('邀請中…');
     try {
-        const { addGroupMember } = await import('../../features/groups/controller.js?v=40');
+        const { addGroupMember } = await import('../../features/groups/controller.js?v=49');
         const { data } = await addGroupMember(groupId, btn.dataset.uid);
         if (data?.status === 'success') {
             btn.textContent = t('已加入');

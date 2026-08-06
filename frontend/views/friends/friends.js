@@ -1,8 +1,7 @@
 // views/friends/friends.js — 好友頁（front-preview 改版：三分頁 + 加好友三模式）
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
-import { goHomeFromMenu } from '../../core/session.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
 import { showToast } from '../../utils/toast.js';
@@ -21,7 +20,7 @@ export function init() {
         onHide: stopAfScanner,
     });
 
-    document.getElementById('btn-friends-back').onclick = () => { stopAfScanner(); goHomeFromMenu(); };
+    document.getElementById('btn-friends-back').onclick = () => { stopAfScanner(); back(); };
     document.getElementById('friends-tab-list').onclick = () => { switchFriendTab('list'); refreshFriends(); };
     document.getElementById('friends-tab-incoming').onclick = () => { switchFriendTab('incoming'); refreshFriendRequests(); };
     document.getElementById('friends-tab-add').onclick = () => { switchFriendTab('add'); showAddMode('select'); };

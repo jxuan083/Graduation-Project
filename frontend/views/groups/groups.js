@@ -1,5 +1,5 @@
 // views/groups/groups.js — 加入 / 建立群組（front-preview screen-join-group）
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { t } from '../../core/i18n.js';
@@ -12,7 +12,7 @@ export function init() {
         onShow: () => { selectedFriendUids.clear(); loadFriendsForInvite(); },
     });
 
-    document.getElementById('btn-groups-back').onclick = () => switchView('view-home');
+    document.getElementById('btn-groups-back').onclick = back;
     document.getElementById('btn-jg-join').onclick = handleJoinByInvite;
     document.getElementById('btn-jg-create').onclick = handleCreateGroup;
 }
@@ -72,7 +72,7 @@ async function handleJoinByInvite() {
     const orig = btn.textContent;
     btn.textContent = t('加入中…');
     try {
-        const { getGroupInviteInfo, joinGroupByInviteCode, fetchMyGroups } = await import('../../features/groups/controller.js?v=40');
+        const { getGroupInviteInfo, joinGroupByInviteCode, fetchMyGroups } = await import('../../features/groups/controller.js?v=49');
         const { res, data: info } = await getGroupInviteInfo(code);
         if (!res.ok || !info?.name) {
             alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));
@@ -89,7 +89,7 @@ async function handleJoinByInvite() {
             if (input) input.value = '';
             await fetchMyGroups();
             alert(t('成功加入群組！'));
-            switchView('view-home');
+            switchView('view-home', { replace: true });
         } else {
             alert(t('加入失敗：') + (joinData?.detail || JSON.stringify(joinData)));
         }
@@ -113,7 +113,7 @@ async function handleCreateGroup() {
     const orig = btn.textContent;
     btn.textContent = t('建立中…');
     try {
-        const { createGroup, addGroupMember, fetchMyGroups } = await import('../../features/groups/controller.js?v=40');
+        const { createGroup, addGroupMember, fetchMyGroups } = await import('../../features/groups/controller.js?v=49');
         const { data } = await createGroup(name);
         const groupId = data?.group?.group_id || data?.group_id;
         if (!groupId) {
