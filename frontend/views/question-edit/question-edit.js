@@ -1,14 +1,13 @@
 // views/question-edit/question-edit.js — 新增/編輯題目
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
-import { openQuestionBank } from '../question-bank/question-bank.js';
 import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-question-edit', { element: document.getElementById('view-question-edit') });
     document.getElementById('btn-qedit-save').onclick = saveQuestionEdit;
-    document.getElementById('btn-qedit-cancel').onclick = openQuestionBank;
+    document.getElementById('btn-qedit-cancel').onclick = back;
     document.getElementById('btn-qedit-add-option').onclick = addQeditOption;
     document.getElementById('qedit-has-answer').onchange = updateQeditAnswerHint;
 }
@@ -156,7 +155,8 @@ async function saveQuestionEdit() {
         }
         statusEl.innerText = '';
         saveBtn.disabled = false;
-        await openQuestionBank();
+        switchView('view-question-bank', { replace: true });
+        import('../question-bank/question-bank.js').then(m => m.refreshQuestionBank?.());
     } catch (err) {
         statusEl.innerText = t('失敗:') + (err.message || err);
         saveBtn.disabled = false;

@@ -1,10 +1,10 @@
 // views/host-room/host-room.js
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { cleanupSession } from '../../core/session.js';
 import { copyInviteLink } from '../invite-modal/invite-modal.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=40';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=49';
 import { t } from '../../core/i18n.js';
 
 export function init() {
@@ -17,11 +17,11 @@ export function init() {
     const btnCopy = document.getElementById('btn-copy-room-link');
     if (btnCopy) btnCopy.addEventListener('click', () => copyInviteLink());
 
-    // 取消聚會（底部 + 左上返回都視為離開房間）
+    // 取消聚會（底部按鈕是明確 destructive action；左上返回交給 router policy）
     const btnCancel = document.getElementById('btn-cancel-host-room');
     if (btnCancel) btnCancel.addEventListener('click', handleCancelHostRoom);
     const btnBack = document.getElementById('btn-host-back');
-    if (btnBack) btnBack.addEventListener('click', handleCancelHostRoom);
+    if (btnBack) btnBack.addEventListener('click', back);
 
     // 開始同步定錨
     const btnStart = document.getElementById('btn-start-sync');
@@ -69,7 +69,7 @@ async function handleCancelHostRoom(e) {
             console.warn('CANCEL_ROOM broadcast failed:', err);
         }
     }
-    switchView('view-home');
+    switchView('view-home', { replace: true });
     try { cleanupSession(); } catch (err) { console.warn('cleanupSession err:', err); }
-    setTimeout(() => switchView('view-home'), 0);
+    setTimeout(() => switchView('view-home', { replace: true }), 0);
 }

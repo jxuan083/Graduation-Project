@@ -12,6 +12,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
+import { vibrate } from '../../core/haptics.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
 const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
@@ -103,12 +104,12 @@ export function startCognitiveBuffer() {
         state.deviationDeadline = Date.now() + getGraceMs();
     }
 
-    switchView('view-buffer');
+    switchView('view-buffer', { replace: true });
     document.body.classList.remove('mode-flow');
     document.body.classList.add('mode-danger');
 
     renderRemaining();
-    if (navigator.vibrate) navigator.vibrate(200);
+    vibrate(200);
 
     state.bufferTimerObj = setInterval(() => {
         if (Date.now() >= state.deviationDeadline) {
@@ -135,7 +136,7 @@ export function endCognitiveBuffer(safe) {
     state.hiddenAt = null;
 
     if (safe) {
-        switchView('view-focus');
+        switchView('view-focus', { replace: true });
         document.body.classList.remove('mode-danger');
         document.body.classList.add('mode-flow');
     }

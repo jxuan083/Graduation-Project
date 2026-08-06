@@ -1,5 +1,5 @@
 // views/qa-source/qa-source.js — 房主出題的「題目來源選擇」頁
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { openQaManualPicker } from '../qa-picker/qa-picker.js';
@@ -11,7 +11,7 @@ export function init() {
     document.getElementById('btn-qa-src-mine').onclick = () => startQaFromSource('mine');
     document.getElementById('btn-qa-src-public').onclick = () => startQaFromSource('public');
     document.getElementById('btn-qa-src-pick').onclick = openQaManualPicker;
-    document.getElementById('btn-qa-src-cancel').onclick = () => switchView('view-focus');
+    document.getElementById('btn-qa-src-cancel').onclick = back;
 }
 
 export function openQaSourcePicker() {

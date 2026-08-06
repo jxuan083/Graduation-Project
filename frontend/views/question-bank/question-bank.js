@@ -1,14 +1,13 @@
 // views/question-bank/question-bank.js — 題庫管理
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
-import { goHomeFromMenu } from '../../core/session.js';
 import { openQuestionEdit } from '../question-edit/question-edit.js';
 import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-question-bank', { element: document.getElementById('view-question-bank') });
-    document.getElementById('btn-qbank-back').onclick = goHomeFromMenu;
+    document.getElementById('btn-qbank-back').onclick = back;
     document.getElementById('btn-qbank-add').onclick = () => openQuestionEdit('new', null);
     document.getElementById('qbank-tab-mine').onclick = () => {
         state.qbankCurrentTab = 'mine';

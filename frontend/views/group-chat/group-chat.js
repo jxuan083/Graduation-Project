@@ -1,7 +1,7 @@
 // views/group-chat/group-chat.js — 群組聊天室（front-preview screen-group-chat）
 // 訊息存 groups/{id}/messages（新後端），開啟時輪詢刷新。
 // 支援：文字 / 圖片（含拍照）/ 語音訊息、跨日日期分隔線（類 IG）。
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { storage } from '../../core/firebase.js';
 import { apiFetch } from '../../core/api.js';
@@ -38,7 +38,7 @@ export function init() {
         onHide,
     });
 
-    document.getElementById('btn-gc-back').onclick = () => switchView('view-group');
+    document.getElementById('btn-gc-back').onclick = back;
     document.getElementById('gc-send').onclick = sendMessage;
     document.getElementById('gc-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
@@ -66,7 +66,7 @@ export function init() {
 
 function onShow() {
     const g = state.currentGroupDetail;
-    if (!g) { switchView('view-home'); return; }
+    if (!g) { switchView('view-home', { replace: true }); return; }
     document.getElementById('gc-title').textContent = t('{name} 的聊天室', { name: g.name || t('群組') });
     lastRenderedIds = '';
     loadMessages(true);

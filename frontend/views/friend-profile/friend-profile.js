@@ -1,6 +1,6 @@
 // views/friend-profile/friend-profile.js — 好友/陌生人資料卡（front-preview screen-friend-profile + friend-scan-result 合併）
 // 依 relationship 自適應：好友→統計+刪除；陌生人→共同好友+加好友。
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
 import { t } from '../../core/i18n.js';
@@ -15,7 +15,7 @@ export function init() {
         element: document.getElementById('view-friend-profile'),
         onShow,
     });
-    document.getElementById('btn-fp-back').onclick = () => switchView('view-friends');
+    document.getElementById('btn-fp-back').onclick = back;
     document.getElementById('fp-add-btn').onclick = handleAdd;
     document.getElementById('fp-delete-btn').onclick = () => toggleConfirm(true);
     document.getElementById('fp-cancel-btn').onclick = () => toggleConfirm(false);
@@ -24,7 +24,7 @@ export function init() {
 
 async function onShow() {
     currentUid = state.friendProfileUid;
-    if (!currentUid) { switchView('view-friends'); return; }
+    if (!currentUid) { switchView('view-friends', { replace: true }); return; }
     resetFooter();
     setText('fp-name', '—'); setText('fp-id', ''); setText('fp-stat-meetings', '0');
     setText('fp-stat-friends', '0'); setText('fp-stat-score', '0');
@@ -118,7 +118,7 @@ async function handleDelete() {
         state.friendUidSet?.delete?.(currentUid);
         events.emit('friends:changed');
         showToast(t('已刪除好友'), 'success');
-        switchView('view-friends');
+        switchView('view-friends', { replace: true });
     } catch (err) {
         showToast(t('刪除失敗：') + (err.message || err), 'error');
     }

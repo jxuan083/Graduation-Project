@@ -1,5 +1,5 @@
 // views/scanner/scanner.js
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { showJoinView } from '../join/join.js';
 
@@ -7,7 +7,7 @@ export function init() {
     register('view-scanner', { element: document.getElementById('view-scanner') });
     document.getElementById('btn-scanner-cancel').onclick = () => {
         stopQrScanner();
-        switchView('view-home');
+        back();
     };
 }
 

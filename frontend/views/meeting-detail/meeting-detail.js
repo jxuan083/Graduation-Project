@@ -1,8 +1,7 @@
 // views/meeting-detail/meeting-detail.js — 單場聚會詳情頁
-import { register } from '../../core/router.js';
+import { back, register } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import {
-    openMeetingsList,
     transcribeMeetingAudio,
     generateMeetingNewspaper,
 } from '../../features/meetings/controller.js';
@@ -11,7 +10,7 @@ import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-meeting-detail', { element: document.getElementById('view-meeting-detail') });
-    document.getElementById('btn-meeting-detail-back').onclick = openMeetingsList;
+    document.getElementById('btn-meeting-detail-back').onclick = back;
     document.getElementById('btn-md-camera-photo').onclick = () => handleDetailPhotoClick('md-camera-input');
     document.getElementById('btn-md-album-photo').onclick = () => handleDetailPhotoClick('md-album-input');
     document.getElementById('btn-md-transcribe-audio').onclick = transcribeMeetingAudio;

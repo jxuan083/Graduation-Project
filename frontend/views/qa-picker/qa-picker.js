@@ -1,5 +1,5 @@
 // views/qa-picker/qa-picker.js — 房主從題庫挑一題
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { apiFetch } from '../../core/api.js';
@@ -7,7 +7,7 @@ import { t } from '../../core/i18n.js';
 
 export function init() {
     register('view-qa-picker', { element: document.getElementById('view-qa-picker') });
-    document.getElementById('btn-qpick-back').onclick = () => switchView('view-qa-source');
+    document.getElementById('btn-qpick-back').onclick = back;
     document.getElementById('qpick-tab-mine').onclick = () => {
         state.qpickerCurrentTab = 'mine';
         document.getElementById('qpick-tab-mine').classList.add('active');

@@ -19,7 +19,7 @@ export function cleanupSession() {
     state.myDeviations = 0;
     document.body.className = '';
     state.lastMeetingView = null;
-    history.replaceState(null, '', window.location.pathname);
+    history.replaceState(history.state, '', window.location.pathname);
     events.emit('session:cleanup');
 }
 
@@ -28,7 +28,7 @@ export function goHomeFromMenu() {
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
         cleanupSession();
     }
-    switchView('view-home');
+    switchView('view-home', { replace: true });
 }
 
 // 加入房間 (WebSocket 連上 + 切到對應 view)
@@ -37,10 +37,10 @@ export function goHomeFromMenu() {
 export async function joinRoom(roomId) {
     await connectRoom(roomId, state.userId, state.myNickname, () => {
         if (state.amIHost) {
-            switchView('view-host-room');
+            switchView('view-host-room', { replace: true });
         } else {
             state.currentPhase = 'WAITING';
-            switchView('view-waiting-room');
+            switchView('view-waiting-room', { replace: true });
         }
         events.emit('session:joined', { roomId, amIHost: state.amIHost });
     });

@@ -22,7 +22,7 @@ export function init() {
         onShow,
         onHide,
     });
-    document.getElementById('btn-summary-home')?.addEventListener('click', () => switchView('view-home'));
+    document.getElementById('btn-summary-home')?.addEventListener('click', () => switchView('view-home', { replace: true }));
 }
 
 export function renderPartySummaryFromMeeting(meeting, newspaper = null) {

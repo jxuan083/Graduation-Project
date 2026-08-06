@@ -585,7 +585,7 @@ function showLocalSummary() {
     document.getElementById('summary-time').innerText = Math.round(timeMs / 60000);
     document.getElementById('summary-deviations').innerText = state.totalDeviations;
     if (state.ws) { try { state.ws.close(); } catch (_) {} state.ws = null; }
-    import('../../core/router.js').then(({ switchView }) => switchView('view-summary'));
+    import('../../core/router.js').then(({ switchView }) => switchView('view-summary', { replace: true }));
 }
 
 function escHtml(s) {

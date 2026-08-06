@@ -1,5 +1,5 @@
 // views/join-method/join-method.js — 加入聚會入口頁
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { t } from '../../core/i18n.js';
 import { startQrScanner } from '../scanner/scanner.js';
@@ -11,7 +11,7 @@ export function init() {
         onShow,
     });
 
-    document.getElementById('btn-join-method-back').onclick = () => switchView('view-home');
+    document.getElementById('btn-join-method-back').onclick = back;
     document.getElementById('btn-join-method-scan').onclick = startQrScanner;
     document.getElementById('btn-join-method-code').onclick = joinByTypedCode;
     document.getElementById('join-method-code').addEventListener('keydown', (event) => {
@@ -23,7 +23,8 @@ function onShow() {
     const input = document.getElementById('join-method-code');
     if (input) input.value = '';
     if (window.lucide) window.lucide.createIcons();
-    setTimeout(() => input?.focus(), 120);
+    // 不自動 focus：進頁面就彈鍵盤會遮住其他加入方式（掃碼等），
+    // 使用者要自己選擇要用哪一種。驗證失敗時才主動 focus。
 }
 
 function joinByTypedCode() {

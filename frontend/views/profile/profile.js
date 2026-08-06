@@ -1,9 +1,8 @@
 // views/profile/profile.js
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { storage } from '../../core/firebase.js';
 import { apiFetch } from '../../core/api.js';
-import { goHomeFromMenu } from '../../core/session.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
 
@@ -28,7 +27,7 @@ function getSelectedInterests() {
 export function init() {
     register('view-profile', { element: document.getElementById('view-profile') });
     document.getElementById('btn-profile-save').onclick = saveProfile;
-    document.getElementById('btn-profile-back').onclick = goHomeFromMenu;
+    document.getElementById('btn-profile-back').onclick = back;
     document.getElementById('btn-interest-add').onclick = addCustomInterest;
     document.getElementById('profile-interest-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); }

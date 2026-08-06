@@ -8,7 +8,7 @@ export function init() {
     document.getElementById('btn-leave-waiting').onclick = () => {
         if (confirm(t('確定要離開聚會嗎?'))) {
             cleanupSession();
-            switchView('view-home');
+            switchView('view-home', { replace: true });
         }
     };
 }

@@ -30,7 +30,7 @@ export function init() {
         onShow,
         onHide,
     });
-    document.getElementById('btn-meeting-news-home')?.addEventListener('click', () => switchView('view-home'));
+    document.getElementById('btn-meeting-news-home')?.addEventListener('click', () => switchView('view-home', { replace: true }));
 }
 
 export function renderMeetingNews(meeting, newspaper) {

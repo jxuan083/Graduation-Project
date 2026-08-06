@@ -10,7 +10,7 @@ export function enterTabooPrepare() {
     cleanupTabooLocalState();
     const hostCtrl = document.getElementById('taboo-host-controls');
     if (hostCtrl) hostCtrl.style.display = state.amIHost ? 'block' : 'none';
-    switchView('view-taboo-prepare');
+    switchView('view-taboo-prepare', { replace: true });
 }
 
 // 清掉本地倒數 / 字卡狀態
@@ -43,7 +43,7 @@ export function startTabooDrawCountdown() {
     let secondsLeft = 5;
     const numEl = document.getElementById('taboo-countdown-num');
     if (numEl) numEl.innerText = secondsLeft;
-    switchView('view-taboo-countdown');
+    switchView('view-taboo-countdown', { replace: true });
 
     state.taboo.countdownInterval = setInterval(() => {
         secondsLeft--;
@@ -65,7 +65,7 @@ export function showTabooCard() {
         if (state.taboo.flipMode) wordEl.classList.add('flip');
         else wordEl.classList.remove('flip');
     }
-    switchView('view-taboo-card');
+    switchView('view-taboo-card', { replace: true });
 }
 
 // 房主送出 START_TABOO_GAME / END_TABOO_GAME
@@ -80,6 +80,6 @@ export function hostEndTabooGame() {
     if (!state.amIHost) return;
     if (!sendAction('END_TABOO_GAME')) {
         cleanupTabooLocalState();
-        switchView('view-focus');
+        switchView('view-focus', { replace: true });
     }
 }

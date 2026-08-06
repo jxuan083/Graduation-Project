@@ -1,5 +1,5 @@
 // views/join/join.js
-import { register, switchView } from '../../core/router.js';
+import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { getDisplayNickname } from '../../core/firebase.js';
 import { joinRoom } from '../../core/session.js';
@@ -10,8 +10,8 @@ export function init() {
     document.getElementById('btn-confirm-join').onclick = confirmJoinRoom;
     document.getElementById('btn-cancel-join').onclick = () => {
         state.pendingRoomId = null;
-        history.replaceState(null, '', window.location.pathname);
-        switchView('view-home');
+        history.replaceState(history.state, '', window.location.pathname);
+        back();
     };
 }
 
@@ -27,7 +27,7 @@ export function showJoinView() {
         hint.style.display = 'block';
     }
     switchView('view-join');
-    setTimeout(() => input.focus(), 100);
+    // 不自動 focus：避免一進頁面就彈鍵盤。
 }
 
 function confirmJoinRoom() {
