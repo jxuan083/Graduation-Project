@@ -127,6 +127,59 @@ xcrun devicectl device install app --device <裝置 UDID> <path>/App.app
 - 移除 iOS/Android 的開發用 cleartext HTTP 例外
 - `user-scalable=no` 是無障礙問題
 
+## 未解決：原生 app 連不到本機後端（2026-08-06，最高優先）
+
+**症狀**：原生 app 內所有登入方式都沒反應（訪客、Email、本機快速登入）。
+
+**已確認的事實**（不要重新假設）：
+- Firebase Auth emulator 帳號數 **0** —— 從頭到尾沒有任何一次登入成功
+- 後端 log **零筆來自手機的請求**（只有 Mac 自己 curl 的 `172.16.17.50`）
+- 從 Mac 用 curl 打 `http://172.16.17.50:8080/api/health`、`:9099`、`:5002` 全部 **HTTP 200**
+
+**結論：問題不在登入邏輯，是手機根本連不到 Mac。**
+
+**已嘗試但未解決**：
+1. `capacitor.config.json` 設 `iosScheme/androidScheme: "http"` + `cleartext: true`
+   （原假設：`capacitor://localhost` 是安全來源，對 `http://` 後端會被當 mixed content 擋掉）
+2. `Info.plist` 補 `NSLocalNetworkUsageDescription`
+   （iOS 14 起沒有這個宣告，存取區網 IP 不會跳授權框、連線靜默失敗。Leo 在 FlowDeck tvOS 專案踩過同一件事）
+3. ATS 已有 `NSAllowsArbitraryLoadsInWebContent` + `NSAllowsLocalNetworking`
+
+**下一步（擇一）**：
+- **做 app 內連線診斷頁**（放在目前空白的 `view-more`）：顯示 `IS_NATIVE_APP`、解析出的 `devHost` / `BACKEND_HOST` / emulator hosts，並提供「測試連線」按鈕把 fetch 的錯誤訊息直接印在畫面上。不需要 Mac 接線就能自我診斷。**建議先做這個。**
+- Safari Web Inspector：iPhone 設定 → Apps → Safari → 進階 → 開啟「網頁檢閱器」，再用 Mac Safari 的「開發」選單接上 app 的 webview 看 console。
+
+**其他要確認的**：手機是否真的與 Mac 同一個 WiFi（曾出現 IP 短暫跳成 `192.168.2.105`）；iOS 設定內「社交定錨 → 區域網路」是否已開啟。
+
+## 重要：devHost 已清空
+
+`frontend/native-runtime-config.js` 的 `devHost` 為了進版控已清成 `''`。
+
+**要繼續在手機上測，必須先填回當前 LAN IP 再 build**，否則 app 會去連正式 Cloud Run（現為 503）：
+
+```bash
+# 1. 查 IP
+ipconfig getifaddr en0
+# 2. 填進 frontend/native-runtime-config.js 的 devHost
+# 3. 重新 build
+npx cap sync ios
+xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+  -destination 'id=9D800519-30D5-5107-A80B-28888A35B894' \
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=SP87H7624B \
+  -derivedDataPath /tmp/dd build
+xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894 \
+  /tmp/dd/Build/Products/Debug-iphoneos/App.app
+```
+
+`devHost` 是本機設定檔，**不要 commit 個人 IP**。
+
+## 待決策
+
+- **空狀態改版**：方案已提（三段式：這裡會出現什麼／一句價值／一顆主要按鈕；用寵物當視覺取代通用圖示；示範卡片展示填滿後的樣子）。尚未實作。
+- **儀式變體**：研究已完成（見 `docs/superpowers/specs/2026-08-06-ux-research.md`），是低頻留存問題的核心答案，也是可量測的研究變項。尚未實作。
+- **Apple Developer $99**：先問政大／指導教授有沒有機構開發者帳號（教育機構可費用豁免），通了就免費用 TestFlight。場測其實用 PWA 即可，$99 可延後到真的要上架。
+- **雲端費用核銷**：主計室已確認訂閱制可核銷（2-3 個月一次），但**雲端用量型費用尚未確認**。這決定後端能不能上雲，是 PWA 場測與 TestFlight 的共同前提。
+
 ## 變更紀錄
 
 - 2026-08-05（下午）：Capacitor 原生化，實機跑起來；修動態島安全區、bottom bar fixed bug、導航堆疊與右滑返回；發現原生殼登入失效（`signInWithPopup`）。全部未 commit。
