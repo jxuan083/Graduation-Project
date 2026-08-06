@@ -127,6 +127,14 @@ DEFAULT_FRONTEND_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5000",
     "http://127.0.0.1:5173",
+    # Capacitor 原生殼的 Origin。webview 不是從 LAN IP 載入的，而是從自己的
+    # scheme://localhost 載入，且**不帶 port**——CORS 是整串精確比對，
+    # "http://localhost:5002" 不會涵蓋 "http://localhost"。
+    # 三個都列是因為 capacitor.config.json 的 iosScheme/androidScheme 一改，
+    # Origin 就跟著換，漏一個的症狀是預檢 400 而畫面完全沒有錯誤訊息。
+    "capacitor://localhost",
+    "http://localhost",
+    "https://localhost",
 ]
 ALLOWED_ORIGINS = [
     origin.strip()

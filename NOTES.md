@@ -11,7 +11,7 @@
 `/Users/pl/Graduation-Project` 是**過期 clone**（停在 `ec301ad`，落後 15 commits，最後動作 2026-07-13）。不要在那裡工作。建議刪除或改名避免誤改。
 
 - Remote：`https://github.com/jxuan083/Graduation-Project.git`
-- 2026-08-05 狀態：`main == origin/main == 57ed2fc`，worktree clean，自 2026-07-24 起無新 commit。
+- 2026-08-06 狀態：`feat/native-app-ux` 的 6 個 commit 已 fast-forward 併入 `main` 並推上 origin（`main == origin/main == 34a9f3d`）。
 
 ---
 
@@ -66,6 +66,10 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 - GCP Billing disabled，不要嘗試 Cloud Run / Artifact Registry 部署。
 - Cloud Run 503 **不等於** Firestore 資料被刪，資料仍在。
 - 寵物本體的 emoji 是舊產品資料與使用者選項，不可機械式清除；新 UI 一律 Lucide/SVG。
+- **要在手機上測之前，第一件事永遠是 `ipconfig getifaddr en0` 對一下 IP 有沒有變。**
+  `devHost` 是 build 當下的快照、`dev.sh` 的 CORS 白名單是啟動當下的快照，Mac 一換網路兩者同時失效，
+  而失敗表現是「app 完全沒反應」，與登入邏輯壞掉完全無法從畫面上區分。IP 變了就要重啟 dev.sh **並且**重 build。
+- CORS 是整串 origin 精確比對：`http://localhost` ≠ `http://localhost:5002`。原生殼的 Origin 不帶 port。
 
 ---
 
@@ -81,7 +85,7 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 ## 待辦（2026-08-05）
 
 - [ ] 收 codex 診斷報告，把 Phase 0–7 的真實完成度填回本檔
-- [ ] 確認本機能不能跑起來（缺什麼、怎麼補）
+- [x] 確認本機能不能跑起來 —— 2026-08-06 實跑 `./scripts/dev.sh` 全通（backend 8080 / hosting 5002 / auth 9099 / firestore 8081 皆 200）。`.venv` 與 Python 依賴已備妥；`java` 不在系統 PATH 但 `dev.sh` 會自動抓 `/opt/homebrew/opt/openjdk`。本機不需要 `serviceAccountKey.json`（走 emulator 分支）。唯一缺的是 whisper（語音轉文字在本機不可用，`requirements-core.txt` 未含）。
 - [ ] 刪除或改名過期 clone `/Users/pl/Graduation-Project`
 - [ ] UX Phase A：design token + `feedback.js` + `optimistic.js`
 - [ ] 排真人場測（產品層指標無法靠 code 驗證，口試最需要這個）
@@ -90,7 +94,7 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 
 ## 2026-08-05 原生 app 化（Capacitor）
 
-已 Capacitor 化並實機安裝到 iPhone 17（免費 Personal Team，簽章 7 天到期）。**尚未 commit**。
+已 Capacitor 化並實機安裝到 iPhone 17（免費 Personal Team，簽章 7 天到期）。已於 2026-08-06 commit 並併入 `main`。
 
 建置指令（dev server 必須同時跑著，app 連 `devHost`）：
 
@@ -127,29 +131,48 @@ xcrun devicectl device install app --device <裝置 UDID> <path>/App.app
 - 移除 iOS/Android 的開發用 cleartext HTTP 例外
 - `user-scalable=no` 是無障礙問題
 
-## 未解決：原生 app 連不到本機後端（2026-08-06，最高優先）
+## 已解決：原生 app 連不到本機後端（2026-08-06）
 
-**症狀**：原生 app 內所有登入方式都沒反應（訪客、Email、本機快速登入）。
+**首次成功**：原生 app 內匿名登入成功，Auth emulator 出現第一個帳號
+（`zGhlZ9tiwD4YlFsNVKymzqJtpmLA`，provider `anonymous`），手機的
+`/api/leaderboard/global`、`/api/group-pets` 皆 200。
 
-**已確認的事實**（不要重新假設）：
-- Firebase Auth emulator 帳號數 **0** —— 從頭到尾沒有任何一次登入成功
-- 後端 log **零筆來自手機的請求**（只有 Mac 自己 curl 的 `172.16.17.50`）
-- 從 Mac 用 curl 打 `http://172.16.17.50:8080/api/health`、`:9099`、`:5002` 全部 **HTTP 200**
+根因是**三個獨立問題疊在一起**，每一個單獨發生的症狀都是「按了沒反應、畫面零錯誤訊息」，
+所以看起來像同一個修不好的 bug：
 
-**結論：問題不在登入邏輯，是手機根本連不到 Mac。**
+| # | 問題 | 為什麼難抓 |
+|---|---|---|
+| 1 | 手機 WiFi 沒開，走行動網路 | 行動網路連不到私有網段，後端 log 零筆請求 |
+| 2 | Mac 的 LAN IP 從 `172.16.17.50` 漂到 `192.168.14.222`，而 `devHost` 是空的 | `devHost` 是 build 當下的快照，IP 一變就指向死地址 |
+| 3 | CORS 白名單缺**不帶 port** 的 `http://localhost` | 原生殼 webview 的 Origin 是 `http://localhost`，與 `http://localhost:5002` 是不同字串；預檢回 400 |
 
-**已嘗試但未解決**：
-1. `capacitor.config.json` 設 `iosScheme/androidScheme: "http"` + `cleartext: true`
-   （原假設：`capacitor://localhost` 是安全來源，對 `http://` 後端會被當 mixed content 擋掉）
-2. `Info.plist` 補 `NSLocalNetworkUsageDescription`
-   （iOS 14 起沒有這個宣告，存取區網 IP 不會跳授權框、連線靜默失敗。Leo 在 FlowDeck tvOS 專案踩過同一件事）
-3. ATS 已有 `NSAllowsArbitraryLoadsInWebContent` + `NSAllowsLocalNetworking`
+**8/5 嘗試的三項修改全部與根因無關**（`iosScheme`、`NSLocalNetworkUsageDescription`、ATS）。
+其中 `iosScheme: "http"` 還把 Origin 從 `capacitor://localhost` 換成 `http://localhost`，
+等於把問題 3 從一種變體換成另一種變體，所以改了也沒有任何感覺。
 
-**下一步（擇一）**：
-- **做 app 內連線診斷頁**（放在目前空白的 `view-more`）：顯示 `IS_NATIVE_APP`、解析出的 `devHost` / `BACKEND_HOST` / emulator hosts，並提供「測試連線」按鈕把 fetch 的錯誤訊息直接印在畫面上。不需要 Mac 接線就能自我診斷。**建議先做這個。**
-- Safari Web Inspector：iPhone 設定 → Apps → Safari → 進階 → 開啟「網頁檢閱器」，再用 Mac Safari 的「開發」選單接上 app 的 webview 看 console。
+**修正**（2026-08-06）：`backend/main.py` 的 `DEFAULT_FRONTEND_ORIGINS` 與 `scripts/dev.sh`
+的 `ALLOWED_ORIGINS` 各補上 `capacitor://localhost`、`http://localhost`、`https://localhost`。
+兩邊都要改 —— `dev.sh` 設的環境變數會**完全覆蓋**後端預設，只改一邊無效。
 
-**其他要確認的**：手機是否真的與 Mac 同一個 WiFi（曾出現 IP 短暫跳成 `192.168.2.105`）；iOS 設定內「社交定錨 → 區域網路」是否已開啟。
+**方法論教訓（下次遇到「完全沒反應」先做這個）**：
+症狀是靜默失敗時，第一件事是確認**封包到底有沒有到達**（看後端 log 的來源 IP），
+而不是猜設定。確認到達之後才輪到看狀態碼、再輪到看應用邏輯。
+先確認網路層再動 app 設定，可以省掉兩天。
+
+驗證指令：
+
+```bash
+# 手機的請求有沒有進來（換成手機的 IP）
+grep '192.168.14.68' <dev.sh 的 log>
+
+# 原生殼 Origin 的 CORS 預檢
+curl -i -X OPTIONS "http://<mac-ip>:8080/api/me" \
+  -H "Origin: http://localhost" -H "Access-Control-Request-Method: GET"
+
+# Auth emulator 帳號數
+curl -s -X POST "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/graduation-6ae65/accounts:query" \
+  -H "Authorization: Bearer owner" -H "Content-Type: application/json" -d '{}'
+```
 
 ## 重要：devHost 已清空
 
@@ -182,6 +205,7 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 
 ## 變更紀錄
 
+- 2026-08-06：原生化 6 個 commit fast-forward 併入 `main` 並推上 origin；修好原生 app 連不到本機後端（根因為手機 WiFi 未開 + Mac IP 漂移 + CORS 缺原生 Origin 三者疊加），**首次登入成功**。
 - 2026-08-05（下午）：Capacitor 原生化，實機跑起來；修動態島安全區、bottom bar fixed bug、導航堆疊與右滑返回；發現原生殼登入失效（`signInWithPopup`）。全部未 commit。
 - 2026-08-05：建立本檔；新增 UX 升級計畫；確認 repo 雙 clone 問題。
 - 2026-07-24：local-first CI、後端 sync 強化、shared anchor UI、requirements 拆分、scheduled gatherings 併入 start flow（`36e44ee`..`57ed2fc`）。

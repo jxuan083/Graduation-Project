@@ -28,7 +28,11 @@ if [[ -n "$LAN_IP" ]]; then
   LAN_ORIGINS=",http://${LAN_IP}:${FIREBASE_HOSTING_PORT},http://${LAN_IP}:5173,http://${LAN_IP}:3000"
 fi
 
-export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:${FIREBASE_HOSTING_PORT},http://127.0.0.1:${FIREBASE_HOSTING_PORT},http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000${LAN_ORIGINS}}"
+# Capacitor 原生殼的 webview 從 scheme://localhost 載入，Origin 不帶 port，
+# 跟上面那些帶 port 的是不同字串，必須另外列（漏了的症狀是預檢 400、畫面無錯誤訊息）。
+NATIVE_ORIGINS="capacitor://localhost,http://localhost,https://localhost"
+
+export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:${FIREBASE_HOSTING_PORT},http://127.0.0.1:${FIREBASE_HOSTING_PORT},http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,${NATIVE_ORIGINS}${LAN_ORIGINS}}"
 EMULATOR_DATA_DIR="${EMULATOR_DATA_DIR:-.emulator-data}"
 RUNNING_PIDS=()
 
