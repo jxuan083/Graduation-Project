@@ -1,0 +1,10 @@
+{
+  "appId": "tw.edu.nccu.phubbinganchor",
+  "appName": "社交定錨",
+  "webDir": "frontend",
+  "server": {
+    "iosScheme": "http",
+    "androidScheme": "http",
+    "cleartext": true
+  }
+}

@@ -1,18 +1,70 @@
 // core/config.js — 全域常數
-const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-export const IS_LOCAL_FRONTEND = isLocalFrontend;
-export const BACKEND_HOST = isLocalFrontend
-    ? '127.0.0.1:8080'
-    : 'phubbing-backend-798458690617.asia-east1.run.app';
 
-export const isSecure = window.location.protocol === 'https:';
+// 本機開發判定。除了 localhost，也認私有網段 IP，這樣同一個 WiFi 下的手機
+// 連 http://<mac-ip>:5002 時仍然走本地 emulator + 本地 backend，
+// 而不是誤連正式 Cloud Run（目前 billing 關閉，會 503）。
+const HOSTNAME = window.location.hostname;
+const PRIVATE_IP_RE = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+const NATIVE_DEV_HOST_KEY = 'phubbing_native_dev_host';
+const PRODUCTION_BACKEND_HOST = 'phubbing-backend-798458690617.asia-east1.run.app';
+const nativeRuntimeConfig = window.PHUBBING_NATIVE_CONFIG || {};
+const isNativeApp = Boolean(
+    window.Capacitor?.isNativePlatform?.()
+    || ['ios', 'android'].includes(window.Capacitor?.getPlatform?.())
+);
+
+function normalizeHost(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '')
+        .replace(/:\d+$/, '');
+}
+
+function readNativeDevHost() {
+    if (!isNativeApp) return '';
+    const params = new URLSearchParams(window.location.search || '');
+    const queryHost = normalizeHost(params.get('devHost'));
+    if (queryHost) {
+        try { localStorage.setItem(NATIVE_DEV_HOST_KEY, queryHost); } catch (_) {}
+        return queryHost;
+    }
+    try {
+        const storedHost = normalizeHost(localStorage.getItem(NATIVE_DEV_HOST_KEY));
+        if (storedHost) return storedHost;
+    } catch (_) {}
+    return normalizeHost(nativeRuntimeConfig.devHost);
+}
+
+const nativeDevHost = readNativeDevHost();
+const nativeBackendHost = normalizeHost(nativeRuntimeConfig.backendHost) || PRODUCTION_BACKEND_HOST;
+const isLocalFrontend = isNativeApp
+    ? Boolean(nativeDevHost)
+    : ['localhost', '127.0.0.1'].includes(HOSTNAME)
+    || PRIVATE_IP_RE.test(HOSTNAME);
+
+export const IS_LOCAL_FRONTEND = isLocalFrontend;
+export const IS_NATIVE_APP = isNativeApp;
+export const NATIVE_DEV_HOST_STORAGE_KEY = NATIVE_DEV_HOST_KEY;
+
+// 瀏覽器本地一律沿用「這個頁面是從哪個 host 載入的」；原生殼則必須顯式指定開發機 LAN IP。
+const runtimeHost = isNativeApp ? nativeDevHost : HOSTNAME;
+
+export const BACKEND_HOST = isLocalFrontend && runtimeHost
+    ? `${runtimeHost}:8080`
+    : nativeBackendHost;
+
+const backendUsesHttps = !isLocalFrontend;
+export const isSecure = isNativeApp
+    ? backendUsesHttps
+    : window.location.protocol === 'https:';
 export const HTTP_PROTOCOL = isSecure ? 'https://' : 'http://';
 export const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
 
 export const FIREBASE_EMULATORS = {
     enabled: isLocalFrontend,
-    authHost: 'http://127.0.0.1:9099',
-    storageHost: '127.0.0.1',
+    authHost: `http://${runtimeHost}:9099`,
+    storageHost: runtimeHost,
     storagePort: 9199,
 };
 
