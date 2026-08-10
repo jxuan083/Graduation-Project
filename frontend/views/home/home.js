@@ -4,7 +4,7 @@ import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=50';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=51';
 import { FIREBASE_EMULATORS } from '../../core/config.js';
 import { openLoginMethodSheet } from '../../core/login-sheet.js';
 import { t } from '../../core/i18n.js';
@@ -63,7 +63,7 @@ function loadHomeOnboardingStyles() {
     const link = document.createElement('link');
     link.id = 'home-onboarding-css';
     link.rel = 'stylesheet';
-    link.href = './views/home/home-onboarding.css?v=50';
+    link.href = './views/home/home-onboarding.css?v=51';
     document.head.appendChild(link);
 }
 
