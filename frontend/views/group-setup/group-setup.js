@@ -1,7 +1,7 @@
 // views/group-setup/group-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { PET_BODY_OPTIONS } from '../../core/config.js?v=49';
+import { PET_BODY_OPTIONS } from '../../core/config.js?v=50';
 import { t } from '../../core/i18n.js';
 
 let currentGroupId = null;
@@ -89,7 +89,7 @@ function showExistingGroupSections() {
 async function refreshGroupDetail() {
     if (!currentGroupId) return;
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=49');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=50');
         const g = await fetchGroupDetail(currentGroupId);
         if (!g) return;
         renderInviteCode(g);
@@ -128,7 +128,7 @@ async function handleRefreshInvite() {
     if (!currentGroupId) return;
     if (!confirm(t('確定重新產生邀請碼？舊的邀請碼將立即失效。'))) return;
     try {
-        const { refreshGroupInviteCode } = await import('../../features/groups/controller.js?v=49');
+        const { refreshGroupInviteCode } = await import('../../features/groups/controller.js?v=50');
         const { data } = await refreshGroupInviteCode(currentGroupId);
         if (data?.invite_code) {
             if (state.currentGroupDetail) state.currentGroupDetail.invite_code = data.invite_code;
@@ -180,7 +180,7 @@ function renderMembers(g) {
         btn.onclick = async () => {
             if (!confirm(t('確定移除？'))) return;
             try {
-                const { removeGroupMember } = await import('../../features/groups/controller.js?v=49');
+                const { removeGroupMember } = await import('../../features/groups/controller.js?v=50');
                 await removeGroupMember(currentGroupId, btn.dataset.uid);
                 await refreshGroupDetail();
             } catch (err) { alert(t('移除失敗：') + (err.message || err)); }
@@ -231,7 +231,7 @@ async function handleLeaveGroup() {
     if (!currentGroupId) return;
     if (!confirm(t('確定退出這個群組？'))) return;
     try {
-        const { removeGroupMember } = await import('../../features/groups/controller.js?v=49');
+        const { removeGroupMember } = await import('../../features/groups/controller.js?v=50');
         const myUid = state.currentUser?.uid;
         await removeGroupMember(currentGroupId, myUid);
         alert(t('已退出群組'));
@@ -246,7 +246,7 @@ async function handleSaveName() {
     if (!name) { alert(t('請輸入群組名稱')); return; }
 
     try {
-        const { createGroup, updateGroupName } = await import('../../features/groups/controller.js?v=49');
+        const { createGroup, updateGroupName } = await import('../../features/groups/controller.js?v=50');
         if (!currentGroupId) {
             const { data } = await createGroup(name);
             const groupId = data?.group?.group_id || data?.group_id;
@@ -274,7 +274,7 @@ async function handleAddMember() {
     if (!identifier) { alert(t('請輸入 Email 或 UID')); return; }
     if (!currentGroupId) { alert(t('請先儲存群組名稱')); return; }
     try {
-        const { addGroupMember } = await import('../../features/groups/controller.js?v=49');
+        const { addGroupMember } = await import('../../features/groups/controller.js?v=50');
         const { data } = await addGroupMember(currentGroupId, identifier);
         if (data?.status === 'success') {
             if (input) input.value = '';
@@ -289,7 +289,7 @@ async function handleSavePetBody() {
     if (!selectedPetBody) { alert(t('請選擇一個動物身體')); return; }
     if (!currentGroupId) return;
     try {
-        const { updatePet } = await import('../../features/groups/controller.js?v=49');
+        const { updatePet } = await import('../../features/groups/controller.js?v=50');
         const { data } = await updatePet(currentGroupId, { pet_body_emoji: selectedPetBody });
         if (data?.status === 'success') {
             await refreshGroupDetail();
