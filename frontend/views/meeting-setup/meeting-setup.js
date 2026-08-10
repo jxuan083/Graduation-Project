@@ -1,7 +1,7 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=51';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=52';
 import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
@@ -164,7 +164,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=51');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=52');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

@@ -26,6 +26,17 @@
             <div class="pa-grass" style="right:72px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 8 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
             <div class="pa-grass" style="right:44px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 2 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
             <div class="pa-grass" style="right:18px;"><svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M5 16 C5 16 8 8 5 0" stroke="#6a9042" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+            <!-- 天氣層：群體專注→晴天，一兩人分心→陰天，多數人分心→雨天（純 CSS，隨 class 切換） -->
+            <div class="pa-clouds" aria-hidden="true">
+                <span class="pa-cloud pa-cloud-1"></span>
+                <span class="pa-cloud pa-cloud-2"></span>
+                <span class="pa-cloud pa-cloud-3"></span>
+            </div>
+            <div class="pa-rain" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <!-- 寵物失落對話框（陰天/雨天才顯示） -->
+            <div id="focus-pet-bubble" class="pa-pet-bubble" style="display:none;"></div>
             <!-- 吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回專案既有的 Lottie 動畫 -->
             <img id="focus-pet-face" class="pa-pet-face" alt="群組寵物" style="display:none;">
             <div class="lottie-container" id="lottie-orb"></div>
