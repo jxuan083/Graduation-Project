@@ -1,11 +1,13 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=49';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=52';
 import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=52';
+import { showToast } from '../../utils/toast.js';
 
 export function init() {
     register('view-meeting-setup', {
@@ -164,7 +166,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=49');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=52');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }
@@ -174,16 +176,17 @@ async function onSetupShow() {
 }
 
 async function handleConfirm() {
+    const btn = document.getElementById('btn-confirm-setup');
     if (!state.currentUser) {
-        alert(t('請先用 Google 登入才能發起聚會'));
+        setButtonError(btn, t('請先登入'));
+        showToast(t('請先用 Google 登入才能發起聚會'), 'error');
         return;
     }
 
     const duration = state.currentExpectedDuration || 90;
     const groupId = state.currentGroupId || null;
 
-    const btn = document.getElementById('btn-confirm-setup');
-    if (btn) { btn.disabled = true; btn.textContent = '建立中…'; }
+    setButtonPending(btn, t('正在建立聚會室'));
 
     try {
         state.amIHost = true;
@@ -203,12 +206,14 @@ async function handleConfirm() {
         });
 
         if (res.status === 401) {
-            alert(t('登入狀態失效，請重新登入'));
+            setButtonError(btn, t('登入已失效'));
+            showToast(t('登入狀態失效，請重新登入'), 'error');
             await doSignOut();
             return;
         }
 
         const data = await res.json();
+        if (!res.ok || !data?.room_id) throw new Error(data?.detail || `HTTP ${res.status}`);
         state.currentContext = data.context || state.currentContext;
         state.currentDifficulty = data.difficulty || state.currentDifficulty;
         state.currentRoomMode = data.mode || 'GATHERING';
@@ -218,13 +223,13 @@ async function handleConfirm() {
             qrImg.src = 'data:image/png;base64,' + data.qr_base64;
             qrImg.dataset.qrUrl = data.url || `${frontendUrl}/?room=${data.room_id}`;
         }
+        setButtonSuccess(btn, t('聚會室已建立'), { restoreAfter: 1600 });
         joinRoom(data.room_id);
     } catch (err) {
         console.error('create_room failed:', err);
-        alert(t('建立房間失敗：') + (err.message || err));
+        setButtonError(btn, t('建立失敗'));
+        showToast(t('建立房間失敗：') + (err.message || err), 'error');
         state.amIHost = false;
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '建立聚會室'; }
     }
 }
 

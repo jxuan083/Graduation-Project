@@ -88,8 +88,20 @@ export function notificationSuccess() {
     try { navigator.vibrate?.([30, 50, 30]); } catch (_) {}
 }
 
+export function notificationError() {
+    if (prefersReducedMotion()) return;
+
+    const haptics = getNativeHaptics();
+    if (haptics?.notification) {
+        haptics.notification({ type: 'ERROR' })
+            .catch?.(() => { try { navigator.vibrate?.([35, 45, 35, 45, 55]); } catch (_) {} });
+        return;
+    }
+    try { navigator.vibrate?.([35, 45, 35, 45, 55]); } catch (_) {}
+}
+
 // 底部導覽是切換目的地，語意上屬於 selection，不是 impact。
-const SELECTION_SELECTOR = '.btn-bottom, .tab-btn, [role="tab"]';
+const SELECTION_SELECTOR = '.btn-bottom, .tab-btn, [role="tab"], .cp-sit-btn, .cp-level-btn, .cp-dropdown-item';
 
 export function initButtonHaptics() {
     document.addEventListener('pointerdown', (event) => {

@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { events } from './events.js';
-import { vibrate } from './haptics.js';
+import { vibrate } from './haptics.js?v=52';
 
 const views = new Map();
 const navigationStack = [];
@@ -65,7 +65,7 @@ export function switchView(viewId, options = {}) {
     const replace = Boolean(options.replace) || navigationStack.length === 0 || viewId === currentViewId;
 
     // 記錄離開聚會頁前的位置 (給「返回聚會」浮動鈕用)
-    applyView(viewId);
+    applyView(viewId, { direction: replace ? 'none' : 'forward' });
 
     if (!applyingPopState) {
         writeHistory(viewId, { replace });
@@ -104,7 +104,7 @@ export function initNavigationRuntime() {
     installEdgePanGesture();
 }
 
-function applyView(viewId) {
+function applyView(viewId, { direction = 'none' } = {}) {
     const target = views.get(viewId);
     if (!target) return;
 
@@ -129,6 +129,7 @@ function applyView(viewId) {
 
     // 顯示目標 view + 呼叫 onShow
     target.element.classList.add('active');
+    playViewEntry(target.element, direction);
     currentViewId = viewId;
     try { target.onShow?.(); } catch (e) { console.warn(`[router] ${viewId}.onShow:`, e); }
 
@@ -186,13 +187,22 @@ function handlePopState(event) {
     }
 
     applyingPopState = true;
-    applyView(targetId);
+    applyView(targetId, { direction: 'back' });
     applyingPopState = false;
 
     const targetIndex = Number(event.state?.phubbingNavIndex);
     if (Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < navigationStack.length) {
         navigationStack.length = targetIndex + 1;
     }
+}
+
+function playViewEntry(element, direction) {
+    element.classList.remove('nav-enter-forward', 'nav-enter-back');
+    if (direction === 'none' || prefersReducedMotion()) return;
+    void element.offsetWidth;
+    const className = direction === 'back' ? 'nav-enter-back' : 'nav-enter-forward';
+    element.classList.add(className);
+    window.setTimeout(() => element.classList.remove(className), 280);
 }
 
 function installBackButtonCapture() {

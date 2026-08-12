@@ -1,7 +1,7 @@
 // core/login-sheet.js — reusable login method bottom sheet.
 import { FIREBASE_EMULATORS, IS_NATIVE_APP } from './config.js';
 import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doLocalDevLogin, doPasswordReset, doQuickLogin } from './firebase.js';
-import { impact } from './haptics.js';
+import { impact } from './haptics.js?v=52';
 import { applyTo, t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
 
