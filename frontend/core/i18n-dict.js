@@ -531,7 +531,6 @@ export const dict = {
     '分心次數:': 'Distraction count:',
     '我的分心次數': 'My Distraction Count',
     '次分心（我）': 'distractions (me)',
-    '手機管制強度': 'Phone Control Level',
     '選擇場景': 'Choose a Scene',
     '選擇群組': 'Select Group',
     '選擇一個群組…': 'Select a group…',

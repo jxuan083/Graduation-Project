@@ -513,7 +513,7 @@ body.bottom-nav-hidden #app { padding-bottom: 0; }
 
 /* 只保留低調的實體縮進感，不在每個點擊上疊加波紋或粒子。 */
 :is(.btn-primary, .btn-secondary, .btn-auth, .guest-primary-action, .login-sheet-option,
-    .join-method-primary, .cp-mode-btn, .cp-sit-btn, .cp-level-btn, .cp-dropdown-btn) {
+    .join-method-primary, .cp-mode-btn, .cp-sit-btn, .cp-dropdown-btn) {
   position: relative;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -1334,35 +1334,32 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
    MEETING FLOW — front-preview 風格
    ============================================================ */
 /* 發起聚會（meeting-setup）— front-preview screen-create-party 結構統一 */
-#view-meeting-setup { overflow-x: hidden; padding-bottom: calc(92px + var(--safe-area-bottom)); }
-#view-meeting-setup .cp-section-label { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 12px; }
+#view-meeting-setup { min-height: 0; overflow: hidden; padding-bottom: 0; }
+#view-meeting-setup .cp-section-label { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0 4px 9px; }
 
-#view-meeting-setup .cp-start-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: calc(100% - 40px); margin: 2px auto 16px; }
-#view-meeting-setup .cp-mode-btn { height: 46px; border: 1.5px solid transparent; cursor: pointer; border-radius: var(--r-md); background: #fff; color: var(--brown-45); display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; font-weight: 700; transition: background var(--motion-base), color var(--motion-base), border-color var(--motion-base); }
+#view-meeting-setup .cp-start-mode { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: calc(100% - 40px); margin: 2px auto 14px; padding: 3px; border-radius: var(--r-md); background: var(--brown-08); box-shadow: inset 0 0 0 1px rgba(79,53,26,.05); }
+#view-meeting-setup .cp-start-mode::before { content: ''; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: calc(var(--r-md) - 3px); background: #fff; box-shadow: 0 2px 8px rgba(79,53,26,.10), inset 0 1px 0 rgba(255,255,255,.9); transition: transform 300ms cubic-bezier(.16,1,.3,1); }
+#view-meeting-setup .cp-start-mode:has(.cp-mode-btn[data-mode="schedule"].active)::before { transform: translate3d(100%,0,0); }
+#view-meeting-setup .cp-mode-btn { position: relative; z-index: 1; height: 40px; border: 0; cursor: pointer; border-radius: calc(var(--r-md) - 3px); background: transparent; color: var(--brown-45); display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; font-weight: 700; transition: color var(--motion-base), transform var(--motion-fast); }
 #view-meeting-setup .cp-mode-btn svg { width: 18px; height: 18px; }
-#view-meeting-setup .cp-mode-btn.active { background: var(--brown); color: #fff; border-color: var(--brown); }
+#view-meeting-setup .cp-mode-btn.active { color: var(--brown); }
+#view-meeting-setup .cp-mode-btn:active { transform: scale(.97); }
 
-#view-meeting-setup .cp-setup-panel { display: flex; flex-direction: column; gap: 12px; width: calc(100% - 40px); margin-inline: auto; }
+#view-meeting-setup .cp-setup-panel { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 15px; width: calc(100% - 40px); margin-inline: auto; }
 #view-meeting-setup .cp-setup-panel[hidden] { display: none; }
-#view-meeting-setup .cp-setup-card { background: #fff; border-radius: var(--r-lg); padding: 14px 12px; box-shadow: 0 2px 10px rgba(79,53,26,.06); }
+#view-meeting-setup .cp-setup-card { background: transparent; border-radius: 0; padding: 0; box-shadow: none; }
+#view-meeting-setup #setup-now-panel .cp-setup-card + .cp-setup-card { padding-top: 14px; border-top: 1px solid rgba(79,53,26,.10); }
 
 /* 場景格 4×N：保留 44pt 以上觸控區，但不讓 11 個選項撐滿首屏。 */
 #view-meeting-setup .cp-situation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-#view-meeting-setup .cp-sit-btn { min-width: 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: none; cursor: pointer; border-radius: var(--r-md); padding: 9px 3px; background: var(--brown-05); transition: background var(--motion-base), box-shadow var(--motion-base), transform var(--motion-fast); box-shadow: inset 0 0 0 1px rgba(79,53,26,.06); }
+#view-meeting-setup .cp-sit-btn { min-width: 0; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: none; cursor: pointer; border-radius: var(--r-md); padding: 6px 3px; background: rgba(255,255,255,.68); transition: background var(--motion-base), box-shadow var(--motion-base), transform var(--motion-fast); box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); }
 #view-meeting-setup .cp-sit-btn:active { transform: translate3d(var(--press-shift-x, 0),2px,0) scale(.98); }
-#view-meeting-setup .cp-sit-btn.active-context { background: var(--brown); }
+#view-meeting-setup .cp-sit-btn.active-context { background: var(--brown); box-shadow: 0 3px 0 #34200e, 0 8px 14px -12px rgba(79,53,26,.72); transform: translate3d(0,-1px,0); }
 #view-meeting-setup .cp-sit-icon { color: var(--brown); display: flex; align-items: center; justify-content: center; }
 #view-meeting-setup .cp-sit-icon svg { width: 20px; height: 20px; }
 #view-meeting-setup .cp-sit-label { max-width: 100%; font-size: 10.5px; font-weight: 700; color: var(--brown-60); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
 #view-meeting-setup .cp-sit-btn.active-context .cp-sit-icon,
 #view-meeting-setup .cp-sit-btn.active-context .cp-sit-label { color: #fff; }
-
-/* 管制強度 3 段 */
-#view-meeting-setup .cp-level-btns { display: flex; gap: 8px; }
-#view-meeting-setup .cp-level-btn { flex: 1; height: 48px; border: none; cursor: pointer; border-radius: var(--r-md); font-size: 15px; font-weight: 700; background: var(--brown-05); color: var(--brown-45); transition: background var(--motion-base), color var(--motion-base), transform var(--motion-fast); }
-#view-meeting-setup .cp-level-btn:active { transform: translate3d(var(--press-shift-x, 0),2px,0) scale(.98); }
-#view-meeting-setup .cp-level-btn.active-diff { background: var(--brown); color: #fff; }
-#view-meeting-setup .cp-level-desc { font-size: 12px; color: var(--brown-40); margin: 0 0 24px; min-height: 16px; }
 
 /* 預計時長 */
 #view-meeting-setup .cp-duration-input { width: 100%; height: 50px; background: #fff; border: none; border-radius: var(--r-md); padding: 0 16px; font-size: 16px; color: var(--brown); margin-bottom: 24px; }
@@ -1370,7 +1367,8 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 /* 群組自訂下拉 */
 #view-meeting-setup .cp-dropdown-wrap { position: relative; }
-#view-meeting-setup .cp-dropdown-btn { width: 100%; height: 50px; background: var(--brown-05); border: none; cursor: pointer; border-radius: var(--r-md); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; }
+#view-meeting-setup .cp-dropdown-btn { width: 100%; height: 48px; background: rgba(255,255,255,.72); border: none; cursor: pointer; border-radius: var(--r-md); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); transition: transform var(--motion-fast), background var(--motion-base); }
+#view-meeting-setup .cp-dropdown-btn:active { transform: scale(.985); background: #fff; }
 #view-meeting-setup .cp-dropdown-val { font-size: 15px; }
 #view-meeting-setup .cp-dropdown-val.placeholder { color: var(--brown-35); }
 #view-meeting-setup .cp-dropdown-val.selected { color: var(--brown); }
@@ -1388,8 +1386,13 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup .cp-field input:focus { outline: none; border-color: var(--brown-15); box-shadow: 0 0 0 3px rgba(79,53,26,.06); }
 #view-meeting-setup .cp-schedule-action-card .btn-primary { margin-bottom: 0; }
 #view-meeting-setup .cp-help { color: var(--brown-40); font-size: 12px; line-height: 1.5; margin: 10px 2px 0; }
-#view-meeting-setup .cp-sticky-cta { position: static; width: 100%; padding: 2px 0 8px; }
+#view-meeting-setup .cp-sticky-cta { position: static; width: 100%; margin-top: auto; padding: 2px 0 12px; }
 #view-meeting-setup .cp-sticky-cta .btn-primary { margin-bottom: 0; box-shadow: 0 10px 26px rgba(79,53,26,.18); }
+
+@media (max-height: 740px) {
+  #view-meeting-setup { overflow-y: auto; }
+  #view-meeting-setup .cp-sticky-cta { margin-top: 4px; }
+}
 
 /* 聚會室（host-room） */
 /* 聚會室（host-room）— front-preview screen-party-room 結構統一 */

@@ -1,5 +1,5 @@
 // core/feedback.js — 共用互動回饋引擎：視覺、無障礙語意與觸覺保持同步。
-import { impact, notificationError, notificationSuccess } from './haptics.js?v=58';
+import { impact, notificationError, notificationSuccess } from './haptics.js?v=59';
 
 const PRESSABLE_SELECTOR = [
     '.btn-primary',
@@ -10,7 +10,6 @@ const PRESSABLE_SELECTOR = [
     '.join-method-primary',
     '.cp-mode-btn',
     '.cp-sit-btn',
-    '.cp-level-btn',
     '.cp-dropdown-btn',
 ].join(',');
 

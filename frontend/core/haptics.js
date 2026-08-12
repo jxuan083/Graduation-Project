@@ -101,7 +101,7 @@ export function notificationError() {
 }
 
 // 底部導覽是切換目的地，語意上屬於 selection，不是 impact。
-const SELECTION_SELECTOR = '.btn-bottom, .tab-btn, [role="tab"], .cp-sit-btn, .cp-level-btn, .cp-dropdown-item';
+const SELECTION_SELECTOR = '.btn-bottom, .tab-btn, [role="tab"], .cp-sit-btn, .cp-dropdown-item';
 
 export function initButtonHaptics() {
     document.addEventListener('pointerdown', (event) => {

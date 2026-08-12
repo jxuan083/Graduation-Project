@@ -111,7 +111,18 @@ test('meeting setup follows the shared twenty-pixel page gutter', () => {
   const css = read('frontend/styles/redesign.css');
   assert.match(css, /#view-meeting-setup \.cp-start-mode \{[^}]*width: calc\(100% - 40px\)/);
   assert.match(css, /#view-meeting-setup \.cp-setup-panel \{[^}]*width: calc\(100% - 40px\)/);
-  assert.match(css, /#view-meeting-setup \.cp-sticky-cta \{[^}]*padding: 2px 0 8px/);
+  assert.match(css, /#view-meeting-setup \.cp-sticky-cta \{[^}]*padding: 2px 0 12px/);
+});
+
+test('meeting setup stays single-screen and derives enforcement from the selected scene', () => {
+  const html = read('frontend/views/meeting-setup/meeting-setup.html');
+  const js = read('frontend/views/meeting-setup/meeting-setup.js');
+  const css = read('frontend/styles/redesign.css');
+  assert.doesNotMatch(html, /手機管制強度|cp-level-btn|diff-btn/);
+  assert.doesNotMatch(js, /bindDiffBtns|querySelectorAll\('\.diff-btn'\)/);
+  assert.match(js, /state\.currentDifficulty = cfg\.difficulty/);
+  assert.match(css, /#view-meeting-setup \{[^}]*overflow: hidden;[^}]*padding-bottom: 0/);
+  assert.match(css, /#view-meeting-setup \.cp-sticky-cta \{[^}]*margin-top: auto/);
 });
 
 test('shared anchor exposes every member progress and tactile completion feedback', () => {

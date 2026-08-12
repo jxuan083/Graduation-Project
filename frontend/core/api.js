@@ -1,6 +1,6 @@
 // core/api.js — REST API 封裝 + 後端版本載入
 import { HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
-import { getAuthHeaders } from './firebase.js?v=58';
+import { getAuthHeaders } from './firebase.js?v=59';
 import { t } from './i18n.js';
 
 export const apiBase = `${HTTP_PROTOCOL}${BACKEND_HOST}`;

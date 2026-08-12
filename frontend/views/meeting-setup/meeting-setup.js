@@ -1,12 +1,12 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=58';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=58';
+import { CONTEXT_CONFIGS } from '../../core/config.js?v=59';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=59';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=58';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=59';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -17,7 +17,6 @@ export function init() {
 
     buildContextGrid();
     bindStartMode();
-    bindDiffBtns();
     bindGroupDropdown();
 
     const btnConfirm = document.getElementById('btn-confirm-setup');
@@ -131,20 +130,7 @@ function selectContext(key, card) {
 
     const cfg = CONTEXT_CONFIGS[key];
     state.currentDifficulty = cfg.difficulty;
-    document.querySelectorAll('.diff-btn').forEach(b => {
-        b.classList.toggle('active-diff', b.dataset.diff === cfg.difficulty);
-    });
     state.currentExpectedDuration = cfg.duration;
-}
-
-function bindDiffBtns() {
-    document.querySelectorAll('.diff-btn').forEach(btn => {
-        btn.onclick = () => {
-            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active-diff'));
-            btn.classList.add('active-diff');
-            state.currentDifficulty = btn.dataset.diff;
-        };
-    });
 }
 
 async function onSetupShow() {
@@ -156,9 +142,6 @@ async function onSetupShow() {
 
     document.querySelectorAll('.cp-sit-btn').forEach(c =>
         c.classList.toggle('active-context', c.dataset.context === 'general'));
-    document.querySelectorAll('.diff-btn').forEach(b =>
-        b.classList.toggle('active-diff', b.dataset.diff === 'L'));
-
     // 重設群組下拉為未選
     selectGroup('', '');
     closeGroupDropdown();
@@ -166,7 +149,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=58');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=59');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }
