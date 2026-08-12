@@ -3,7 +3,7 @@ import { register } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { t } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=55';
+import { vibrate } from '../../core/haptics.js?v=56';
 
 // Shared haptics preserves the browser navigator.vibrate fallback while enabling Capacitor native haptics.
 const RING_CIRCUMFERENCE = 691.15; // 2πr，r=110

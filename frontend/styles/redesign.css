@@ -1332,12 +1332,12 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup { overflow-x: hidden; padding-bottom: calc(92px + var(--safe-area-bottom)); }
 #view-meeting-setup .cp-section-label { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 12px; }
 
-#view-meeting-setup .cp-start-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 16px; }
+#view-meeting-setup .cp-start-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: calc(100% - 40px); margin: 2px auto 16px; }
 #view-meeting-setup .cp-mode-btn { height: 46px; border: 1.5px solid transparent; cursor: pointer; border-radius: var(--r-md); background: #fff; color: var(--brown-45); display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; font-weight: 700; transition: background var(--motion-base), color var(--motion-base), border-color var(--motion-base); }
 #view-meeting-setup .cp-mode-btn svg { width: 18px; height: 18px; }
 #view-meeting-setup .cp-mode-btn.active { background: var(--brown); color: #fff; border-color: var(--brown); }
 
-#view-meeting-setup .cp-setup-panel { display: flex; flex-direction: column; gap: 12px; }
+#view-meeting-setup .cp-setup-panel { display: flex; flex-direction: column; gap: 12px; width: calc(100% - 40px); margin-inline: auto; }
 #view-meeting-setup .cp-setup-panel[hidden] { display: none; }
 #view-meeting-setup .cp-setup-card { background: #fff; border-radius: var(--r-lg); padding: 14px 12px; box-shadow: 0 2px 10px rgba(79,53,26,.06); }
 
@@ -1383,7 +1383,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup .cp-field input:focus { outline: none; border-color: var(--brown-15); box-shadow: 0 0 0 3px rgba(79,53,26,.06); }
 #view-meeting-setup .cp-schedule-action-card .btn-primary { margin-bottom: 0; }
 #view-meeting-setup .cp-help { color: var(--brown-40); font-size: 12px; line-height: 1.5; margin: 10px 2px 0; }
-#view-meeting-setup .cp-sticky-cta { position: static; width: 100%; padding: 2px 12px 8px; }
+#view-meeting-setup .cp-sticky-cta { position: static; width: 100%; padding: 2px 0 8px; }
 #view-meeting-setup .cp-sticky-cta .btn-primary { margin-bottom: 0; box-shadow: 0 10px 26px rgba(79,53,26,.18); }
 
 /* 聚會室（host-room） */

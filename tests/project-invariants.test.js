@@ -107,6 +107,13 @@ test('scheduled gathering lives under the start gathering flow', () => {
   assert.match(setupJs, /PRODID:-\/\/phubbing\/\/meeting-setup\/\/TW/);
 });
 
+test('meeting setup follows the shared twenty-pixel page gutter', () => {
+  const css = read('frontend/styles/redesign.css');
+  assert.match(css, /#view-meeting-setup \.cp-start-mode \{[^}]*width: calc\(100% - 40px\)/);
+  assert.match(css, /#view-meeting-setup \.cp-setup-panel \{[^}]*width: calc\(100% - 40px\)/);
+  assert.match(css, /#view-meeting-setup \.cp-sticky-cta \{[^}]*padding: 2px 0 8px/);
+});
+
 test('shared anchor exposes every member progress and tactile completion feedback', () => {
   const html = read('frontend/views/sync-ritual/sync-ritual.html');
   const frontend = read('frontend/views/sync-ritual/sync-ritual.js');
