@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
+import { adoptLocalGuestIdentity, getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=55';
 
 firebase.initializeApp(firebaseConfig);
 
@@ -24,6 +25,8 @@ if (FIREBASE_EMULATORS.enabled) {
 export function getDisplayNickname() {
     if (state.currentProfile && state.currentProfile.nickname) return state.currentProfile.nickname;
     if (state.currentUser && state.currentUser.displayName) return state.currentUser.displayName;
+    const localGuestNickname = getLocalGuestNickname();
+    if (localGuestNickname) return localGuestNickname;
     return '';
 }
 
@@ -58,8 +61,16 @@ export async function fetchMyProfile() {
 // 啟動 auth state 監聽 (main.js 在 boot 時呼叫一次)
 export function listenAuthChanges() {
     auth.onAuthStateChanged(async (user) => {
+        // 舊版曾把「訪客」做成 Firebase Anonymous Auth。新版改成本機 UUID；
+        // 啟動時自動移除殘留匿名 session，避免訪客重新依賴雲端服務。
+        if (user?.isAnonymous) {
+            adoptLocalGuestIdentity();
+            await auth.signOut();
+            return;
+        }
         state.currentUser = user;
         if (user) {
+            leaveLocalGuestMode();
             state.userId = user.uid;
             await fetchMyProfile();
             events.emit('auth:logged-in', user);
@@ -136,22 +147,6 @@ export async function doGoogleLogin() {
     } catch (err) {
         console.error('Google sign-in failed:', err);
         showToast(readableAuthError(t('Google 登入失敗：'), err), 'error');
-    }
-}
-
-// 快速登入 = Firebase 匿名驗證。刻意選它的原因：匿名登入不需要開 popup 或
-// 跳出 OAuth 網頁，所以在 Capacitor 的 WKWebView 裡可以直接用，不像
-// signInWithPopup 會被 Google 擋掉。後端 verify_token 只要求 token 有 uid，
-// 匿名 token 也有，users/{uid} 會自動建立，不必改後端。
-export async function doQuickLogin() {
-    try {
-        const credential = await auth.signInAnonymously();
-        if (credential?.user && !credential.user.displayName) {
-            await credential.user.updateProfile({ displayName: t('訪客') });
-        }
-    } catch (err) {
-        console.error('Anonymous sign-in failed:', err);
-        showToast(readableAuthError(t('快速登入失敗：'), err), 'error');
     }
 }
 

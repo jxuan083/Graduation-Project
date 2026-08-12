@@ -18,6 +18,7 @@ export const state = {
     // === 使用者 ===
     currentUser: null,             // Firebase user 物件
     currentProfile: null,          // /api/me 回傳的 profile
+    localGuestActive: localStorage.getItem('phubbing_local_guest_active') === '1',
     guestUserId: guestId,
     userId: guestId,               // 登入後切成 firebase uid
 

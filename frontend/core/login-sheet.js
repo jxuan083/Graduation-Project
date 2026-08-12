@@ -1,7 +1,8 @@
 // core/login-sheet.js — reusable login method bottom sheet.
 import { FIREBASE_EMULATORS, IS_NATIVE_APP } from './config.js';
-import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doLocalDevLogin, doPasswordReset, doQuickLogin } from './firebase.js';
-import { impact } from './haptics.js?v=52';
+import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doLocalDevLogin, doPasswordReset } from './firebase.js?v=55';
+import { continueAsLocalGuest } from './guest.js?v=55';
+import { impact } from './haptics.js?v=55';
 import { applyTo, t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
 
@@ -49,12 +50,11 @@ const LOGIN_METHOD_OPTIONS = [
     },
     {
         id: 'anonymous',
-        // 匿名登入不需要 popup 或 OAuth 網頁，是原生殼裡目前唯一能真正登入的
-        // 方式；帳號綁在這台裝置上，之後可用 linkWithCredential 升級成正式帳號。
-        label: '以訪客身分繼續',
+        // 真正的本機訪客：不建立 Firebase 帳號，只帶裝置 UUID 進入聚會。
+        label: '以本機訪客繼續',
         icon: 'user-round',
-        note: () => '資料只留在這台裝置',
-        action: doQuickLogin,
+        note: () => '不需帳號，可直接加入聚會',
+        action: continueAsLocalGuest,
     },
 ];
 

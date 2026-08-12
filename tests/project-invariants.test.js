@@ -124,6 +124,17 @@ test('unused Firebase Functions package is not part of the deploy surface', () =
   assert.equal(config.functions, undefined);
 });
 
+test('guest mode stays local and does not depend on Firebase anonymous auth', () => {
+  const guest = read('frontend/core/guest.js');
+  const firebase = read('frontend/core/firebase.js');
+  const ws = read('frontend/core/ws.js');
+  assert.match(guest, /state\.userId = state\.guestUserId/);
+  assert.match(guest, /phubbing_local_guest_active/);
+  assert.doesNotMatch(firebase, /signInAnonymously\s*\(/);
+  assert.match(ws, /token: idToken/);
+  assert.match(ws, /nickname: nickname \|\| '訪客'/);
+});
+
 test('view modules are always imported with the same cache-bust version', () => {
   // 同一個 view 模組若以不同 URL（有無 ?v=N）被 import,瀏覽器會建立兩個模組實例,
   // 模組內狀態會分裂（例:興趣標籤選了卻存出空陣列）。

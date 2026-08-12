@@ -1,9 +1,10 @@
 // views/join/join.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { getDisplayNickname } from '../../core/firebase.js';
+import { getDisplayNickname } from '../../core/firebase.js?v=55';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
+import { saveLocalGuestNickname } from '../../core/guest.js?v=55';
 
 export function init() {
     register('view-join', { element: document.getElementById('view-join') });
@@ -39,6 +40,7 @@ function confirmJoinRoom() {
         return;
     }
     state.myNickname = name.slice(0, 20);
+    if (!state.currentUser) saveLocalGuestNickname(state.myNickname);
     const rid = state.pendingRoomId;
     state.pendingRoomId = null;
     state.amIHost = false;
