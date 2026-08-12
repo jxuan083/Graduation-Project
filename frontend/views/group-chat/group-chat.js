@@ -3,7 +3,7 @@
 // 支援：文字 / 圖片（含拍照）/ 語音訊息、跨日日期分隔線（類 IG）。
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { storage } from '../../core/firebase.js?v=57';
+import { storage } from '../../core/firebase.js?v=58';
 import { apiFetch } from '../../core/api.js';
 import { t, getLang } from '../../core/i18n.js';
 import { showToast } from '../../utils/toast.js';

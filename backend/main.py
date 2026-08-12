@@ -284,6 +284,19 @@ def verify_token(authorization: Optional[str] = Header(None)) -> dict:
         raise HTTPException(status_code=401, detail=f"Token 驗證失敗: {e}")
 
 
+def verify_token_or_guest(
+    authorization: Optional[str] = Header(None),
+    x_guest_uid: Optional[str] = Header(None),
+) -> dict:
+    """聚會即時功能可使用 Firebase 帳號或本機 UUID 訪客；會員 API 仍只用 verify_token。"""
+    if authorization and authorization.startswith("Bearer "):
+        return verify_token(authorization)
+    guest_uid = (x_guest_uid or "").strip()
+    if not _is_guest_user_id(guest_uid):
+        raise HTTPException(status_code=401, detail="缺少有效的登入或訪客身份")
+    return {"uid": guest_uid, "name": "訪客", "is_guest": True}
+
+
 def _ensure_user_doc(decoded: dict) -> dict:
     """
     若 users/{uid} 不存在則自動建立 (用 token 內的 name / picture / email 預填)。
@@ -3425,6 +3438,7 @@ class CreateRoomRequest(BaseModel):
     difficulty: Optional[str] = None        # None → 從 context 預設值取
     expected_duration_min: Optional[int] = None
     group_id: Optional[str] = None
+    host_nickname: Optional[str] = None
 
 
 class EndRoomRequest(BaseModel):
@@ -3523,13 +3537,18 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
 
 
 @app.post("/api/create_room")
-async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_token)):
+async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_token_or_guest)):
     """
-    建立房間並同步存入 Firestore (需登入)
+    建立房間並同步存入 Firestore（Firebase 帳號或本機 UUID 訪客）
     接受 context / difficulty / expected_duration_min / group_id 參數
     """
     host_uid = decoded.get("uid") or decoded.get("user_id")
-    host_profile = _ensure_user_doc(decoded)
+    is_guest_host = bool(decoded.get("is_guest"))
+    host_profile = (
+        {"nickname": (body.host_nickname or "訪客房主").strip()[:20] or "訪客房主"}
+        if is_guest_host
+        else _ensure_user_doc(decoded)
+    )
 
     # 解析情境 / 難度
     ctx = body.context if body.context in VALID_CONTEXTS else "general"
@@ -3537,7 +3556,7 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
     difficulty = body.difficulty if body.difficulty in VALID_DIFFICULTIES else ctx_defaults["difficulty"]
     expected_duration_min = body.expected_duration_min or ctx_defaults["expected_duration_min"]
     default_mode = ctx_defaults["mode"]
-    group_id = body.group_id or None
+    group_id = None if is_guest_host else (body.group_id or None)
 
     # 驗證 group_id 成員資格；順便把群組寵物臉快照進房間（聚會中吉祥物用，讓全體參與者都看得到）
     group_pet_face_url = ""
@@ -3610,7 +3629,7 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
 
 
 @app.post("/api/rooms/{room_id}/end")
-async def end_room_http(room_id: str, body: EndRoomRequest, decoded: dict = Depends(verify_token)):
+async def end_room_http(room_id: str, body: EndRoomRequest, decoded: dict = Depends(verify_token_or_guest)):
     """HTTP fallback for ending a meeting when the WebSocket END_SESSION message is lost."""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:

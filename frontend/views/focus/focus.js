@@ -566,7 +566,7 @@ async function handleEndSession() {
 }
 
 async function finalizeEndSessionViaHttp(roomId, reason, mins) {
-    if (!roomId || !state.currentUser) return;
+    if (!roomId || (!state.currentUser && !state.localGuestActive)) return;
     const { res, data } = await apiFetch(`/api/rooms/${roomId}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

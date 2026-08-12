@@ -4,11 +4,11 @@ import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=57';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=58';
 import { FIREBASE_EMULATORS } from '../../core/config.js';
-import { openLoginMethodSheet } from '../../core/login-sheet.js?v=57';
+import { openLoginMethodSheet } from '../../core/login-sheet.js?v=58';
 import { t } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=57';
+import { vibrate } from '../../core/haptics.js?v=58';
 import { showToast } from '../../utils/toast.js';
 
 let _groupsCacheTs = 0;
@@ -63,7 +63,7 @@ function loadHomeOnboardingStyles() {
     const link = document.createElement('link');
     link.id = 'home-onboarding-css';
     link.rel = 'stylesheet';
-    link.href = './views/home/home-onboarding.css?v=57';
+    link.href = './views/home/home-onboarding.css?v=58';
     document.head.appendChild(link);
 }
 
@@ -251,7 +251,7 @@ function openGroup(groupId, groupName) {
 }
 
 export function handleCreateRoom() {
-    if (!state.currentUser) {
+    if (!state.currentUser && !state.localGuestActive) {
         // 不要用 alert：在 WKWebView 裡會凍結整個 webview。直接開登入選單。
         showToast(t('請先登入，才能保存房間與聚會回顧'));
         openLoginMethodSheet();

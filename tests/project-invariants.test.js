@@ -136,6 +136,9 @@ test('guest mode stays local and does not depend on Firebase anonymous auth', ()
   const firebase = read('frontend/core/firebase.js');
   const chrome = read('frontend/core/chrome.js');
   const ws = read('frontend/core/ws.js');
+  const home = read('frontend/views/home/home.js');
+  const setup = read('frontend/views/meeting-setup/meeting-setup.js');
+  const backend = read('backend/main.py');
   assert.match(guest, /state\.userId = state\.guestUserId/);
   assert.match(guest, /phubbing_local_guest_active/);
   assert.doesNotMatch(firebase, /signInAnonymously\s*\(/);
@@ -143,6 +146,11 @@ test('guest mode stays local and does not depend on Firebase anonymous auth', ()
   assert.match(chrome, /is-local-guest/);
   assert.match(ws, /token: idToken/);
   assert.match(ws, /nickname: nickname \|\| '訪客'/);
+  assert.match(firebase, /headers\['X-Guest-Uid'\] = state\.guestUserId/);
+  assert.match(home, /!state\.currentUser && !state\.localGuestActive/);
+  assert.match(setup, /!state\.currentUser && !state\.localGuestActive/);
+  assert.match(backend, /create_room\(body: CreateRoomRequest, decoded: dict = Depends\(verify_token_or_guest\)\)/);
+  assert.match(backend, /if not _is_guest_user_id\(guest_uid\)/);
 });
 
 test('view modules are always imported with the same cache-bust version', () => {

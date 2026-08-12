@@ -1,12 +1,12 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=57';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=57';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=58';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=58';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=57';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=58';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -166,7 +166,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=57');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=58');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }
@@ -177,14 +177,14 @@ async function onSetupShow() {
 
 async function handleConfirm() {
     const btn = document.getElementById('btn-confirm-setup');
-    if (!state.currentUser) {
+    if (!state.currentUser && !state.localGuestActive) {
         setButtonError(btn, t('請先登入'));
         showToast(t('請先用 Google 登入才能發起聚會'), 'error');
         return;
     }
 
     const duration = state.currentExpectedDuration || 90;
-    const groupId = state.currentGroupId || null;
+    const groupId = state.currentUser ? (state.currentGroupId || null) : null;
 
     setButtonPending(btn, t('正在建立聚會室'));
 
@@ -202,6 +202,7 @@ async function handleConfirm() {
                 difficulty: state.currentDifficulty,
                 expected_duration_min: duration,
                 group_id: groupId || null,
+                host_nickname: state.myNickname,
             }),
         });
 

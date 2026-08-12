@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
-import { adoptLocalGuestIdentity, getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=57';
+import { adoptLocalGuestIdentity, getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=58';
 
 firebase.initializeApp(firebaseConfig);
 
@@ -31,7 +31,11 @@ export function getDisplayNickname() {
 }
 
 export async function getAuthHeaders() {
-    if (!state.currentUser) return { 'Content-Type': 'application/json' };
+    if (!state.currentUser) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (state.localGuestActive && state.guestUserId) headers['X-Guest-Uid'] = state.guestUserId;
+        return headers;
+    }
     const idToken = await state.currentUser.getIdToken(false);
     return {
         'Content-Type': 'application/json',
