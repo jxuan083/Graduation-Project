@@ -22,6 +22,7 @@ export const dict = {
     '以本機訪客繼續': 'Continue as local guest',
     '不需帳號，可直接加入聚會': 'No account needed. Join a gathering directly.',
     '已進入訪客模式，可直接加入聚會': 'Guest mode is ready. You can join a gathering now.',
+    '訪客模式，點擊可登入正式帳號': 'Guest mode. Tap to sign in with an account.',
     '資料只留在這台裝置': 'Data stays on this device',
     '使用 Email 繼續': 'Continue with Email',
     '使用 Email 登入': 'Sign in with Email',

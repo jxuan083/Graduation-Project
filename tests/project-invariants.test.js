@@ -134,10 +134,13 @@ test('unused Firebase Functions package is not part of the deploy surface', () =
 test('guest mode stays local and does not depend on Firebase anonymous auth', () => {
   const guest = read('frontend/core/guest.js');
   const firebase = read('frontend/core/firebase.js');
+  const chrome = read('frontend/core/chrome.js');
   const ws = read('frontend/core/ws.js');
   assert.match(guest, /state\.userId = state\.guestUserId/);
   assert.match(guest, /phubbing_local_guest_active/);
   assert.doesNotMatch(firebase, /signInAnonymously\s*\(/);
+  assert.match(chrome, /events\.on\('guest:continued', \(\) => renderAuthBar\(\)\)/);
+  assert.match(chrome, /is-local-guest/);
   assert.match(ws, /token: idToken/);
   assert.match(ws, /nickname: nickname \|\| '訪客'/);
 });

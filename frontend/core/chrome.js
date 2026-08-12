@@ -4,16 +4,16 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId } from './router.js';
-import { doSignOut } from './firebase.js?v=56';
+import { doSignOut } from './firebase.js?v=57';
 import { FIREBASE_EMULATORS } from './config.js';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
-import { openLoginMethodSheet } from './login-sheet.js?v=56';
+import { openLoginMethodSheet } from './login-sheet.js?v=57';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=56';
-import { openFriendsView } from '../views/friends/friends.js?v=56';
-import { handleCreateRoom } from '../views/home/home.js?v=56';
+import { openProfileView } from '../views/profile/profile.js?v=57';
+import { openFriendsView } from '../views/friends/friends.js?v=57';
+import { handleCreateRoom } from '../views/home/home.js?v=57';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -82,6 +82,7 @@ export function initChrome() {
         updateMenuBadge(0);
         renderAuthBar();
     });
+    events.on('guest:continued', () => renderAuthBar());
     events.on('home:show', () => refreshIncomingBanner());
     events.on('friends:changed', () => refreshIncomingBanner());
 
@@ -163,6 +164,7 @@ function refreshAuthBarVisibility(viewId) {
 function renderAuthBar() {
     const loggedOut = document.getElementById('auth-logged-out');
     const loggedIn = document.getElementById('auth-logged-in');
+    const authButton = document.getElementById('btn-google-login');
     // 只要 Firebase 已登入就視為登入狀態（暱稱/頭貼可 fallback 用 Google 帳號），
     // 避免後端/profile 尚未載入時登入鈕還留著。
     if (state.currentUser) {
@@ -176,6 +178,15 @@ function renderAuthBar() {
     } else {
         loggedOut.style.display = 'flex';
         loggedIn.style.display = 'none';
+        if (authButton) {
+            const isLocalGuest = Boolean(state.localGuestActive);
+            authButton.classList.toggle('is-local-guest', isLocalGuest);
+            authButton.setAttribute('aria-label', isLocalGuest ? t('訪客模式，點擊可登入正式帳號') : t('登入'));
+            authButton.innerHTML = isLocalGuest
+                ? `<i data-lucide="user-round" aria-hidden="true"></i><span>${t('訪客')}</span>`
+                : `<i data-lucide="log-in" aria-hidden="true"></i><span>${t('登入')}</span>`;
+            window.lucide?.createIcons?.();
+        }
         const dd = document.getElementById('user-menu-dropdown');
         if (dd) dd.style.display = 'none';
     }
