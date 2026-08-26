@@ -1,12 +1,12 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS } from '../../core/config.js?v=59';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=59';
+import { CONTEXT_CONFIGS } from '../../core/config.js?v=60';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=60';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=59';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=60';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -149,7 +149,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=59');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=60');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

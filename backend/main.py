@@ -508,7 +508,7 @@ async def get_user_card(target_uid: str, decoded: dict = Depends(verify_token)):
             meetings_count += 1
             ended = md.get("ended_at")
             if ended is not None and ended >= start_utc:
-                weekly_score += int(md.get("score", 0) or 0)
+                weekly_score += int(md.get("perf_points", md.get("score", 0)) or 0)
     except Exception as e:
         print(f"[user_card] meetings agg failed: {e}")
 
@@ -964,50 +964,14 @@ async def remove_friend(friend_uid: str, decoded: dict = Depends(verify_token)):
     return {"status": "success"}
 
 
-# ===== 排行榜 =====
-def _compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool) -> int:
-    """Phase 2 評分公式"""
-    focus_points = max(0, 50 - int(deviations) * 5)
-    participation_points = int(duration_minutes) * 0.5
-    bonus = 10 if (int(deviations) == 0 and int(duration_minutes) >= 20) else 0
-    host_bonus = 5 if is_host else 0
-    return int(round(focus_points + participation_points + bonus + host_bonus))
-
-
-def _build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minutes: int):
-    """個人計分：每個人依「自己的」分心次數算分。
-
-    回傳 (ranking, score_by_uid, avg_score)：
-      - ranking   : 分數由高到低（同分時分心少的在前），每列含 score + deviations
-      - score_by_uid: uid → 個人分數
-      - avg_score : 全場平均分，代表「這場聚會整體表現」（群組寵物用）
-    """
-    rows = []
-    score_by_uid: Dict[str, int] = {}
-    for uid, info in (all_ever or {}).items():
-        deviations = int((info or {}).get("deviations", 0) or 0)
-        score = _compute_meeting_score(duration_minutes, deviations, is_host=(uid == host_uid))
-        score_by_uid[uid] = score
-        rows.append({
-            "uid": uid,
-            "nickname": (info or {}).get("nickname", ""),
-            "deviations": deviations,
-            "score": score,
-        })
-
-    rows.sort(key=lambda x: (-x["score"], x["deviations"]))
-    avg_score = int(round(sum(score_by_uid.values()) / len(score_by_uid))) if score_by_uid else 0
-    return rows, score_by_uid, avg_score
-
-
-def _score_for_uid(uid: str, score_by_uid: dict, all_ever: dict, host_uid: Optional[str],
-                   duration_minutes: int) -> int:
-    """取某人的分數；若他不在 all_ever（例如已斷線的房主）則現算一份。"""
-    score = score_by_uid.get(uid)
-    if score is None:
-        deviations = int((all_ever.get(uid) or {}).get("deviations", 0) or 0)
-        score = _compute_meeting_score(duration_minutes, deviations, is_host=(uid == host_uid))
-    return score
+# ===== 排行榜 / 聚會評分 =====
+# 評分引擎抽到獨立純模組 backend/scoring.py（無 I/O，可單元測試）。
+# 這裡以底線別名沿用，維持既有呼叫點不變。
+from scoring import (  # noqa: E402
+    build_score_ranking as _build_score_ranking,
+    compute_perf_points as _compute_perf_points,
+    score_for_uid as _score_for_uid,
+)
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -1043,7 +1007,7 @@ async def get_leaderboard_global(
             owner_uid = d.get("owner_uid")
             if not owner_uid:
                 continue
-            score = int(d.get("score", 0) or 0)
+            score = int(d.get("perf_points", d.get("score", 0)) or 0)
             entry = agg.setdefault(owner_uid, {"uid": owner_uid, "score": 0, "meetings_count": 0})
             entry["score"] += score
             entry["meetings_count"] += 1
@@ -1100,7 +1064,7 @@ async def get_leaderboard_friends(
                 .where("ended_at", ">=", start_utc).stream()
             for doc in q:
                 d = doc.to_dict() or {}
-                total_score += int(d.get("score", 0) or 0)
+                total_score += int(d.get("perf_points", d.get("score", 0)) or 0)
                 meetings_count += 1
         except Exception as e:
             print(f"[leaderboard friends] query {uid} failed: {e}")
@@ -3450,8 +3414,10 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
     all_ever = room_data.get("all_participants") or room_data.get("members") or {}
     host_uid_local = room_data.get("host_uid")
     total_deviations = int(room_data.get("deviations", 0) or 0)
-    score_ranking, score_by_uid, avg_score = _build_score_ranking(
-        all_ever, host_uid_local, duration_minutes
+    context = room_data.get("context", "general")
+    difficulty = room_data.get("difficulty", "M")
+    score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
+        all_ever, host_uid_local, duration_minutes, context, difficulty
     )
 
     members_snapshot = []
@@ -3514,7 +3480,12 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
     db.collection("meetings").document(room_id).set(meeting_record, merge=True)
 
     for p_uid in participants:
-        my_score = _score_for_uid(p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes)
+        my_score = _score_for_uid(
+            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes, context, difficulty
+        )
+        my_perf = perf_by_uid.get(p_uid)
+        if my_perf is None:
+            my_perf = _compute_perf_points(my_score, difficulty, context)
         my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
         mirror = {
             "owner_uid": p_uid,
@@ -3526,6 +3497,7 @@ def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, durati
             "deviations": my_deviations,
             "total_room_deviations": total_deviations,
             "score": my_score,
+            "perf_points": my_perf,
             "end_reason": reason,
         }
         try:
@@ -3868,9 +3840,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 host_uid_local = room_data.get("host_uid")
                 group_id_local = room_data.get("group_id")
                 total_deviations = int(room_data.get("deviations", 0) or 0)
-                # 個人計分：每個人依自己的分心次數算分，排行由高分到低分
-                score_ranking, score_by_uid, avg_score = _build_score_ranking(
-                    all_ever, host_uid_local, duration_minutes
+                context_local = room_data.get("context", "general")
+                difficulty_local = room_data.get("difficulty", "M")
+                # 個人計分：每個人依自己的分心次數（未來含感測器 metrics）算分，排行由高分到低分
+                score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
+                    all_ever, host_uid_local, duration_minutes, context_local, difficulty_local
                 )
                 pet_xp_gain = (
                     _group_pet_session_xp(avg_score, duration_minutes)
@@ -3949,8 +3923,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
                     for p_uid in participants:
                         my_score = _score_for_uid(
-                            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes
+                            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes,
+                            context_local, difficulty_local
                         )
+                        my_perf = perf_by_uid.get(p_uid)
+                        if my_perf is None:
+                            my_perf = _compute_perf_points(my_score, difficulty_local, context_local)
                         my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
                         mirror = {
                             "owner_uid": p_uid,
@@ -3962,6 +3940,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                             "deviations": my_deviations,
                             "total_room_deviations": total_deviations,
                             "score": my_score,
+                            "perf_points": my_perf,
                         }
                         try:
                             db.collection("users").document(p_uid).collection("meetings") \

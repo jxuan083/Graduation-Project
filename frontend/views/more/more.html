@@ -7,6 +7,42 @@
         <span class="page-title">更多</span>
     </div>
 
-    <div class="more-blank"></div>
+    <div class="more-content">
+
+        <div class="diag">
+            <h2 class="diag-title">連線診斷</h2>
+
+            <dl class="diag-list" id="diag-env"></dl>
+
+            <button id="diag-run" class="diag-btn diag-btn-primary" type="button">測試連線</button>
+            <pre class="diag-output" id="diag-output" aria-live="polite">尚未測試</pre>
+        </div>
+
+    </div>
 
 </section>
+
+<style>
+#view-more .more-content { padding: 16px; }
+#view-more .diag { display: flex; flex-direction: column; gap: 12px; }
+#view-more .diag-title { font-size: 18px; font-weight: 700; margin: 0; }
+#view-more .diag-list { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+#view-more .diag-list dt { font-size: 12px; opacity: 0.6; white-space: nowrap; }
+#view-more .diag-list dd {
+    margin: 0; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+}
+#view-more .diag-output {
+    margin: 0; padding: 12px; border-radius: 10px; min-height: 48px;
+    background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.08);
+    font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+}
+#view-more .diag-btn {
+    min-height: 44px; padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600;
+    border: 1px solid rgba(0,0,0,0.15); background: transparent; color: inherit; cursor: pointer;
+    align-self: flex-start;
+}
+#view-more .diag-btn-primary { border-color: transparent; background: #1f6feb; color: #fff; }
+#view-more .diag-btn:active { transform: translateY(1px); }
+</style>

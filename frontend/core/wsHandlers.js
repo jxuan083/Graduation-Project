@@ -6,14 +6,15 @@ import { registerHandler, sendAction, closeWs } from './ws.js';
 import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
+import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=59';
+import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=60';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=59';
+} from '../views/sync-ritual/sync-ritual.js?v=60';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -222,6 +223,7 @@ function handleDeviationRecorded(msg) {
         state.myDeviations = msg.user_deviations ?? (state.myDeviations + 1);
     }
     document.getElementById('deviation-count').innerText = state.myDeviations;
+    noteDistraction(msg.user_id);
 }
 
 function handleModeChanged(msg) {

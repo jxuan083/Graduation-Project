@@ -12,10 +12,17 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=59';
+import { vibrate } from '../../core/haptics.js?v=60';
+import { getLockState } from '../../core/lockstate.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
 const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
+
+// 判定「這段離開是不是在 App 內關螢幕（鎖定）造成」的時間窗。
+// iOS 回報鎖定（protectedDataWillBecomeUnavailable）最多延遲約 10 秒，給 12 秒緩衝；
+// Android 的 SCREEN_OFF 可能比 visibilitychange 略早，給 3 秒前置容忍。
+const LOCK_ATTRIBUTION_WINDOW_MS = 12000;
+const LOCK_PRE_TOLERANCE_MS = 3000;
 
 export function init() {
     register('view-buffer', { element: document.getElementById('view-buffer') });
@@ -41,6 +48,7 @@ function handleVisibilityChange() {
     if (state.photoModeActive) return;
 
     if (document.visibilityState === 'visible') {
+        const hiddenAt = state.hiddenAt;
         state.hiddenAt = null;
 
         // 沒有進行中的截止時間（理論上不會發生於回來時），保險起見直接回 focus
@@ -49,12 +57,8 @@ function handleVisibilityChange() {
             return;
         }
 
-        // 依離開總時長一次補算所有應記的分心
-        reconcileDeviations();
-
-        // 補算後 deviationDeadline 一定 > now，顯示本輪剩餘倒數
-        startCognitiveBuffer();
-        sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+        // 需要問原生「這段離開是不是鎖定造成的」，屬非同步，交給 resolveVisibleReturn。
+        resolveVisibleReturn(hiddenAt);
     } else {
         // 用戶離開：若尚未起算，現在起算 15 秒截止時間
         state.hiddenAt = Date.now();
@@ -71,11 +75,51 @@ function handleVisibilityChange() {
     }
 }
 
+// 回到前景時，依原生鎖定訊號決定這段「離開」怎麼算：
+//   情境 1：離開是「在 App 內按關螢幕鍵（鎖定）」造成 → 整段豁免，不計分心、不跳警告。
+//   情境 2：先切別的 app、之後才鎖定 → 只計到鎖定當下為止（鎖定前才算真正離開）。
+//   情境 3：全程未鎖定（切 app）或無原生訊號 → 沿用原本行為（補算 + 顯示倒數）。
+async function resolveVisibleReturn(hiddenAt) {
+    let lock = null;
+    try { lock = await getLockState(); } catch (_) { lock = null; }
+
+    // 等待原生回應期間可能又被切走；若已不在前景或本輪已結束，就不處理。
+    if (document.visibilityState !== 'visible' || !state.deviationDeadline) return;
+
+    if (lock && hiddenAt) {
+        const lockedAt = lock.lastLockedAt;
+        const attributedToScreenOff = lockedAt
+            && lockedAt >= hiddenAt - LOCK_PRE_TOLERANCE_MS
+            && lockedAt <= hiddenAt + LOCK_ATTRIBUTION_WINDOW_MS;
+
+        if (attributedToScreenOff) {
+            // 情境 1：在 App 內關螢幕 → 豁免，靜默回 focus，不補算、不跳警告。
+            endCognitiveBuffer(true);
+            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+            return;
+        }
+
+        if (lockedAt && lockedAt > hiddenAt + LOCK_ATTRIBUTION_WINDOW_MS) {
+            // 情境 2：先離開、後鎖定 → 只補算到鎖定當下，鎖定後不再計。
+            reconcileDeviations(lockedAt);
+            endCognitiveBuffer(true);
+            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+            return;
+        }
+    }
+
+    // 情境 3：沿用原本行為。
+    reconcileDeviations();
+    startCognitiveBuffer();
+    sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+}
+
 // 依目前時間與 deviationDeadline 補算應記的分心次數，並把截止時間往後推。
-// 回傳這次補算的次數（0 表示還在本輪 15 秒內）。
-function reconcileDeviations() {
+// effectiveNow 可指定「以哪個時間點為準」（情境 2 用鎖定時間），預設為現在。
+// 回傳這次補算的次數（0 表示還在本輪 grace 內）。
+function reconcileDeviations(effectiveNow) {
     if (!state.deviationDeadline) return 0;
-    const now = Date.now();
+    const now = effectiveNow || Date.now();
     if (now < state.deviationDeadline) return 0;
 
     const overdue = now - state.deviationDeadline;

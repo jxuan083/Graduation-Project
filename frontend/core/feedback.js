@@ -1,5 +1,5 @@
 // core/feedback.js — 共用互動回饋引擎：視覺、無障礙語意與觸覺保持同步。
-import { impact, notificationError, notificationSuccess } from './haptics.js?v=59';
+import { impact, notificationError, notificationSuccess } from './haptics.js?v=60';
 
 const PRESSABLE_SELECTOR = [
     '.btn-primary',

@@ -10,12 +10,17 @@ import { startPhotoMode, endPhotoMode, uploadMeetingPhoto } from '../../features
 import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
+import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
 
 export function init() {
     register('view-focus', {
         element: document.getElementById('view-focus'),
-        onShow: refreshFocusMascot,
+        onShow: () => { refreshFocusMascot(); startWeather(); },
+        onHide: stopWeather,
     });
+
+    // 每場聚會開始時把天氣清成晴天、清掉上一場的分心紀錄
+    events.on('session:joined', resetWeather);
 
     // 折疊成員清單
     const btnFocusToggle = document.getElementById('btn-focus-members-toggle');
@@ -59,6 +64,8 @@ export function init() {
     events.on('session:cleanup', () => {
         if (state.liveTranscript.active) stopLiveTranscript('已停止即時轉文字');
         closeMeetingCameraModal();
+        stopWeather();
+        resetWeather();
         state.meetingGroupPetFace = '';
         state.meetingGroupPetName = '';
         state.meetingGroupPetLevel = 1;
