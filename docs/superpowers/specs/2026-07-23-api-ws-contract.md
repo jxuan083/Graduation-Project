@@ -90,6 +90,7 @@
 | `SYNC_PROGRESS` | Valid only in `SYNCING`; clamps progress to `0..100`; all members at 100 moves room to `ACTIVE`. |
 | `VISIBILITY_CHANGE` | Updates member visible/hidden state; in active non-QA mode broadcasts wake/hide events. |
 | `LOG_DEVIATION` | Records deviation count and broadcasts deviation event. |
+| `DECLARE_INTENT` | Grants a difficulty-scaled exemption window (phone use not counted as deviation); enforces per-context budget and cooldown. Replies `INTENT_GRANTED`/`INTENT_REJECTED`. |
 | `START_TABOO_GAME` | Starts Taboo game broadcast. |
 | `END_TABOO_GAME` | Ends Taboo game broadcast. |
 
@@ -114,6 +115,8 @@
 | `DEVIATION_RECORDED` |
 | `TABOO_STARTED` |
 | `TABOO_ENDED` |
+| `INTENT_GRANTED` |
+| `INTENT_REJECTED` |
 
 ## Phase 1/2 test upgrade target
 

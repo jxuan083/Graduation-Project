@@ -41,9 +41,25 @@ class TestMeetingScore(unittest.TestCase):
         self.assertLess(one, clean)
         self.assertGreaterEqual(one, 95)  # L 每次僅小扣
 
-    def test_heavy_distraction_can_reach_zero(self):
-        # 沒有下限保護：極度分心可以到 0（真扣分）
-        self.assertLessEqual(compute_meeting_score(60, 100, False, difficulty="H"), 5)
+    def test_heavy_distraction_floors_at_presence_credit(self):
+        # 專注歸零，但「有到場」仍給陪伴分：focus-heavy 情境(class)只剩少少
+        self.assertLessEqual(compute_meeting_score(60, 100, False, "H", "class"), 25)
+        # focus-heavy 情境 + 又早退(presence 也低) → 接近 0
+        self.assertLessEqual(compute_meeting_score(5, 100, False, "H", "class"), 10)
+
+    def test_context_focus_vs_presence_weighting(self):
+        # 同樣「分心多但全勤」：study(重專注)明顯低於 meal(重陪伴)
+        study = compute_meeting_score(60, 8, False, "M", "study")
+        meal = compute_meeting_score(60, 8, False, "M", "meal")
+        self.assertLess(study, meal)
+
+    def test_exempt_charged_time_erodes_focus(self):
+        # 第2次起的意圖豁免時間算「在場不專注」→ 分數下降（漸進成本）
+        base = compute_meeting_score(60, 0, False, "M", "study")
+        charged = compute_meeting_score(
+            60, 0, False, "M", "study", metrics={"exempt_charged_seconds": 1200}
+        )
+        self.assertLess(charged, base)
 
     def test_not_easily_inflated_by_duration(self):
         # 枯坐很久但一直分心 → 不會因時長把分數灌高

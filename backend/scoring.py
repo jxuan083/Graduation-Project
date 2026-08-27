@@ -6,25 +6,25 @@
   perf_points (>=0)：計入週/總排行榜的「表現積分」= 品質 × 難度倍率 × 情境倍率。
       選越難、越正式的聚會，同樣品質累積越多分（獎勵挑戰）。
 
-品質分採「底分 + 加分 − 扣分，最後夾在 0–100」的平衡模型：
-  加分：參與時長（有出席、有待滿）＋ 連續專注（未來由感測器送）。
-  扣分：deviations（每次「超出允許時間」的分心，是大扣分，無免罰額度）
-        ＋ pickup（拿起手機等被動微訊號，只扣一點點，未來由感測器送）。
+品質分 = 依「情境 profile」把 focus 分與 presence 分加權混合，夾在 0–100：
+  focus 分（專注）：滿分扣掉「真分心」與「第2次起的意圖豁免時間（在場不專注）」。
+  presence 分（陪伴）：到場/待滿（sqrt 遞減、封頂）。
+  情境決定 focus:presence 權重、分心倍率、表現積分價值；難度決定每次分心扣多重。
+  → 讀書會重專注（分心很痛）、聚餐重陪伴（到場才是重點），同樣行為分數明顯不同。
   上限鎖 100——像考試不會考出 120 分。
 
 允許時間內（前端 grace window）處理完就回到 App 的短暫查看，前端根本不會送出
 deviation，所以那種「回得來」的分心不吃大扣分；只有真的超時才算 deviation。
 
 client 目前只被動送 deviations 與時長；引擎另外吃 metrics 選填欄位
-（pickup_count、focus_streak_seconds…），一旦感測器開始傳送即自動更準，後端不需再改。
+（pickup_count、focus_streak_seconds、exempt_charged_seconds…），一旦開始傳送即自動
+生效，後端不需再改。
 """
 import math
 from typing import Dict, Optional
 
-_BASE_SCORE = 50.0             # 底分：有到場的起點
-_ATTENDANCE_BONUS_MAX = 50.0   # 加分：參與時長（sqrt 遞減、封頂）
-_ATTENDANCE_REF_MIN = 60.0     # 到此分鐘數，出席加分達滿
-_FOCUS_STREAK_BONUS_MAX = 15.0 # 加分：連續專注（未來 metrics.focus_streak_seconds）
+_ATTENDANCE_REF_MIN = 60.0     # presence：到此分鐘數，陪伴分達滿
+_FOCUS_STREAK_BONUS_MAX = 15.0 # focus 加分：連續專注（未來 metrics.focus_streak_seconds）
 _FOCUS_STREAK_REF_SEC = 600.0  # 連續專注到此秒數，加分達滿
 _HOST_BONUS = 3.0              # 主持者的小額加分
 
@@ -32,15 +32,28 @@ _HOST_BONUS = 3.0              # 主持者的小額加分
 _DEVIATION_PENALTY_UNIT = {"L": 4.0, "M": 7.0, "H": 10.0}
 # 每次「拿起手機」等被動微訊號的小扣分，依難度（只扣一點點）。
 _PICKUP_PENALTY_UNIT = {"L": 0.5, "M": 1.0, "H": 1.5}
-# 情境對扣分的倍率：正式場合更重、休閒場合更輕（呼應 CONTEXT_PARAM_OVERRIDES）。
-_CONTEXT_PENALTY_MULT = {
-    "class": 1.30, "meeting": 1.20, "date": 1.15,
-    "meal": 0.80, "celebration": 0.80, "family": 0.90,
-}
-
-# 表現積分倍率（control_flow_v2 §6.1）：越難、越正式，同品質累積越多。
+# 表現積分的難度倍率（control_flow_v2 §6.1）：越難，同品質累積越多。
 _DIFFICULTY_PERF_MULT = {"L": 1.0, "M": 1.3, "H": 1.6}
-_CONTEXT_PERF_MULT = {"study": 1.15, "class": 1.15, "workshop": 1.15, "meeting": 1.10}
+
+# 每個情境自己的計分 profile：
+#   focus/presence：重專注還是重陪伴（兩者和為 1）
+#   dev_mult      ：分心扣分倍率（正式場合更重、休閒場合更輕）
+#   value         ：表現積分價值倍率（讀書會/會議較高）
+_CONTEXT_PROFILE = {
+    #                focus  presence  dev_mult  value
+    "general":     {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.00},
+    "meeting":     {"focus": 0.70, "presence": 0.30, "dev_mult": 1.20, "value": 1.15},
+    "family":      {"focus": 0.35, "presence": 0.65, "dev_mult": 0.90, "value": 1.00},
+    "study":       {"focus": 0.75, "presence": 0.25, "dev_mult": 1.00, "value": 1.15},
+    "class":       {"focus": 0.80, "presence": 0.20, "dev_mult": 1.30, "value": 1.15},
+    "meal":        {"focus": 0.40, "presence": 0.60, "dev_mult": 0.80, "value": 1.00},
+    "date":        {"focus": 0.60, "presence": 0.40, "dev_mult": 1.15, "value": 1.05},
+    "celebration": {"focus": 0.35, "presence": 0.65, "dev_mult": 0.80, "value": 1.00},
+    "workshop":    {"focus": 0.60, "presence": 0.40, "dev_mult": 1.00, "value": 1.10},
+    "team":        {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.05},
+    "custom":      {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.00},
+}
+_DEFAULT_PROFILE = {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.00}
 
 
 def _num(value, default: float) -> float:
@@ -50,42 +63,53 @@ def _num(value, default: float) -> float:
         return default
 
 
+def _profile(context: str) -> dict:
+    return _CONTEXT_PROFILE.get(context or "general", _DEFAULT_PROFILE)
+
+
 def compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool,
                           difficulty: str = "M", context: str = "general",
                           metrics: Optional[dict] = None) -> int:
-    """個人聚會『專注品質』分數（0–100）。底分 + 加分 − 扣分，夾 0–100。
+    """個人聚會『專注品質』分數（0–100）= 情境加權(focus 分, presence 分)，夾 0–100。
 
-    抗操弄：加分項各自封頂、最終夾 100（不會超過滿分）；扣分無免罰額度但只針對
-    真正超時的分心（回得來的短暫查看前端不會送 deviation）。
+    抗操弄：完美專注全勤各情境都是 100；長時間分心會真的掉；第2次起的意圖豁免
+    時間算「在場不專注」→ 等比例削 focus，越用越低（漸進成本）。
     """
     d = (difficulty or "M").upper()
     duration = max(0.0, float(duration_minutes or 0))
     metrics = metrics or {}
-    ctx_pen_mult = _CONTEXT_PENALTY_MULT.get(context or "general", 1.0)
+    prof = _profile(context)
 
-    # 加分 1：參與時長（sqrt 遞減、封頂）
-    attendance_bonus = _ATTENDANCE_BONUS_MAX * min(1.0, math.sqrt(duration / _ATTENDANCE_REF_MIN))
-    # 加分 2：連續專注（未來由感測器送 focus_streak_seconds；沒有則 0）
-    focus_streak_sec = max(0.0, _num(metrics.get("focus_streak_seconds"), 0.0))
-    focus_bonus = _FOCUS_STREAK_BONUS_MAX * min(1.0, focus_streak_sec / _FOCUS_STREAK_REF_SEC)
-    host_bonus = _HOST_BONUS if is_host else 0.0
-
-    # 扣分 1：每次超時分心（大扣分，無免罰額度）
+    # ── focus 分（0–100）：滿分扣掉真分心與 pickup ──
     dev_unit = _DEVIATION_PENALTY_UNIT.get(d, 7.0)
-    deviation_penalty = max(0, int(deviations)) * dev_unit * ctx_pen_mult
-    # 扣分 2：每次拿起手機等被動微訊號（只扣一點點，未來 metrics.pickup_count）
+    deviation_penalty = max(0, int(deviations)) * dev_unit * prof["dev_mult"]
     pickup_count = max(0.0, _num(metrics.get("pickup_count"), 0.0))
-    pickup_penalty = pickup_count * _PICKUP_PENALTY_UNIT.get(d, 1.0) * ctx_pen_mult
+    pickup_penalty = pickup_count * _PICKUP_PENALTY_UNIT.get(d, 1.0) * prof["dev_mult"]
+    focus_score = 100.0 - deviation_penalty - pickup_penalty
+    # 第2次起的意圖豁免時間：算在場、不算專注 → 依占聚會比例等比例削 focus（漸進成本）
+    exempt_charged_sec = max(0.0, _num(metrics.get("exempt_charged_seconds"), 0.0))
+    if duration > 0:
+        charged_fraction = min(1.0, (exempt_charged_sec / 60.0) / duration)
+        focus_score *= (1.0 - charged_fraction)
+    # 連續專注加分（未來由感測器送）
+    focus_streak_sec = max(0.0, _num(metrics.get("focus_streak_seconds"), 0.0))
+    focus_score += _FOCUS_STREAK_BONUS_MAX * min(1.0, focus_streak_sec / _FOCUS_STREAK_REF_SEC)
+    focus_score = max(0.0, min(100.0, focus_score))
 
-    score = (_BASE_SCORE + attendance_bonus + focus_bonus + host_bonus
-             - deviation_penalty - pickup_penalty)
-    return int(round(max(0.0, min(100.0, score))))
+    # ── presence 分（0–100）：到場/待滿（sqrt 遞減、封頂） ──
+    presence_score = 100.0 * min(1.0, math.sqrt(duration / _ATTENDANCE_REF_MIN))
+
+    # ── 依情境權重混合 ──
+    quality = prof["focus"] * focus_score + prof["presence"] * presence_score
+    if is_host:
+        quality += _HOST_BONUS
+    return int(round(max(0.0, min(100.0, quality))))
 
 
 def compute_perf_points(quality_score: int, difficulty: str = "M", context: str = "general") -> int:
-    """表現積分（週/總排行用）= 品質 × 難度倍率 × 情境倍率。"""
+    """表現積分（週/總排行用）= 品質 × 難度倍率 × 情境價值倍率。"""
     d_mult = _DIFFICULTY_PERF_MULT.get((difficulty or "M").upper(), 1.3)
-    c_mult = _CONTEXT_PERF_MULT.get(context or "general", 1.0)
+    c_mult = _profile(context)["value"]
     return int(round(max(0, int(quality_score)) * d_mult * c_mult))
 
 

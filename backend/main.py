@@ -972,6 +972,13 @@ from scoring import (  # noqa: E402
     compute_perf_points as _compute_perf_points,
     score_for_uid as _score_for_uid,
 )
+from intent import (  # noqa: E402
+    can_declare_intent as _intent_can_declare,
+    charge_on_return as _intent_charge_on_return,
+    exempt_budget as _intent_budget,
+    exempt_window_sec as _intent_window_sec,
+    within_exemption as _intent_within_exemption,
+)
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -4227,6 +4234,37 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 state = data.get("state")
                 rooms[room_id]["members"][user_id]["state"] = state
 
+                # 意圖豁免狀態機（只在聚會進行中）：
+                #   離開且仍在窗口內 → 記下開始離開的時間點；
+                #   回到 App 專心 → 結束豁免（停止扣、狀態回專心），只結算「實際離開」的
+                #   時間（第2次起算 present-not-focus，供 END_SESSION 計分削 focus）。
+                if rooms[room_id].get("status") == "ACTIVE":
+                    _im = rooms[room_id]["members"][user_id]
+                    _im_now = int(datetime.datetime.utcnow().timestamp() * 1000)
+                    if state != "visible":
+                        if _intent_within_exemption(int(_im.get("exempt_window_until_ms", 0) or 0), _im_now) \
+                                and not _im.get("exempt_active_since_ms"):
+                            _im["exempt_active_since_ms"] = _im_now
+                    else:
+                        _active_since = int(_im.get("exempt_active_since_ms", 0) or 0)
+                        if _active_since:
+                            _charged = _intent_charge_on_return(
+                                _active_since, _im_now,
+                                _intent_window_sec(rooms[room_id].get("difficulty", "M")),
+                                int(_im.get("exempt_count_used", 0) or 0),
+                            )
+                            if _charged > 0:
+                                _im["exempt_charged_sec"] = float(_im.get("exempt_charged_sec", 0.0) or 0.0) + _charged
+                                _im.setdefault("quality_metrics", {})
+                                _im["quality_metrics"]["exempt_charged_seconds"] = _im["exempt_charged_sec"]
+                                _ap = rooms[room_id].get("all_participants", {})
+                                if user_id in _ap:
+                                    _ap[user_id].setdefault("quality_metrics", {})
+                                    _ap[user_id]["quality_metrics"]["exempt_charged_seconds"] = _im["exempt_charged_sec"]
+                        # 回到 App 專心 → 豁免結束
+                        _im["exempt_active_since_ms"] = 0
+                        _im["exempt_window_until_ms"] = 0
+
                 if rooms[room_id]["status"] == "ACTIVE" and rooms[room_id].get("mode") != "QA_GAME":
                     # 同步更新資料庫中的使用者狀態
                     try:
@@ -4252,6 +4290,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     continue
                 if rooms[room_id].get("mode") in ("QA_GAME", "TABOO_GAME"):
                     print(f"[LOG_DEVIATION] rejected: in {rooms[room_id].get('mode')} mode")
+                    continue
+
+                # 意圖豁免：若此使用者正在宣告過的放寬窗口內，這次離開不算分心
+                # （第2次起的豁免時間會在回到 App 時另計為 present-not-focus）。
+                _exempt_member = rooms[room_id]["members"].get(user_id) or {}
+                _exempt_now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+                if _intent_within_exemption(int(_exempt_member.get("exempt_window_until_ms", 0) or 0), _exempt_now_ms):
+                    print(f"[LOG_DEVIATION] exempted by intent user={user_id} room={room_id}")
                     continue
 
                 # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定
@@ -4291,6 +4337,36 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     "user_deviations": user_deviations,
                     "total_deviations": rooms[room_id]["deviations"]
                 })
+
+            # 6.5 宣告意圖 → 開一段放寬窗口（此期間離開不算分心）。前端按鈕之後才接。
+            elif action == "DECLARE_INTENT":
+                if rooms[room_id].get("status") != "ACTIVE":
+                    continue
+                if rooms[room_id].get("mode") in ("QA_GAME", "TABOO_GAME"):
+                    continue
+                _di_ctx = rooms[room_id].get("context", "general")
+                _di_diff = rooms[room_id].get("difficulty", "M")
+                _di_budget = _intent_budget(_di_ctx)
+                _di_window = _intent_window_sec(_di_diff)
+                _di_now = int(datetime.datetime.utcnow().timestamp() * 1000)
+                _di_member = rooms[room_id]["members"].get(user_id) or {}
+                _di_used = int(_di_member.get("exempt_count_used", 0) or 0)
+                _di_last = int(_di_member.get("exempt_last_declared_ms", 0) or 0)
+                _di_ok, _di_reason = _intent_can_declare(_di_used, _di_last, _di_now, _di_budget)
+                if not _di_ok:
+                    await websocket.send_text(json.dumps({
+                        "type": "INTENT_REJECTED", "reason": _di_reason,
+                    }))
+                    continue
+                rooms[room_id]["members"][user_id]["exempt_count_used"] = _di_used + 1
+                rooms[room_id]["members"][user_id]["exempt_last_declared_ms"] = _di_now
+                rooms[room_id]["members"][user_id]["exempt_window_until_ms"] = _di_now + _di_window * 1000
+                rooms[room_id]["members"][user_id]["exempt_active_since_ms"] = 0
+                await websocket.send_text(json.dumps({
+                    "type": "INTENT_GRANTED",
+                    "window_sec": _di_window,
+                    "remaining": max(0, _di_budget - (_di_used + 1)),
+                }))
 
             # 7. 房主發起關鍵字遊戲 (Taboo Game)
             elif action == "START_TABOO_GAME":

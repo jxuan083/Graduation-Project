@@ -111,6 +111,7 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'SYNC_PROGRESS',
     'VISIBILITY_CHANGE',
     'LOG_DEVIATION',
+    'DECLARE_INTENT',
     'START_TABOO_GAME',
     'END_TABOO_GAME',
   ];
@@ -132,6 +133,8 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'DEVIATION_RECORDED',
     'TABOO_STARTED',
     'TABOO_ENDED',
+    'INTENT_GRANTED',
+    'INTENT_REJECTED',
   ];
 
   assert.deepEqual([...inbound].sort(), expectedInbound.sort());
