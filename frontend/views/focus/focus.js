@@ -66,6 +66,7 @@ export function init() {
         closeMeetingCameraModal();
         stopWeather();
         resetWeather();
+        endIntentCountdown();
         state.meetingGroupPetFace = '';
         state.meetingGroupPetName = '';
         state.meetingGroupPetLevel = 1;
@@ -75,8 +76,63 @@ export function init() {
     const btnFocusInvite = document.getElementById('btn-focus-invite');
     if (btnFocusInvite) btnFocusInvite.onclick = openInviteModal;
 
+    // 需要用手機：宣告意圖
+    const btnIntent = document.getElementById('btn-declare-intent');
+    if (btnIntent) btnIntent.onclick = handleDeclareIntent;
+    // 回到 App 專心時，豁免已由後端結束 → 按鈕還原
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && _intentEndMs > Date.now()) endIntentCountdown();
+    });
+
     // 結束聚會
     document.getElementById('btn-end-session').onclick = handleEndSession;
+}
+
+// ── 意圖暫離：宣告後換一段不算分心的窗口；回到 App 專心或時間到就還原 ──
+let _intentTimer = null;
+let _intentEndMs = 0;
+let _intentRemaining = 0;
+
+function handleDeclareIntent() {
+    if (_intentEndMs > Date.now()) return;  // 進行中不重複宣告
+    if (!confirm(t('暫離一下？這段時間不會被算成分心。'))) return;
+    sendAction('DECLARE_INTENT');
+}
+
+// 後端授予（wsHandlers 收到 INTENT_GRANTED 時呼叫）
+export function applyIntentGranted(windowSec, remaining) {
+    _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
+    _intentRemaining = Math.max(0, Number(remaining) || 0);
+    clearInterval(_intentTimer);
+    renderIntentCountdown();
+    _intentTimer = setInterval(renderIntentCountdown, 1000);
+}
+
+// 後端拒絕（冷卻中／次數用完／此情境不開放）→ 沿用既有 toast
+export function applyIntentRejected(reason) {
+    try { showToast(reason || t('現在無法暫離'), 'warn'); } catch (_) { /* noop */ }
+}
+
+function renderIntentCountdown() {
+    const btn = document.getElementById('btn-declare-intent');
+    const label = document.getElementById('intent-btn-label');
+    if (!btn || !label) return;
+    const leftMs = _intentEndMs - Date.now();
+    if (leftMs <= 0) { endIntentCountdown(); return; }
+    const s = Math.ceil(leftMs / 1000);
+    const mmss = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    btn.classList.add('is-active');
+    label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining });
+}
+
+function endIntentCountdown() {
+    clearInterval(_intentTimer);
+    _intentTimer = null;
+    _intentEndMs = 0;
+    const btn = document.getElementById('btn-declare-intent');
+    const label = document.getElementById('intent-btn-label');
+    if (btn) btn.classList.remove('is-active');
+    if (label) label.textContent = t('需要用一下手機');
 }
 
 // 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球

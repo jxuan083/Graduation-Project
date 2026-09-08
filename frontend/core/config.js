@@ -102,3 +102,27 @@ export const DIFFICULTY_LABELS = { L: '輕鬆', M: '標準', H: '嚴格' };
 
 // 目前有對應透明素材的四種身體；避免顯示能選、實際卻不生效的假選項。
 export const PET_BODY_OPTIONS = ['🐶', '🐱', '🐰', '🦊'];
+
+// ── 聚會設定頁「顯示用」資料 ──
+// 意圖暫離的次數/時長是顯示給使用者看的；真正的 enforcement 在後端 backend/intent.py。
+// 這裡是鏡像，且由 tests/project-invariants 讀後端比對，確保兩邊永遠一致（不會顯示錯）。
+export const EXEMPT_BUDGET_BY_CONTEXT = {
+    general: 2, meeting: 0, family: 3, study: 2, class: 0,
+    meal: 3, date: 1, celebration: 3, workshop: 2, team: 2, custom: 2,
+};
+export const EXEMPT_WINDOW_SEC = { L: 180, M: 120, H: 60 };
+
+// 每個情境選定後顯示的一句注意事項（口語、非評分細節）。
+export const CONTEXT_NOTES = {
+    general:     '輕鬆聊天為主，手機偶爾看一下沒關係。',
+    meeting:     '正式場合，建議全程專注，不開放暫離。',
+    family:      '家庭聚會比較彈性，家人有急事可以暫離一下。',
+    study:       '讀書會重視專注，查資料可以短暫暫離。',
+    class:       '最嚴格模式，任何分心都會記錄，不開放暫離。',
+    meal:        '用餐可以拍照、看菜單，手機使用比較寬容。',
+    date:        '重視兩人相處，盡量別一直看手機。',
+    celebration: '慶祝場合，拍照留念很歡迎，手機使用寬鬆。',
+    workshop:    '工作坊需要時可查資料，建議專注參與。',
+    team:        '團隊活動以互動為主，適度使用手機。',
+    custom:      '自訂場景，依你設定的難度計分。',
+};

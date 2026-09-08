@@ -1,6 +1,6 @@
 // features/groups/controller.js — 群組 API 封裝
 import { apiFetch, apiBase } from '../../core/api.js';
-import { getAuthHeaders } from '../../core/firebase.js?v=60';
+import { getAuthHeaders } from '../../core/firebase.js?v=62';
 import { state } from '../../core/state.js';
 
 export async function fetchMyGroups() {

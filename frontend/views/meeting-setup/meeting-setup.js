@@ -1,12 +1,15 @@
 // views/meeting-setup/meeting-setup.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { CONTEXT_CONFIGS } from '../../core/config.js?v=60';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=60';
+import {
+    CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
+    EXEMPT_WINDOW_SEC, CONTEXT_NOTES,
+} from '../../core/config.js?v=62';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=62';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=60';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=62';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -131,6 +134,29 @@ function selectContext(key, card) {
     const cfg = CONTEXT_CONFIGS[key];
     state.currentDifficulty = cfg.difficulty;
     state.currentExpectedDuration = cfg.duration;
+    renderContextInfo(key);
+}
+
+// 選定情境後顯示：建議難度 + 可暫離次數/時長 + 一句注意事項（純顯示，不含評分方式）
+function renderContextInfo(key) {
+    const cfg = CONTEXT_CONFIGS[key];
+    if (!cfg) return;
+    const diffEl = document.getElementById('context-diff-label');
+    const exemptEl = document.getElementById('context-exempt-label');
+    const noteEl = document.getElementById('context-note');
+    if (diffEl) {
+        diffEl.textContent = t('建議難度：{label}', { label: DIFFICULTY_LABELS[cfg.difficulty] || cfg.difficulty });
+    }
+    if (exemptEl) {
+        const budget = EXEMPT_BUDGET_BY_CONTEXT[key] ?? 0;
+        if (budget > 0) {
+            const mins = Math.round((EXEMPT_WINDOW_SEC[cfg.difficulty] || 120) / 60);
+            exemptEl.textContent = t('可暫離 {n} 次（每次最多 {m} 分鐘）', { n: budget, m: mins });
+        } else {
+            exemptEl.textContent = t('不開放暫離');
+        }
+    }
+    if (noteEl) noteEl.textContent = CONTEXT_NOTES[key] || '';
 }
 
 async function onSetupShow() {
@@ -142,6 +168,7 @@ async function onSetupShow() {
 
     document.querySelectorAll('.cp-sit-btn').forEach(c =>
         c.classList.toggle('active-context', c.dataset.context === 'general'));
+    renderContextInfo('general');
     // 重設群組下拉為未選
     selectGroup('', '');
     closeGroupDropdown();
@@ -149,7 +176,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=60');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=62');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

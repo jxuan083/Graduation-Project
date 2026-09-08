@@ -9,12 +9,12 @@ import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript } from '../views/focus/focus.js?v=60';
+import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=62';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=60';
+} from '../views/sync-ritual/sync-ritual.js?v=62';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -26,6 +26,8 @@ export function registerAllWsHandlers() {
     registerHandler('USER_WOKE_SCREEN', () => {});
     registerHandler('USER_HID_SCREEN', () => {});
     registerHandler('DEVIATION_RECORDED', handleDeviationRecorded);
+    registerHandler('INTENT_GRANTED', (msg) => applyIntentGranted(msg.window_sec, msg.remaining));
+    registerHandler('INTENT_REJECTED', (msg) => applyIntentRejected(msg.reason));
     registerHandler('MODE_CHANGED', handleModeChanged);
     registerHandler('QA_STARTED', handleQaStarted);
     registerHandler('QA_PROGRESS', handleQaProgress);

@@ -54,6 +54,15 @@
             <span class="pa-distraction-count" id="deviation-count">0</span>
         </div>
 
+        <!-- 需要用手機時：宣告意圖，換一段不算分心的暫離窗口（回到 App 專心即結束） -->
+        <button class="pa-intent-btn" id="btn-declare-intent" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="7" y="2" width="10" height="20" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+                <line x1="10.5" y1="18.5" x2="13.5" y2="18.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span id="intent-btn-label">需要用一下手機</span>
+        </button>
+
         <!-- 房主專屬：發起遊戲（非房主隱藏，由 wsHandlers 控制 display） -->
         <div id="host-only-controls" style="display:none;">
             <div class="pa-action-grid">

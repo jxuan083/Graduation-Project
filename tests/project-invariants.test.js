@@ -220,3 +220,27 @@ test('backend direct dependencies are pinned', () => {
     }
   }
 });
+
+test('frontend exemption display values mirror backend intent.py (no drift)', () => {
+  // 前端 config 的暫離次數/時長是「顯示用」鏡像；真正 enforcement 在 backend/intent.py。
+  // 這個測試鎖住兩邊必須一致，避免顯示「可暫離 3 次」但後端只給 2 次的鬼打牆。
+  const py = read('backend/intent.py');
+  const js = read('frontend/core/config.js');
+  const parseIntMap = (src, name) => {
+    const m = src.match(new RegExp(`${name}\\s*=\\s*\\{([\\s\\S]*?)\\}`));
+    assert.ok(m, `${name} not found`);
+    const map = {};
+    for (const pair of m[1].matchAll(/["']?(\w+)["']?\s*:\s*(\d+)/g)) map[pair[1]] = Number(pair[2]);
+    return map;
+  };
+  assert.deepEqual(
+    parseIntMap(js, 'EXEMPT_BUDGET_BY_CONTEXT'),
+    parseIntMap(py, 'EXEMPT_BUDGET_BY_CONTEXT'),
+    'EXEMPT_BUDGET_BY_CONTEXT 前後端不一致',
+  );
+  assert.deepEqual(
+    parseIntMap(js, 'EXEMPT_WINDOW_SEC'),
+    parseIntMap(py, 'EXEMPT_WINDOW_SEC'),
+    'EXEMPT_WINDOW_SEC 前後端不一致',
+  );
+});

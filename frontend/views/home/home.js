@@ -4,11 +4,11 @@ import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=60';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=62';
 import { FIREBASE_EMULATORS } from '../../core/config.js';
-import { openLoginMethodSheet } from '../../core/login-sheet.js?v=60';
+import { openLoginMethodSheet } from '../../core/login-sheet.js?v=62';
 import { t } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=60';
+import { vibrate } from '../../core/haptics.js?v=62';
 import { showToast } from '../../utils/toast.js';
 
 let _groupsCacheTs = 0;
@@ -63,7 +63,7 @@ function loadHomeOnboardingStyles() {
     const link = document.createElement('link');
     link.id = 'home-onboarding-css';
     link.rel = 'stylesheet';
-    link.href = './views/home/home-onboarding.css?v=60';
+    link.href = './views/home/home-onboarding.css?v=62';
     document.head.appendChild(link);
 }
 
