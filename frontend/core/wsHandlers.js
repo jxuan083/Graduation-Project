@@ -9,12 +9,12 @@ import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=62';
+import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=63';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=62';
+} from '../views/sync-ritual/sync-ritual.js?v=63';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -40,6 +40,7 @@ export function registerAllWsHandlers() {
 function handleRoomUpdate(msg) {
     const rs = msg.room_state || {};
     if (rs.host_uid) state.roomHostUid = rs.host_uid;
+    if (rs.context) state.currentContext = rs.context;  // 成員端也知道情境（意圖按鈕依此決定顯隱）
     // 本場聚會綁定群組的寵物臉（聚會中吉祥物）；沒綁群組 / 群組沒寵物則為空 → focus 顯示動畫球
     state.meetingGroupPetFace = rs.group_pet_face_url || '';
     state.meetingGroupPetName = rs.group_pet_name || '';

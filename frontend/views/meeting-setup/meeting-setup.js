@@ -4,12 +4,12 @@ import { state } from '../../core/state.js';
 import {
     CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
     EXEMPT_WINDOW_SEC, CONTEXT_NOTES,
-} from '../../core/config.js?v=62';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=62';
+} from '../../core/config.js?v=63';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=63';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=62';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=63';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -176,7 +176,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=62');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=63');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

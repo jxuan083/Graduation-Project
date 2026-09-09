@@ -57,6 +57,18 @@ def within_exemption(window_until_ms: int, now_ms: int) -> bool:
     return bool(window_until_ms) and now_ms < window_until_ms
 
 
+def overage_deviations(window_until_ms: int, now_ms: int, per_dev_sec: int) -> int:
+    """END_SESSION 補算：宣告意圖後一去不回、窗口已過的超時，換算成應補記的分心次數。
+
+    只在「宣告後離開、直到聚會結束都沒回來」時用（回來的情況由正常分心邏輯處理）。
+    per_dev_sec 用難度的 deviation_rate_limit_sec，即「多少秒算一次分心」。
+    """
+    if not window_until_ms or now_ms <= window_until_ms:
+        return 0
+    over_sec = (now_ms - window_until_ms) / 1000.0
+    return int(over_sec // max(1.0, float(per_dev_sec)))
+
+
 def charge_on_return(active_since_ms: int, now_ms: int, window_sec: int, used_count: int) -> float:
     """回到 App 專注時，這次要記多少『在場不專注』秒數。
 

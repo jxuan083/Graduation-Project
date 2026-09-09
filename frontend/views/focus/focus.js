@@ -11,6 +11,7 @@ import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
+import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
 
 export function init() {
     register('view-focus', {
@@ -67,6 +68,7 @@ export function init() {
         stopWeather();
         resetWeather();
         endIntentCountdown();
+        _intentRemaining = null;
         state.meetingGroupPetFace = '';
         state.meetingGroupPetName = '';
         state.meetingGroupPetLevel = 1;
@@ -89,28 +91,70 @@ export function init() {
 }
 
 // ── 意圖暫離：宣告後換一段不算分心的窗口；回到 App 專心或時間到就還原 ──
+// 按鈕四態：可用「需要用一下手機」／倒數「暫離中…」／用完(禁用)「暫離次數已用完」／
+// 此情境不開放暫離(整顆隱藏)。
 let _intentTimer = null;
 let _intentEndMs = 0;
-let _intentRemaining = 0;
+let _intentRemaining = null;   // null = 尚未知道（進聚會時依情境預算初始化）
 
 function handleDeclareIntent() {
+    const btn = document.getElementById('btn-declare-intent');
+    if (!btn || btn.style.display === 'none' || btn.disabled) return;
     if (_intentEndMs > Date.now()) return;  // 進行中不重複宣告
     if (!confirm(t('暫離一下？這段時間不會被算成分心。'))) return;
     sendAction('DECLARE_INTENT');
 }
 
+// 依情境預算決定按鈕：預算=0 → 整顆隱藏；否則顯示，並初始化剩餘次數。
+// refreshFocusMascot（進聚會 / 每次 room 更新）會呼叫，屆時已知 state.currentContext。
+function updateIntentAvailability() {
+    const btn = document.getElementById('btn-declare-intent');
+    if (!btn) return;
+    const budget = EXEMPT_BUDGET_BY_CONTEXT[state.currentContext] ?? 0;
+    if (budget <= 0) { btn.style.display = 'none'; return; }
+    btn.style.display = '';
+    if (_intentRemaining === null) _intentRemaining = budget;
+    if (_intentEndMs <= Date.now()) renderIntentButton();
+}
+
+// 非倒數狀態下的按鈕外觀：用完 → 禁用；否則可用。
+function renderIntentButton() {
+    const btn = document.getElementById('btn-declare-intent');
+    const label = document.getElementById('intent-btn-label');
+    if (!btn || !label) return;
+    btn.classList.remove('is-active');
+    if (_intentRemaining !== null && _intentRemaining <= 0) {
+        btn.disabled = true;
+        label.textContent = t('暫離次數已用完');
+    } else {
+        btn.disabled = false;
+        label.textContent = t('需要用一下手機');
+    }
+}
+
 // 後端授予（wsHandlers 收到 INTENT_GRANTED 時呼叫）
 export function applyIntentGranted(windowSec, remaining) {
-    _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
     _intentRemaining = Math.max(0, Number(remaining) || 0);
+    _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
     clearInterval(_intentTimer);
     renderIntentCountdown();
     _intentTimer = setInterval(renderIntentCountdown, 1000);
 }
 
-// 後端拒絕（冷卻中／次數用完／此情境不開放）→ 沿用既有 toast
+// 後端拒絕：此情境不開放 → 隱藏；次數用完 → 禁用；其餘（冷卻中）→ toast。
 export function applyIntentRejected(reason) {
-    try { showToast(reason || t('現在無法暫離'), 'warn'); } catch (_) { /* noop */ }
+    const r = reason || '';
+    if (r.includes('不開放')) {
+        const btn = document.getElementById('btn-declare-intent');
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+    if (r.includes('用完')) {
+        _intentRemaining = 0;
+        renderIntentButton();
+        return;
+    }
+    try { showToast(r || t('現在無法暫離'), 'warn'); } catch (_) { /* noop */ }
 }
 
 function renderIntentCountdown() {
@@ -122,17 +166,14 @@ function renderIntentCountdown() {
     const s = Math.ceil(leftMs / 1000);
     const mmss = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     btn.classList.add('is-active');
-    label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining });
+    label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining ?? 0 });
 }
 
 function endIntentCountdown() {
     clearInterval(_intentTimer);
     _intentTimer = null;
     _intentEndMs = 0;
-    const btn = document.getElementById('btn-declare-intent');
-    const label = document.getElementById('intent-btn-label');
-    if (btn) btn.classList.remove('is-active');
-    if (label) label.textContent = t('需要用一下手機');
+    renderIntentButton();  // 顯示可用或（用完）禁用
 }
 
 // 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球
@@ -142,6 +183,7 @@ export function refreshFocusMascot() {
     const identity = document.getElementById('focus-pet-identity');
     const growthHint = document.getElementById('focus-pet-growth-hint');
     const defaultText = document.getElementById('focus-default-mascot-text');
+    updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (face) {

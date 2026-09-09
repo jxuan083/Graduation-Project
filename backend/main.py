@@ -977,8 +977,28 @@ from intent import (  # noqa: E402
     charge_on_return as _intent_charge_on_return,
     exempt_budget as _intent_budget,
     exempt_window_sec as _intent_window_sec,
+    overage_deviations as _intent_overage_deviations,
     within_exemption as _intent_within_exemption,
 )
+
+
+def _apply_intent_overage(room_data: dict, now_ms: int) -> None:
+    """END_SESSION 補算：宣告意圖後一去不回、窗口已過的超時 → 補記分心。
+    回來的情況由正常分心邏輯處理，所以只看「離開後仍在豁免中(未歸還)」的成員。"""
+    params = room_data.get("session_params", {}) or {}
+    per_dev_sec = int(params.get("deviation_rate_limit_sec", 25) or 25)
+    members = room_data.get("members", {}) or {}
+    all_part = room_data.get("all_participants", {}) or {}
+    for uid, m in members.items():
+        if not m.get("exempt_active_since_ms"):
+            continue
+        add = _intent_overage_deviations(int(m.get("exempt_window_until_ms", 0) or 0), now_ms, per_dev_sec)
+        if add <= 0:
+            continue
+        m["deviations"] = int(m.get("deviations", 0) or 0) + add
+        room_data["deviations"] = int(room_data.get("deviations", 0) or 0) + add
+        if uid in all_part:
+            all_part[uid]["deviations"] = int(all_part[uid].get("deviations", 0) or 0) + add
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -3418,6 +3438,7 @@ class EndRoomRequest(BaseModel):
 
 
 def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, duration_minutes: int) -> dict:
+    _apply_intent_overage(room_data, int(datetime.datetime.utcnow().timestamp() * 1000))
     all_ever = room_data.get("all_participants") or room_data.get("members") or {}
     host_uid_local = room_data.get("host_uid")
     total_deviations = int(room_data.get("deviations", 0) or 0)
@@ -3843,6 +3864,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 # 先計算分數（廣播需要用到）
                 room_data = rooms[room_id]
+                _apply_intent_overage(room_data, int(datetime.datetime.utcnow().timestamp() * 1000))
                 all_ever = room_data.get("all_participants") or room_data.get("members", {})
                 host_uid_local = room_data.get("host_uid")
                 group_id_local = room_data.get("group_id")

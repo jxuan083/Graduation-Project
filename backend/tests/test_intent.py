@@ -11,6 +11,7 @@ from intent import (  # noqa: E402
     exempt_budget,
     exempt_window_sec,
     exemption_info,
+    overage_deviations,
     within_exemption,
 )
 
@@ -78,6 +79,18 @@ class TestChargeOnReturn(unittest.TestCase):
 
     def test_no_active_episode_charges_zero(self):
         self.assertEqual(charge_on_return(0, 61_000, window_sec=120, used_count=2), 0.0)
+
+
+class TestOverageDeviations(unittest.TestCase):
+    def test_no_overage_before_window_ends(self):
+        self.assertEqual(overage_deviations(200_000, 150_000, per_dev_sec=20), 0)
+
+    def test_no_window_means_zero(self):
+        self.assertEqual(overage_deviations(0, 150_000, per_dev_sec=20), 0)
+
+    def test_overage_converts_to_deviations(self):
+        # 窗口在 100_000ms 到期，現在 220_000ms → 超時 120 秒；每 20 秒算一次 → 6 次
+        self.assertEqual(overage_deviations(100_000, 220_000, per_dev_sec=20), 6)
 
 
 if __name__ == "__main__":
