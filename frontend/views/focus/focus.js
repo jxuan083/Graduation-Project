@@ -81,6 +81,20 @@ export function init() {
     // 需要用手機：宣告意圖
     const btnIntent = document.getElementById('btn-declare-intent');
     if (btnIntent) btnIntent.onclick = handleDeclareIntent;
+    // 意圖輸入彈窗的按鈕
+    const intentModal = document.getElementById('intent-modal');
+    const intentClose = document.getElementById('btn-intent-modal-close');
+    const intentCancel = document.getElementById('btn-intent-cancel');
+    const intentConfirm = document.getElementById('btn-intent-confirm');
+    const intentInput = document.getElementById('intent-reason-input');
+    if (intentClose) intentClose.onclick = closeIntentModal;
+    if (intentCancel) intentCancel.onclick = closeIntentModal;
+    if (intentConfirm) intentConfirm.onclick = confirmIntentModal;
+    if (intentModal) intentModal.addEventListener('click', (e) => { if (e.target === intentModal) closeIntentModal(); });
+    if (intentInput) intentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); confirmIntentModal(); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeIntentModal(); }
+    });
     // 回到 App 專心時，豁免已由後端結束 → 按鈕還原
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && _intentEndMs > Date.now()) endIntentCountdown();
@@ -96,12 +110,36 @@ export function init() {
 let _intentTimer = null;
 let _intentEndMs = 0;
 let _intentRemaining = null;   // null = 尚未知道（進聚會時依情境預算初始化）
+let _intentReason = '';        // 這次暫離要做什麼（只有自己看得到，不上傳）
 
 function handleDeclareIntent() {
     const btn = document.getElementById('btn-declare-intent');
     if (!btn || btn.style.display === 'none' || btn.disabled) return;
     if (_intentEndMs > Date.now()) return;  // 進行中不重複宣告
-    if (!confirm(t('暫離一下？這段時間不會被算成分心。'))) return;
+    openIntentModal();
+}
+
+// ── 意圖輸入彈窗 ──
+function openIntentModal() {
+    const modal = document.getElementById('intent-modal');
+    const input = document.getElementById('intent-reason-input');
+    if (!modal) { sendAction('DECLARE_INTENT'); return; }  // 保底：沒有彈窗就直接宣告
+    if (input) input.value = '';
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+    // 讓輸入框拿到焦點（延遲一拍避免動畫吃掉 focus）
+    setTimeout(() => input?.focus(), 60);
+}
+
+function closeIntentModal() {
+    const modal = document.getElementById('intent-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function confirmIntentModal() {
+    const input = document.getElementById('intent-reason-input');
+    _intentReason = (input?.value || '').trim().slice(0, 30);
+    closeIntentModal();
     sendAction('DECLARE_INTENT');
 }
 
@@ -166,13 +204,19 @@ function renderIntentCountdown() {
     const s = Math.ceil(leftMs / 1000);
     const mmss = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     btn.classList.add('is-active');
-    label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining ?? 0 });
+    if (_intentReason) {
+        const shortReason = _intentReason.length > 12 ? _intentReason.slice(0, 12) + '…' : _intentReason;
+        label.textContent = t('暫離中 · {reason} · 剩 {time}', { reason: shortReason, time: mmss });
+    } else {
+        label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining ?? 0 });
+    }
 }
 
 function endIntentCountdown() {
     clearInterval(_intentTimer);
     _intentTimer = null;
     _intentEndMs = 0;
+    _intentReason = '';
     renderIntentButton();  // 顯示可用或（用完）禁用
 }
 

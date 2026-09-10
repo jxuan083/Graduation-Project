@@ -105,3 +105,6 @@ backend/qwenAPIKey.json
 .zencoder/
 skills/
 skills-lock.json
+
+# 本機模擬器 build 產物 (scripts/run-sim.sh)
+ios/.build-sim/

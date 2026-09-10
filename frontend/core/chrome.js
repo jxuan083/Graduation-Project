@@ -3,17 +3,17 @@
 
 import { state } from './state.js';
 import { events } from './events.js';
-import { switchView, getActiveViewElement, isMeetingViewId } from './router.js';
-import { doSignOut } from './firebase.js?v=63';
+import { switchView, getActiveViewElement, isMeetingViewId, isChromeHiddenViewId } from './router.js';
+import { doSignOut } from './firebase.js?v=64';
 import { FIREBASE_EMULATORS } from './config.js';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
-import { openLoginMethodSheet } from './login-sheet.js?v=63';
+import { openLoginMethodSheet } from './login-sheet.js?v=64';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=63';
-import { openFriendsView } from '../views/friends/friends.js?v=63';
-import { handleCreateRoom } from '../views/home/home.js?v=63';
+import { openProfileView } from '../views/profile/profile.js?v=64';
+import { openFriendsView } from '../views/friends/friends.js?v=64';
+import { handleCreateRoom } from '../views/home/home.js?v=64';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -135,7 +135,7 @@ function refreshBottomNavigation(viewId) {
     const bar = document.querySelector('.bottom-bar');
     if (!bar) return;
 
-    const hidden = isMeetingViewId(viewId);
+    const hidden = isChromeHiddenViewId(viewId);
     bar.classList.toggle('is-hidden', hidden);
     bar.setAttribute('aria-hidden', hidden ? 'true' : 'false');
     document.body.classList.toggle('bottom-nav-hidden', hidden);
@@ -148,16 +148,17 @@ function refreshBottomNavigation(viewId) {
 
 function refreshAuthBarVisibility(viewId) {
     const loggedIn = document.getElementById('auth-logged-in');
-    if (!loggedIn) return;
-    if (isMeetingViewId(viewId)) {
-        loggedIn.style.display = 'none';
+    const loggedOut = document.getElementById('auth-logged-out');
+    if (!loggedIn && !loggedOut) return;
+    if (isChromeHiddenViewId(viewId)) {
+        // 聚會流程中,右上角不出現任何帳號 chip（正式登入的頭貼、訪客鈕都收起）
+        if (loggedIn) loggedIn.style.display = 'none';
+        if (loggedOut) loggedOut.style.display = 'none';
         const dd = document.getElementById('user-menu-dropdown');
         if (dd) dd.style.display = 'none';
     } else {
-        // 只在已登入時才顯示
-        if (state.currentUser) {
-            loggedIn.style.display = 'flex';
-        }
+        // 離開聚會流程 → 依登入/訪客狀態還原正確的 chip
+        renderAuthBar();
     }
 }
 

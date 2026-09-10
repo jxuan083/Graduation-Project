@@ -166,6 +166,20 @@
         <button class="btn-primary orange" id="btn-end-session" type="button">結束聚會</button>
     </div>
 
+    <!-- 意圖宣告：先寫下要做什麼（只有自己看得到），再換一段不算分心的暫離窗口 -->
+    <div id="intent-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="intent-modal-title">
+        <div class="invite-card intent-card">
+            <button id="btn-intent-modal-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+            <h3 id="intent-modal-title">要去做什麼?</h3>
+            <p class="hint">寫一句提醒自己（只有你看得到）。這段時間不會被算成分心。</p>
+            <input id="intent-reason-input" class="text-input intent-reason-input" type="text" maxlength="30" placeholder="例如：回一下工作訊息" autocomplete="off" />
+            <div class="intent-modal-actions">
+                <button id="btn-intent-cancel" class="btn secondary" type="button">取消</button>
+                <button id="btn-intent-confirm" class="btn primary orange" type="button">開始暫離</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 電腦網頁鏡頭（手機用原生相機，不會顯示這個） -->
     <div id="meeting-camera-modal" class="mc-cam-modal" style="display:none;">
         <video id="mc-cam-video" class="mc-cam-video" autoplay playsinline muted></video>

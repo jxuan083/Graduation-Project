@@ -4,7 +4,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { cleanupSession } from '../../core/session.js';
 import { copyInviteLink } from '../invite-modal/invite-modal.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=63';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=64';
 import { t } from '../../core/i18n.js';
 
 export function init() {

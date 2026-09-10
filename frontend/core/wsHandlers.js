@@ -9,12 +9,12 @@ import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=63';
+import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=64';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=63';
+} from '../views/sync-ritual/sync-ritual.js?v=64';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);

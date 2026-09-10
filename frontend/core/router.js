@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { events } from './events.js';
-import { vibrate } from './haptics.js?v=63';
+import { vibrate } from './haptics.js?v=64';
 
 const views = new Map();
 const navigationStack = [];
@@ -19,6 +19,12 @@ const MEETING_VIEW_IDS = new Set([
     'view-host-room', 'view-waiting-room', 'view-sync-ritual',
     'view-focus', 'view-qa-game', 'view-buffer',
     'view-taboo-prepare', 'view-taboo-countdown', 'view-taboo-card'
+]);
+
+// 這些頁不是「聚會主畫面」（返回鍵、返回聚會鈕邏輯照常），
+// 但屬於聚會流程中的選單/挑題頁 → 隱藏底部導覽列與右上角帳號 chip。
+const CHROME_HIDDEN_VIEW_IDS = new Set([
+    'view-qa-source', 'view-qa-picker',
 ]);
 
 export function register(viewId, config) {
@@ -43,6 +49,12 @@ export function getActiveViewElement() {
 
 export function isMeetingViewId(viewId) {
     return MEETING_VIEW_IDS.has(viewId);
+}
+
+// 聚會流程中要隱藏 chrome（底部導覽列 + 右上帳號 chip）的頁：
+// 聚會主畫面 + 選單/挑題頁。不影響返回鍵/導航堆疊。
+export function isChromeHiddenViewId(viewId) {
+    return MEETING_VIEW_IDS.has(viewId) || CHROME_HIDDEN_VIEW_IDS.has(viewId);
 }
 
 export function getCurrentViewId() {
