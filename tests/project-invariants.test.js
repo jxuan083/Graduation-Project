@@ -244,3 +244,20 @@ test('frontend exemption display values mirror backend intent.py (no drift)', ()
     'EXEMPT_WINDOW_SEC 前後端不一致',
   );
 });
+
+test('js and css are served no-cache so a stale import cannot break the module graph', () => {
+  // 只有 36 個 import 帶 ?v=N，250 個沒帶。Hosting 預設給 .js 的是 max-age=3600，
+  // 所以 bump 版號時有版號的抓到新檔、沒版號的沿用舊快取 —— 兩邊對不起來，
+  // 整個 module graph 會以 SyntaxError 收場，畫面全死。
+  // （2026-09 實際發生過：firebase.js?v=64 import 無版號的 config.js，
+  //  舊快取那份還沒有 FIREBASE_EMULATORS。）
+  // no-cache 不等於不快取：ETag 仍然成立，回的是 304，只是每次都先問過伺服器。
+  const config = JSON.parse(read('firebase.json'));
+  const headers = config.hosting.headers || [];
+  for (const source of ['**/*.js', '**/*.css']) {
+    const rule = headers.find(h => h.source === source);
+    assert.ok(rule, `firebase.json 缺少 ${source} 的 Cache-Control 設定`);
+    const cacheControl = rule.headers.find(h => h.key === 'Cache-Control');
+    assert.equal(cacheControl?.value, 'no-cache', `${source} 必須是 no-cache`);
+  }
+});
