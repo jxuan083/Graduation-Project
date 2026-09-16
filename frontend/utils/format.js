@@ -3,7 +3,7 @@ export function formatModeLabel(mode) {
     return ({
         "GATHERING": "朋友聚會",
         "FAMILY": "家庭聚會",
-        "MEETING": "嚴肅開會",
+        "MEETING": "開會",
         "CLASS": "上課模式",
         "QA_GAME": "團體問答",
         "ACTIVE": "朋友聚會"

@@ -9,6 +9,14 @@
 
     <div class="more-content">
 
+        <div class="more-section">
+            <h2 class="more-section-title">語言 · Language</h2>
+            <div id="lang-toggle" class="lang-toggle more-lang" role="group" aria-label="Language">
+                <button type="button" data-lang="zh" class="lang-btn active">中文</button>
+                <button type="button" data-lang="en" class="lang-btn">English</button>
+            </div>
+        </div>
+
         <div class="diag">
             <h2 class="diag-title">連線診斷</h2>
 
@@ -24,6 +32,11 @@
 
 <style>
 #view-more .more-content { padding: 16px; }
+#view-more .more-section { margin-bottom: 22px; padding-bottom: 22px; border-bottom: 1px solid rgba(79,53,26,0.10); }
+#view-more .more-section-title { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+#view-more .more-lang { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 12px; background: rgba(79,53,26,0.07); }
+#view-more .more-lang .lang-btn { min-height: 44px; border: none; border-radius: 9px; background: transparent; color: var(--brown-55, #7a6248); font-size: 15px; font-weight: 700; cursor: pointer; transition: background .18s, color .18s; }
+#view-more .more-lang .lang-btn.active { background: #fff; box-shadow: 0 2px 8px rgba(79,53,26,.12); color: var(--brown, #4f351a); }
 #view-more .diag { display: flex; flex-direction: column; gap: 12px; }
 #view-more .diag-title { font-size: 18px; font-weight: 700; margin: 0; }
 #view-more .diag-list { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }

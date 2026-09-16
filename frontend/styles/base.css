@@ -84,6 +84,7 @@
    touch-action: manipulation 只關掉「雙擊縮放」，保留雙指縮放。
    ============================================================ */
 html {
+  height: 100%;                             /* 外殼鎖成螢幕高的地基：整頁不捲，改由內部區塊捲 */
   touch-action: manipulation;               /* 關雙擊縮放，留雙指縮放 */
   -webkit-text-size-adjust: 100%;           /* 旋轉時字級不會自己跳動 */
 }
@@ -129,8 +130,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
-  overflow-y: auto;
+  height: 100%;              /* 鎖成螢幕高 */
+  min-height: 0;
+  overflow: hidden;          /* 整頁不捲；捲動交給各頁內部的 .scroll-body / .view */
   transition: background-color var(--motion-slow) var(--ease-standard);
 }
 
@@ -159,7 +161,9 @@ body.mode-class     { background-color: #14331f !important; }
 #app-container {
   width: 100%;
   max-width: 480px;
-  min-height: 100vh;
+  height: 100%;            /* 鎖成螢幕高 */
+  min-height: 0;
+  overflow: hidden;        /* 外殼不捲 */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -172,6 +176,8 @@ body.mode-class     { background-color: #14331f !important; }
   display: flex;
   flex-direction: column;
   width: 100%;
+  min-height: 0;           /* 讓內部捲動區能正確收縮 */
+  overflow: hidden;
 }
 
 /* ============================================================
@@ -183,13 +189,16 @@ body.mode-class     { background-color: #14331f !important; }
   justify-content: center;
   align-items: center;
   flex-grow: 1;
+  min-height: 0;
   text-align: center;
   /* 不能用 forwards：它會讓 translateY(0) 永久留在 .view 上，
      而帶 transform 的祖先會成為 fixed 子元素的 containing block。
      結束狀態本來就等於自然狀態，forwards 是多餘的。 */
   animation: fadeIn var(--motion-slow) var(--ease-standard);
 }
-.view.active { display: flex; }
+/* 預設安全網：view 內容超出時「該頁自己內部捲」，避免被外殼裁切。
+   已做成單螢幕的頁（如 meeting-setup）用更高優先序的 overflow:hidden 覆蓋。 */
+.view.active { display: flex; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 .view.nav-edge-pan-active {
   transform: translate3d(var(--nav-pan-x, 0px), 0, 0);

@@ -20,8 +20,9 @@ export function init() {
     // 取消聚會（底部按鈕是明確 destructive action；左上返回交給 router policy）
     const btnCancel = document.getElementById('btn-cancel-host-room');
     if (btnCancel) btnCancel.addEventListener('click', handleCancelHostRoom);
+    // 左上返回：等同「取消聚會」（聚會頁 back() 不作用，避免看起來壞掉）
     const btnBack = document.getElementById('btn-host-back');
-    if (btnBack) btnBack.addEventListener('click', back);
+    if (btnBack) btnBack.addEventListener('click', handleCancelHostRoom);
 
     // 開始同步定錨
     const btnStart = document.getElementById('btn-start-sync');

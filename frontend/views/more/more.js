@@ -3,6 +3,7 @@
 // emulator hosts，並提供「測試連線」按鈕，把 fetch 的錯誤訊息直接印在畫面上，
 // 不需要接 Mac 就能自我診斷。
 import { register, back } from '../../core/router.js';
+import { updateToggleUI } from '../../core/i18n.js';
 import {
     IS_NATIVE_APP,
     BACKEND_HOST,
@@ -103,7 +104,7 @@ async function runTests() {
 export function init() {
     register('view-more', {
         element: document.getElementById('view-more'),
-        onShow: renderEnv,
+        onShow: () => { renderEnv(); updateToggleUI(); },
     });
 
     const backBtn = document.getElementById('btn-more-back');

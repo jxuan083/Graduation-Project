@@ -12,6 +12,7 @@ import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
 import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
+import { scheduleIntentEnd, cancelIntentNotifications } from '../../core/localNotify.js';
 
 export function init() {
     register('view-focus', {
@@ -27,17 +28,26 @@ export function init() {
     const btnFocusToggle = document.getElementById('btn-focus-members-toggle');
     if (btnFocusToggle) btnFocusToggle.onclick = toggleFocusMembersPanel;
 
-    // 房主發起問答
+    // 遊戲區 / 拍照：點開底部選單
+    const gameZoneBtn = document.getElementById('btn-game-zone');
+    if (gameZoneBtn) gameZoneBtn.onclick = () => openSheet('game-sheet');
+    const photoZoneBtn = document.getElementById('btn-photo-zone');
+    if (photoZoneBtn) photoZoneBtn.onclick = () => openSheet('photo-sheet');
+    // 底部選單：取消 / 點背景關閉
+    bindSheet('game-sheet', 'btn-game-sheet-cancel');
+    bindSheet('photo-sheet', 'btn-photo-sheet-cancel');
+
+    // 房主發起問答（選項在遊戲選單內，點了先關選單）
     const qaBtn = document.getElementById('btn-mode-qa');
-    if (qaBtn) qaBtn.addEventListener('click', openQaSourcePicker);
+    if (qaBtn) qaBtn.addEventListener('click', () => { closeSheets(); openQaSourcePicker(); });
 
     // 房主發起關鍵字遊戲
     const tabooBtn = document.getElementById('btn-mode-taboo');
-    if (tabooBtn) tabooBtn.addEventListener('click', hostStartTabooGame);
+    if (tabooBtn) tabooBtn.addEventListener('click', () => { closeSheets(); hostStartTabooGame(); });
 
-    // 參與者拍照 / 上傳（手機→原生相機；電腦→網頁鏡頭）
-    document.getElementById('btn-meeting-camera').onclick = handleMeetingCameraClick;
-    document.getElementById('btn-meeting-album').onclick = () => handleMeetingPhotoClick('meeting-album-input');
+    // 參與者拍照 / 上傳（手機→原生相機；電腦→網頁鏡頭；點了先關選單）
+    document.getElementById('btn-meeting-camera').onclick = () => { closeSheets(); handleMeetingCameraClick(); };
+    document.getElementById('btn-meeting-album').onclick = () => { closeSheets(); handleMeetingPhotoClick('meeting-album-input'); };
     document.getElementById('meeting-camera-input').addEventListener('change', handleMeetingPhotoChange);
     document.getElementById('meeting-album-input').addEventListener('change', handleMeetingPhotoChange);
     // 電腦網頁鏡頭 modal 的按鈕
@@ -177,6 +187,8 @@ export function applyIntentGranted(windowSec, remaining) {
     clearInterval(_intentTimer);
     renderIntentCountdown();
     _intentTimer = setInterval(renderIntentCountdown, 1000);
+    // 排「時間到」本地通知（原生 app 才會生效；桌機/web 自動略過）
+    scheduleIntentEnd(Number(windowSec) || 0);
 }
 
 // 後端拒絕：此情境不開放 → 隱藏；次數用完 → 禁用；其餘（冷卻中）→ toast。
@@ -217,11 +229,21 @@ function endIntentCountdown() {
     _intentTimer = null;
     _intentEndMs = 0;
     _intentReason = '';
+    cancelIntentNotifications();  // 回到 App / 時間到 → 清掉尚未觸發的到期通知
     renderIntentButton();  // 顯示可用或（用完）禁用
 }
 
 // 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球
 export function refreshFocusMascot() {
+    // 依情境切換場景外觀（約會=燭光晚餐、自習=圖書館…；其餘=預設戶外舞台）
+    const sceneCard = document.querySelector('#view-focus .pa-scene-card');
+    if (sceneCard) {
+        const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study' };
+        sceneCard.classList.remove('scene-date', 'scene-study');
+        const sc = SCENE_BY_CONTEXT[state.currentContext];
+        if (sc) sceneCard.classList.add(sc);
+    }
+
     const orb = document.getElementById('lottie-orb');
     const petImg = document.getElementById('focus-pet-face');
     const identity = document.getElementById('focus-pet-identity');
@@ -230,6 +252,7 @@ export function refreshFocusMascot() {
     updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
+    if (sceneCard) sceneCard.classList.toggle('has-pet', !!face);  // 有真寵物 → 藏掉預設球
     if (face) {
         petImg.src = face;
         petImg.style.display = '';
@@ -247,6 +270,26 @@ export function refreshFocusMascot() {
         if (growthHint) growthHint.style.display = 'none';
         if (defaultText) defaultText.style.display = '';
     }
+}
+
+// ── 底部彈出選單（遊戲區 / 拍照）──
+function openSheet(id) {
+    const sheet = document.getElementById(id);
+    if (!sheet) return;
+    closeSheets();
+    sheet.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function closeSheets() {
+    document.querySelectorAll('#view-focus .pa-sheet').forEach(s => s.classList.add('hidden'));
+}
+
+function bindSheet(sheetId, cancelId) {
+    const sheet = document.getElementById(sheetId);
+    const cancel = document.getElementById(cancelId);
+    if (cancel) cancel.onclick = closeSheets;
+    if (sheet) sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheets(); });
 }
 
 function toggleFocusMembersPanel() {

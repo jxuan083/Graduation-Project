@@ -20,6 +20,7 @@ export function init() {
 
     buildContextGrid();
     bindStartMode();
+    bindStrengthBtns();
     bindGroupDropdown();
 
     const btnConfirm = document.getElementById('btn-confirm-setup');
@@ -137,25 +138,68 @@ function selectContext(key, card) {
     renderContextInfo(key);
 }
 
-// 選定情境後顯示：建議難度 + 可暫離次數/時長 + 一句注意事項（純顯示，不含評分方式）
+// 各難度的白話說明（讓使用者知道差別）
+const DIFFICULTY_HINTS = {
+    L: '偶爾看手機沒關係，分心只扣一點，暫離時間最長。',
+    M: '適度專注，分心會明顯扣分。',
+    H: '重視全程專注，一分心就扣很重，暫離時間最短。',
+};
+
+// 難度按鈕：預設帶入情境的建議難度，使用者可點著覆蓋。
+function bindStrengthBtns() {
+    document.querySelectorAll('#view-meeting-setup .cp-strength-btn').forEach(btn => {
+        btn.onclick = () => {
+            state.currentDifficulty = btn.dataset.diff || 'M';
+            updateStrengthActive(state.currentDifficulty);
+            renderExemptLabel();    // 暫離時長依難度變動 → 重繪
+            renderStrengthHint();   // 更新說明文字
+        };
+    });
+}
+
+function updateStrengthActive(diff) {
+    document.querySelectorAll('#view-meeting-setup .cp-strength-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.diff === diff);
+    });
+}
+
+// 說明列：目前難度是什麼意思 + 這個情境建議哪個難度。
+function renderStrengthHint() {
+    const el = document.getElementById('strength-hint');
+    if (!el) return;
+    const diff = state.currentDifficulty || 'M';
+    const label = DIFFICULTY_LABELS[diff] || diff;
+    let text = `${label}：${DIFFICULTY_HINTS[diff] || ''}`;
+    const suggested = CONTEXT_CONFIGS[state.currentContext]?.difficulty;
+    if (suggested) {
+        text += suggested === diff
+            ? t('（此情境建議的強度）')
+            : t('（此情境建議「{label}」）', { label: DIFFICULTY_LABELS[suggested] || suggested });
+    }
+    el.textContent = text;
+}
+
+// 暫離次數/時長：次數依情境、每次時長依（可被覆蓋的）難度。
+function renderExemptLabel() {
+    const exemptEl = document.getElementById('context-exempt-label');
+    if (!exemptEl) return;
+    const budget = EXEMPT_BUDGET_BY_CONTEXT[state.currentContext] ?? 0;
+    if (budget > 0) {
+        const mins = Math.round((EXEMPT_WINDOW_SEC[state.currentDifficulty] || 120) / 60);
+        exemptEl.textContent = t('可暫離 {n} 次（每次最多 {m} 分鐘）', { n: budget, m: mins });
+    } else {
+        exemptEl.textContent = t('不開放暫離');
+    }
+}
+
+// 選定情境後顯示：難度膠囊(預設情境建議) + 可暫離次數/時長 + 一句注意事項
 function renderContextInfo(key) {
     const cfg = CONTEXT_CONFIGS[key];
     if (!cfg) return;
-    const diffEl = document.getElementById('context-diff-label');
-    const exemptEl = document.getElementById('context-exempt-label');
+    updateStrengthActive(state.currentDifficulty);
+    renderExemptLabel();
+    renderStrengthHint();
     const noteEl = document.getElementById('context-note');
-    if (diffEl) {
-        diffEl.textContent = t('建議難度：{label}', { label: DIFFICULTY_LABELS[cfg.difficulty] || cfg.difficulty });
-    }
-    if (exemptEl) {
-        const budget = EXEMPT_BUDGET_BY_CONTEXT[key] ?? 0;
-        if (budget > 0) {
-            const mins = Math.round((EXEMPT_WINDOW_SEC[cfg.difficulty] || 120) / 60);
-            exemptEl.textContent = t('可暫離 {n} 次（每次最多 {m} 分鐘）', { n: budget, m: mins });
-        } else {
-            exemptEl.textContent = t('不開放暫離');
-        }
-    }
     if (noteEl) noteEl.textContent = CONTEXT_NOTES[key] || '';
 }
 

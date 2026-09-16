@@ -126,7 +126,7 @@ function startObserver() {
   }
 }
 
-function updateToggleUI() {
+export function updateToggleUI() {
   document.querySelectorAll('#lang-toggle .lang-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.lang === getLang());
   });
@@ -150,13 +150,11 @@ export function initI18n() {
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (_) {}
   state.lang = saved === 'en' ? 'en' : 'zh';
 
-  const toggle = document.getElementById('lang-toggle');
-  if (toggle) {
-    toggle.addEventListener('click', (e) => {
-      const btn = e.target.closest('.lang-btn');
-      if (btn && btn.dataset.lang) setLang(btn.dataset.lang);
-    });
-  }
+  // 事件委派綁在 document：語言切換鈕可能在動態載入的頁面（例如「更多」）裡才出現
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#lang-toggle .lang-btn');
+    if (btn && btn.dataset.lang) setLang(btn.dataset.lang);
+  });
 
   startObserver();
   applyHtmlMeta();

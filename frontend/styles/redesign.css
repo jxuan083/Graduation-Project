@@ -1347,6 +1347,10 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 #view-meeting-setup .cp-setup-panel { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 15px; width: calc(100% - 40px); margin-inline: auto; }
 #view-meeting-setup .cp-setup-panel[hidden] { display: none; }
+/* 卡片區內部捲、建立按鈕釘底（內容超過一個螢幕時仍按得到）*/
+#view-meeting-setup .cp-setup-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 15px; scrollbar-width: none; }
+#view-meeting-setup .cp-setup-scroll::-webkit-scrollbar { display: none; }
+#view-meeting-setup .cp-sticky-cta { flex-shrink: 0; }
 #view-meeting-setup .cp-setup-card { background: transparent; border-radius: 0; padding: 0; box-shadow: none; }
 #view-meeting-setup #setup-now-panel .cp-setup-card + .cp-setup-card { padding-top: 14px; border-top: 1px solid rgba(79,53,26,.10); }
 
@@ -1366,6 +1370,15 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup .cp-context-diff,
 #view-meeting-setup .cp-context-exempt { font-size: 11px; font-weight: 700; color: var(--brown-60); background: rgba(79,53,26,.08); border-radius: var(--r-pill); padding: 4px 10px; }
 #view-meeting-setup .cp-context-note { margin: 8px 4px 0; font-size: 12px; line-height: 1.5; color: var(--brown-55); }
+
+/* 專注強度：預設帶入情境建議、可點覆蓋。整排大按鈕(比照原本樣式)+ 一句說明。 */
+#view-meeting-setup .cp-strength { margin-top: 14px; }
+#view-meeting-setup .cp-strength-title { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0 4px 9px; }
+#view-meeting-setup .cp-strength-btns { display: flex; gap: 8px; }
+#view-meeting-setup .cp-strength-btn { flex: 1; height: 46px; border: none; cursor: pointer; border-radius: var(--r-md); font-size: 15px; font-weight: 700; background: var(--brown-05); color: var(--brown-45); box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); transition: background var(--motion-base), color var(--motion-base), transform var(--motion-fast); }
+#view-meeting-setup .cp-strength-btn:active { transform: translate3d(var(--press-shift-x, 0),2px,0) scale(.98); }
+#view-meeting-setup .cp-strength-btn.active { background: var(--brown); color: #fff; box-shadow: 0 3px 0 #34200e, 0 8px 14px -12px rgba(79,53,26,.72); }
+#view-meeting-setup .cp-strength-hint { margin: 9px 4px 0; font-size: 12px; line-height: 1.5; color: var(--brown-55); min-height: 1.5em; }
 
 /* 預計時長 */
 #view-meeting-setup .cp-duration-input { width: 100%; height: 50px; background: #fff; border: none; border-radius: var(--r-md); padding: 0 16px; font-size: 16px; color: var(--brown); margin-bottom: 24px; }
@@ -1410,7 +1423,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-host-room .diff-badge.diff-l { background: rgba(93,213,31,.16); color: #4a8a1a; }
 #view-host-room .diff-badge.diff-m { background: rgba(155,121,85,.16); color: var(--gold); }
 #view-host-room .diff-badge.diff-h { background: rgba(192,57,43,.14); color: var(--red); }
-#view-host-room .pr-body { display: flex; flex-direction: column; }
+#view-host-room .pr-body { display: flex; flex-direction: column; padding-inline: 20px; }
 #view-host-room .pr-qr-card { background: #fff; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; padding: 28px 20px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(79,53,26,.06); }
 #view-host-room .pr-qr-hint { font-size: 13px; color: var(--brown-50); text-align: center; margin: 0 0 16px; }
 #view-host-room .pr-qr-card .qr-container { background: #fff; box-shadow: none; padding: 0; margin: 0 0 16px; }
@@ -1426,7 +1439,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-host-room .pr-member-ul .member-action-btn { background: var(--brown-08); border: none; color: var(--brown); }
 #view-host-room .pr-member-ul .member-action-btn.add { background: var(--gold); color: #fff; }
 #view-host-room .pr-member-ul .member-action-btn.done { background: var(--green); color: #fff; }
-#view-host-room .pr-footer { display: flex; gap: 12px; margin-top: 24px; }
+#view-host-room .pr-footer { display: flex; gap: 12px; margin-top: 24px; padding-inline: 20px; }
 #view-host-room .pr-footer .btn-primary.disabled { opacity: .4; pointer-events: none; }
 
 /* 一起準備 / 定錨（sync-ritual） */
@@ -1580,7 +1593,8 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 }
 
 /* 等待開始（waiting-room）— front-preview screen-waiting-room 結構 */
-#view-waiting-room { justify-content: flex-start; }
+#view-waiting-room { justify-content: flex-start; padding-inline: 20px; }
+#view-waiting-room .page-header { padding-inline: 0; }
 #view-waiting-room .wr-campfire-card { background: linear-gradient(to bottom, #3d2009 0%, #7a3b10 100%); border-radius: var(--r-lg); padding: 24px 20px 20px; display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; position: relative; overflow: hidden; }
 #view-waiting-room .wr-campfire-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 80%, rgba(255,120,30,.25) 0%, transparent 70%); }
 #view-waiting-room .wr-fire-wrap { position: relative; z-index: 1; width: 56px; height: 70px; display: flex; align-items: center; justify-content: center; }
@@ -1614,7 +1628,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* 聚會總結（summary）— front-preview screen-party-summary 結構 */
 #view-summary { justify-content: flex-start; align-items: stretch; text-align: left; padding: 56px 0 0; }
 #view-summary .ps-top-strip { width: 100%; height: 6px; border-radius: var(--r-sm); background: linear-gradient(to right, #4f351a, #e07830, #9b7955); flex-shrink: 0; margin-bottom: 24px; }
-#view-summary .ps-body { display: flex; flex-direction: column; }
+#view-summary .ps-body { display: flex; flex-direction: column; padding-inline: 20px; }
 #view-summary .ps-pre-title { font-size: 13px; font-weight: 600; color: var(--brown-45); letter-spacing: .12em; text-align: center; margin: 0 0 4px; }
 #view-summary .ps-title { font-size: 28px; font-weight: 800; color: var(--brown); text-align: center; margin: 0 0 16px; }
 #view-summary .ps-mascot-card { background: #fff; border-radius: var(--r-lg); overflow: hidden; }
@@ -1715,7 +1729,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* ============================================================
    聚會中（focus）— front-preview screen-party-active 結構統一
    ============================================================ */
-#view-focus { justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 56px; }
+#view-focus { justify-content: flex-start; align-items: stretch; text-align: left; padding: 56px 20px 0; overflow: hidden; }
 
 /* 頂列：標題 + 在場成員頭像列（點擊展開成員清單） */
 #view-focus .pa-header { display: flex; align-items: center; justify-content: space-between; padding: 0 0 12px; flex-shrink: 0; }
@@ -1736,7 +1750,8 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-members-panel .member-action-btn.done { background: var(--green); color: #fff; }
 
 /* 中段捲動區 */
-#view-focus .pa-scroll { display: flex; flex-direction: column; }
+#view-focus .pa-scroll { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+#view-focus .pa-scroll::-webkit-scrollbar { display: none; }
 
 /* 場景卡：吉祥物舞台（沿用 Lottie 動畫作吉祥物） */
 #view-focus .pa-scene-card { border-radius: var(--r-lg); overflow: hidden; position: relative; height: 180px; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #c8a45a 100%); }
@@ -1798,6 +1813,75 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* 失落對話框（陰/雨才顯示） */
 #view-focus .pa-pet-bubble { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4; max-width: 82%; padding: 5px 11px; border-radius: 14px; background: rgba(255,255,255,.92); color: var(--brown); font-size: 11px; font-weight: 650; line-height: 1.3; text-align: center; overflow-wrap: anywhere; box-shadow: 0 2px 10px rgba(0,0,0,.14); animation: pa-bubble-in .4s cubic-bezier(.2,1.4,.4,1) both; }
 #view-focus .pa-pet-bubble::after { content: ""; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); border: 5px solid transparent; border-top-color: rgba(255,255,255,.92); border-bottom: 0; }
+
+/* ── 情境場景：約會（燭光晚餐）。只在 .pa-scene-card.scene-date 生效，inline SVG 插畫 ──
+   分兩層:背景(牆+窗) z1 在寵物後、前景(桌子+餐具+燭火) z3 在寵物前 → 寵物像坐桌子對面 */
+#view-focus .pa-date-bg,
+#view-focus .pa-date-fg,
+#view-focus .pa-scene-dim { display: none; }
+/* 約會情境時關掉戶外元素、顯示晚餐場景 */
+#view-focus .pa-scene-card.scene-date .pa-sun,
+#view-focus .pa-scene-card.scene-date .pa-ground,
+#view-focus .pa-scene-card.scene-date .pa-grass,
+#view-focus .pa-scene-card.scene-date .pa-clouds,
+#view-focus .pa-scene-card.scene-date .pa-rain { display: none; }
+#view-focus .pa-scene-card.scene-date .pa-date-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+#view-focus .pa-scene-card.scene-date .pa-date-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
+#view-focus .pa-scene-card.scene-date .pa-scene-dim { display: block; }
+
+/* 約會時吉祥物坐在桌子對面：z-index 夾在背景(1)與前景桌子(3)之間，下半身被桌子擋住、只露出頭 */
+#view-focus .pa-scene-card.scene-date .lottie-container { display: none; }  /* 外部 Lottie 不可靠，約會改用內建球 */
+#view-focus .pa-scene-card.scene-date .pa-pet-face { left: 31%; bottom: 46px; width: 76px; height: 76px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
+/* 預設坐位球（沒有群組寵物時） */
+#view-focus .pa-seat-ball { display: none; }
+#view-focus .pa-scene-card.scene-date .pa-seat-ball {
+    display: block; position: absolute; left: 31%; bottom: 44px; width: 80px; height: 80px; z-index: 2;
+    transform: translateX(-50%);
+    animation: pa-seat-bob 3.4s ease-in-out infinite;
+}
+#view-focus .pa-scene-card.scene-date .pa-seat-ball svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
+#view-focus .pa-scene-card.scene-date.has-pet .pa-seat-ball { display: none; }  /* 有真寵物時藏球 */
+@keyframes pa-seat-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-3px); } }
+
+/* 燭火 + 光暈輕微閃動 */
+#view-focus .pa-date-fg .pa-flame { transform-box: fill-box; transform-origin: center bottom; animation: pa-flame-flicker 1.5s ease-in-out infinite; }
+#view-focus .pa-date-fg .pa-flame-glow { transform-box: fill-box; transform-origin: center; animation: pa-glow-flicker 1.5s ease-in-out infinite; }
+@keyframes pa-flame-flicker { 0%,100% { transform: scaleY(1) scaleX(1); } 40% { transform: scaleY(.88) scaleX(1.06); } 70% { transform: scaleY(1.07) scaleX(.95); } }
+@keyframes pa-glow-flicker { 0%,100% { opacity: 1; } 50% { opacity: .78; } }
+
+/* 燈光遮罩：正常(晴)全亮不遮；越多人分心越暗 */
+#view-focus .pa-scene-dim { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #0a0705; opacity: 0; transition: opacity 1.2s ease; }
+#view-focus .pa-scene-card.scene-date.weather-cloudy .pa-scene-dim { opacity: .32; }
+#view-focus .pa-scene-card.scene-date.weather-rainy .pa-scene-dim { opacity: .6; }
+
+@media (prefers-reduced-motion: reduce) {
+  #view-focus .pa-date-fg .pa-flame, #view-focus .pa-date-fg .pa-flame-glow, #view-focus .pa-seat-ball { animation: none !important; }
+}
+
+/* ── 情境場景：自習讀書（圖書館）。只在 .pa-scene-card.scene-study 生效 ──
+   分兩層:背景(書櫃+椅背) z1 在寵物後、前景(書桌+書) z3 在寵物前 → 寵物像坐在椅子上 */
+#view-focus .pa-study-bg,
+#view-focus .pa-study-fg { display: none; }
+#view-focus .pa-scene-card.scene-study .pa-sun,
+#view-focus .pa-scene-card.scene-study .pa-ground,
+#view-focus .pa-scene-card.scene-study .pa-grass,
+#view-focus .pa-scene-card.scene-study .pa-clouds,
+#view-focus .pa-scene-card.scene-study .pa-rain,
+#view-focus .pa-scene-card.scene-study .lottie-container { display: none; }
+#view-focus .pa-scene-card.scene-study .pa-study-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+#view-focus .pa-scene-card.scene-study .pa-study-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
+#view-focus .pa-scene-card.scene-study .pa-scene-dim { display: block; }
+/* 寵物/球坐在左邊椅子上 */
+#view-focus .pa-scene-card.scene-study .pa-seat-ball {
+    display: block; position: absolute; left: 29.5%; bottom: 42px; width: 76px; height: 76px; z-index: 2;
+    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
+}
+#view-focus .pa-scene-card.scene-study.has-pet .pa-seat-ball { display: none; }
+#view-focus .pa-scene-card.scene-study .pa-pet-face { left: 29.5%; bottom: 44px; width: 74px; height: 74px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
+/* 分心越多：明亮圖書館轉冷、專注渙散（比約會輕、冷色薄霧） */
+#view-focus .pa-scene-card.scene-study .pa-scene-dim { background: #35415c; }
+#view-focus .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: .18; }
+#view-focus .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: .36; }
 @keyframes pa-bubble-in { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1861,6 +1945,35 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-intent-btn:disabled { opacity: .45; cursor: default; }
 #view-focus .pa-footer { margin-top: 16px; flex-shrink: 0; }
 
+/* 頂列右側：成員 + 邀請圖示鈕 */
+#view-focus .pa-header-actions { display: flex; align-items: center; gap: 8px; }
+#view-focus .pa-header-icon { width: 36px; height: 36px; border-radius: var(--r-pill); background: #fff; border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(79,53,26,.08); cursor: pointer; flex-shrink: 0; transition: transform var(--motion-fast); }
+#view-focus .pa-header-icon:active { transform: scale(.92); }
+
+/* 快速動作：遊戲區 / 拍照 / 錄音 — 一排精簡方塊 */
+#view-focus .pa-quick-grid { display: flex; gap: 10px; margin-top: 12px; }
+#view-focus .pa-quick-grid > #host-only-controls { flex: 1; }
+#view-focus .pa-quick-btn { flex: 1; width: 100%; background: #fff; border: none; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 14px 6px; cursor: pointer; box-shadow: 0 1px 4px rgba(79,53,26,.06); transition: transform var(--motion-fast); }
+#view-focus .pa-quick-btn:active { transform: scale(.96); }
+#view-focus .pa-quick-btn .qi { width: 40px; height: 40px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; }
+#view-focus .pa-quick-btn .ql { font-size: 12.5px; font-weight: 700; color: var(--brown); }
+
+/* 底部彈出選單（bottom sheet）*/
+.pa-sheet { position: fixed; inset: 0; z-index: 400; display: flex; align-items: flex-end; justify-content: center; padding: 0 var(--safe-area-right) 0 var(--safe-area-left); background: rgba(15,23,42,.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: modalFadeIn var(--motion-base) ease-out; }
+.pa-sheet.hidden { display: none; }
+.pa-sheet-panel { width: 100%; max-width: 440px; background: var(--bg); border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 10px 16px calc(16px + var(--safe-area-bottom)); box-shadow: 0 -8px 30px rgba(79,53,26,.18); animation: pa-sheet-up var(--motion-base) cubic-bezier(.16,1,.3,1); }
+@keyframes pa-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.pa-sheet-grip { width: 38px; height: 4px; border-radius: 2px; background: var(--brown-15); margin: 2px auto 12px; }
+.pa-sheet-title { font-size: 13px; font-weight: 700; color: var(--brown-50); margin: 0 4px 10px; }
+.pa-sheet-item { width: 100%; background: #fff; border: none; border-radius: var(--r-md); display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; box-shadow: 0 1px 4px rgba(79,53,26,.06); transition: transform var(--motion-fast); text-align: left; }
+.pa-sheet-item:active { transform: scale(.98); }
+.pa-sheet-item-icon { width: 42px; height: 42px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pa-sheet-item-text { display: flex; flex-direction: column; gap: 2px; }
+.pa-sheet-item-text strong { font-size: 15px; font-weight: 700; color: var(--brown); }
+.pa-sheet-item-text small { font-size: 12px; color: var(--brown-45); }
+.pa-sheet-cancel { width: 100%; height: 48px; border: none; border-radius: var(--r-md); background: var(--brown-08); color: var(--brown); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .pa-sheet-panel { animation: none !important; } }
+
 /* 意圖宣告輸入彈窗（沿用 .modal-overlay / .invite-card / .text-input / .btn 既有樣式） */
 .intent-card { position: relative; width: 100%; max-width: 340px; padding: 22px 20px 20px; text-align: left; }
 .intent-card h3 { font-size: 18px; margin: 0 0 6px; }
@@ -1902,7 +2015,8 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 /* 團體問答（qa-game） */
 /* 團體問答（qa-game）— front-preview screen-qa-game */
-#view-qa-game { justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 56px; }
+#view-qa-game { justify-content: flex-start; align-items: stretch; text-align: left; padding-top: 56px; padding-inline: 20px; }
+#view-qa-game .page-header { padding-inline: 0; }
 #view-qa-game .qag-live-badge { background: var(--grad-primary); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .08em; padding: 3px 9px; border-radius: var(--r-pill); flex-shrink: 0; }
 #view-qa-game .qag-card { background: #fff; border-radius: var(--r-lg); padding: 22px 20px; margin-bottom: 16px; }
 #view-qa-game .qag-card-kicker { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: .5px; text-transform: uppercase; margin: 0 0 10px; }

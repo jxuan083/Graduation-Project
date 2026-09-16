@@ -86,14 +86,14 @@ export const FCM_VAPID_KEY = "";
 // 11 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
 export const CONTEXT_CONFIGS = {
     general:     { label: '一般聚會', icon: 'party-popper',   difficulty: 'L', duration: 90,  mode: 'GATHERING' },
-    meeting:     { label: '嚴肅開會', icon: 'briefcase',      difficulty: 'H', duration: 60,  mode: 'MEETING'   },
+    meeting:     { label: '開會',     icon: 'briefcase',      difficulty: 'H', duration: 60,  mode: 'MEETING'   },
     family:      { label: '家庭聚會', icon: 'house',          difficulty: 'L', duration: 120, mode: 'FAMILY'    },
     study:       { label: '自習讀書', icon: 'book-open',      difficulty: 'M', duration: 90,  mode: 'CLASS'     },
-    class:       { label: '正式上課', icon: 'graduation-cap', difficulty: 'H', duration: 50,  mode: 'CLASS'     },
+    class:       { label: '專心上課', icon: 'graduation-cap', difficulty: 'H', duration: 50,  mode: 'CLASS'     },
     meal:        { label: '吃飯聚餐', icon: 'utensils',       difficulty: 'L', duration: 90,  mode: 'GATHERING' },
     date:        { label: '約會',     icon: 'heart',          difficulty: 'M', duration: 120, mode: 'GATHERING' },
-    celebration: { label: '慶祝活動', icon: 'party-popper',   difficulty: 'L', duration: 120, mode: 'GATHERING' },
-    workshop:    { label: '工作坊',   icon: 'wrench',         difficulty: 'M', duration: 180, mode: 'MEETING'   },
+    social:      { label: '交流',     icon: 'messages-square', difficulty: 'M', duration: 120, mode: 'GATHERING' },
+    outdoor:     { label: '戶外活動', icon: 'mountain',       difficulty: 'L', duration: 180, mode: 'GATHERING' },
     team:        { label: '團隊聚會', icon: 'users',          difficulty: 'M', duration: 120, mode: 'GATHERING' },
     custom:      { label: '自訂',     icon: 'settings',       difficulty: 'M', duration: 90,  mode: 'GATHERING' },
 };
@@ -108,7 +108,7 @@ export const PET_BODY_OPTIONS = ['🐶', '🐱', '🐰', '🦊'];
 // 這裡是鏡像，且由 tests/project-invariants 讀後端比對，確保兩邊永遠一致（不會顯示錯）。
 export const EXEMPT_BUDGET_BY_CONTEXT = {
     general: 2, meeting: 0, family: 3, study: 2, class: 0,
-    meal: 3, date: 1, celebration: 3, workshop: 2, team: 2, custom: 2,
+    meal: 3, date: 1, social: 1, outdoor: 3, team: 2, custom: 2,
 };
 export const EXEMPT_WINDOW_SEC = { L: 180, M: 120, H: 60 };
 
@@ -121,8 +121,8 @@ export const CONTEXT_NOTES = {
     class:       '最嚴格模式，任何分心都會記錄，不開放暫離。',
     meal:        '用餐可以拍照、看菜單，手機使用比較寬容。',
     date:        '重視兩人相處，盡量別一直看手機。',
-    celebration: '慶祝場合，拍照留念很歡迎，手機使用寬鬆。',
-    workshop:    '工作坊需要時可查資料，建議專注參與。',
+    social:      '把注意力放在眼前的人，聊開了氣氛自然就好。',
+    outdoor:     '在戶外一起走走看看，手機用來拍照、導航都方便。',
     team:        '團隊活動以互動為主，適度使用手機。',
     custom:      '自訂場景，依你設定的難度計分。',
 };

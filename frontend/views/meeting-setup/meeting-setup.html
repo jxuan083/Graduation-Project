@@ -19,28 +19,38 @@
     </div>
 
     <div id="setup-now-panel" class="cp-setup-panel">
-        <div class="cp-setup-card">
-            <!-- 選擇場景（真實 context，由 buildContextGrid 從 CONTEXT_CONFIGS 產生） -->
-            <p class="cp-section-label">選擇場景</p>
-            <div id="context-grid" class="cp-situation-grid"></div>
-            <div id="context-info" class="cp-context-info">
-                <div class="cp-context-meta">
-                    <span class="cp-context-diff" id="context-diff-label"></span>
-                    <span class="cp-context-exempt" id="context-exempt-label"></span>
+        <div class="cp-setup-scroll">
+            <div class="cp-setup-card">
+                <!-- 選擇場景（真實 context，由 buildContextGrid 從 CONTEXT_CONFIGS 產生） -->
+                <p class="cp-section-label">選擇場景</p>
+                <div id="context-grid" class="cp-situation-grid"></div>
+                <div id="context-info" class="cp-context-info">
+                    <div class="cp-strength" role="group" aria-label="專注強度">
+                        <p class="cp-strength-title">專注強度</p>
+                        <div class="cp-strength-btns">
+                            <button type="button" class="cp-strength-btn" data-diff="L">輕鬆</button>
+                            <button type="button" class="cp-strength-btn" data-diff="M">標準</button>
+                            <button type="button" class="cp-strength-btn" data-diff="H">嚴格</button>
+                        </div>
+                        <p class="cp-strength-hint" id="strength-hint"></p>
+                    </div>
+                    <div class="cp-context-meta">
+                        <span class="cp-context-exempt" id="context-exempt-label"></span>
+                    </div>
+                    <p class="cp-context-note" id="context-note"></p>
                 </div>
-                <p class="cp-context-note" id="context-note"></p>
             </div>
-        </div>
 
-        <div class="cp-setup-card">
-            <!-- 選擇群組（自訂下拉，選項由 fetchMyGroups 真實載入） -->
-            <p class="cp-section-label">選擇群組</p>
-            <div class="cp-dropdown-wrap">
-                <button class="cp-dropdown-btn" id="cp-group-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="cp-dropdown-val placeholder" id="cp-group-val">選擇一個群組…</span>
-                    <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1L6 6L11 1" stroke="rgba(79,53,26,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
-                </button>
-                <div class="cp-dropdown-list" id="cp-group-list" role="listbox" hidden></div>
+            <div class="cp-setup-card">
+                <!-- 選擇群組（自訂下拉，選項由 fetchMyGroups 真實載入） -->
+                <p class="cp-section-label">選擇群組</p>
+                <div class="cp-dropdown-wrap">
+                    <button class="cp-dropdown-btn" id="cp-group-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="cp-dropdown-val placeholder" id="cp-group-val">選擇一個群組…</span>
+                        <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1L6 6L11 1" stroke="rgba(79,53,26,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </button>
+                    <div class="cp-dropdown-list" id="cp-group-list" role="listbox" hidden></div>
+                </div>
             </div>
         </div>
 

@@ -841,13 +841,13 @@ export const dict = {
     '朋友聚會': 'Friends Gathering',
     '家庭聚會': 'Family Gathering',
     '吃飯聚餐': 'Dining Out',
-    '工作坊': 'Workshop',
-    '慶祝活動': 'Celebration',
-    '嚴肅開會': 'Formal Meeting',
+    '交流': 'Connect',
+    '戶外活動': 'Outdoors',
+    '開會': 'Meeting',
     '約會': 'Date',
     '自習讀書': 'Study Session',
     '自訂': 'Custom',
-    '正式上課': 'Formal Class',
+    '專心上課': 'Focused Class',
     '團隊聚會': 'Team Gathering',
 
     // --- member status labels ---
