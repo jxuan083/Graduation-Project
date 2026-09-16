@@ -132,6 +132,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # min-instances 0：房間狀態本來就活不過 instance 重啟，常駐一台保不住它，
+      # 只是讓額度用完 / billing 被停時整個服務無聲斷線（2026-08 發生過一次，
+      # 症狀是瀏覽器報 CORS，實際是 Google Frontend 回沒有 CORS header 的 503）。
+      # max-instances 1 仍然必要：WebSocket 房間狀態是 process-local。
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
@@ -140,7 +144,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --memory 2Gi \
-            --min-instances 1 \
+            --min-instances 0 \
             --max-instances 1 \
             --quiet
 
