@@ -2551,9 +2551,9 @@ CONTEXT_PARAM_OVERRIDES: Dict[str, dict] = {
     "meeting":     {"pickup_tolerance_sec": 0},
     "meal":        {"buffer_sec_per_window": 120, "pickup_tolerance_sec": 30},
     "family":      {"pin_exempt_duration_sec": 900, "pin_exempt_max_count": 5},
-    "celebration": {"buffer_sec_per_window": 150},
+    "outdoor":     {"buffer_sec_per_window": 150, "pickup_tolerance_sec": 30},
     "date":        {"consecutive_use_penalty_threshold": 60},
-    "workshop":    {"buffer_sec_per_window": 60, "pickup_tolerance_sec": 20},
+    "social":      {"consecutive_use_penalty_threshold": 60},
     "study":       {"buffer_sec_per_window": 30},
 }
 
@@ -2565,8 +2565,8 @@ CONTEXT_DEFAULTS: Dict[str, dict] = {
     "class":       {"difficulty": "H", "expected_duration_min": 50,  "mode": "CLASS"},
     "meal":        {"difficulty": "L", "expected_duration_min": 90,  "mode": "GATHERING"},
     "date":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
-    "celebration": {"difficulty": "L", "expected_duration_min": 120, "mode": "GATHERING"},
-    "workshop":    {"difficulty": "M", "expected_duration_min": 180, "mode": "MEETING"},
+    "social":      {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
+    "outdoor":     {"difficulty": "L", "expected_duration_min": 180, "mode": "GATHERING"},
     "team":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
     "custom":      {"difficulty": "M", "expected_duration_min": 90,  "mode": "GATHERING"},
 }

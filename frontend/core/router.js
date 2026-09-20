@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { events } from './events.js';
-import { vibrate } from './haptics.js?v=64';
+import { vibrate } from './haptics.js?v=66';
 
 const views = new Map();
 const navigationStack = [];

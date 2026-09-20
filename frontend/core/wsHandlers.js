@@ -9,12 +9,12 @@ import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=64';
+import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=66';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=64';
+} from '../views/sync-ritual/sync-ritual.js?v=66';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -110,13 +110,7 @@ function handleSessionEnded(msg) {
     if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
     const memberCountEl = document.getElementById('summary-member-count');
     if (memberCountEl) memberCountEl.innerText = (msg.deviation_ranking || []).length || 0;
-    const mascotMessage = document.getElementById('summary-mascot-message');
-    if (mascotMessage) {
-        mascotMessage.innerText = state.myDeviations <= 3
-            ? '太棒了！你非常專注，獅子獲得了豐盛養分 🎉'
-            : '下次聚會再更專注一點，獅子會更健壯的！';
-    }
-    renderSummaryPet(msg);
+    renderSummaryPet(msg, myRow ? myRow.score : null);
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -145,25 +139,63 @@ function handleSessionEnded(msg) {
     switchView('view-summary', { replace: true });
 }
 
-function renderSummaryPet(msg) {
+// 聚會總結的吉祥物卡：
+//  1. 場景沿用「聚會中」那張場景卡（同一情境、同一隻寵物 / 同一顆預設球，絕不是獅子）。
+//  2. 文字依「本場聚會分數」分級（拿不到分數時退回用分心次數判斷）。
+function renderSummaryPet(msg, myScore) {
     const face = msg.group_pet_face_url || state.meetingGroupPetFace || '';
-    const petImg = document.getElementById('summary-pet-face');
-    const fallback = document.getElementById('summary-pet-fallback');
-    const xp = document.getElementById('summary-pet-xp');
-    if (petImg) {
-        petImg.src = face;
-        petImg.style.display = face ? '' : 'none';
+    const petName = msg.group_pet_name || state.meetingGroupPetName || '群組寵物';
+
+    // --- 直接複製聚會中那張場景卡（同情境、同寵物）到總結頁 ---
+    // 關鍵：場景 SVG 用 <defs> 漸層 + fill="url(#id)"。複製後 id 會和聚會中那張撞名，
+    // 所以把 clone 內所有 id 與其 url(#id)/href="#id" 參照統一加上 sum- 前綴，
+    // 讓這張 clone 自成一體（牆面、寵物顏色才不會失效變透明、露出底色藍天）。
+    const sceneWrap = document.getElementById('summary-mascot-scene');
+    const focusCard = document.querySelector('#view-focus .pa-scene-card');
+    if (sceneWrap && focusCard) {
+        const markup = focusCard.outerHTML
+            .replace(/id="([^"]+)"/g, 'id="sum-$1"')
+            .replace(/url\(#([^)]+)\)/g, 'url(#sum-$1)')
+            .replace(/href="#([^"]+)"/g, 'href="#sum-$1"');
+        const tpl = document.createElement('template');
+        tpl.innerHTML = markup.trim();
+        const clone = tpl.content.firstElementChild;
+        // 總結頁固定用「剛進聚會」的乾淨晴天版：不帶結束當下的陰/雨天調暗
+        clone.classList.remove('weather-cloudy', 'weather-rainy');
+        clone.classList.add('weather-clear');
+        // 移除只屬於聚會中的互動層（等級 chip、失落對話框、成長提示、外部 Lottie）
+        clone.querySelectorAll('.pa-pet-identity, .pa-pet-bubble, .pa-pet-growth-hint, .lottie-container')
+            .forEach(el => el.remove());
+        sceneWrap.innerHTML = '';
+        sceneWrap.appendChild(clone);
     }
-    if (fallback) fallback.style.display = face ? 'none' : '';
+
+    // --- XP 成長徽章 ---
+    const xp = document.getElementById('summary-pet-xp');
     if (xp) {
         const gain = Number(msg.pet_xp_gain || 0);
         xp.textContent = gain > 0 ? `本場成長 +${gain} XP` : '';
         xp.style.display = gain > 0 ? 'inline-flex' : 'none';
     }
-    if (face) {
-        const mascotMessage = document.getElementById('summary-mascot-message');
-        if (mascotMessage) mascotMessage.textContent = `${msg.group_pet_name || state.meetingGroupPetName || '群組寵物'} 和大家一起完成了這場聚會。`;
+
+    // --- 依分數分級的文字 ---
+    const mascotMessage = document.getElementById('summary-mascot-message');
+    if (mascotMessage) mascotMessage.textContent = summaryMascotMessage(myScore, face ? petName : '');
+}
+
+function summaryMascotMessage(myScore, petName) {
+    const who = petName ? `${petName}` : '大家的吉祥物';
+    const score = Number.isFinite(Number(myScore)) ? Number(myScore) : null;
+    // 有分數就照分數分級；沒有分數（重連漏收結算）退回用分心次數判斷
+    let tier;
+    if (score !== null) {
+        tier = score >= 85 ? 'great' : score >= 60 ? 'good' : 'try';
+    } else {
+        tier = state.myDeviations <= 3 ? 'great' : state.myDeviations <= 8 ? 'good' : 'try';
     }
+    if (tier === 'great') return `太專注了！這場聚會超棒，${who}獲得了豐盛養分 🎉`;
+    if (tier === 'good') return `不錯的一場聚會，${who}也一起成長了，下次再更投入一點！`;
+    return `這次分心多了些，下次多陪陪彼此，${who}會更健壯的！`;
 }
 
 // 聚會分數排行：分數由高到低（後端已排序），每列同時顯示分數與分心次數

@@ -4,7 +4,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { cleanupSession } from '../../core/session.js';
 import { copyInviteLink } from '../invite-modal/invite-modal.js';
-import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=64';
+import { CONTEXT_CONFIGS, DIFFICULTY_LABELS } from '../../core/config.js?v=66';
 import { t } from '../../core/i18n.js';
 
 export function init() {
@@ -17,12 +17,9 @@ export function init() {
     const btnCopy = document.getElementById('btn-copy-room-link');
     if (btnCopy) btnCopy.addEventListener('click', () => copyInviteLink());
 
-    // 取消聚會（底部按鈕是明確 destructive action；左上返回交給 router policy）
+    // 取消聚會（底部按鈕是唯一離開入口；左上返回箭頭已移除）
     const btnCancel = document.getElementById('btn-cancel-host-room');
     if (btnCancel) btnCancel.addEventListener('click', handleCancelHostRoom);
-    // 左上返回：等同「取消聚會」（聚會頁 back() 不作用，避免看起來壞掉）
-    const btnBack = document.getElementById('btn-host-back');
-    if (btnBack) btnBack.addEventListener('click', handleCancelHostRoom);
 
     // 開始同步定錨
     const btnStart = document.getElementById('btn-start-sync');

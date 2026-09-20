@@ -38,8 +38,8 @@ export function renderPartySummaryFromMeeting(meeting, newspaper = null) {
     setText(
         'summary-mascot-message',
         myDeviations <= 3
-            ? '太棒了！你非常專注，獅子獲得了豐盛養分 🎉'
-            : '下次聚會再更專注一點，獅子會更健壯的！'
+            ? '太專注了！這場聚會超棒，吉祥物獲得了豐盛養分 🎉'
+            : '這次分心多了些，下次多陪陪彼此，吉祥物會更健壯的！'
     );
 
     renderSummaryRanking(ranking, myUid);

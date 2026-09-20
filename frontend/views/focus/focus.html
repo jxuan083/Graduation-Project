@@ -158,6 +158,388 @@
                 <rect x="54" y="126" width="40" height="6" rx="1" fill="#4a6ea8"/>
                 <rect x="57" y="120" width="34" height="6" rx="1" fill="#b0704a"/>
             </svg>
+            <!-- 情境場景：自訂（艾爾登法環風・金色黃昏花海）。只有 context=custom 時顯示（.scene-custom） -->
+            <svg class="pa-custom-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="cy-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f7290"/><stop offset="1" stop-color="#c0b2a6"/></linearGradient>
+                    <linearGradient id="cy-road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c5c62"/><stop offset="1" stop-color="#38383e"/></linearGradient>
+                </defs>
+                <rect width="400" height="180" fill="url(#cy-sky)"/>
+                <rect x="0" y="92" width="400" height="88" fill="#44444a"/>
+                <!-- 中央遠處高樓(消失點) -->
+                <rect x="166" y="26" width="26" height="66" fill="#3f4a5c"/><rect x="196" y="16" width="22" height="76" fill="#4a5568"/><rect x="220" y="34" width="18" height="58" fill="#38414f"/>
+                <rect x="169" y="42" width="20" height="15" fill="#e0b024"/><rect x="198" y="28" width="18" height="13" fill="#d0396a"/><rect x="199" y="46" width="16" height="12" fill="#2ab0c0"/>
+                <!-- 左大樓 + 霓虹看板 -->
+                <polygon points="0,4 94,48 94,150 0,150" fill="#2c2e36"/><polygon points="94,48 110,56 110,150 94,150 Z" fill="#23252c"/>
+                <rect x="8" y="34" width="36" height="24" fill="#c0392b"/><rect x="8" y="64" width="40" height="20" fill="#2a6ec0"/><rect x="8" y="90" width="42" height="20" fill="#e0a020"/>
+                <rect x="54" y="54" width="30" height="34" fill="#7a3f9a"/><rect x="56" y="94" width="28" height="24" fill="#2ab08a"/>
+                <!-- 右大樓 + 霓虹看板 -->
+                <polygon points="400,4 306,48 306,150 400,150" fill="#2c2e36"/><polygon points="306,48 290,56 290,150 306,150 Z" fill="#23252c"/>
+                <rect x="356" y="34" width="36" height="26" fill="#d0296a"/><rect x="356" y="66" width="36" height="22" fill="#2ab0a0"/><rect x="356" y="94" width="36" height="18" fill="#e0c020"/>
+                <rect x="316" y="54" width="30" height="30" fill="#c0392b"/><rect x="318" y="90" width="28" height="24" fill="#3a6ec0"/>
+                <!-- 街道(往消失點收) + 車道虛線 -->
+                <polygon points="40,180 360,180 214,92 186,92" fill="url(#cy-road)"/>
+                <g fill="#e8d060"><polygon points="197,176 203,176 202,158 198,158"/><polygon points="198,150 202,150 201.5,136 198.5,136"/><polygon points="199,128 201,128 200.5,117 199.5,117"/></g>
+                <!-- 計程車:遠 + 中景兩台 -->
+                <g><rect x="189" y="98" width="14" height="8" rx="2" fill="#f2c018"/><rect x="191" y="99" width="10" height="3" fill="#cfe0ea"/></g>
+                <g><rect x="118" y="128" width="32" height="16" rx="3" fill="#f2c018"/><rect x="122" y="123" width="24" height="8" rx="2" fill="#f2c018"/><rect x="124" y="124" width="20" height="6" fill="#cfe0ea"/><circle cx="127" cy="145" r="4" fill="#1c1c1c"/><circle cx="144" cy="145" r="4" fill="#1c1c1c"/></g>
+                <g><rect x="248" y="132" width="34" height="17" rx="3" fill="#f2c018"/><rect x="252" y="127" width="26" height="8" rx="2" fill="#f2c018"/><rect x="254" y="128" width="22" height="6" fill="#cfe0ea"/><circle cx="257" cy="150" r="4.2" fill="#1c1c1c"/><circle cx="275" cy="150" r="4.2" fill="#1c1c1c"/></g>
+                <!-- 少量遠行人(人行道) -->
+                <g fill="#2a2a32"><ellipse cx="70" cy="126" rx="4" ry="9"/><circle cx="70" cy="115" r="3"/><ellipse cx="330" cy="128" rx="4" ry="9"/><circle cx="330" cy="117" r="3"/><ellipse cx="88" cy="138" rx="4.5" ry="10"/><circle cx="88" cy="126" r="3.2"/></g>
+            </svg>
+            <svg class="pa-custom-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- 近景行人剪影(少量，框住兩側，讓中央寵物突出) -->
+                <g fill="#20202a">
+                    <ellipse cx="42" cy="154" rx="9" ry="22"/><circle cx="42" cy="136" r="7"/>
+                    <ellipse cx="360" cy="152" rx="9" ry="22"/><circle cx="360" cy="134" r="7"/>
+                    <ellipse cx="86" cy="168" rx="8" ry="16"/><circle cx="86" cy="155" r="6"/>
+                </g>
+            </svg>
+            <!-- 情境場景：吃飯聚餐（暖色餐廳・紅燈籠・圓桌一桌菜）。只有 context=meal 時顯示（.scene-meal） -->
+            <svg class="pa-meal-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="ml-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b67c4a"/><stop offset="1" stop-color="#8a5531"/></linearGradient>
+                    <radialGradient id="ml-lamp" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffb347" stop-opacity="0.5"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+                </defs>
+                <rect width="400" height="180" fill="url(#ml-wall)"/>
+                <ellipse cx="200" cy="0" rx="250" ry="62" fill="#e6ac62" opacity="0.32"/>
+                <!-- 兩盞紅燈籠 -->
+                <g>
+                    <line x1="118" y1="0" x2="118" y2="18" stroke="#4a2f18" stroke-width="1.5"/>
+                    <circle cx="118" cy="38" r="24" fill="url(#ml-lamp)"/>
+                    <rect x="114" y="17" width="8" height="4" rx="1" fill="#c9a34a"/>
+                    <ellipse cx="118" cy="34" rx="14" ry="17" fill="#c0392b"/>
+                    <path d="M112 28 h12 M111 34 h14 M112 40 h12" stroke="#8f271c" stroke-width="1"/>
+                    <rect x="114" y="49" width="8" height="4" rx="1" fill="#c9a34a"/>
+                    <line x1="118" y1="53" x2="118" y2="60" stroke="#c9a34a" stroke-width="1.4"/>
+                </g>
+                <g>
+                    <line x1="286" y1="0" x2="286" y2="14" stroke="#4a2f18" stroke-width="1.5"/>
+                    <circle cx="286" cy="32" r="22" fill="url(#ml-lamp)"/>
+                    <rect x="282" y="13" width="8" height="4" rx="1" fill="#c9a34a"/>
+                    <ellipse cx="286" cy="29" rx="12" ry="15" fill="#c0392b"/>
+                    <path d="M281 24 h10 M280 29 h12 M281 34 h10" stroke="#8f271c" stroke-width="1"/>
+                    <rect x="282" y="43" width="8" height="4" rx="1" fill="#c9a34a"/>
+                    <line x1="286" y1="47" x2="286" y2="53" stroke="#c9a34a" stroke-width="1.4"/>
+                </g>
+                <rect x="0" y="98" width="400" height="3" fill="#79492a" opacity="0.5"/>
+                <!-- 一桌人(其他座位，被前景圓桌擋住下半身) -->
+                <g>
+                    <rect x="98" y="112" width="20" height="28" rx="8" fill="#c0563e"/><circle cx="108" cy="106" r="6.5" fill="#e8b98f"/><path d="M101.5 105 A6.5 6.5 0 0 1 114.5 105" fill="#4a3526"/>
+                    <rect x="138" y="112" width="20" height="28" rx="8" fill="#3a6ea5"/><circle cx="148" cy="106" r="6.5" fill="#c98a5a"/><path d="M141.5 105 A6.5 6.5 0 0 1 154.5 105" fill="#1a1a1a"/>
+                    <rect x="242" y="112" width="20" height="28" rx="8" fill="#5a8a3a"/><circle cx="252" cy="106" r="6.5" fill="#e8b98f"/><path d="M245.5 105 A6.5 6.5 0 0 1 258.5 105" fill="#c9a24a"/>
+                    <rect x="282" y="112" width="20" height="28" rx="8" fill="#c98aa0"/><circle cx="292" cy="106" r="6.5" fill="#9a6535"/><path d="M285.5 105 A6.5 6.5 0 0 1 298.5 105" fill="#4a3526"/>
+                </g>
+            </svg>
+            <svg class="pa-meal-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="ml-cloth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f1e6"/><stop offset="1" stop-color="#d8ccb8"/></linearGradient></defs>
+                <!-- 圓桌 -->
+                <path d="M38 130 Q38 118 200 118 Q362 118 362 130 L362 140 Q362 180 300 180 L100 180 Q38 180 38 140 Z" fill="url(#ml-cloth)"/>
+                <ellipse cx="200" cy="128" rx="164" ry="14" fill="#fbf5ec"/>
+                <ellipse cx="200" cy="128" rx="72" ry="8" fill="#ead" opacity="0.5"/>
+                <ellipse cx="200" cy="128" rx="72" ry="8" fill="#e6d9c1"/>
+                <!-- 菜色 -->
+                <ellipse cx="152" cy="126" rx="17" ry="6.5" fill="#fff" stroke="#dccdb6" stroke-width="1"/><ellipse cx="152" cy="125" rx="11" ry="4" fill="#c0442e"/>
+                <ellipse cx="248" cy="126" rx="17" ry="6.5" fill="#fff" stroke="#dccdb6" stroke-width="1"/><ellipse cx="248" cy="125" rx="11" ry="4" fill="#5f8f3c"/>
+                <ellipse cx="200" cy="120" rx="16" ry="6" fill="#fff" stroke="#dccdb6" stroke-width="1"/><ellipse cx="200" cy="119" rx="10" ry="3.6" fill="#e0a828"/>
+                <!-- 茶壺 -->
+                <ellipse cx="200" cy="134" rx="11" ry="7" fill="#8a5a34"/><path d="M210 132 q7 1 8 5" stroke="#8a5a34" stroke-width="2.4" fill="none" stroke-linecap="round"/><rect x="197" y="126" width="6" height="3" rx="1.5" fill="#6f4526"/>
+                <!-- 兩個飯碗 -->
+                <ellipse cx="118" cy="132" rx="10" ry="5" fill="#fff" stroke="#dccdb6" stroke-width="1"/><ellipse cx="118" cy="131" rx="7" ry="3" fill="#efe7d6"/>
+                <ellipse cx="282" cy="132" rx="10" ry="5" fill="#fff" stroke="#dccdb6" stroke-width="1"/><ellipse cx="282" cy="131" rx="7" ry="3" fill="#efe7d6"/>
+                <!-- 筷子 -->
+                <g stroke="#b98a4e" stroke-width="1.4" stroke-linecap="round"><line x1="132" y1="130" x2="146" y2="126"/><line x1="133" y1="133" x2="147" y2="129"/></g>
+            </svg>
+            <!-- 情境場景：開會（現代會議室・遠端視訊螢幕・長桌）。只有 context=meeting 時顯示（.scene-meeting） -->
+            <svg class="pa-meeting-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="mt-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ebe3d3"/><stop offset="1" stop-color="#d2c6b0"/></linearGradient>
+                    <radialGradient id="mt-glow" cx="0.5" cy="0.15" r="0.85"><stop offset="0" stop-color="#fff6de" stop-opacity="0.85"/><stop offset="1" stop-color="#fff6de" stop-opacity="0"/></radialGradient>
+                </defs>
+                <rect width="400" height="180" fill="url(#mt-wall)"/>
+                <rect x="0" y="0" width="400" height="36" fill="#f2ecdd"/>
+                <!-- 天花嵌燈(填上方、更亮) -->
+                <rect x="60" y="9" width="100" height="6" rx="3" fill="#fefaf0"/><rect x="240" y="9" width="100" height="6" rx="3" fill="#fefaf0"/>
+                <ellipse cx="110" cy="16" rx="70" ry="12" fill="url(#mt-glow)"/><ellipse cx="290" cy="16" rx="70" ry="12" fill="url(#mt-glow)"/>
+                <!-- 吊燈 -->
+                <g><rect x="132" y="34" width="20" height="6" rx="2" fill="#cfc3ab"/><ellipse cx="142" cy="48" rx="26" ry="16" fill="url(#mt-glow)"/></g>
+                <g><rect x="248" y="34" width="20" height="6" rx="2" fill="#cfc3ab"/><ellipse cx="258" cy="48" rx="26" ry="16" fill="url(#mt-glow)"/></g>
+                <!-- 側牆(透視) -->
+                <polygon points="0,36 0,152 122,120 122,60" fill="#b1a488"/>
+                <polygon points="400,36 400,152 278,120 278,60" fill="#b1a488"/>
+                <!-- 掛畫 -->
+                <g><rect x="26" y="66" width="26" height="20" rx="1" fill="#8f5a30"/><rect x="29" y="69" width="20" height="14" fill="#c98a52"/></g>
+                <g><rect x="70" y="72" width="22" height="16" rx="1" fill="#7a4d3a"/><rect x="73" y="75" width="16" height="10" fill="#b06a52"/></g>
+                <g><rect x="348" y="66" width="26" height="20" rx="1" fill="#8f5a30"/><rect x="351" y="69" width="20" height="14" fill="#c98a52"/></g>
+                <!-- 後牆 + 視訊螢幕 -->
+                <rect x="122" y="50" width="156" height="74" fill="#c6baa4"/>
+                <rect x="146" y="54" width="108" height="52" rx="3" fill="#141d29" stroke="#0c141d" stroke-width="2"/>
+                <g>
+                    <rect x="150" y="58" width="30" height="20" rx="2" fill="#3f5a7a"/><rect x="184" y="58" width="30" height="20" rx="2" fill="#4a7a5f"/><rect x="218" y="58" width="30" height="20" rx="2" fill="#c0566a"/>
+                    <rect x="150" y="82" width="30" height="20" rx="2" fill="#6a5f7a"/><rect x="184" y="82" width="30" height="20" rx="2" fill="#7a6a4a"/><rect x="218" y="82" width="30" height="20" rx="2" fill="#4a6a7a"/>
+                </g>
+                <!-- 盆栽 -->
+                <rect x="126" y="118" width="8" height="8" fill="#7a5030"/><g fill="#4e7a44"><ellipse cx="130" cy="108" rx="8" ry="12"/><ellipse cx="125" cy="114" rx="6" ry="9"/></g>
+                <rect x="266" y="118" width="8" height="8" fill="#7a5030"/><g fill="#4e7a44"><ellipse cx="270" cy="108" rx="8" ry="12"/><ellipse cx="275" cy="114" rx="6" ry="9"/></g>
+                <!-- 地板 -->
+                <rect x="0" y="150" width="400" height="30" fill="#a89a80"/>
+                <!-- 座位上的同事(後排) -->
+                <g>
+                    <rect x="100" y="128" width="18" height="26" rx="7" fill="#3a6ea5"/><circle cx="109" cy="124" r="6" fill="#e8b98f"/><path d="M103 123 A6 6 0 0 1 115 123" fill="#4a3526"/>
+                    <rect x="132" y="126" width="16" height="24" rx="7" fill="#c0563e"/><circle cx="140" cy="122" r="5.5" fill="#c98a5a"/><path d="M134.5 121 A5.5 5.5 0 0 1 145.5 121" fill="#1a1a1a"/>
+                    <rect x="252" y="126" width="16" height="24" rx="7" fill="#5a8a3a"/><circle cx="260" cy="122" r="5.5" fill="#e8b98f"/><path d="M254.5 121 A5.5 5.5 0 0 1 265.5 121" fill="#c9a24a"/>
+                    <rect x="282" y="128" width="18" height="26" rx="7" fill="#6a5f7a"/><circle cx="291" cy="124" r="6" fill="#9a6535"/><path d="M285 123 A6 6 0 0 1 297 123" fill="#1a1a1a"/>
+                </g>
+            </svg>
+            <svg class="pa-meeting-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- 長桌(透視) -->
+                <polygon points="60,180 340,180 240,120 160,120" fill="#6a4a2e"/>
+                <polygon points="70,176 330,176 236,124 164,124" fill="#7c5836" opacity="0.6"/>
+                <!-- 桌上:文件 + 多台筆電 -->
+                <rect x="140" y="160" width="20" height="14" rx="1" fill="#f4efe4" transform="rotate(-6 150 167)"/>
+                <rect x="240" y="160" width="20" height="14" rx="1" fill="#f4efe4" transform="rotate(5 250 167)"/>
+                <rect x="185" y="165" width="30" height="9" rx="1" fill="#2a2a2e"/><rect x="188" y="157" width="24" height="9" rx="1" fill="#3a3a40"/>
+                <rect x="116" y="150" width="22" height="7" rx="1" fill="#2a2a2e"/><rect x="119" y="144" width="16" height="7" rx="1" fill="#3a3a40"/>
+                <rect x="262" y="150" width="22" height="7" rx="1" fill="#2a2a2e"/><rect x="265" y="144" width="16" height="7" rx="1" fill="#3a3a40"/>
+                <!-- 近端上班族(兩側) -->
+                <g>
+                    <rect x="76" y="150" width="24" height="30" rx="9" fill="#e0552e"/><circle cx="88" cy="146" r="7.5" fill="#e8b98f"/><path d="M80.5 145 A7.5 7.5 0 0 1 95.5 145" fill="#4a3526"/>
+                    <rect x="300" y="150" width="24" height="30" rx="9" fill="#2a4a6a"/><circle cx="312" cy="146" r="7.5" fill="#c98a5a"/><path d="M304.5 145 A7.5 7.5 0 0 1 319.5 145" fill="#1a1a1a"/>
+                </g>
+            </svg>
+            <!-- 情境場景：專心上課（明亮現代階梯教室・圓形環燈・寵物當老師）。只有 context=class 時顯示（.scene-class） -->
+            <svg class="pa-class-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="cl-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efe9dc"/><stop offset="1" stop-color="#ddd2bc"/></linearGradient>
+                    <filter id="cl-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2"/></filter>
+                </defs>
+                <rect width="400" height="180" fill="url(#cl-wall)"/>
+                <rect x="0" y="0" width="400" height="72" fill="#f1ece1"/>
+                <!-- 圓形環燈(兩圈發光) -->
+                <g fill="none" stroke="#ffffff" stroke-width="3" filter="url(#cl-glow)" opacity="0.9"><ellipse cx="200" cy="40" rx="150" ry="34"/><ellipse cx="200" cy="44" rx="92" ry="20"/></g>
+                <g fill="none" stroke="#fbf6e6" stroke-width="1.6" opacity="0.95"><ellipse cx="200" cy="40" rx="150" ry="34"/><ellipse cx="200" cy="44" rx="92" ry="20"/></g>
+                <!-- 投影機 -->
+                <rect x="158" y="70" width="16" height="7" rx="1" fill="#2a2a2a"/><rect x="226" y="70" width="16" height="7" rx="1" fill="#2a2a2a"/>
+                <!-- 側牆木紋 + teal 音響板 -->
+                <rect x="0" y="72" width="100" height="60" fill="#d8c39c"/><rect x="300" y="72" width="100" height="60" fill="#d8c39c"/>
+                <rect x="96" y="80" width="46" height="40" fill="#3f7a76"/><rect x="258" y="80" width="46" height="40" fill="#3f7a76"/>
+                <!-- 前方白板 + 講桌 -->
+                <rect x="150" y="80" width="100" height="34" rx="2" fill="#f4f0e6" stroke="#c9bfa8" stroke-width="1.5"/>
+                <rect x="182" y="112" width="36" height="10" rx="1" fill="#c9a86e"/>
+                <!-- 地板 -->
+                <rect x="0" y="118" width="400" height="62" fill="#c9b691"/>
+            </svg>
+            <svg class="pa-class-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- 三層弧形課桌(由遠而近) + 黑椅 -->
+                <path d="M118,116 Q200,107 282,116 L284,127 Q200,116 116,127 Z" fill="#dcc7a1"/>
+                <g fill="#2b2b2f"><rect x="150" y="104" width="12" height="12" rx="3"/><rect x="178" y="102" width="12" height="12" rx="3"/><rect x="210" y="102" width="12" height="12" rx="3"/><rect x="238" y="104" width="12" height="12" rx="3"/></g>
+                <path d="M68,140 Q200,127 332,140 L335,152 Q200,134 65,152 Z" fill="#d5be96"/>
+                <g fill="#2b2b2f"><rect x="104" y="126" width="16" height="16" rx="3"/><rect x="150" y="122" width="16" height="16" rx="3"/><rect x="196" y="121" width="16" height="16" rx="3"/><rect x="242" y="122" width="16" height="16" rx="3"/><rect x="286" y="126" width="16" height="16" rx="3"/></g>
+                <path d="M8,168 Q200,150 392,168 L396,180 L4,180 Z" fill="#cfb78e"/>
+                <g fill="#2b2b2f"><rect x="52" y="150" width="22" height="22" rx="4"/><rect x="118" y="145" width="22" height="22" rx="4"/><rect x="189" y="143" width="22" height="22" rx="4"/><rect x="260" y="145" width="22" height="22" rx="4"/><rect x="326" y="150" width="22" height="22" rx="4"/></g>
+            </svg>
+            <!-- 情境場景：家庭聚會（明亮廚房・木餐桌一桌菜・寵物坐一個位子）。只有 context=family 時顯示（.scene-family） -->
+            <svg class="pa-family-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="fm-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3ede1"/><stop offset="1" stop-color="#e6ddce"/></linearGradient></defs>
+                <rect width="400" height="180" fill="url(#fm-wall)"/>
+                <!-- 上櫃 -->
+                <g fill="#f7f4ee" stroke="#dacfbc" stroke-width="1"><rect x="8" y="8" width="58" height="42" rx="2"/><rect x="70" y="8" width="42" height="42" rx="2"/><rect x="286" y="8" width="48" height="38" rx="2"/><rect x="338" y="8" width="54" height="38" rx="2"/></g>
+                <!-- 抽油煙機 -->
+                <polygon points="150,8 250,8 236,28 164,28" fill="#c7c7cc"/><rect x="180" y="28" width="40" height="7" rx="1" fill="#b6b6bb"/>
+                <!-- 開放層架 + 罐子 -->
+                <rect x="128" y="42" width="144" height="4" rx="1" fill="#cbb488"/>
+                <g><rect x="140" y="30" width="8" height="12" rx="1" fill="#c98a52"/><rect x="152" y="28" width="7" height="14" rx="1" fill="#e0c27a"/><rect x="242" y="30" width="8" height="12" rx="1" fill="#7aa0c0"/><rect x="254" y="29" width="7" height="13" rx="1" fill="#cbb488"/></g>
+                <!-- 木流理台 -->
+                <rect x="0" y="86" width="400" height="14" fill="#c19a63"/>
+                <!-- 下櫃(白) -->
+                <rect x="0" y="100" width="400" height="46" fill="#f0e9dc"/>
+                <!-- 微波爐 + 烤麵包機 -->
+                <rect x="322" y="66" width="40" height="20" rx="2" fill="#eae6dd" stroke="#cabfa9" stroke-width="1"/><rect x="326" y="70" width="26" height="12" rx="1" fill="#3a3a3e"/>
+                <rect x="300" y="74" width="18" height="12" rx="2" fill="#d6d0c4"/>
+                <g stroke="#c3b59a" stroke-width="2" stroke-linecap="round"><line x1="40" y1="110" x2="40" y2="120"/><line x1="120" y1="110" x2="120" y2="120"/><line x1="280" y1="110" x2="280" y2="120"/><line x1="360" y1="110" x2="360" y2="120"/></g>
+            </svg>
+            <svg class="pa-family-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="fm-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8a06a"/><stop offset="1" stop-color="#a8794a"/></linearGradient></defs>
+                <!-- 家庭成員(中間位子留給寵物) -->
+                <g>
+                    <rect x="90" y="106" width="20" height="30" rx="8" fill="#c0563e"/><circle cx="100" cy="102" r="6.5" fill="#e8b98f"/><path d="M93.5 101 A6.5 6.5 0 0 1 106.5 101" fill="#4a3526"/>
+                    <rect x="130" y="106" width="20" height="30" rx="8" fill="#5a8a3a"/><circle cx="140" cy="102" r="6.5" fill="#c98a5a"/><path d="M133.5 101 A6.5 6.5 0 0 1 146.5 101" fill="#c9a24a"/>
+                    <rect x="245" y="106" width="20" height="30" rx="8" fill="#3a6ea5"/><circle cx="255" cy="102" r="6.5" fill="#e8b98f"/><path d="M248.5 101 A6.5 6.5 0 0 1 261.5 101" fill="#1a1a1a"/>
+                    <rect x="285" y="106" width="20" height="30" rx="8" fill="#c98aa0"/><circle cx="295" cy="102" r="6.5" fill="#9a6535"/><path d="M288.5 101 A6.5 6.5 0 0 1 301.5 101" fill="#4a3526"/>
+                </g>
+                <!-- 木餐桌 -->
+                <path d="M30 132 Q200 118 370 132 L374 144 Q200 130 26 144 Z" fill="url(#fm-wood)"/>
+                <ellipse cx="200" cy="130" rx="172" ry="15" fill="#c8a06a"/>
+                <ellipse cx="200" cy="132" rx="172" ry="15" fill="#5a3a1e" opacity="0.1"/>
+                <!-- 中央大盤 + 餐盤 -->
+                <ellipse cx="200" cy="128" rx="30" ry="10" fill="#fff" stroke="#e0d6c2" stroke-width="1"/><ellipse cx="200" cy="127" rx="22" ry="6.5" fill="#e0a848"/>
+                <ellipse cx="128" cy="130" rx="16" ry="6" fill="#fff" stroke="#e0d6c2" stroke-width="1"/><ellipse cx="128" cy="129" rx="10" ry="3.6" fill="#e6b45a"/>
+                <ellipse cx="272" cy="130" rx="16" ry="6" fill="#fff" stroke="#e0d6c2" stroke-width="1"/><ellipse cx="272" cy="129" rx="10" ry="3.6" fill="#e6b45a"/>
+                <ellipse cx="200" cy="140" rx="16" ry="6" fill="#fff" stroke="#e0d6c2" stroke-width="1"/><ellipse cx="200" cy="139" rx="10" ry="3.6" fill="#d99a44"/>
+                <!-- 玻璃杯 + 調味罐 -->
+                <g fill="rgba(200,220,235,.5)" stroke="#cfe0ea" stroke-width="1"><rect x="160" y="120" width="7" height="10" rx="1"/><rect x="234" y="120" width="7" height="10" rx="1"/><rect x="110" y="134" width="7" height="10" rx="1"/></g>
+                <rect x="204" y="116" width="5" height="8" rx="1.5" fill="#e6ded0"/><rect x="212" y="116" width="5" height="8" rx="1.5" fill="#c9a86e"/>
+            </svg>
+            <!-- 情境場景：交流（高級餐酒館・聚焦吧台・寵物坐側位）。只有 context=social 時顯示（.scene-social） -->
+            <svg class="pa-social-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="sc-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdc2ac"/><stop offset="1" stop-color="#bbad93"/></linearGradient>
+                    <radialGradient id="sc-brass" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#ffe6a0" stop-opacity="0.8"/><stop offset="1" stop-color="#ffe6a0" stop-opacity="0"/></radialGradient>
+                    <linearGradient id="sc-shelf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6884c"/><stop offset="1" stop-color="#6d4b27"/></linearGradient>
+                </defs>
+                <rect width="400" height="180" fill="url(#sc-wall)"/>
+                <!-- 天花黑鐵格 -->
+                <g stroke="#2c2c2c" stroke-width="2" opacity="0.82"><line x1="0" y1="10" x2="400" y2="16"/><line x1="0" y1="24" x2="400" y2="30"/><line x1="60" y1="4" x2="90" y2="34"/><line x1="160" y1="4" x2="190" y2="34"/><line x1="260" y1="4" x2="290" y2="34"/><line x1="360" y1="4" x2="390" y2="34"/></g>
+                <!-- 吧台木牆 + 酒架 + 酒瓶 -->
+                <rect x="90" y="34" width="220" height="58" fill="url(#sc-shelf)"/>
+                <rect x="100" y="50" width="200" height="2" fill="#caa86a"/><rect x="100" y="70" width="200" height="2" fill="#caa86a"/>
+                <g opacity="0.92"><rect x="106" y="40" width="5" height="10" fill="#d9b76a"/><rect x="114" y="38" width="5" height="12" fill="#8fae7a"/><rect x="122" y="41" width="5" height="9" fill="#cddbe0"/><rect x="132" y="39" width="5" height="11" fill="#c07a4a"/><rect x="150" y="40" width="5" height="10" fill="#d9b76a"/><rect x="160" y="38" width="5" height="12" fill="#a88fae"/><rect x="180" y="41" width="5" height="9" fill="#cddbe0"/><rect x="196" y="39" width="5" height="11" fill="#8fae7a"/><rect x="214" y="40" width="5" height="10" fill="#d9b76a"/><rect x="232" y="38" width="5" height="12" fill="#c07a4a"/><rect x="252" y="41" width="5" height="9" fill="#cddbe0"/><rect x="272" y="40" width="5" height="10" fill="#d9b76a"/><rect x="288" y="39" width="5" height="11" fill="#a88fae"/></g>
+                <g opacity="0.9"><rect x="112" y="60" width="5" height="10" fill="#cddbe0"/><rect x="128" y="59" width="5" height="11" fill="#d9b76a"/><rect x="148" y="60" width="5" height="10" fill="#8fae7a"/><rect x="168" y="59" width="5" height="11" fill="#c07a4a"/><rect x="192" y="60" width="5" height="10" fill="#cddbe0"/><rect x="216" y="59" width="5" height="11" fill="#d9b76a"/><rect x="240" y="60" width="5" height="10" fill="#a88fae"/><rect x="266" y="59" width="5" height="11" fill="#8fae7a"/><rect x="286" y="60" width="5" height="10" fill="#cddbe0"/></g>
+                <!-- 吧台檯面(大理石) + 檯身(木) + 高腳椅 -->
+                <rect x="78" y="92" width="244" height="8" rx="1" fill="#ece6d8"/>
+                <rect x="78" y="100" width="244" height="18" fill="#8a6842"/>
+                <g fill="#2f5f48"><ellipse cx="140" cy="103" rx="8" ry="5"/><ellipse cx="210" cy="103" rx="8" ry="5"/><ellipse cx="270" cy="103" rx="8" ry="5"/></g>
+                <g stroke="#333" stroke-width="3"><line x1="140" y1="106" x2="140" y2="118"/><line x1="210" y1="106" x2="210" y2="118"/><line x1="270" y1="106" x2="270" y2="118"/></g>
+                <!-- 金球吊燈 -->
+                <g><line x1="120" y1="0" x2="120" y2="40" stroke="#7a5f2a" stroke-width="1"/><circle cx="120" cy="44" r="14" fill="url(#sc-brass)"/><circle cx="120" cy="44" r="7" fill="#c9a24a"/></g>
+                <g><line x1="200" y1="0" x2="200" y2="32" stroke="#7a5f2a" stroke-width="1"/><circle cx="200" cy="36" r="12" fill="url(#sc-brass)"/><circle cx="200" cy="36" r="6" fill="#c9a24a"/></g>
+                <g><line x1="286" y1="0" x2="286" y2="40" stroke="#7a5f2a" stroke-width="1"/><circle cx="286" cy="44" r="13" fill="url(#sc-brass)"/><circle cx="286" cy="44" r="6.5" fill="#c9a24a"/></g>
+                <!-- 兩側綠植 -->
+                <rect x="52" y="100" width="14" height="16" fill="#7a5030"/><g fill="#3f7a4a"><ellipse cx="59" cy="90" rx="10" ry="16"/><ellipse cx="50" cy="96" rx="8" ry="12"/><ellipse cx="68" cy="96" rx="8" ry="12"/></g>
+                <rect x="334" y="100" width="14" height="16" fill="#7a5030"/><g fill="#3f7a4a"><ellipse cx="341" cy="90" rx="10" ry="16"/><ellipse cx="332" cy="96" rx="8" ry="12"/><ellipse cx="350" cy="96" rx="8" ry="12"/></g>
+                <!-- 地板 -->
+                <rect x="0" y="116" width="400" height="64" fill="#d7d1c3"/>
+                <!-- 綠椅背(寵物座位, 左) -->
+                <path d="M92 152 Q92 122 120 122 Q148 122 148 152 Z" fill="#2f5f48"/>
+            </svg>
+            <svg class="pa-social-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="sc-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c69a5e"/><stop offset="1" stop-color="#9a6c3c"/></linearGradient></defs>
+                <!-- 前方桌(木) -->
+                <ellipse cx="182" cy="142" rx="92" ry="13" fill="url(#sc-wood)"/>
+                <path d="M96 142 L268 142 L262 172 Q182 178 102 172 Z" fill="#a0713e" opacity="0.85"/>
+                <ellipse cx="182" cy="140" rx="90" ry="11" fill="#cda469"/>
+                <!-- 桌上:紅酒杯 x2 + 小綠植 + 燭 -->
+                <g fill="rgba(230,210,180,.35)" stroke="#e6d4a0" stroke-width="1"><path d="M150 132 a6 6 0 0 0 12 0 Z"/><line x1="156" y1="141" x2="156" y2="150"/><line x1="150" y1="151" x2="162" y2="151"/><path d="M204 132 a6 6 0 0 0 12 0 Z"/><line x1="210" y1="141" x2="210" y2="150"/><line x1="204" y1="151" x2="216" y2="151"/></g>
+                <rect x="178" y="132" width="8" height="8" rx="2" fill="#8a6842"/><g fill="#4a8a54"><ellipse cx="182" cy="128" rx="5" ry="7"/><ellipse cx="178" cy="131" rx="3.5" ry="5"/></g>
+            </svg>
+            <!-- 情境場景：一般聚會（麥當勞・金拱門櫃檯・寵物坐位）。只有 context=general 時顯示（.scene-general） -->
+            <svg class="pa-general-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="gn-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ece3d1"/><stop offset="1" stop-color="#dccfb8"/></linearGradient></defs>
+                <rect width="400" height="180" fill="url(#gn-wall)"/>
+                <!-- 頂部紅帶 + 金拱門 M -->
+                <rect x="0" y="0" width="400" height="22" fill="#c8102e"/>
+                <path d="M188 20 C188 5 200 5 200 19 M200 19 C200 5 212 5 212 20" fill="none" stroke="#ffc72c" stroke-width="5" stroke-linecap="round"/>
+                <!-- 左牆黃色斜紋招牌 -->
+                <rect x="0" y="22" width="88" height="72" fill="#f3ede1"/>
+                <path d="M22 74 C22 44 44 44 44 72 M44 72 C44 44 66 44 66 74" fill="none" stroke="#ffc72c" stroke-width="8" stroke-linecap="round"/>
+                <!-- 後方菜單看板(深底 + 彩色餐點格) -->
+                <rect x="150" y="24" width="212" height="52" fill="#232323"/>
+                <g><rect x="156" y="28" width="44" height="20" rx="2" fill="#f0c419"/><rect x="204" y="28" width="44" height="20" rx="2" fill="#e05a3d"/><rect x="252" y="28" width="44" height="20" rx="2" fill="#f0c419"/><rect x="300" y="28" width="44" height="20" rx="2" fill="#6aa84f"/>
+                       <rect x="156" y="52" width="44" height="20" rx="2" fill="#e05a3d"/><rect x="204" y="52" width="44" height="20" rx="2" fill="#f0c419"/><rect x="252" y="52" width="44" height="20" rx="2" fill="#7aa0c0"/><rect x="300" y="52" width="44" height="20" rx="2" fill="#f0c419"/></g>
+                <!-- McCafé 紅招牌(右) -->
+                <rect x="326" y="6" width="62" height="14" rx="2" fill="#6b3f1e"/><rect x="330" y="9" width="40" height="7" rx="1" fill="#c8102e"/>
+                <!-- 點餐櫃檯 -->
+                <rect x="150" y="86" width="212" height="10" fill="#e8e2d4"/>
+                <rect x="150" y="96" width="212" height="22" fill="#b8322e"/>
+                <!-- 白鼓吊燈 -->
+                <g><line x1="70" y1="0" x2="70" y2="26" stroke="#a49a88" stroke-width="1"/><path d="M55 26 h30 l-4 16 h-22 Z" fill="#f5f1e8" stroke="#d8cfbe" stroke-width="1"/></g>
+                <g><line x1="120" y1="0" x2="120" y2="20" stroke="#a49a88" stroke-width="1"/><path d="M107 20 h26 l-3 13 h-20 Z" fill="#f5f1e8" stroke="#d8cfbe" stroke-width="1"/></g>
+                <!-- 地板 -->
+                <rect x="0" y="118" width="400" height="62" fill="#d9d3c5"/>
+                <!-- 高腳椅(寵物座位, 左中) -->
+                <ellipse cx="138" cy="150" rx="16" ry="6" fill="#d0442e"/><rect x="136" y="150" width="4" height="26" fill="#8a8a8f"/>
+            </svg>
+            <svg class="pa-general-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="gn-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdb083"/><stop offset="1" stop-color="#a8895a"/></linearGradient></defs>
+                <!-- 高腳桌 -->
+                <ellipse cx="196" cy="140" rx="86" ry="13" fill="url(#gn-wood)"/>
+                <rect x="192" y="140" width="8" height="40" fill="#8a8a8f"/>
+                <ellipse cx="196" cy="176" rx="26" ry="5" fill="#9a9aa0"/>
+                <!-- 麥當勞餐:薯條(紅盒)+漢堡+可樂 -->
+                <g><rect x="168" y="128" width="16" height="16" rx="1" fill="#d0442e"/><g stroke="#f2c94c" stroke-width="2.4" stroke-linecap="round"><line x1="171" y1="128" x2="171" y2="120"/><line x1="175" y1="128" x2="175" y2="117"/><line x1="179" y1="128" x2="179" y2="119"/><line x1="182" y1="128" x2="182" y2="122"/></g></g>
+                <g><ellipse cx="210" cy="140" rx="15" ry="4.5" fill="#e0a850"/><rect x="196" y="134" width="28" height="5" fill="#b6522e"/><path d="M196 134 q14 -8 28 0 Z" fill="#e8be6e"/><ellipse cx="210" cy="134" rx="14" ry="2" fill="#f0d59a"/></g>
+                <g><path d="M232 144 l3 -18 h12 l3 18 Z" fill="#e6e2d8"/><path d="M232 144 l3 -18 h6 l0 18 Z" fill="#d0442e"/><line x1="244" y1="126" x2="248" y2="112" stroke="#d0442e" stroke-width="2" stroke-linecap="round"/></g>
+            </svg>
+            <!-- 情境場景：戶外活動（夕陽河畔露營・帳篷・露營椅）。只有 context=outdoor 時顯示（.scene-outdoor） -->
+            <svg class="pa-outdoor-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <linearGradient id="od-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fa2b2"/><stop offset="0.3" stop-color="#cf9f6a"/><stop offset="0.56" stop-color="#f0bf6e"/><stop offset="0.8" stop-color="#f6d585"/><stop offset="1" stop-color="#e6b866"/></linearGradient>
+                    <radialGradient id="od-sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff6d0"/><stop offset="0.4" stop-color="#ffd97a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd97a" stop-opacity="0"/></radialGradient>
+                    <linearGradient id="od-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecc87e"/><stop offset="1" stop-color="#b6976a"/></linearGradient>
+                    <linearGradient id="od-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fa03e"/><stop offset="1" stop-color="#477628"/></linearGradient>
+                </defs>
+                <rect x="0" y="0" width="400" height="92" fill="url(#od-sky)"/>
+                <circle cx="238" cy="84" r="46" fill="url(#od-sun)"/><circle cx="238" cy="84" r="8" fill="#fff2c0"/>
+                <g fill="#f0c98a" opacity="0.5"><ellipse cx="120" cy="28" rx="60" ry="7"/><ellipse cx="300" cy="22" rx="70" ry="6"/><ellipse cx="200" cy="46" rx="80" ry="6"/></g>
+                <!-- 遠樹線 -->
+                <path d="M0 84 Q80 76 160 82 T320 80 T400 82 L400 92 L0 92 Z" fill="#4a6a3a" opacity="0.85"/>
+                <!-- 水面 + 夕陽倒影 -->
+                <rect x="0" y="88" width="400" height="30" fill="url(#od-water)"/>
+                <rect x="230" y="88" width="16" height="30" fill="#ffe6a0" opacity="0.6"/>
+                <!-- 近岸草坡 -->
+                <path d="M0 106 Q100 100 210 116 Q320 128 400 120 L400 180 L0 180 Z" fill="url(#od-grass)"/>
+                <!-- 左側樹叢(垂懸) -->
+                <g fill="#3a5a2e"><ellipse cx="16" cy="26" rx="42" ry="46"/><ellipse cx="58" cy="58" rx="26" ry="32"/></g>
+                <!-- 圓頂帳篷 -->
+                <path d="M96 132 Q150 84 204 132 Z" fill="#34535a"/>
+                <g stroke="#274046" stroke-width="1.5" fill="none"><path d="M150 90 L150 132"/><path d="M122 100 Q134 118 130 132"/><path d="M178 100 Q166 118 170 132"/></g>
+                <path d="M138 132 Q150 110 162 132 Z" fill="#223a3f"/>
+                <!-- 露營椅背(寵物座位) -->
+                <ellipse cx="115" cy="103" rx="30" ry="6" fill="#38444c"/>
+                <path d="M84 148 L88 103 L142 103 L146 148 Z" fill="#38444c"/>
+            </svg>
+            <svg class="pa-outdoor-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- 露營椅前緣 + 扶手 + 腳架 -->
+                <rect x="80" y="124" width="12" height="5" rx="2" fill="#2c363c"/><rect x="138" y="124" width="12" height="5" rx="2" fill="#2c363c"/>
+                <path d="M88 142 L142 142 L138 154 L92 154 Z" fill="#2c363c"/>
+                <g stroke="#22292e" stroke-width="2" stroke-linecap="round"><line x1="92" y1="152" x2="112" y2="178"/><line x1="138" y1="152" x2="118" y2="178"/></g>
+                <!-- 摺疊小桌 + 馬克杯 -->
+                <rect x="158" y="138" width="42" height="4" rx="1" fill="#8a6a45"/><g stroke="#6a4a2e" stroke-width="2"><line x1="163" y1="142" x2="163" y2="162"/><line x1="195" y1="142" x2="195" y2="162"/></g>
+                <rect x="172" y="130" width="10" height="8" rx="1" fill="#9aa0a6"/><rect x="181" y="131" width="3" height="5" rx="1" fill="#9aa0a6"/>
+                <!-- 柴火堆 -->
+                <g fill="#8a5a30"><rect x="150" y="165" width="24" height="5" rx="1"/><rect x="152" y="170" width="26" height="5" rx="1"/><rect x="155" y="160" width="22" height="5" rx="1" transform="rotate(-9 166 162)"/></g>
+                <!-- 前景高草 -->
+                <g stroke="#4a7a2c" stroke-width="2" stroke-linecap="round" fill="none"><path d="M18 180 Q16 164 22 156"/><path d="M40 180 Q44 162 38 152"/><path d="M210 180 Q206 162 214 154"/><path d="M240 180 Q244 160 236 150"/><path d="M300 180 Q296 162 304 154"/><path d="M340 180 Q344 160 336 152"/><path d="M370 180 Q366 164 374 156"/><path d="M270 180 Q272 164 266 156"/></g>
+                <g stroke="#6fa03e" stroke-width="2" stroke-linecap="round" fill="none"><path d="M28 180 Q30 166 24 158"/><path d="M225 180 Q222 166 228 158"/><path d="M320 180 Q322 166 316 158"/><path d="M355 180 Q352 166 358 158"/></g>
+            </svg>
+            <!-- 情境場景：團隊聚會（辦公室大合照・一群人・寵物在正中間）。只有 context=team 時顯示（.scene-team） -->
+            <svg class="pa-team-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs><linearGradient id="tm-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ece7dc"/><stop offset="1" stop-color="#ddd6c8"/></linearGradient></defs>
+                <rect width="400" height="180" fill="url(#tm-wall)"/>
+                <!-- 天花線燈 -->
+                <rect x="40" y="8" width="130" height="4" rx="2" fill="#fbf6e8"/><rect x="230" y="8" width="130" height="4" rx="2" fill="#fbf6e8"/>
+                <!-- 後方電視簡報 -->
+                <rect x="150" y="30" width="100" height="46" rx="2" fill="#20262e"/><g stroke="#8fa0ae" stroke-width="2" stroke-linecap="round"><line x1="162" y1="44" x2="238" y2="44"/><line x1="162" y1="54" x2="228" y2="54"/><line x1="162" y1="64" x2="214" y2="64"/></g>
+                <!-- 左沙發 + 右高桌 -->
+                <rect x="0" y="92" width="46" height="34" rx="4" fill="#d8d2c4"/><rect x="0" y="86" width="46" height="10" rx="4" fill="#cbc4b4"/>
+                <path d="M356 96 L392 96 L392 100 L356 100 Z" fill="#6a4a2e"/><rect x="372" y="100" width="4" height="80" fill="#2a2a2a"/><g fill="rgba(200,220,235,.5)" stroke="#cfe0ea" stroke-width="1"><rect x="360" y="90" width="6" height="8" rx="1"/><rect x="380" y="90" width="6" height="8" rx="1"/></g>
+                <!-- 地毯地板 -->
+                <rect x="0" y="138" width="400" height="42" fill="#8f8c88"/><g fill="#807d78"><rect x="0" y="138" width="40" height="42"/><rect x="80" y="138" width="40" height="42"/><rect x="160" y="138" width="40" height="42"/><rect x="240" y="138" width="40" height="42"/><rect x="320" y="138" width="40" height="42"/></g>
+                <!-- 後排人群(留中央給寵物) -->
+                <g>
+                    <rect x="44" y="101" width="22" height="38" rx="9" fill="#c0392b"/><circle cx="55" cy="96" r="6.5" fill="#e8b98f"/><path d="M48.5 95 A6.5 6.5 0 0 1 61.5 95" fill="#c9a24a"/>
+                    <rect x="81" y="101" width="22" height="38" rx="9" fill="#3a6ea5"/><circle cx="92" cy="96" r="6.5" fill="#c98a5a"/><path d="M85.5 95 A6.5 6.5 0 0 1 98.5 95" fill="#1a1a1a"/>
+                    <rect x="117" y="101" width="22" height="38" rx="9" fill="#4a4a4a"/><circle cx="128" cy="96" r="6.5" fill="#e8b98f"/><path d="M121.5 95 A6.5 6.5 0 0 1 134.5 95" fill="#9a9a9a"/>
+                    <rect x="264" y="101" width="22" height="38" rx="9" fill="#5a8a3a"/><circle cx="275" cy="96" r="6.5" fill="#e8b98f"/><path d="M268.5 95 A6.5 6.5 0 0 1 281.5 95" fill="#4a3526"/>
+                    <rect x="301" y="101" width="22" height="38" rx="9" fill="#dcdcdc"/><circle cx="312" cy="96" r="6.5" fill="#9a6535"/><path d="M305.5 95 A6.5 6.5 0 0 1 318.5 95" fill="#1a1a1a"/>
+                    <rect x="337" y="101" width="22" height="38" rx="9" fill="#7a5a8a"/><circle cx="348" cy="96" r="6.5" fill="#e8b98f"/><path d="M341.5 95 A6.5 6.5 0 0 1 354.5 95" fill="#b0503a"/>
+                </g>
+                <!-- 舉書歡呼 -->
+                <g><rect x="168" y="90" width="20" height="36" rx="8" fill="#2a2a2a"/><circle cx="178" cy="86" r="6" fill="#c98a5a"/><path d="M172 85 A6 6 0 0 1 184 85" fill="#1a1a1a"/><line x1="186" y1="98" x2="176" y2="70" stroke="#c98a5a" stroke-width="3" stroke-linecap="round"/><rect x="164" y="60" width="14" height="12" rx="1" fill="#d8c3a0" transform="rotate(-10 171 66)"/></g>
+                <g><rect x="222" y="90" width="20" height="36" rx="8" fill="#c98a52"/><circle cx="232" cy="86" r="6" fill="#e8b98f"/><path d="M226 85 A6 6 0 0 1 238 85" fill="#4a3526"/><line x1="224" y1="98" x2="236" y2="70" stroke="#e8b98f" stroke-width="3" stroke-linecap="round"/><rect x="232" y="60" width="14" height="12" rx="1" fill="#d8c3a0" transform="rotate(10 239 66)"/></g>
+            </svg>
+            <svg class="pa-team-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- 前排人群(較大，兩側包住中央寵物) -->
+                <g>
+                    <rect x="30" y="118" width="26" height="44" rx="11" fill="#e0552e"/><circle cx="43" cy="112" r="7.5" fill="#e8b98f"/><path d="M35.5 111 A7.5 7.5 0 0 1 50.5 111" fill="#c9a24a"/>
+                    <rect x="68" y="118" width="26" height="44" rx="11" fill="#3a3a3a"/><circle cx="81" cy="112" r="7.5" fill="#c98a5a"/><path d="M73.5 111 A7.5 7.5 0 0 1 88.5 111" fill="#1a1a1a"/>
+                    <rect x="106" y="118" width="26" height="44" rx="11" fill="#8ab4d8"/><circle cx="119" cy="112" r="7.5" fill="#e8b98f"/><path d="M111.5 111 A7.5 7.5 0 0 1 126.5 111" fill="#4a3526"/>
+                    <rect x="144" y="120" width="26" height="42" rx="11" fill="#5a8a3a"/><circle cx="157" cy="114" r="7.5" fill="#9a6535"/><path d="M149.5 113 A7.5 7.5 0 0 1 164.5 113" fill="#1a1a1a"/>
+                    <rect x="244" y="120" width="26" height="42" rx="11" fill="#dcdcdc"/><circle cx="257" cy="114" r="7.5" fill="#e8b98f"/><path d="M249.5 113 A7.5 7.5 0 0 1 264.5 113" fill="#b0503a"/>
+                    <rect x="282" y="118" width="26" height="44" rx="11" fill="#2a4a6a"/><circle cx="295" cy="112" r="7.5" fill="#c98a5a"/><path d="M287.5 111 A7.5 7.5 0 0 1 302.5 111" fill="#9a9a9a"/>
+                    <rect x="320" y="118" width="26" height="44" rx="11" fill="#b03a3a"/><circle cx="333" cy="112" r="7.5" fill="#e8b98f"/><path d="M325.5 111 A7.5 7.5 0 0 1 340.5 111" fill="#4a3526"/>
+                </g>
+            </svg>
             <!-- 燈光：越多人分心越暗（隨 weather class 改變不透明度） -->
             <div class="pa-scene-dim" aria-hidden="true"></div>
             <!-- 寵物失落對話框（陰天/雨天才顯示） -->

@@ -238,8 +238,9 @@ export function refreshFocusMascot() {
     // 依情境切換場景外觀（約會=燭光晚餐、自習=圖書館…；其餘=預設戶外舞台）
     const sceneCard = document.querySelector('#view-focus .pa-scene-card');
     if (sceneCard) {
-        const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study' };
-        sceneCard.classList.remove('scene-date', 'scene-study');
+        const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study', custom: 'scene-custom', meal: 'scene-meal', meeting: 'scene-meeting', class: 'scene-class', family: 'scene-family', social: 'scene-social', general: 'scene-general', outdoor: 'scene-outdoor', team: 'scene-team' };
+        // 先清掉所有情境場景 class（否則切換情境時舊場景會殘留、疊在新場景上）
+        Object.values(SCENE_BY_CONTEXT).forEach(c => sceneCard.classList.remove(c));
         const sc = SCENE_BY_CONTEXT[state.currentContext];
         if (sc) sceneCard.classList.add(sc);
     }

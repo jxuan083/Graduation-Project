@@ -53,5 +53,8 @@ echo "▶ 安裝 + 啟動…"
 xcrun simctl uninstall "$DEV" "$BID" >/dev/null 2>&1 || true
 xcrun simctl install "$DEV" "$APP"
 xcrun simctl launch "$DEV" "$BID"
-open -a Simulator
+# Xcode 27 把 Simulator.app 換成 DeviceHub.app；舊版才有 Simulator.app
+open "/Applications/Xcode.app/Contents/Applications/DeviceHub.app" 2>/dev/null \
+  || open -a Simulator 2>/dev/null \
+  || echo "（找不到模擬器視窗程式，請從 Xcode 手動開啟）"
 echo "✅ 完成。App 已在模擬器啟動。"
