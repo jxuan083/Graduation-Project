@@ -1001,6 +1001,34 @@ def _apply_intent_overage(room_data: dict, now_ms: int) -> None:
             all_part[uid]["deviations"] = int(all_part[uid].get("deviations", 0) or 0) + add
 
 
+# ── 連續專注時間（focus_streak）：純後端從 LOG_DEVIATION 推算，只加分不扣分 ──
+# 定義：聚會中「最長一段沒有真正分心」的連續時間。鎖螢幕/待在 App 內不算中斷，
+# 只有真正的 deviation 會打斷。結算時寫進 quality_metrics，scoring.py 依
+# 「15 × 最長專注 / 聚會總時長」給加分（聚會需 ≥ 20 分鐘才啟用）。
+def _note_focus_break(room_data: dict, uid: str, now_ms: int) -> None:
+    """使用者發生一次真正分心 → 結束目前這段連續專注，更新其最長專注秒數。"""
+    ap = (room_data.get("all_participants") or {}).get(uid)
+    if ap is None:
+        return
+    start_ms = int(ap.get("focus_last_ts_ms") or room_data.get("started_at") or now_ms)
+    gap_sec = max(0.0, (now_ms - start_ms) / 1000.0)
+    ap["focus_streak_max_sec"] = max(float(ap.get("focus_streak_max_sec", 0.0) or 0.0), gap_sec)
+    ap["focus_last_ts_ms"] = now_ms
+
+
+def _finalize_focus_streaks(room_data: dict, end_ms: int) -> None:
+    """END_SESSION 結算：把每人「最後一段連續專注」補進最長值，寫入 quality_metrics。"""
+    for ap in (room_data.get("all_participants") or {}).values():
+        start_ms = int(ap.get("focus_last_ts_ms") or room_data.get("started_at") or end_ms)
+        gap_sec = max(0.0, (end_ms - start_ms) / 1000.0)
+        max_sec = max(float(ap.get("focus_streak_max_sec", 0.0) or 0.0), gap_sec)
+        qm = ap.get("quality_metrics")
+        if not isinstance(qm, dict):
+            qm = {}
+            ap["quality_metrics"] = qm
+        qm["focus_streak_seconds"] = max_sec
+
+
 def _week_start_utc_from_taipei() -> datetime.datetime:
     """取得本週一 00:00（台北時區）對應的 UTC datetime"""
     # 台北時區 UTC+8
@@ -3438,7 +3466,9 @@ class EndRoomRequest(BaseModel):
 
 
 def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, duration_minutes: int) -> dict:
-    _apply_intent_overage(room_data, int(datetime.datetime.utcnow().timestamp() * 1000))
+    _now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+    _apply_intent_overage(room_data, _now_ms)
+    _finalize_focus_streaks(room_data, _now_ms)  # 結算每人最長連續專注 → quality_metrics
     all_ever = room_data.get("all_participants") or room_data.get("members") or {}
     host_uid_local = room_data.get("host_uid")
     total_deviations = int(room_data.get("deviations", 0) or 0)
@@ -4344,6 +4374,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # 同步更新 all_participants，確保 END_SESSION 排行榜能讀到正確數值
                 if user_id in rooms[room_id].get("all_participants", {}):
                     rooms[room_id]["all_participants"][user_id]["deviations"] = user_deviations
+
+                # 這次分心中斷了該用戶的連續專注 → 更新其最長專注時間（只加分用）
+                _note_focus_break(rooms[room_id], user_id, now_ms)
 
                 try:
                     db.collection("rooms").document(room_id).update({

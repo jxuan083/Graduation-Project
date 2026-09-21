@@ -24,8 +24,8 @@ import math
 from typing import Dict, Optional
 
 _ATTENDANCE_REF_MIN = 60.0     # presence：到此分鐘數，陪伴分達滿
-_FOCUS_STREAK_BONUS_MAX = 15.0 # focus 加分：連續專注（未來 metrics.focus_streak_seconds）
-_FOCUS_STREAK_REF_SEC = 600.0  # 連續專注到此秒數，加分達滿
+_FOCUS_STREAK_BONUS_MAX = 15.0      # focus 加分上限：連續專注（metrics.focus_streak_seconds）
+_FOCUS_STREAK_MIN_MEETING_SEC = 1200.0  # 聚會需 ≥ 20 分鐘才啟用連續專注加分
 _HOST_BONUS = 3.0              # 主持者的小額加分
 
 # 每次「超出允許時間的分心」的大扣分，依難度（無免罰額度）。
@@ -91,9 +91,13 @@ def compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool,
     if duration > 0:
         charged_fraction = min(1.0, (exempt_charged_sec / 60.0) / duration)
         focus_score *= (1.0 - charged_fraction)
-    # 連續專注加分（未來由感測器送）
+    # 連續專注加分：比例制 = 15 × (最長連續專注時間 / 聚會總時長)，要專注整場才拿滿。
+    # 門檻：聚會需 ≥ 20 分鐘才啟用（短會不計）；個人分數最終仍夾 0–100（見函式結尾）。
     focus_streak_sec = max(0.0, _num(metrics.get("focus_streak_seconds"), 0.0))
-    focus_score += _FOCUS_STREAK_BONUS_MAX * min(1.0, focus_streak_sec / _FOCUS_STREAK_REF_SEC)
+    total_sec = duration * 60.0
+    if total_sec >= _FOCUS_STREAK_MIN_MEETING_SEC:
+        streak_ratio = min(1.0, focus_streak_sec / total_sec) if total_sec > 0 else 0.0
+        focus_score += _FOCUS_STREAK_BONUS_MAX * streak_ratio
     focus_score = max(0.0, min(100.0, focus_score))
 
     # ── presence 分（0–100）：到場/待滿（sqrt 遞減、封頂） ──

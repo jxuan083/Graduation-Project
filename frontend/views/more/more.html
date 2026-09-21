@@ -26,6 +26,15 @@
             <pre class="diag-output" id="diag-output" aria-live="polite">尚未測試</pre>
         </div>
 
+        <!-- 動作偵測 spike（CMSensorRecorder 可行性驗證，實機專用；驗完會移除）-->
+        <div class="diag" id="motion-spike">
+            <h2 class="diag-title">動作偵測測試（實機）</h2>
+            <button id="motion-check" class="diag-btn" type="button">① 檢查支援</button>
+            <button id="motion-start" class="diag-btn diag-btn-primary" type="button">② 開始錄 30 秒</button>
+            <button id="motion-read" class="diag-btn" type="button">③ 讀取結果</button>
+            <pre class="diag-output" id="motion-output" aria-live="polite">在實體 iPhone 上依序按 ①②③。②之後把手機面朝下放桌上、期間拿起幾次，30 秒後按③。</pre>
+        </div>
+
     </div>
 
 </section>

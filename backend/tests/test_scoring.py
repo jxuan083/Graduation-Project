@@ -82,12 +82,22 @@ class TestMeetingScore(unittest.TestCase):
         self.assertLess(with_pickup, no_pickup)
         self.assertGreaterEqual(with_pickup, no_pickup - 15)  # 只是「一點點」
 
-    def test_focus_streak_bonus_earns_points_back(self):
-        # 加分機制：連續專注可以賺回一些分（但不超過 100）
+    def test_focus_streak_bonus_is_ratio_based(self):
+        # 加分 = 15 × (最長連續專注 / 聚會總時長)：專注越久加越多（總分仍不超過 100）
         distracted = compute_meeting_score(60, 5, False, difficulty="M")
-        with_streak = compute_meeting_score(60, 5, False, difficulty="M",
-                                            metrics={"focus_streak_seconds": 600})
-        self.assertGreater(with_streak, distracted)
+        half = compute_meeting_score(60, 5, False, difficulty="M",
+                                     metrics={"focus_streak_seconds": 1800})   # 專注半場
+        whole = compute_meeting_score(60, 5, False, difficulty="M",
+                                      metrics={"focus_streak_seconds": 3600})  # 專注整場
+        self.assertGreater(half, distracted)
+        self.assertGreater(whole, half)
+
+    def test_focus_streak_requires_min_20min_meeting(self):
+        # 門檻：聚會不足 20 分鐘 → 連續專注加分不啟用（就算專注整場也不加）
+        short_no = compute_meeting_score(15, 5, False, difficulty="M")
+        short_streak = compute_meeting_score(15, 5, False, difficulty="M",
+                                             metrics={"focus_streak_seconds": 900})
+        self.assertEqual(short_streak, short_no)
 
     def test_bonus_never_exceeds_100(self):
         # 像考試不會 120：所有加分疊滿仍夾 100

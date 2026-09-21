@@ -14,8 +14,20 @@ const GET_STATE_TIMEOUT_MS = 500;
 let cached = { locked: false, lastLockedAt: 0, lastUnlockedAt: 0 };
 let listenerBound = false;
 
+let _pluginRef; // undefined=尚未解析；null=不可用；object=proxy
 function getPlugin() {
-    return window.Capacitor?.Plugins?.LockState || null;
+    if (_pluginRef !== undefined) return _pluginRef;
+    const cap = window.Capacitor;
+    if (!cap) { _pluginRef = null; return null; }
+    // Capacitor 6+：App 內建的自訂 plugin 要用 registerPlugin 取得 proxy；
+    // 舊的 window.Capacitor.Plugins.X 對內建 plugin 不一定會被填（會導致誤判為「沒 plugin」而走 fallback）。
+    try {
+        _pluginRef = (typeof cap.registerPlugin === 'function' ? cap.registerPlugin('LockState') : null)
+                     || cap.Plugins?.LockState || null;
+    } catch (_) {
+        _pluginRef = cap.Plugins?.LockState || null;
+    }
+    return _pluginRef;
 }
 
 export function lockStateAvailable() {

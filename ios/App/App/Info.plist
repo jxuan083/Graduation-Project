@@ -37,6 +37,8 @@
 	<string>社交定錨在本機開發模式下，需要連線到同一個 WiFi 內的開發伺服器來載入聚會資料。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>社交定錨需要使用麥克風進行聚會語音轉錄與摘要。</string>
+	<key>NSMotionUsageDescription</key>
+	<string>社交定錨用動作感測器偵測聚會中手機被拿起的次數，資料只在裝置本機處理。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

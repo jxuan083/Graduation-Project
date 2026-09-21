@@ -112,4 +112,65 @@ export function init() {
 
     const runBtn = document.getElementById('diag-run');
     if (runBtn) runBtn.onclick = runTests;
+
+    bindMotionSpike();
+}
+
+// --- 動作偵測 spike：驗證 CMSensorRecorder 在這台 iPhone 上是否可用（驗完移除）---
+function bindMotionSpike() {
+    const out = document.getElementById('motion-output');
+    const show = (obj) => { if (out) out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); };
+    // Capacitor 6+：內建自訂 plugin 用 registerPlugin 取得（window.Capacitor.Plugins 不一定有）。
+    const plugin = () => {
+        const cap = window.Capacitor;
+        if (!cap) return null;
+        try { return (typeof cap.registerPlugin === 'function' ? cap.registerPlugin('LockState') : null) || cap.Plugins?.LockState || null; }
+        catch { return cap.Plugins?.LockState || null; }
+    };
+    const fail = (label, e) => {
+        const names = Object.keys(window.Capacitor?.Plugins || {}).join(', ') || '(空)';
+        show(`${label} 失敗：${e?.message || e}\n\nplatform=${window.Capacitor?.getPlatform?.() || '?'}\n已註冊的 Plugins：${names}`);
+    };
+
+    const check = document.getElementById('motion-check');
+    if (check) check.onclick = async () => {
+        // 純環境 dump：看清 Capacitor / Plugins / registerPlugin 到底長怎樣。
+        const cap = window.Capacitor;
+        const env = {
+            hasCapacitor: !!cap,
+            platform: cap?.getPlatform?.(),
+            isNative: cap?.isNativePlatform?.(),
+            typeof_registerPlugin: typeof cap?.registerPlugin,
+            capacitorKeys: cap ? Object.keys(cap) : [],
+            pluginKeys: Object.keys(cap?.Plugins || {}),
+        };
+        let callResult = '(未呼叫)';
+        try {
+            const p = plugin();
+            if (p && typeof p.motionAvailable === 'function') {
+                callResult = await p.motionAvailable();
+            } else {
+                callResult = 'plugin proxy 取得: ' + (!!p) + '，但沒有 motionAvailable 方法';
+            }
+        } catch (e) { callResult = '呼叫 motionAvailable 失敗: ' + (e?.message || e); }
+        show({ env, callResult });
+    };
+
+    const start = document.getElementById('motion-start');
+    if (start) start.onclick = async () => {
+        const p = plugin();
+        if (!p) { show('連 Capacitor 都取不到——你不在原生 App 裡。'); return; }
+        try {
+            const r = await p.startMotionRecording({ durationSec: 30 });
+            show('已開始錄製 30 秒：' + JSON.stringify(r) + '\n把手機面朝下放著、期間拿起幾次，30 秒後按③讀取。');
+        } catch (e) { fail('startMotionRecording', e); }
+    };
+
+    const read = document.getElementById('motion-read');
+    if (read) read.onclick = async () => {
+        const p = plugin();
+        if (!p) { show('連 Capacitor 都取不到——你不在原生 App 裡。'); return; }
+        try { show(await p.readMotionRecording({ fromMsAgo: 120000 })); }
+        catch (e) { fail('readMotionRecording', e); }
+    };
 }
