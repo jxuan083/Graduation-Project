@@ -39,8 +39,6 @@ DerivedData/
 ios/App/Pods/
 ios/App/build/
 ios/App/DerivedData/
-android/.gradle/
-android/**/build/
 .env
 .env.local
 .env.development.local
