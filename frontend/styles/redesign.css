@@ -1366,19 +1366,26 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup .cp-sit-btn.active-context .cp-sit-label { color: #fff; }
 /* 選定情境後的資訊：建議難度 / 暫離 chip + 一句注意事項（低調、沿用棕色系） */
 #view-meeting-setup .cp-context-info { margin: 12px 4px 0; }
-#view-meeting-setup .cp-context-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+#view-meeting-setup .cp-context-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 #view-meeting-setup .cp-context-diff,
-#view-meeting-setup .cp-context-exempt { font-size: 11px; font-weight: 700; color: var(--brown-60); background: rgba(79,53,26,.08); border-radius: var(--r-pill); padding: 4px 10px; }
+#view-meeting-setup .cp-context-exempt { font-size: 11px; font-weight: 700; color: var(--brown-60); background: rgba(79,53,26,.08); border-radius: var(--r-pill); padding: 5px 12px; line-height: 1.5; }
 #view-meeting-setup .cp-context-note { margin: 8px 4px 0; font-size: 12px; line-height: 1.5; color: var(--brown-55); }
 
 /* 專注強度：預設帶入情境建議、可點覆蓋。整排大按鈕(比照原本樣式)+ 一句說明。 */
 #view-meeting-setup .cp-strength { margin-top: 14px; }
-#view-meeting-setup .cp-strength-title { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0 4px 9px; }
+#view-meeting-setup .cp-strength-head { display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+#view-meeting-setup .cp-strength-title { font-size: 13px; font-weight: 700; color: var(--brown-50); letter-spacing: .04em; margin: 0; }
+#view-meeting-setup .cp-strength-current { font-size: 12px; font-weight: 700; color: var(--brown); background: var(--brown-08); border-radius: var(--r-pill); padding: 2px 9px; }
+#view-meeting-setup .cp-strength-info { width: 18px; height: 18px; flex-shrink: 0; border: none; padding: 0; border-radius: 50%; background: var(--brown-08); color: var(--brown-55); font-size: 12px; font-weight: 800; line-height: 18px; text-align: center; cursor: pointer; }
+#view-meeting-setup .cp-strength-info:active { transform: scale(.92); }
+#view-meeting-setup .cp-strength-chevron { margin-left: auto; flex-shrink: 0; color: var(--brown-45); transition: transform var(--motion-base); }
+#view-meeting-setup .cp-strength.open .cp-strength-chevron { transform: rotate(90deg); }
+#view-meeting-setup .cp-strength-body { margin-top: 9px; }
 #view-meeting-setup .cp-strength-btns { display: flex; gap: 8px; }
 #view-meeting-setup .cp-strength-btn { flex: 1; height: 46px; border: none; cursor: pointer; border-radius: var(--r-md); font-size: 15px; font-weight: 700; background: var(--brown-05); color: var(--brown-45); box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); transition: background var(--motion-base), color var(--motion-base), transform var(--motion-fast); }
 #view-meeting-setup .cp-strength-btn:active { transform: translate3d(var(--press-shift-x, 0),2px,0) scale(.98); }
 #view-meeting-setup .cp-strength-btn.active { background: var(--brown); color: #fff; box-shadow: 0 3px 0 #34200e, 0 8px 14px -12px rgba(79,53,26,.72); }
-#view-meeting-setup .cp-strength-hint { margin: 9px 4px 0; font-size: 12px; line-height: 1.5; color: var(--brown-55); min-height: 1.5em; }
+#view-meeting-setup .cp-strength-hint { margin: 6px 4px 0; font-size: 12px; line-height: 1.5; color: var(--brown-55); background: var(--brown-05); border-radius: 8px; padding: 8px 10px; }
 
 /* 預計時長 */
 #view-meeting-setup .cp-duration-input { width: 100%; height: 50px; background: #fff; border: none; border-radius: var(--r-md); padding: 0 16px; font-size: 16px; color: var(--brown); margin-bottom: 24px; }

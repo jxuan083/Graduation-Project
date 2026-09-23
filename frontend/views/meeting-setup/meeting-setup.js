@@ -4,12 +4,12 @@ import { state } from '../../core/state.js';
 import {
     CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
     EXEMPT_WINDOW_SEC, CONTEXT_NOTES,
-} from '../../core/config.js?v=69';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=69';
+} from '../../core/config.js?v=72';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=72';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=69';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=72';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -21,6 +21,7 @@ export function init() {
     buildContextGrid();
     bindStartMode();
     bindStrengthBtns();
+    bindStrengthCollapse();
     bindGroupDropdown();
 
     const btnConfirm = document.getElementById('btn-confirm-setup');
@@ -161,6 +162,39 @@ function updateStrengthActive(diff) {
     document.querySelectorAll('#view-meeting-setup .cp-strength-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.diff === diff);
     });
+    // 收合時標題列仍顯示目前選的強度
+    const cur = document.getElementById('strength-current');
+    if (cur) cur.textContent = DIFFICULTY_LABELS[diff] || diff;
+}
+
+// 專注強度：整區可收合（右側旋轉 ›），說明文字收進「!」資訊鈕。預設收合（不常改）。
+function bindStrengthCollapse() {
+    const head = document.getElementById('strength-head');
+    const body = document.getElementById('strength-body');
+    const wrap = head?.closest('.cp-strength');
+    const infoBtn = document.getElementById('strength-info-btn');
+    const hint = document.getElementById('strength-hint');
+    if (head && body && wrap) {
+        const toggle = () => {
+            const willOpen = body.hidden;
+            body.hidden = !willOpen;
+            wrap.classList.toggle('open', willOpen);
+            head.setAttribute('aria-expanded', String(willOpen));
+        };
+        head.addEventListener('click', (e) => {
+            if (e.target.closest('#strength-info-btn')) return; // 點資訊鈕不觸發收合
+            toggle();
+        });
+        head.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        });
+    }
+    if (infoBtn && hint) {
+        infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hint.hidden = !hint.hidden;
+        });
+    }
 }
 
 // 說明列：目前難度是什麼意思 + 這個情境建議哪個難度。
@@ -220,7 +254,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=69');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=72');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

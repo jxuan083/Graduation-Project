@@ -26,13 +26,20 @@
                 <div id="context-grid" class="cp-situation-grid"></div>
                 <div id="context-info" class="cp-context-info">
                     <div class="cp-strength" role="group" aria-label="專注強度">
-                        <p class="cp-strength-title">專注強度</p>
-                        <div class="cp-strength-btns">
-                            <button type="button" class="cp-strength-btn" data-diff="L">輕鬆</button>
-                            <button type="button" class="cp-strength-btn" data-diff="M">標準</button>
-                            <button type="button" class="cp-strength-btn" data-diff="H">嚴格</button>
+                        <div class="cp-strength-head" id="strength-head" role="button" tabindex="0" aria-expanded="false" aria-controls="strength-body">
+                            <span class="cp-strength-title">專注強度</span>
+                            <button type="button" class="cp-strength-info" id="strength-info-btn" aria-label="強度說明">!</button>
+                            <span class="cp-strength-current" id="strength-current"></span>
+                            <svg class="cp-strength-chevron" width="8" height="13" viewBox="0 0 8 13" fill="none" aria-hidden="true"><path d="M1.5 1.5L6.5 6.5L1.5 11.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <p class="cp-strength-hint" id="strength-hint"></p>
+                        <p class="cp-strength-hint" id="strength-hint" hidden></p>
+                        <div class="cp-strength-body" id="strength-body" hidden>
+                            <div class="cp-strength-btns">
+                                <button type="button" class="cp-strength-btn" data-diff="L">輕鬆</button>
+                                <button type="button" class="cp-strength-btn" data-diff="M">標準</button>
+                                <button type="button" class="cp-strength-btn" data-diff="H">嚴格</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="cp-context-meta">
                         <span class="cp-context-exempt" id="context-exempt-label"></span>
