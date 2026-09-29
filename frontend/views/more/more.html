@@ -35,6 +35,41 @@
             <pre class="diag-output" id="motion-output" aria-live="polite">在實體 iPhone 上依序按 ①②③。②之後把手機面朝下放桌上、期間拿起幾次，30 秒後按③。</pre>
         </div>
 
+        <!-- 走動查詢（戶外情境走動修正）：iPhone 本來就在背景記步數，直接查歷史，不用先開始錄 -->
+        <div class="diag" id="movement-spike">
+            <h2 class="diag-title">走動查詢（實機）</h2>
+            <div class="diag-row">
+                <button class="diag-btn" type="button" data-movement-min="5">過去 5 分鐘</button>
+                <button class="diag-btn" type="button" data-movement-min="30">過去 30 分鐘</button>
+                <button class="diag-btn" type="button" data-movement-min="60">過去 60 分鐘</button>
+            </div>
+            <pre class="diag-output" id="movement-output" aria-live="polite">先走一走再按。第一次會跳「動作與健身」權限（已允許過就不會再跳）。</pre>
+        </div>
+
+        <!-- Pickup 偵測（實機）：拿起手機的次數與「無心 / 不確定 / 潛在分心」判斷，全程在手機上分析 -->
+        <div class="diag" id="pickup-test">
+            <h2 class="diag-title">Pickup 偵測（實機）</h2>
+            <label class="pk-ctx">情境
+                <select id="pickup-context">
+                    <option value="general">一般</option>
+                    <option value="outdoor">戶外活動</option>
+                </select>
+            </label>
+            <p class="pk-help">自由測試：先按「開始錄」，像平常一樣把手機放著、拿起幾次，之後再按「分析」。錄製期間可以鎖螢幕。</p>
+            <div class="diag-row">
+                <button class="diag-btn" type="button" data-pickup-record="3">開始錄 3 分鐘</button>
+                <button class="diag-btn" type="button" data-pickup-record="10">開始錄 10 分鐘</button>
+            </div>
+            <div class="diag-row">
+                <button class="diag-btn" type="button" data-pickup-analyze="3">分析最近 3 分鐘</button>
+                <button class="diag-btn" type="button" data-pickup-analyze="10">分析最近 10 分鐘</button>
+            </div>
+            <p class="pk-help">腳本測試（約 3.5 分鐘）：會用語音和震動提示每一步，結束後自動算準確率。請先關掉靜音、把音量調大。</p>
+            <button id="pickup-script" class="diag-btn diag-btn-primary" type="button">開始腳本測試</button>
+            <pre class="diag-output" id="pickup-output" aria-live="polite">尚未測試</pre>
+            <button id="pickup-copy" class="diag-btn" type="button">複製結果（貼給開發者）</button>
+        </div>
+
     </div>
 
 </section>
@@ -67,4 +102,16 @@
 }
 #view-more .diag-btn-primary { border-color: transparent; background: #1f6feb; color: #fff; }
 #view-more .diag-btn:active { transform: translateY(1px); }
+#view-more .diag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+#view-more .pk-help { margin: 0; font-size: 12px; line-height: 1.5; opacity: .7; }
+#view-more .pk-ctx { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+#view-more .pk-ctx select { min-height: 36px; border-radius: 8px; padding: 0 8px; font-size: 14px; }
+/* 腳本測試全螢幕提示（掛在 body，不限 #view-more） */
+.pk-overlay { position: fixed; inset: 0; z-index: 9999; background: #2b1d10; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
+.pk-overlay .pk-step { font-size: 14px; opacity: .6; }
+.pk-overlay .pk-title { font-size: 30px; font-weight: 800; }
+.pk-overlay .pk-say { font-size: 18px; line-height: 1.6; max-width: 320px; }
+.pk-overlay .pk-count { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pk-overlay .pk-next { font-size: 13px; opacity: .55; max-width: 320px; }
+.pk-overlay .pk-cancel { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 16px; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; font-size: 13px; }
 </style>
