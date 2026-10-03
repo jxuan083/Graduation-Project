@@ -969,64 +969,18 @@ async def remove_friend(friend_uid: str, decoded: dict = Depends(verify_token)):
 # 這裡以底線別名沿用，維持既有呼叫點不變。
 from scoring import (  # noqa: E402
     build_score_ranking as _build_score_ranking,
+    compute_meeting_score as _compute_meeting_score,
     compute_perf_points as _compute_perf_points,
     score_for_uid as _score_for_uid,
 )
 from intent import (  # noqa: E402
     can_declare_intent as _intent_can_declare,
-    charge_on_return as _intent_charge_on_return,
     exempt_budget as _intent_budget,
     exempt_window_sec as _intent_window_sec,
-    overage_deviations as _intent_overage_deviations,
     within_exemption as _intent_within_exemption,
 )
-
-
-def _apply_intent_overage(room_data: dict, now_ms: int) -> None:
-    """END_SESSION 補算：宣告意圖後一去不回、窗口已過的超時 → 補記分心。
-    回來的情況由正常分心邏輯處理，所以只看「離開後仍在豁免中(未歸還)」的成員。"""
-    params = room_data.get("session_params", {}) or {}
-    per_dev_sec = int(params.get("deviation_rate_limit_sec", 25) or 25)
-    members = room_data.get("members", {}) or {}
-    all_part = room_data.get("all_participants", {}) or {}
-    for uid, m in members.items():
-        if not m.get("exempt_active_since_ms"):
-            continue
-        add = _intent_overage_deviations(int(m.get("exempt_window_until_ms", 0) or 0), now_ms, per_dev_sec)
-        if add <= 0:
-            continue
-        m["deviations"] = int(m.get("deviations", 0) or 0) + add
-        room_data["deviations"] = int(room_data.get("deviations", 0) or 0) + add
-        if uid in all_part:
-            all_part[uid]["deviations"] = int(all_part[uid].get("deviations", 0) or 0) + add
-
-
-# ── 連續專注時間（focus_streak）：純後端從 LOG_DEVIATION 推算，只加分不扣分 ──
-# 定義：聚會中「最長一段沒有真正分心」的連續時間。鎖螢幕/待在 App 內不算中斷，
-# 只有真正的 deviation 會打斷。結算時寫進 quality_metrics，scoring.py 依
-# 「15 × 最長專注 / 聚會總時長」給加分（聚會需 ≥ 20 分鐘才啟用）。
-def _note_focus_break(room_data: dict, uid: str, now_ms: int) -> None:
-    """使用者發生一次真正分心 → 結束目前這段連續專注，更新其最長專注秒數。"""
-    ap = (room_data.get("all_participants") or {}).get(uid)
-    if ap is None:
-        return
-    start_ms = int(ap.get("focus_last_ts_ms") or room_data.get("started_at") or now_ms)
-    gap_sec = max(0.0, (now_ms - start_ms) / 1000.0)
-    ap["focus_streak_max_sec"] = max(float(ap.get("focus_streak_max_sec", 0.0) or 0.0), gap_sec)
-    ap["focus_last_ts_ms"] = now_ms
-
-
-def _finalize_focus_streaks(room_data: dict, end_ms: int) -> None:
-    """END_SESSION 結算：把每人「最後一段連續專注」補進最長值，寫入 quality_metrics。"""
-    for ap in (room_data.get("all_participants") or {}).values():
-        start_ms = int(ap.get("focus_last_ts_ms") or room_data.get("started_at") or end_ms)
-        gap_sec = max(0.0, (end_ms - start_ms) / 1000.0)
-        max_sec = max(float(ap.get("focus_streak_max_sec", 0.0) or 0.0), gap_sec)
-        qm = ap.get("quality_metrics")
-        if not isinstance(qm, dict):
-            qm = {}
-            ap["quality_metrics"] = qm
-        qm["focus_streak_seconds"] = max_sec
+# 個人離開／加回、主持人交棒、暫離超時的規則在 backend/attendance.py（純函式，可單元測試）。
+import attendance as _att  # noqa: E402
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -1277,11 +1231,36 @@ async def get_meeting(meeting_id: str, decoded: dict = Depends(verify_token)):
 
     try:
         doc = db.collection("meetings").document(meeting_id).get()
-        if not doc.exists:
-            raise HTTPException(status_code=404, detail="找不到這場聚會紀錄")
-        data = doc.to_dict() or {}
+        data = (doc.to_dict() or {}) if doc.exists else {}
         if uid not in (data.get("participants") or []):
-            raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+            # 提前離開的人：聚會還沒結束時主紀錄尚未寫入，先用他離開時存的個人紀錄
+            mirror = db.collection("users").document(uid).collection("meetings").document(meeting_id).get()
+            if not mirror.exists:
+                if not doc.exists:
+                    raise HTTPException(status_code=404, detail="找不到這場聚會紀錄")
+                raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+            md = mirror.to_dict() or {}
+            own_row = {
+                "uid": uid,
+                "nickname": "",
+                "deviations": int(md.get("deviations", 0) or 0),
+                "score": int(md.get("score", 0) or 0),
+                "perf_points": int(md.get("perf_points", 0) or 0),
+            }
+            data = {
+                **data,
+                "room_id": meeting_id,
+                "participants": [uid],
+                "ended_at": md.get("ended_at"),
+                "duration_minutes": md.get("duration_minutes", 0),
+                "total_deviations": md.get("total_room_deviations", 0),
+                "mode": md.get("mode", ""),
+                "end_reason": md.get("end_reason", "left_early"),
+                "member_count": data.get("member_count", 0),
+                "score_ranking": [own_row],
+                "deviation_ranking": [own_row],
+                "in_progress": True,
+            }
         return {"status": "success", "meeting": _serialize_meeting(data, meeting_id)}
     except HTTPException:
         raise
@@ -3433,7 +3412,8 @@ class ConnectionManager:
     async def broadcast_to_room(self, room_id: str, message: dict):
         if room_id not in rooms:
             return
-        members = rooms[room_id]["members"].keys()
+        # 已離開聚會的人不再收房間廣播（他的舊連線可能還沒關）
+        members = _att.present_uids(rooms[room_id])
         try:
             enc_msg = json.dumps(message, default=str)  # default=str: datetime 等型別轉字串而非報錯
         except Exception as e:
@@ -3465,105 +3445,463 @@ class EndRoomRequest(BaseModel):
     duration_minutes: Optional[int] = 0
 
 
-def _save_room_meeting_record(room_id: str, room_data: dict, reason: str, duration_minutes: int) -> dict:
-    _now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
-    _apply_intent_overage(room_data, _now_ms)
-    _finalize_focus_streaks(room_data, _now_ms)  # 結算每人最長連續專注 → quality_metrics
-    all_ever = room_data.get("all_participants") or room_data.get("members") or {}
-    host_uid_local = room_data.get("host_uid")
-    total_deviations = int(room_data.get("deviations", 0) or 0)
+class LeaveRoomRequest(BaseModel):
+    from_timeout: Optional[bool] = False   # 從「暫離超時」通知按的提前離開
+
+
+ROOM_SWEEP_INTERVAL_SEC = 20
+_room_sweeper_task: Optional[asyncio.Task] = None
+
+
+def _now_ms() -> int:
+    # 與房間內其他時間戳（started_at、exempt_window_until_ms…）同一種算法，才能互相比較
+    return int(datetime.datetime.utcnow().timestamp() * 1000)
+
+
+def _room_window_sec(room_data: dict) -> int:
+    return _intent_window_sec(room_data.get("difficulty", "M"))
+
+
+def _load_room(room_id: str) -> Optional[dict]:
+    """取房間的記憶體狀態；不在記憶體（服務重啟過）就從 Firestore 還原。"""
+    if room_id in rooms:
+        return rooms[room_id]
+    try:
+        snap = db.collection("rooms").document(room_id).get()
+    except Exception as e:
+        print(f"Error reading room from Firestore: {e}")
+        return None
+    if not snap.exists:
+        return None
+    room_dict = snap.to_dict() or {}
+    room_dict.pop("created_at", None)   # sentinel / datetime 無法 JSON 序列化
+    room_dict.setdefault("members", {})
+    rooms[room_id] = room_dict
+    return room_dict
+
+
+def _persist_participant(room_id: str, uid: str, extra: Optional[dict] = None) -> None:
+    """把某成員的即時狀態與累計資料寫回 Firestore（離開／加回／交棒時用）。"""
+    room_data = rooms.get(room_id) or {}
+    update = dict(extra or {})
+    if uid in (room_data.get("members") or {}):
+        update[f"members.{uid}"] = room_data["members"][uid]
+    if uid in (room_data.get("all_participants") or {}):
+        update[f"all_participants.{uid}"] = room_data["all_participants"][uid]
+    if not update:
+        return
+    try:
+        db.collection("rooms").document(room_id).update(update)
+    except Exception as e:
+        print(f"Error persisting participant {uid} in room {room_id}: {e}")
+
+
+def _personal_result(room_data: dict, uid: str) -> dict:
+    """離開當下的個人結算：分數算到離開為止（在場分鐘 + 累計分心）。"""
+    ap = _att.settle_participant(room_data, uid)
     context = room_data.get("context", "general")
     difficulty = room_data.get("difficulty", "M")
-    score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
-        all_ever, host_uid_local, duration_minutes, context, difficulty
+    minutes = int(ap.get("attended_minutes", 0) or 0)
+    deviations = int(ap.get("deviations", 0) or 0)
+    score = _compute_meeting_score(
+        minutes, deviations, is_host=(uid == room_data.get("host_uid")),
+        difficulty=difficulty, context=context, metrics=ap.get("quality_metrics"),
     )
-
-    members_snapshot = []
-    participants = []
-    for uid, info in all_ever.items():
-        is_guest = _is_guest_user_id(uid)
-        members_snapshot.append({
-            "uid": uid,
-            "nickname": info.get("nickname", ""),
-            "is_guest": is_guest
-        })
-        if not is_guest:
-            participants.append(uid)
-
-    if host_uid_local:
-        if host_uid_local not in participants:
-            participants.append(host_uid_local)
-        if not any(m.get("uid") == host_uid_local for m in members_snapshot):
-            members_snapshot.append({
-                "uid": host_uid_local,
-                "nickname": room_data.get("host_nickname", ""),
-                "is_guest": False,
-            })
-
-    # 若這場聚會屬於某群組，帶上 group_id / group_name（供群組頁「最近聚會」與聚會標籤用）
-    group_id = room_data.get("group_id") or None
-    group_name = ""
-    if group_id:
-        try:
-            g_snap = db.collection("groups").document(group_id).get()
-            if g_snap.exists:
-                group_name = (g_snap.to_dict() or {}).get("name", "")
-            else:
-                group_id = None
-        except Exception as g_err:
-            print(f"[meeting finalize] group lookup failed for {group_id}: {g_err}")
-
-    meeting_record = {
-        "room_id": room_id,
-        "host_uid": host_uid_local,
-        "host_nickname": room_data.get("host_nickname", ""),
-        "mode": room_data.get("mode", ""),
-        "group_id": group_id,
-        "group_name": group_name,
-        "ended_at": firestore.SERVER_TIMESTAMP,
-        "started_at_ms": room_data.get("started_at", 0),
-        "duration_minutes": duration_minutes,
-        "total_deviations": total_deviations,
-        "member_count": len(members_snapshot),
-        "members_snapshot": members_snapshot,
-        "participants": participants,
-        "end_reason": reason,
-        "avg_score": avg_score,
-        "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
-        "score_ranking": score_ranking,
-        "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
+    return {
+        "duration_minutes": minutes,
+        "deviations": deviations,
+        "score": score,
+        "perf_points": _compute_perf_points(score, difficulty, context),
+        "rejoins_left": _att.rejoins_left(room_data, uid),
     }
 
-    db.collection("rooms").document(room_id).set({"status": "ENDED"}, merge=True)
-    db.collection("meetings").document(room_id).set(meeting_record, merge=True)
 
-    for p_uid in participants:
-        my_score = _score_for_uid(
-            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes, context, difficulty
-        )
-        my_perf = perf_by_uid.get(p_uid)
-        if my_perf is None:
-            my_perf = _compute_perf_points(my_score, difficulty, context)
-        my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
-        mirror = {
-            "owner_uid": p_uid,
-            "room_id": room_id,
-            "is_host": (p_uid == host_uid_local),
-            "mode": room_data.get("mode", ""),
-            "ended_at": firestore.SERVER_TIMESTAMP,
-            "duration_minutes": duration_minutes,
-            "deviations": my_deviations,
-            "total_room_deviations": total_deviations,
-            "score": my_score,
-            "perf_points": my_perf,
-            "end_reason": reason,
-        }
+def _write_personal_mirror(room_id: str, room_data: dict, uid: str, result: dict, reason: str) -> None:
+    """離開時先存一份個人紀錄（人不一定會回來）；聚會結束結算時會被最終結果覆蓋。"""
+    if _is_guest_user_id(uid):
+        return
+    mirror = {
+        "owner_uid": uid,
+        "room_id": room_id,
+        "is_host": (uid == room_data.get("host_uid")),
+        "mode": room_data.get("mode", ""),
+        "ended_at": firestore.SERVER_TIMESTAMP,
+        "duration_minutes": result["duration_minutes"],
+        "attended_minutes": result["duration_minutes"],
+        "deviations": result["deviations"],
+        "total_room_deviations": int(room_data.get("deviations", 0) or 0),
+        "score": result["score"],
+        "perf_points": result["perf_points"],
+        "end_reason": reason,
+        "left_early": True,
+    }
+    try:
+        db.collection("users").document(uid).collection("meetings").document(room_id).set(mirror, merge=True)
+    except Exception as mm_err:
+        print(f"[leave] mirror write failed for {uid}: {mm_err}")
+
+
+def _present_count(room_data: dict) -> int:
+    return len(_att.present_uids(room_data))
+
+
+async def _finish_qa_if_complete(room_id: str) -> None:
+    """在場成員都答完 → 統計票數並廣播結果，自動回到 ACTIVE 模式。"""
+    room_data = rooms[room_id]
+    qa_state = room_data.get("qa_state") or {}
+    if room_data.get("mode") != "QA_GAME" or not qa_state.get("current_question"):
+        return
+    answers = qa_state.get("answers") or {}
+    present = _att.present_uids(room_data)
+    if not present or not all(uid in answers for uid in present):
+        return
+
+    print(f"[QA] room={room_id} ALL ANSWERED → broadcasting QA_FINISHED")
+    # 統計每個選項票數
+    results = {}
+    for ans in answers.values():
+        results[ans] = results.get(ans, 0) + 1
+
+    # 如果這題有正解，回傳正解 + 答對人數
+    has_answer = bool(qa_state.get("has_answer"))
+    correct_index = qa_state.get("correct_index")
+    correct_option = None
+    correct_count = None
+    if has_answer and correct_index is not None:
+        opts_prev = qa_state.get("current_options") or []
+        if 0 <= correct_index < len(opts_prev):
+            correct_option = opts_prev[correct_index]
+            correct_count = sum(1 for a in answers.values() if a == correct_option)
+
+    # 模式回到 ACTIVE (定錨)，清空題目
+    room_data["mode"] = "ACTIVE"
+    room_data["qa_state"] = {"current_question": None, "answers": {}}
+
+    try:
+        db.collection("rooms").document(room_id).update({
+            "mode": "ACTIVE",
+            "qa_state.current_question": None,
+            "qa_state.answers": {}
+        })
+    except Exception as e:
+        print(f"Error resetting QA state in Firestore: {e}")
+
+    finished_msg = {
+        "type": "QA_FINISHED",
+        "results": results,
+        "has_answer": has_answer,
+    }
+    if has_answer and correct_option is not None:
+        finished_msg["correct_option"] = correct_option
+        finished_msg["correct_count"] = correct_count
+    await manager.broadcast_to_room(room_id, finished_msg)
+
+
+async def _set_acting_host(room_id: str, new_uid: str, reason: str) -> None:
+    """換主持人（建立者 host_uid 不變）並通知全員。"""
+    room_data = rooms[room_id]
+    room_data["acting_host_uid"] = new_uid
+    try:
+        db.collection("rooms").document(room_id).update({"acting_host_uid": new_uid})
+    except Exception as e:
+        print(f"Error updating acting host in Firestore: {e}")
+    print(f"[HOST] room={room_id} acting host -> {new_uid} ({reason})")
+    await manager.broadcast_to_room(room_id, {
+        "type": "HOST_CHANGED",
+        "host_uid": new_uid,
+        "nickname": (room_data["members"].get(new_uid) or {}).get("nickname", ""),
+        "reason": reason,
+    })
+    await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": room_data})
+
+
+async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str) -> Optional[dict]:
+    """成員離開進行中的聚會（其他人繼續）。回傳個人結算；不符合離開條件回 None。
+
+    主持人離開時自動交棒給目前連續專注最久的人；已經沒有其他在場成員就直接結束整場。
+    """
+    room_data = rooms.get(room_id)
+    if not room_data:
+        return None
+    was_host = _att.acting_host(room_data) == uid
+    if not _att.leave(room_data, uid, at_ms, reason, _room_window_sec(room_data)):
+        return None
+
+    result = _personal_result(room_data, uid)
+    nickname = (room_data["members"].get(uid) or {}).get("nickname", "")
+    _write_personal_mirror(room_id, room_data, uid, result, reason)
+    _persist_participant(room_id, uid)
+    print(f"[LEAVE] room={room_id} user={uid} reason={reason} minutes={result['duration_minutes']}")
+
+    if not _att.present_uids(room_data):
+        await _finalize_room(room_id, "all_left")
+        result["session_ended"] = True
+        return result
+
+    await manager.broadcast_to_room(room_id, {
+        "type": "MEMBER_LEFT", "user_id": uid, "nickname": nickname, "reason": reason,
+    })
+    new_host = _att.pick_successor(room_data, uid, at_ms) if was_host else None
+    if new_host:
+        await _set_acting_host(room_id, new_host, "host_left")
+    else:
+        await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": room_data})
+    await _finish_qa_if_complete(room_id)   # 離開的人不用再等他作答
+    return result
+
+
+def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_by_uid: dict,
+                            avg_score: int, duration_minutes: int) -> None:
+    # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
+    # score_by_uid 為空 = 沒有任何參與者留下紀錄，此時 avg_score=0 並非「表現差」，
+    # 不可拿來扣寵物能量，直接跳過。
+    if group_id_local and score_by_uid:
         try:
-            db.collection("users").document(p_uid).collection("meetings").document(room_id).set(mirror, merge=True)
-        except Exception as mm_err:
-            print(f"[meeting finalize] mirror write failed for {p_uid}: {mm_err}")
+            g_ref = db.collection("groups").document(group_id_local)
+            pet_transaction = db.transaction()
 
-    return meeting_record
+            @firestore.transactional
+            def apply_session_reward(tx):
+                g_snap = g_ref.get(transaction=tx)
+                if not g_snap.exists:
+                    return None
+                g_data = g_snap.to_dict() or {}
+                if not g_data.get("pet_face_url"):
+                    return None
+                rewarded_room_ids = list(g_data.get("pet_rewarded_room_ids") or [])
+                if room_id in rewarded_room_ids:
+                    return None
+                # 先套用時間衰減拿到當前基準，讀書成績再往上/往下調
+                _s = _group_pet_current_stats(g_data)
+                pet_energy      = _s["pet_energy"]
+                pet_happiness   = _s["pet_happiness"]
+                pet_cleanliness = _s["pet_cleanliness"]
+                if avg_score >= 70:                         # 認真讀書：餵飽 + 開心
+                    energy_delta = min(10 + int((avg_score - 70) / 3), 20)
+                    pet_energy    = min(100.0, pet_energy + energy_delta)
+                    pet_happiness = min(100.0, pet_happiness + 5)
+                elif avg_score < 40:                        # 混水摸魚：餓 + 掉心情
+                    pet_energy    = max(0.0, pet_energy - 5)
+                    pet_happiness = max(0.0, pet_happiness - 5)
+
+                new_status = _group_pet_status(pet_energy, pet_happiness, pet_cleanliness)
+                xp_gain = _group_pet_session_xp(avg_score, duration_minutes)
+                accumulated_xp = max(0, int(g_data.get("pet_accumulated_score", 0) or 0)) + xp_gain
+                growth = _group_pet_growth({
+                    **g_data,
+                    "pet_accumulated_score": accumulated_xp,
+                    "pet_meetings_completed": int(g_data.get("pet_meetings_completed", 0) or 0) + 1,
+                })
+                tx.update(g_ref, {
+                    "pet_energy":       pet_energy,
+                    "pet_happiness":    pet_happiness,
+                    "pet_cleanliness":  pet_cleanliness,
+                    "pet_status":       new_status,
+                    "pet_last_updated": firestore.SERVER_TIMESTAMP,   # 重設衰減 anchor
+                    "pet_level": growth["pet_level"],
+                    "pet_accumulated_score": accumulated_xp,
+                    "pet_accessories": growth["pet_accessories"],
+                    "pet_meetings_completed": growth["pet_meetings_completed"],
+                    "pet_last_session_score": avg_score,
+                    "pet_last_reward_xp": xp_gain,
+                    "pet_last_session_at": firestore.SERVER_TIMESTAMP,
+                    "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
+                })
+                return pet_energy, pet_happiness, new_status, xp_gain, growth["pet_level"]
+
+            pet_result = apply_session_reward(pet_transaction)
+            if pet_result:
+                pet_energy, pet_happiness, new_status, xp_gain, pet_level = pet_result
+                print(f"[END_SESSION] group pet updated: group={group_id_local} energy={round(pet_energy)} happy={round(pet_happiness)} status={new_status} xp=+{xp_gain} level={pet_level}")
+        except Exception as pet_err:
+            print(f"[END_SESSION] group pet update failed: {pet_err}")
+
+
+async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> Optional[dict]:
+    """結束整場聚會並結算。WS、HTTP、全員離開都走這一條，一律用記憶體中的房間狀態算分。
+
+    重複呼叫只會回傳第一次的結果（前端會同時送 WS 與 HTTP 保底）。
+    """
+    room_data = rooms.get(room_id)
+    if room_data is None:
+        return None
+    if room_data.get("status") == "ENDED":
+        return room_data.get("final_result")
+
+    duration_minutes = _att.settle_room(room_data, _now_ms(), _room_window_sec(room_data), client_minutes)
+    room_data["status"] = "ENDED"
+
+    all_ever = _att.scored_participants(room_data)
+    host_uid_local = room_data.get("host_uid")
+    group_id_local = room_data.get("group_id") or None
+    total_deviations = int(room_data.get("deviations", 0) or 0)
+    context_local = room_data.get("context", "general")
+    difficulty_local = room_data.get("difficulty", "M")
+    # 個人計分：每個人依自己的在場分鐘與累計分心算分，排行由高分到低分
+    score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
+        all_ever, host_uid_local, duration_minutes, context_local, difficulty_local
+    )
+    pet_xp_gain = (
+        _group_pet_session_xp(avg_score, duration_minutes)
+        if group_id_local and room_data.get("group_pet_face_url") and score_by_uid
+        else 0
+    )
+    room_data["pet_xp_gain"] = pet_xp_gain
+
+    summary = {
+        "type": "SESSION_ENDED",
+        "reason": reason,
+        "duration_minutes": duration_minutes,
+        "total_deviations": total_deviations,
+        "avg_score": avg_score,
+        "base_score": avg_score,          # 舊欄位相容
+        "group_id": group_id_local,
+        "group_pet_face_url": room_data.get("group_pet_face_url", ""),
+        "group_pet_name": room_data.get("group_pet_name", ""),
+        "group_pet_level": room_data.get("group_pet_level", 1),
+        "pet_xp_gain": pet_xp_gain,
+        "score_ranking": score_ranking,
+        "deviation_ranking": score_ranking,   # 舊前端相容
+    }
+    room_data["final_result"] = summary
+
+    # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
+    print(f"[END_SESSION] room={room_id} reason={reason}")
+    await manager.broadcast_to_room(room_id, summary)
+
+    # 廣播之後才做 Firestore 寫入（慢但不影響 UX）
+    try:
+        db.collection("rooms").document(room_id).update({
+            "status": "ENDED",
+            "pet_xp_gain": pet_xp_gain,
+            "all_participants": room_data.get("all_participants") or {},
+        })
+    except Exception as e:
+        print(f"Error updating status to ENDED in Firestore: {e}")
+
+    # === 把這場聚會 snapshot 寫到 meetings collection ===
+    try:
+        members_snapshot = []
+        participants = []
+        for uid, info in all_ever.items():
+            is_guest = _is_guest_user_id(uid)
+            members_snapshot.append({
+                "uid": uid,
+                "nickname": info.get("nickname", ""),
+                "is_guest": is_guest
+            })
+            if not is_guest:
+                participants.append(uid)
+
+        # 房主一定要在 participants（即使他已經斷線）
+        if host_uid_local and not _is_guest_user_id(host_uid_local):
+            if host_uid_local not in participants:
+                participants.append(host_uid_local)
+            if not any(m.get("uid") == host_uid_local for m in members_snapshot):
+                members_snapshot.append({
+                    "uid": host_uid_local,
+                    "nickname": room_data.get("host_nickname", ""),
+                    "is_guest": False,
+                })
+
+        # 若這場聚會屬於某群組，帶上 group_id / group_name（供群組頁「最近聚會」與聚會標籤用）
+        group_name = ""
+        record_group_id = group_id_local
+        if record_group_id:
+            try:
+                g_snap = db.collection("groups").document(record_group_id).get()
+                if g_snap.exists:
+                    group_name = (g_snap.to_dict() or {}).get("name", "")
+                else:
+                    record_group_id = None
+            except Exception as g_err:
+                print(f"[meeting finalize] group lookup failed for {record_group_id}: {g_err}")
+
+        meeting_record = {
+            "room_id": room_id,
+            "host_uid": host_uid_local,
+            "host_nickname": room_data.get("host_nickname", ""),
+            "mode": room_data.get("mode", ""),
+            "group_id": record_group_id,
+            "group_name": group_name,
+            "ended_at": firestore.SERVER_TIMESTAMP,
+            "started_at_ms": room_data.get("active_started_ms") or room_data.get("started_at", 0),
+            "duration_minutes": duration_minutes,
+            "total_deviations": total_deviations,
+            "member_count": len(members_snapshot),
+            "members_snapshot": members_snapshot,
+            "participants": participants,
+            "end_reason": reason,
+            "avg_score": avg_score,
+            "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
+            "score_ranking": score_ranking,
+            "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
+        }
+        # merge=True 保留聚會中可能已經寫入的 cover_photo_id
+        db.collection("meetings").document(room_id).set(meeting_record, merge=True)
+        room_data["final_participants_count"] = len(participants)
+        print(f"[END_SESSION] meeting record saved: {room_id}")
+
+        # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
+        for p_uid in participants:
+            info = all_ever.get(p_uid) or {}
+            my_score = _score_for_uid(
+                p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes,
+                context_local, difficulty_local
+            )
+            my_perf = perf_by_uid.get(p_uid)
+            if my_perf is None:
+                my_perf = _compute_perf_points(my_score, difficulty_local, context_local)
+            left_early = info.get("presence") == "left"
+            mirror = {
+                "owner_uid": p_uid,
+                "room_id": room_id,
+                "is_host": (p_uid == host_uid_local),
+                "mode": room_data.get("mode", ""),
+                "ended_at": firestore.SERVER_TIMESTAMP,
+                "duration_minutes": duration_minutes,
+                "attended_minutes": int(info.get("attended_minutes", duration_minutes) or 0),
+                "deviations": int(info.get("deviations", 0) or 0),
+                "total_room_deviations": total_deviations,
+                "score": my_score,
+                "perf_points": my_perf,
+                "end_reason": info.get("leave_reason", reason) if left_early else reason,
+                "left_early": left_early,
+            }
+            try:
+                db.collection("users").document(p_uid).collection("meetings") \
+                    .document(room_id).set(mirror, merge=True)
+            except Exception as mm_err:
+                print(f"[END_SESSION] mirror write failed for {p_uid}: {mm_err}")
+    except Exception as e:
+        print(f"Error saving meeting record: {e}")
+
+    _apply_group_pet_reward(room_id, group_id_local, score_by_uid, avg_score, duration_minutes)
+    return summary
+
+
+async def _sweep_rooms() -> None:
+    """定期檢查：暫離到期後滿 5 分鐘仍未回 App 的成員 → 視為到期那一刻離開。"""
+    now_ms = _now_ms()
+    for room_id, room_data in list(rooms.items()):
+        for uid, until_ms in _att.overdue_exemptions(room_data, now_ms):
+            await _leave_room(room_id, uid, until_ms, "exempt_timeout")
+
+
+async def _room_sweeper_loop() -> None:
+    while True:
+        await asyncio.sleep(ROOM_SWEEP_INTERVAL_SEC)
+        try:
+            await _sweep_rooms()
+        except Exception as e:
+            print(f"[sweeper] failed: {e}")
+
+
+def _ensure_room_sweeper() -> None:
+    """第一個 WebSocket 連進來時才啟動（之前不會有房間需要檢查）。"""
+    global _room_sweeper_task
+    if _room_sweeper_task is None or _room_sweeper_task.done():
+        _room_sweeper_task = asyncio.get_running_loop().create_task(_room_sweeper_loop())
 
 
 @app.post("/api/create_room")
@@ -3631,7 +3969,7 @@ async def create_room(body: CreateRoomRequest, decoded: dict = Depends(verify_to
     }
 
     memory_data = {k: v for k, v in firestore_data.items() if k != "created_at"}
-    memory_data["started_at"] = int(datetime.datetime.utcnow().timestamp() * 1000)
+    memory_data["started_at"] = _now_ms()
 
     try:
         db.collection("rooms").document(room_id).set(firestore_data)
@@ -3665,23 +4003,70 @@ async def end_room_http(room_id: str, body: EndRoomRequest, decoded: dict = Depe
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
 
-    snap = db.collection("rooms").document(room_id).get()
-    if not snap.exists:
+    room_data = _load_room(room_id)
+    if room_data is None:
         raise HTTPException(status_code=404, detail="找不到房間")
 
-    room_data = snap.to_dict() or {}
     members = room_data.get("members") or {}
     all_participants = room_data.get("all_participants") or {}
     if uid != room_data.get("host_uid") and uid not in members and uid not in all_participants:
         raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+    if room_data.get("status") != "ENDED" and _att.acting_host(room_data) not in (None, uid):
+        raise HTTPException(status_code=403, detail="只有主持人可以結束聚會")
 
     reason = (body.reason or "host_ended").strip()[:40] or "host_ended"
     duration_minutes = max(0, int(body.duration_minutes or 0))
-    meeting_record = _save_room_meeting_record(room_id, room_data, reason, duration_minutes)
+    await _finalize_room(room_id, reason, duration_minutes)
     return {
         "status": "success",
         "room_id": room_id,
-        "participants_count": len(meeting_record.get("participants") or []),
+        "participants_count": int(room_data.get("final_participants_count", 0) or 0),
+    }
+
+
+@app.post("/api/rooms/{room_id}/leave")
+async def leave_room_http(room_id: str, body: LeaveRoomRequest, decoded: dict = Depends(verify_token_or_guest)):
+    """個人離開進行中的聚會（其他人繼續）。回傳算到離開為止的個人結算。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    room_data = _load_room(room_id)
+    if room_data is None:
+        raise HTTPException(status_code=404, detail="找不到房間")
+    if room_data.get("status") == "ENDED":
+        raise HTTPException(status_code=409, detail="聚會已經結束")
+
+    now_ms = _now_ms()
+    at_ms = _att.leave_time(room_data, uid, now_ms, bool(body.from_timeout))
+    reason = "exempt_timeout" if at_ms != now_ms else "left_early"
+    result = await _leave_room(room_id, uid, at_ms, reason)
+    if result is None:
+        raise HTTPException(status_code=409, detail="你不在這場進行中的聚會裡")
+    return {"status": "success", "room_id": room_id, **result}
+
+
+@app.post("/api/rooms/{room_id}/intent/extend")
+async def extend_intent_http(room_id: str, decoded: dict = Depends(verify_token_or_guest)):
+    """暫離延長一次（從「暫離時間到」通知按下）。用 HTTP：App 在背景時 WebSocket 多半已斷。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    room_data = rooms.get(room_id)
+    if room_data is None:
+        raise HTTPException(status_code=404, detail="找不到房間")
+
+    now_ms = _now_ms()
+    window_sec = _room_window_sec(room_data)
+    ok, reject_reason, until_ms = _att.extend_exemption(room_data, uid, now_ms, window_sec)
+    if not ok:
+        raise HTTPException(status_code=409, detail=reject_reason)
+    print(f"[EXTEND_INTENT] room={room_id} user={uid} +{window_sec}s")
+    return {
+        "status": "success",
+        "window_sec": window_sec,
+        "remaining_sec": max(0, int((until_ms - now_ms) / 1000)),
     }
 
 
@@ -3707,6 +4092,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
     is_guest_uid = _is_guest_user_id(user_id)
     token = None
     nickname = nickname_q
+    silent_reconnect = False   # 前端從背景回來的自動重連（不是使用者主動加入）
     try:
         first_raw = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
         first_msg = json.loads(first_raw)
@@ -3717,6 +4103,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
         token = first_msg.get("token")
         if first_msg.get("nickname"):
             nickname = (first_msg.get("nickname") or "").strip()[:20] or "訪客"
+        silent_reconnect = bool(first_msg.get("silent"))
     except asyncio.TimeoutError:
         print(f"[ws-auth] reject: AUTH timeout for {user_id!r}")
         await websocket.close(code=4401, reason="AUTH timeout")
@@ -3794,20 +4181,41 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
     if "mode" not in rooms[room_id]:
         rooms[room_id]["mode"] = "GATHERING"
 
-    # 更新成員在記憶體中的狀態 (保留已有的暱稱、若有；否則用本次帶來的)
-    existing = rooms[room_id]["members"].get(user_id, {})
-    rooms[room_id]["members"][user_id] = {
-        "progress": 0,
-        "state": "CONNECTED",
-        "nickname": existing.get("nickname") or nickname,
-    }
-    # 記錄所有曾加入的成員（斷線後也保留）
-    if "all_participants" not in rooms[room_id]:
-        rooms[room_id]["all_participants"] = {}
-    rooms[room_id]["all_participants"][user_id] = {
-        "nickname": existing.get("nickname") or nickname,
-        "deviations": rooms[room_id]["all_participants"].get(user_id, {}).get("deviations", 0),
-    }
+    _ensure_room_sweeper()
+
+    # 更新成員在記憶體中的狀態。重連只改連線狀態，分心／暫離次數／不專注秒數都保留；
+    # 已離開的人再連進來算「加回」（每場有次數上限）。all_participants 記錄所有曾加入的成員。
+    join_ms = _now_ms()
+    # 暫離超時該自動離開的先處理，才分得出這次連線是重連還是加回
+    for overdue_uid, until_ms in _att.overdue_exemptions(rooms[room_id], join_ms):
+        await _leave_room(room_id, overdue_uid, until_ms, "exempt_timeout")
+    # 已離開的人：只有使用者自己按「加回」才算加回。背景自動重連（例如暫離超時被自動離開後
+    # 才回到 App）不佔加回次數，改回傳他離開時的個人結算，讓前端顯示。
+    join_rejection = None
+    if silent_reconnect and rooms[room_id].get("status") == "ACTIVE" \
+            and (rooms[room_id]["members"].get(user_id) or {}).get("state") == _att.STATE_LEFT:
+        left_info = rooms[room_id].get("all_participants", {}).get(user_id) or {}
+        join_rejection = {
+            "type": "JOIN_REJECTED",
+            "silent": True,
+            "reason": "你已離開這場聚會",
+            "result": {**_personal_result(rooms[room_id], user_id),
+                       "leave_reason": left_info.get("leave_reason", "left_early")},
+        }
+    else:
+        join_kind, join_reject_reason = _att.admit(rooms[room_id], user_id, nickname, join_ms)
+        if join_kind == "rejected":
+            join_rejection = {"type": "JOIN_REJECTED", "reason": join_reject_reason}
+    if join_rejection:
+        print(f"[ws-join] reject: user={user_id} room={room_id} ({join_rejection['reason']})")
+        if manager.active_connections.get(user_id) is websocket:
+            manager.disconnect(user_id)
+        try:
+            await websocket.send_text(json.dumps(join_rejection))
+            await websocket.close(code=4409, reason="Join rejected")
+        except Exception as e:
+            print(f"[ws-join] failed to send JOIN_REJECTED: {e}")
+        return
 
     # 同步更新 Firestore 中的成員清單
     try:
@@ -3818,6 +4226,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
     except Exception as e:
         print(f"Error updating member in Firestore: {e}")
 
+    if join_kind == "rejoin":
+        print(f"[REJOIN] room={room_id} user={user_id}")
+        await manager.broadcast_to_room(room_id, {
+            "type": "MEMBER_REJOINED",
+            "user_id": user_id,
+            "nickname": rooms[room_id]["members"][user_id].get("nickname", ""),
+        })
     await manager.broadcast_to_room(room_id, {
         "type": "ROOM_UPDATE",
         "room_state": rooms[room_id]
@@ -3829,10 +4244,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             data = json.loads(data_str)
             action = data.get("action")
 
+            # 已離開聚會的人（舊連線還沒關）不再影響房間狀態；要回來得重新連線走加回
+            if (rooms[room_id]["members"].get(user_id) or {}).get("state") == _att.STATE_LEFT:
+                continue
+
             # 0. 房主按「開始同步定錨」→ 廣播給全員一起進 HOLD 介面
             if action == "START_SYNC":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[START_SYNC] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[START_SYNC] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
                 if rooms[room_id].get("status") != "WAITING":
                     print(f"[START_SYNC] rejected: room={room_id} status is not WAITING")
@@ -3859,8 +4278,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             # 房主在 WAITING 階段按「取消聚會」 → 廣播給所有成員、把房間標 CANCELLED
             # 不像 END_SESSION 那樣寫 meeting 紀錄、算分，因為聚會根本還沒開始
             if action == "CANCEL_ROOM":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[CANCEL_ROOM] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[CANCEL_ROOM] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
                 # 只允許 WAITING 階段取消（已經開始同步的要用 END_SESSION）
                 current_status = rooms[room_id].get("status", "WAITING")
@@ -3882,204 +4301,30 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 continue
 
             if action == "END_SESSION":
-                # 任何參與者都可以結束聚會（讓所有人都能觸發紀錄寫入）
-                # 如果房間已經結束就跳過
+                # 只有主持人能結束整場；其他人要走是「離開聚會」（POST /api/rooms/{id}/leave）
                 if rooms[room_id].get("status") == "ENDED":
                     print(f"[END_SESSION] skipped: room {room_id} already ENDED")
                     continue
+                if _att.acting_host(rooms[room_id]) not in (None, user_id):
+                    print(f"[END_SESSION] rejected: user={user_id} is not acting host of room {room_id}")
+                    await websocket.send_text(json.dumps({
+                        "type": "ACTION_REJECTED", "action": action, "reason": "只有主持人可以結束聚會",
+                    }))
+                    continue
 
-                reason = data.get("reason", "host_ended")
-                duration_minutes = int(data.get("duration_minutes", 0))
-                rooms[room_id]["status"] = "ENDED"
-
-                # 先計算分數（廣播需要用到）
-                room_data = rooms[room_id]
-                _apply_intent_overage(room_data, int(datetime.datetime.utcnow().timestamp() * 1000))
-                all_ever = room_data.get("all_participants") or room_data.get("members", {})
-                host_uid_local = room_data.get("host_uid")
-                group_id_local = room_data.get("group_id")
-                total_deviations = int(room_data.get("deviations", 0) or 0)
-                context_local = room_data.get("context", "general")
-                difficulty_local = room_data.get("difficulty", "M")
-                # 個人計分：每個人依自己的分心次數（未來含感測器 metrics）算分，排行由高分到低分
-                score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
-                    all_ever, host_uid_local, duration_minutes, context_local, difficulty_local
-                )
-                pet_xp_gain = (
-                    _group_pet_session_xp(avg_score, duration_minutes)
-                    if group_id_local and room_data.get("group_pet_face_url") and score_by_uid
-                    else 0
-                )
-                room_data["pet_xp_gain"] = pet_xp_gain
-
-                # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
-                print(f"[END_SESSION] room={room_id} reason={reason}")
-                await manager.broadcast_to_room(room_id, {
-                    "type": "SESSION_ENDED",
-                    "reason": reason,
-                    "duration_minutes": duration_minutes,
-                    "total_deviations": total_deviations,
-                    "avg_score": avg_score,
-                    "base_score": avg_score,          # 舊欄位相容
-                    "group_id": group_id_local,
-                    "group_pet_face_url": room_data.get("group_pet_face_url", ""),
-                    "group_pet_name": room_data.get("group_pet_name", ""),
-                    "group_pet_level": room_data.get("group_pet_level", 1),
-                    "pet_xp_gain": pet_xp_gain,
-                    "score_ranking": score_ranking,
-                    "deviation_ranking": score_ranking,   # 舊前端相容
-                })
-
-                # 廣播之後才做 Firestore 寫入（慢但不影響 UX）
+                reason = str(data.get("reason") or "host_ended")[:40]
                 try:
-                    db.collection("rooms").document(room_id).update({
-                        "status": "ENDED",
-                        "pet_xp_gain": pet_xp_gain,
-                    })
-                except Exception as e:
-                    print(f"Error updating status to ENDED in Firestore: {e}")
-
-                # === 把這場聚會 snapshot 寫到 meetings collection ===
-                try:
-                    members_snapshot = []
-                    participants = []
-                    for uid, info in all_ever.items():
-                        is_guest = _is_guest_user_id(uid)
-                        members_snapshot.append({
-                            "uid": uid,
-                            "nickname": info.get("nickname", ""),
-                            "is_guest": is_guest
-                        })
-                        if not is_guest:
-                            participants.append(uid)
-
-                    # 房主一定要在 participants（即使他已經斷線）
-                    if host_uid_local and host_uid_local not in participants:
-                        participants.append(host_uid_local)
-
-                    meeting_record = {
-                        "room_id": room_id,
-                        "host_uid": host_uid_local,
-                        "host_nickname": room_data.get("host_nickname", ""),
-                        "mode": room_data.get("mode", ""),
-                        "ended_at": firestore.SERVER_TIMESTAMP,
-                        "started_at_ms": room_data.get("started_at", 0),
-                        "duration_minutes": duration_minutes,
-                        "total_deviations": total_deviations,
-                        "member_count": len(members_snapshot),
-                        "members_snapshot": members_snapshot,
-                        "participants": participants,
-                        "end_reason": reason,
-                        "avg_score": avg_score,
-                        "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
-                        "score_ranking": score_ranking,
-                        "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
-                    }
-                    # merge=True 保留聚會中可能已經寫入的 cover_photo_id
-                    db.collection("meetings").document(room_id).set(meeting_record, merge=True)
-                    print(f"[END_SESSION] meeting record saved: {room_id}")
-
-                    # 幫每個 firebase 使用者在 users/{uid}/meetings/{room_id} 寫一份鏡像 + score
-                    for p_uid in participants:
-                        my_score = _score_for_uid(
-                            p_uid, score_by_uid, all_ever, host_uid_local, duration_minutes,
-                            context_local, difficulty_local
-                        )
-                        my_perf = perf_by_uid.get(p_uid)
-                        if my_perf is None:
-                            my_perf = _compute_perf_points(my_score, difficulty_local, context_local)
-                        my_deviations = int((all_ever.get(p_uid) or {}).get("deviations", 0) or 0)
-                        mirror = {
-                            "owner_uid": p_uid,
-                            "room_id": room_id,
-                            "is_host": (p_uid == host_uid_local),
-                            "mode": room_data.get("mode", ""),
-                            "ended_at": firestore.SERVER_TIMESTAMP,
-                            "duration_minutes": duration_minutes,
-                            "deviations": my_deviations,
-                            "total_room_deviations": total_deviations,
-                            "score": my_score,
-                            "perf_points": my_perf,
-                        }
-                        try:
-                            db.collection("users").document(p_uid).collection("meetings") \
-                                .document(room_id).set(mirror, merge=True)
-                        except Exception as mm_err:
-                            print(f"[END_SESSION] mirror write failed for {p_uid}: {mm_err}")
-                except Exception as e:
-                    print(f"Error saving meeting record: {e}")
-
-                # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
-                # score_by_uid 為空 = 沒有任何參與者留下紀錄，此時 avg_score=0 並非「表現差」，
-                # 不可拿來扣寵物能量，直接跳過。
-                if group_id_local and score_by_uid:
-                    try:
-                        g_ref = db.collection("groups").document(group_id_local)
-                        pet_transaction = db.transaction()
-
-                        @firestore.transactional
-                        def apply_session_reward(tx):
-                            g_snap = g_ref.get(transaction=tx)
-                            if not g_snap.exists:
-                                return None
-                            g_data = g_snap.to_dict() or {}
-                            if not g_data.get("pet_face_url"):
-                                return None
-                            rewarded_room_ids = list(g_data.get("pet_rewarded_room_ids") or [])
-                            if room_id in rewarded_room_ids:
-                                return None
-                            # 先套用時間衰減拿到當前基準，讀書成績再往上/往下調
-                            _s = _group_pet_current_stats(g_data)
-                            pet_energy      = _s["pet_energy"]
-                            pet_happiness   = _s["pet_happiness"]
-                            pet_cleanliness = _s["pet_cleanliness"]
-                            if avg_score >= 70:                         # 認真讀書：餵飽 + 開心
-                                energy_delta = min(10 + int((avg_score - 70) / 3), 20)
-                                pet_energy    = min(100.0, pet_energy + energy_delta)
-                                pet_happiness = min(100.0, pet_happiness + 5)
-                            elif avg_score < 40:                        # 混水摸魚：餓 + 掉心情
-                                pet_energy    = max(0.0, pet_energy - 5)
-                                pet_happiness = max(0.0, pet_happiness - 5)
-
-                            new_status = _group_pet_status(pet_energy, pet_happiness, pet_cleanliness)
-                            xp_gain = _group_pet_session_xp(avg_score, duration_minutes)
-                            accumulated_xp = max(0, int(g_data.get("pet_accumulated_score", 0) or 0)) + xp_gain
-                            growth = _group_pet_growth({
-                                **g_data,
-                                "pet_accumulated_score": accumulated_xp,
-                                "pet_meetings_completed": int(g_data.get("pet_meetings_completed", 0) or 0) + 1,
-                            })
-                            tx.update(g_ref, {
-                                "pet_energy":       pet_energy,
-                                "pet_happiness":    pet_happiness,
-                                "pet_cleanliness":  pet_cleanliness,
-                                "pet_status":       new_status,
-                                "pet_last_updated": firestore.SERVER_TIMESTAMP,   # 重設衰減 anchor
-                                "pet_level": growth["pet_level"],
-                                "pet_accumulated_score": accumulated_xp,
-                                "pet_accessories": growth["pet_accessories"],
-                                "pet_meetings_completed": growth["pet_meetings_completed"],
-                                "pet_last_session_score": avg_score,
-                                "pet_last_reward_xp": xp_gain,
-                                "pet_last_session_at": firestore.SERVER_TIMESTAMP,
-                                "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
-                            })
-                            return pet_energy, pet_happiness, new_status, xp_gain, growth["pet_level"]
-
-                        pet_result = apply_session_reward(pet_transaction)
-                        if pet_result:
-                            pet_energy, pet_happiness, new_status, xp_gain, pet_level = pet_result
-                            print(f"[END_SESSION] group pet updated: group={group_id_local} energy={round(pet_energy)} happy={round(pet_happiness)} status={new_status} xp=+{xp_gain} level={pet_level}")
-                    except Exception as pet_err:
-                        print(f"[END_SESSION] group pet update failed: {pet_err}")
-
+                    client_minutes = max(0, int(data.get("duration_minutes", 0) or 0))
+                except (TypeError, ValueError):
+                    client_minutes = 0
+                await _finalize_room(room_id, reason, client_minutes)
                 continue
 
             # 1. 房主切換模式 (上課、開會、聚會、問答)
             # 🔒 [C4 修正 v15.2] 加上 host 檢查 + mode 白名單,防止任何成員亂改 mode
             if action == "CHANGE_MODE":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[CHANGE_MODE] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[CHANGE_MODE] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
 
                 new_mode = data.get("mode")
@@ -4105,15 +4350,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             # (新) { action:"START_QA", source:"mine|public|specific", question_id?:"..." }
             # (舊) { action:"START_QA", question:"...", options:[...] } → 房主手動傳題目(沒有正解)
             elif action == "START_QA":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[START_QA] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[START_QA] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
 
                 source = data.get("source")
                 picked = None
                 if source in ("mine", "public", "specific"):
-                    host_uid_local = rooms[room_id].get("host_uid") or user_id
-                    picked = _pick_question_for_host(host_uid_local, source, data.get("question_id"))
+                    picked = _pick_question_for_host(user_id, source, data.get("question_id"))
                     if not picked:
                         # 題庫是空的或找不到該題
                         await websocket.send_text(json.dumps({
@@ -4189,60 +4433,19 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 except Exception as e:
                     print(f"Error updating answer in Firestore: {e}")
 
-                # 先廣播當前作答進度 (例如 "2/4 已作答")
+                # 先廣播當前作答進度 (例如 "2/4 已作答")；已離開的人不算在應答人數內
                 answers = rooms[room_id]["qa_state"]["answers"]
-                members = rooms[room_id]["members"]
+                present_count = _present_count(rooms[room_id])
 
-                print(f"[QA] room={room_id} user={user_id} answered={answer} | progress={len(answers)}/{len(members)}")
+                print(f"[QA] room={room_id} user={user_id} answered={answer} | progress={len(answers)}/{present_count}")
 
                 await manager.broadcast_to_room(room_id, {
                     "type": "QA_PROGRESS",
                     "answered_count": len(answers),
-                    "total_count": len(members)
+                    "total_count": present_count
                 })
 
-                # 全員答完 → 統計票數並廣播結果，自動回到 ACTIVE 模式
-                if len(answers) >= len(members) and len(members) > 0:
-                    print(f"[QA] room={room_id} ALL ANSWERED → broadcasting QA_FINISHED")
-                    # 統計每個選項票數
-                    results = {}
-                    for ans in answers.values():
-                        results[ans] = results.get(ans, 0) + 1
-
-                    # 如果這題有正解，回傳正解 + 答對人數
-                    qa_state_prev = rooms[room_id].get("qa_state") or {}
-                    has_answer = bool(qa_state_prev.get("has_answer"))
-                    correct_index = qa_state_prev.get("correct_index")
-                    correct_option = None
-                    correct_count = None
-                    if has_answer and correct_index is not None:
-                        opts_prev = qa_state_prev.get("current_options") or []
-                        if 0 <= correct_index < len(opts_prev):
-                            correct_option = opts_prev[correct_index]
-                            correct_count = sum(1 for a in answers.values() if a == correct_option)
-
-                    # 模式回到 ACTIVE (定錨)，清空題目
-                    rooms[room_id]["mode"] = "ACTIVE"
-                    rooms[room_id]["qa_state"] = {"current_question": None, "answers": {}}
-
-                    try:
-                        db.collection("rooms").document(room_id).update({
-                            "mode": "ACTIVE",
-                            "qa_state.current_question": None,
-                            "qa_state.answers": {}
-                        })
-                    except Exception as e:
-                        print(f"Error resetting QA state in Firestore: {e}")
-
-                    finished_msg = {
-                        "type": "QA_FINISHED",
-                        "results": results,
-                        "has_answer": has_answer,
-                    }
-                    if has_answer and correct_option is not None:
-                        finished_msg["correct_option"] = correct_option
-                        finished_msg["correct_count"] = correct_count
-                    await manager.broadcast_to_room(room_id, finished_msg)
+                await _finish_qa_if_complete(room_id)
 
             # 4. 同步進度
             elif action == "SYNC_PROGRESS":
@@ -4261,12 +4464,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 if all_100 and rooms[room_id]["status"] != "ACTIVE":
                     rooms[room_id]["status"] = "ACTIVE"
+                    _att.start_active(rooms[room_id], _now_ms())   # 每人的在場時間從這一刻起算
 
                     # 關鍵狀態變更：同步到 Firestore
                     try:
                         db.collection("rooms").document(room_id).update({
                             "status": "ACTIVE",
-                            "members": rooms[room_id]["members"]
+                            "active_started_ms": rooms[room_id]["active_started_ms"],
+                            "members": rooms[room_id]["members"],
+                            "all_participants": rooms[room_id]["all_participants"],
                         })
                     except Exception as e:
                         print(f"Error updating status in Firestore: {e}")
@@ -4292,30 +4498,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 #   時間（第2次起算 present-not-focus，供 END_SESSION 計分削 focus）。
                 if rooms[room_id].get("status") == "ACTIVE":
                     _im = rooms[room_id]["members"][user_id]
-                    _im_now = int(datetime.datetime.utcnow().timestamp() * 1000)
+                    _im_now = _now_ms()
                     if state != "visible":
                         if _intent_within_exemption(int(_im.get("exempt_window_until_ms", 0) or 0), _im_now) \
                                 and not _im.get("exempt_active_since_ms"):
                             _im["exempt_active_since_ms"] = _im_now
                     else:
-                        _active_since = int(_im.get("exempt_active_since_ms", 0) or 0)
-                        if _active_since:
-                            _charged = _intent_charge_on_return(
-                                _active_since, _im_now,
-                                _intent_window_sec(rooms[room_id].get("difficulty", "M")),
-                                int(_im.get("exempt_count_used", 0) or 0),
-                            )
-                            if _charged > 0:
-                                _im["exempt_charged_sec"] = float(_im.get("exempt_charged_sec", 0.0) or 0.0) + _charged
-                                _im.setdefault("quality_metrics", {})
-                                _im["quality_metrics"]["exempt_charged_seconds"] = _im["exempt_charged_sec"]
-                                _ap = rooms[room_id].get("all_participants", {})
-                                if user_id in _ap:
-                                    _ap[user_id].setdefault("quality_metrics", {})
-                                    _ap[user_id]["quality_metrics"]["exempt_charged_seconds"] = _im["exempt_charged_sec"]
-                        # 回到 App 專心 → 豁免結束
-                        _im["exempt_active_since_ms"] = 0
-                        _im["exempt_window_until_ms"] = 0
+                        # 回到 App 專心 → 豁免結束（含延長的那一截）
+                        _att.settle_exemption(
+                            rooms[room_id], user_id, _im_now, _room_window_sec(rooms[room_id]))
 
                 if rooms[room_id]["status"] == "ACTIVE" and rooms[room_id].get("mode") != "QA_GAME":
                     # 同步更新資料庫中的使用者狀態
@@ -4347,14 +4538,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # 意圖豁免：若此使用者正在宣告過的放寬窗口內，這次離開不算分心
                 # （第2次起的豁免時間會在回到 App 時另計為 present-not-focus）。
                 _exempt_member = rooms[room_id]["members"].get(user_id) or {}
-                _exempt_now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+                _exempt_now_ms = _now_ms()
                 if _intent_within_exemption(int(_exempt_member.get("exempt_window_until_ms", 0) or 0), _exempt_now_ms):
                     print(f"[LOG_DEVIATION] exempted by intent user={user_id} room={room_id}")
                     continue
 
                 # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定
                 rate_limit_ms = int(rooms[room_id].get("session_params", {}).get("deviation_rate_limit_sec", 25)) * 1000
-                now_ms = int(datetime.datetime.utcnow().timestamp() * 1000)
+                now_ms = _now_ms()
                 member = rooms[room_id]["members"].get(user_id) or {}
                 last_dev_ms = member.get("last_deviation_ms", 0)
                 if now_ms - last_dev_ms < rate_limit_ms:
@@ -4364,24 +4555,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                 # 支援前端傳入 count（長時間離開時一次記多次）
                 count = max(1, int(data.get("count", 1)))
-                rooms[room_id]["deviations"] += count
-
-                # 同時記錄此用戶自己的分心次數
-                rooms[room_id]["members"][user_id]["deviations"] = \
-                    rooms[room_id]["members"][user_id].get("deviations", 0) + count
-                user_deviations = rooms[room_id]["members"][user_id]["deviations"]
-
-                # 同步更新 all_participants，確保 END_SESSION 排行榜能讀到正確數值
-                if user_id in rooms[room_id].get("all_participants", {}):
-                    rooms[room_id]["all_participants"][user_id]["deviations"] = user_deviations
-
-                # 這次分心中斷了該用戶的連續專注 → 更新其最長專注時間（只加分用）
-                _note_focus_break(rooms[room_id], user_id, now_ms)
+                # members 記「這一段」的分心（畫面用，加回後從 0 開始）；all_participants 記計分用的累計。
+                # 同時中斷該用戶的連續專注 → 更新其最長專注時間（只加分用）
+                user_deviations, _ = _att.record_deviation(rooms[room_id], user_id, count, now_ms)
 
                 try:
                     db.collection("rooms").document(room_id).update({
                         "deviations": firestore.Increment(count),
-                        f"members.{user_id}.deviations": firestore.Increment(count)
+                        f"members.{user_id}.deviations": firestore.Increment(count),
+                        f"all_participants.{user_id}.deviations": firestore.Increment(count),
                     })
                 except Exception as e:
                     print(f"Error logging deviation in Firestore: {e}")
@@ -4403,7 +4585,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _di_diff = rooms[room_id].get("difficulty", "M")
                 _di_budget = _intent_budget(_di_ctx)
                 _di_window = _intent_window_sec(_di_diff)
-                _di_now = int(datetime.datetime.utcnow().timestamp() * 1000)
+                _di_now = _now_ms()
                 _di_member = rooms[room_id]["members"].get(user_id) or {}
                 _di_used = int(_di_member.get("exempt_count_used", 0) or 0)
                 _di_last = int(_di_member.get("exempt_last_declared_ms", 0) or 0)
@@ -4417,6 +4599,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 rooms[room_id]["members"][user_id]["exempt_last_declared_ms"] = _di_now
                 rooms[room_id]["members"][user_id]["exempt_window_until_ms"] = _di_now + _di_window * 1000
                 rooms[room_id]["members"][user_id]["exempt_active_since_ms"] = 0
+                rooms[room_id]["members"][user_id]["exempt_ext_from_ms"] = 0
                 await websocket.send_text(json.dumps({
                     "type": "INTENT_GRANTED",
                     "window_sec": _di_window,
@@ -4425,8 +4608,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
             # 7. 房主發起關鍵字遊戲 (Taboo Game)
             elif action == "START_TABOO_GAME":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[START_TABOO_GAME] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[START_TABOO_GAME] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
 
                 rooms[room_id]["mode"] = "TABOO_GAME"
@@ -4446,8 +4629,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
             # 8. 房主結束關鍵字遊戲
             elif action == "END_TABOO_GAME":
-                if rooms[room_id].get("host_uid") != user_id:
-                    print(f"[END_TABOO_GAME] rejected: user={user_id} is not host of room {room_id}")
+                if _att.acting_host(rooms[room_id]) != user_id:
+                    print(f"[END_TABOO_GAME] rejected: user={user_id} is not host of room {room_id} (host_uid/acting)")
                     continue
 
                 rooms[room_id]["mode"] = "ACTIVE"
@@ -4466,13 +4649,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 })
 
     except WebSocketDisconnect:
+        # 同一人重連時舊連線可能比新連線晚關；這時不能把新連線的登記與狀態蓋掉
+        if manager.active_connections.get(user_id) is not websocket:
+            return
         manager.disconnect(user_id)
         if room_id in rooms and user_id in rooms[room_id]["members"]:
             room_status = rooms[room_id].get("status", "WAITING")
+            member_state = rooms[room_id]["members"][user_id].get("state")
 
+            if member_state == _att.STATE_LEFT:
+                return   # 已離開聚會的人關連線，不用再通知
             if room_status in ("ACTIVE", "SYNCING", "ENDED"):
                 # 聚會進行中/已結束：只標記斷線狀態，保留成員資料以確保紀錄完整
-                rooms[room_id]["members"][user_id]["state"] = "DISCONNECTED"
+                # （鎖螢幕專心時 App 被系統暫停也會斷線，所以斷線不等於離開）
+                _att.mark_disconnected(rooms[room_id], user_id)
                 try:
                     db.collection("rooms").document(room_id).update({
                         f"members.{user_id}.state": "DISCONNECTED"

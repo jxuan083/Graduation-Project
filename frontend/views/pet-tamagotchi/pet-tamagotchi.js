@@ -2,6 +2,8 @@ import { back, register, switchView } from '../../core/router.js';
 import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
+import { isImeComposing } from '../../utils/ime.js';
+import { t, getLang } from '../../core/i18n.js';
 
 // ── 背景 ─────────────────────────────────────────────────────────────────────
 
@@ -244,6 +246,7 @@ export function init() {
     document.getElementById('btn-rename-confirm').onclick  = confirmRename;
     document.getElementById('btn-rename-cancel').onclick   = closeRenameDialog;
     document.getElementById('pet-rename-input').addEventListener('keydown', e => {
+        if (isImeComposing(e)) return;   // 輸入法選字中的 Enter 不確認改名
         if (e.key === 'Enter')  confirmRename();
         if (e.key === 'Escape') closeRenameDialog();
     });
@@ -374,9 +377,9 @@ function renderPetList() {
                     <img class="pet-list-avatar${isLegacyOpaquePet(pet.pet_face_url) ? ' pet-legacy-opaque' : ''}" src="${escHtml(pet.pet_face_url)}" alt="${escHtml(pet.pet_name || '群組寵物')}">
                 </div>
                 ${visitorEntry && !isCaged ? `
-                    <div class="pet-list-visitor" aria-label="${escHtml(visitorEntry.pet.pet_name || '另一隻寵物')}來串門">
+                    <div class="pet-list-visitor" aria-label="${escHtml(t('{name}來串門', { name: visitorEntry.pet.pet_name || t('另一隻寵物') }))}">
                         <img class="${isLegacyOpaquePet(visitorEntry.pet.pet_face_url) ? 'pet-legacy-opaque' : ''}" src="${escHtml(visitorEntry.pet.pet_face_url)}" alt="">
-                        <span>${escHtml(visitorEntry.pet.pet_name || '朋友')}來串門</span>
+                        <span>${escHtml(t('{name}來串門', { name: visitorEntry.pet.pet_name || t('朋友') }))}</span>
                     </div>` : ''}
                 ${isCaged ? `<div class="pet-list-cage" aria-hidden="true"><span></span><span></span><span></span><span></span></div>` : ''}
             </div>
@@ -385,7 +388,7 @@ function renderPetList() {
                     <div class="pet-list-group">${escHtml(group_name)}</div>
                     <div class="pet-list-name">${escHtml(pet.pet_name || '群組寵物')}<span class="pet-list-level">LV ${level}</span></div>
                     <div class="pet-list-status${isCaged ? ' status-rescue' : ''}">
-                        <span><i data-lucide="${isCaged ? 'lock-keyhole' : (meetingWarning ? 'calendar-clock' : statusMeta.icon)}"></i>${isCaged ? '等待大家開一場聚會救援' : (meetingWarning ? `${Number(pet.pet_days_until_caged || 0)} 天後需要救援` : statusMeta.text)}</span>
+                        <span><i data-lucide="${isCaged ? 'lock-keyhole' : (meetingWarning ? 'calendar-clock' : statusMeta.icon)}"></i>${isCaged ? '等待大家開一場聚會救援' : (meetingWarning ? escHtml(t('{n} 天後需要救援', { n: Number(pet.pet_days_until_caged || 0) })) : statusMeta.text)}</span>
                         ${isCaged ? '' : `<span class="pet-list-energy"><i data-lucide="utensils"></i>${energy}/${maxE}</span>`}
                     </div>
                 </div>
@@ -488,7 +491,7 @@ async function doAction(action) {
             _groupPet.pet_cooldowns   = data.pet_cooldowns || _groupPet.pet_cooldowns || {};
         }
         const changeText = formatChanges(data?.changes || {});
-        showActionFeedback(`${ACTION_LABELS[action]}完成${changeText ? ` · ${changeText}` : ''}`, 'success');
+        showActionFeedback(`${t('{action}完成', { action: t(ACTION_LABELS[action]) })}${changeText ? ` · ${changeText}` : ''}`, 'success');
         playPetReaction(action, data?.changes || {});
         setSpeech(_groupPet.pet_status || 'NORMAL', true);
     } catch (e) {
@@ -531,7 +534,7 @@ function renderGroupMode() {
     document.getElementById('pet-meeting-count').textContent = Number(_groupPet.pet_meetings_completed || 0);
     const lastReward = document.getElementById('pet-last-reward');
     if (_groupPet.pet_last_session_score !== null && _groupPet.pet_last_session_score !== undefined) {
-        lastReward.textContent = `上次 +${Number(_groupPet.pet_last_reward_xp || 0)} XP`;
+        lastReward.textContent = t('上次 +{n} XP', { n: Number(_groupPet.pet_last_reward_xp || 0) });
         lastReward.style.display = '';
     } else {
         lastReward.style.display = 'none';
@@ -586,7 +589,7 @@ function renderGroupMode() {
     } else if (meetingWarning) {
         localStorage.removeItem(rescueMemoryKey);
         statusChip.className = 'pet-status-chip status-warning';
-        statusChip.innerHTML = `<i data-lucide="calendar-clock"></i><span>${Number(_groupPet.pet_days_until_caged || 0)} 天後需要救援</span>`;
+        statusChip.innerHTML = `<i data-lucide="calendar-clock"></i><span>${escHtml(t('{n} 天後需要救援', { n: Number(_groupPet.pet_days_until_caged || 0) }))}</span>`;
         applyAvatarState(statusToAnimClass(status));
         if (_lastRenderedStatus !== 'MEETING_WARNING') setSpeech('MEETING_WARNING', true);
         _lastRenderedStatus = 'MEETING_WARNING';
@@ -949,15 +952,17 @@ function readApiError(data, fallback) {
 function formatCooldown(seconds) {
     const minutes = Math.floor(seconds / 60);
     const rest = seconds % 60;
-    return minutes > 0 ? `${minutes}:${String(rest).padStart(2, '0')} 後` : `${rest} 秒後`;
+    return minutes > 0
+        ? t('{time} 後', { time: `${minutes}:${String(rest).padStart(2, '0')}` })
+        : t('{n} 秒後', { n: rest });
 }
 
 function formatChanges(changes) {
     const labels = { pet_energy: '飽食', pet_happiness: '快樂', pet_cleanliness: '清潔' };
     return Object.entries(changes)
         .filter(([, value]) => Number(value) !== 0)
-        .map(([key, value]) => `${labels[key] || key} ${Number(value) > 0 ? '+' : ''}${value}`)
-        .join('、');
+        .map(([key, value]) => `${labels[key] ? t(labels[key]) : key} ${Number(value) > 0 ? '+' : ''}${value}`)
+        .join(getLang() === 'en' ? ', ' : '、');
 }
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

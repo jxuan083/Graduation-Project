@@ -5,7 +5,7 @@ import { switchView } from '../../core/router.js';
 import { formatModeLabel, formatEndReason, formatDateTime } from '../../utils/format.js';
 import { loadMeetingPhotos } from '../photos/controller.js';
 import { t } from '../../core/i18n.js';
-import { renderMeetingNews } from '../../views/meeting-news/meeting-news.js?v=74';
+import { renderMeetingNews } from '../../views/meeting-news/meeting-news.js?v=75';
 
 const MEETINGS_DISPLAY_LIMIT = 10;
 let _allMeetings = [];
@@ -91,9 +91,9 @@ function _buildCard(m) {
             ${groupTag}
             <div class="mt-card-meta">${dateLabel}</div>
             <div class="mt-card-stats">
-                <span class="mt-stat">👥 ${m.member_count || 0} 人</span>
-                <span class="mt-stat">⏱ ${m.duration_minutes || 0} 分</span>
-                <span class="mt-stat">📱 分心 ${m.total_deviations || 0} 次</span>
+                <span class="mt-stat">${escHtml(t('👥 {n} 人', { n: m.member_count || 0 }))}</span>
+                <span class="mt-stat">${escHtml(t('⏱ {n} 分鐘', { n: m.duration_minutes || 0 }))}</span>
+                <span class="mt-stat">${escHtml(t('📱 分心 {n} 次', { n: m.total_deviations || 0 }))}</span>
             </div>
         </div>`;
     card.onclick = () => openMeetingDetail(m.id);
@@ -248,8 +248,8 @@ function renderMdDeviationRanking(ranking, myUid) {
         const medal = medals[i] || `${i + 1}.`;
         const nameStyle = isMe ? 'font-weight:700; color:var(--accent-fire, #ff6b35);' : '';
         li.innerHTML = `
-            <span style="${nameStyle}">${medal} ${escHtml(item.nickname || item.uid)}${isMe ? ' (我)' : ''}</span>
-            <span style="font-weight:700;">${item.deviations} 次</span>
+            <span style="${nameStyle}">${medal} ${escHtml(item.nickname || item.uid)}${isMe ? ' ' + escHtml(t('(我)')) : ''}</span>
+            <span style="font-weight:700;">${escHtml(t('{n} 次', { n: item.deviations }))}</span>
         `;
         ul.appendChild(li);
     });

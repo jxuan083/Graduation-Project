@@ -1,6 +1,7 @@
 // core/wsHandlers.js — 集中註冊所有 WebSocket 訊息的處理邏輯
 // 取代原本散落 200 行的 onmessage if/elif 鏈
 import { state } from './state.js';
+import { events } from './events.js';
 import { switchView } from './router.js';
 import { registerHandler, sendAction, closeWs } from './ws.js';
 import { cleanupSession, updateThemeByMode } from './session.js';
@@ -9,12 +10,12 @@ import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=74';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=75';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=74';
+} from '../views/sync-ritual/sync-ritual.js?v=75';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -35,11 +36,28 @@ export function registerAllWsHandlers() {
     registerHandler('TABOO_STARTED', handleTabooStarted);
     registerHandler('TABOO_ENDED', handleTabooEnded);
     registerHandler('QA_ERROR', (msg) => alert(t('出題失敗:') + msg.message));
+    registerHandler('MEMBER_LEFT', handleMemberLeft);
+    registerHandler('MEMBER_REJOINED', handleMemberRejoined);
+    registerHandler('HOST_CHANGED', handleHostChanged);
+    registerHandler('JOIN_REJECTED', handleJoinRejected);
+    registerHandler('ACTION_REJECTED', (msg) => toast(msg.reason || t('操作沒有成功'), 'warn'));
+    // 自己按了「離開聚會」（focus view 送出 HTTP 成功後）→ 顯示個人結算
+    events.on('session:left', showLeftSummary);
+}
+
+function toast(message, kind) {
+    try { showToast(message, kind); } catch (e) { /* noop */ }
 }
 
 function handleRoomUpdate(msg) {
     const rs = msg.room_state || {};
-    if (rs.host_uid) state.roomHostUid = rs.host_uid;
+    // 主持人離開後會自動換人：畫面上的「房主」與主持權限都跟著現任主持人走（建立者是 rs.host_uid）
+    const actingHost = rs.acting_host_uid || rs.host_uid;
+    if (actingHost) {
+        state.roomHostUid = actingHost;
+        if (rs.status === 'ACTIVE') state.amIHost = actingHost === state.userId;
+    }
+    state.roomAllParticipants = rs.all_participants || {};
     if (rs.context) state.currentContext = rs.context;  // 成員端也知道情境（意圖按鈕依此決定顯隱）
     // 本場聚會綁定群組的寵物臉（聚會中吉祥物）；沒綁群組 / 群組沒寵物則為空 → focus 顯示動畫球
     state.meetingGroupPetFace = rs.group_pet_face_url || '';
@@ -53,14 +71,26 @@ function handleRoomUpdate(msg) {
         const startBtn = document.getElementById('btn-start-sync');
         if (startBtn) startBtn.classList.remove('disabled');
     }
-    // 中途加入者:已 ACTIVE 就直接切到 focus
-    if (!state.amIHost && rs.status === 'ACTIVE' && state.currentPhase !== 'ACTIVE') {
+    // 中途加入／加回者:已 ACTIVE 就直接切到 focus。只在「還沒進到聚會」的階段才切，
+    // 否則問答或遊戲進行中有人進出房間（ROOM_UPDATE）會把大家踢回聚會畫面。
+    const notInSessionYet = ['HOME', 'WAITING', 'SYNC'].includes(state.currentPhase);
+    if (rs.status === 'ACTIVE' && notInSessionYet) {
         state.currentPhase = 'ACTIVE';
+        if (!state.sessionStartTime) state.sessionStartTime = Date.now();
+        // 加回後畫面上的分心從 0 重新開始（離開前的扣分後端有保留）
+        state.myDeviations = Number(rs.members?.[state.userId]?.deviations || 0);
+        const devEl = document.getElementById('deviation-count');
+        if (devEl) devEl.innerText = state.myDeviations;
         if (rs.mode) updateThemeByMode(rs.mode);
         switchView('view-focus', { replace: true });
-        try { showToast('已加入進行中的聚會', 'success'); } catch (e) {}
+        toast(t('已加入進行中的聚會'), 'success');
     }
+    refreshSessionControls();
     // 聚會已結束但尚未跳到結算（例如重連錯過 SESSION_ENDED）
+    if (rs.status === 'ENDED' && state.currentPhase !== 'SUMMARY' && rs.final_result) {
+        handleSessionEnded(rs.final_result);   // 後端留著結算結果 → 照正常結束顯示分數與排行
+        return;
+    }
     if (rs.status === 'ENDED' && state.currentPhase !== 'SUMMARY') {
         const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
         document.getElementById('summary-time').innerText = mins;
@@ -69,14 +99,92 @@ function handleRoomUpdate(msg) {
         const scoreEl = document.getElementById('summary-score');
         if (scoreEl) scoreEl.innerText = '—';
         renderSummaryPet(rs);
-        state.currentPhase = 'SUMMARY';
-        document.body.className = '';
-        if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
-        if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
-        state.deviationDeadline = null;
-        closeWs();
-        switchView('view-summary', { replace: true });
+        setLeftSummaryExtras('', false);
+        enterSummaryView();
     }
+}
+
+// 切到聚會總結頁：停掉分心計時、關掉連線。
+function enterSummaryView() {
+    state.currentPhase = 'SUMMARY';
+    document.body.className = '';
+    if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
+    if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
+    state.deviationDeadline = null;
+    state.exemptUntil = 0;
+    state.pendingDeviation = 0;
+    closeWs();
+    switchView('view-summary', { replace: true });
+}
+
+// 總結頁上只有「提前離開」才用得到的兩樣東西：一句說明、加回聚會的按鈕。
+function setLeftSummaryExtras(hintText, canRejoin, rejoinsLeft = 0) {
+    const hint = document.getElementById('summary-host-hint');
+    if (hint) {
+        hint.innerText = hintText;
+        hint.style.display = hintText ? '' : 'none';
+    }
+    const btn = document.getElementById('btn-summary-rejoin');
+    if (btn) {
+        btn.style.display = canRejoin ? '' : 'none';
+        if (canRejoin) btn.innerText = t('加回聚會（還可 {n} 次）', { n: rejoinsLeft });
+    }
+    if (!canRejoin) state.leftRoomId = null;
+}
+
+// 自己提前離開：顯示算到離開為止的個人結算。其他人還在進行，所以沒有排行。
+function showLeftSummary(result) {
+    const roomId = state.roomId;
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value;
+    };
+    setText('summary-time', Number(result.duration_minutes || 0));
+    setText('summary-score', result.score ?? '—');
+    setText('summary-deviations', Number(result.deviations || 0));
+    setText('summary-member-count', Object.keys(state.roomMembers || {}).length || 1);
+    renderSummaryPet({}, result.score ?? null);
+    renderScoreRanking([]);
+
+    const canRejoin = !result.session_ended && Number(result.rejoins_left || 0) > 0;
+    if (canRejoin) state.leftRoomId = roomId;
+    let hintText = t('你已先離開，分數算到離開為止');
+    if (result.session_ended) hintText = t('所有人都離開了，聚會已結束');
+    else if (result.leave_reason === 'exempt_timeout') hintText = t('暫離超時未回來，已自動離開，分數算到暫離到期為止');
+    setLeftSummaryExtras(hintText, canRejoin, Number(result.rejoins_left || 0));
+    enterSummaryView();
+}
+
+function handleMemberLeft(msg) {
+    if (msg.user_id === state.userId) return;
+    toast(t('{name} 離開了聚會', { name: msg.nickname || t('有成員') }), 'info');
+}
+
+function handleMemberRejoined(msg) {
+    if (msg.user_id === state.userId) return;
+    toast(t('{name} 回來了', { name: msg.nickname || t('有成員') }), 'info');
+}
+
+function handleHostChanged(msg) {
+    state.roomHostUid = msg.host_uid;
+    state.amIHost = msg.host_uid === state.userId;
+    refreshSessionControls();
+    renderMemberList(state.roomMembers);
+    toast(state.amIHost
+        ? t('你現在是主持人，可以開遊戲與結束聚會')
+        : t('{name} 現在是主持人', { name: msg.nickname || t('有成員') }), 'info');
+}
+
+// 進房被拒絕。silent：背景自動重連時發現自己已被離開（暫離超時）→ 顯示那時的個人結算；
+// 否則是加回次數用完了 → 回首頁。
+function handleJoinRejected(msg) {
+    if (msg.silent) {
+        if (state.currentPhase !== 'SUMMARY' && msg.result) showLeftSummary(msg.result);
+        return;
+    }
+    toast(msg.reason || t('無法加入這場聚會'), 'warn');
+    cleanupSession();
+    switchView('view-home', { replace: true });
 }
 
 function handleRoomCancelled() {
@@ -104,8 +212,9 @@ function handleSessionEnded(msg) {
     const mins = msg.duration_minutes ?? (state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0);
     const ranking = msg.score_ranking || msg.deviation_ranking || [];
     const myRow = ranking.find(r => r.uid === state.userId);
-    document.getElementById('summary-time').innerText = mins;
-    document.getElementById('summary-deviations').innerText = state.myDeviations;
+    // 中途加入／離開過的人，時間與分心顯示自己的（後端累計），不是整場的
+    document.getElementById('summary-time').innerText = myRow?.attended_minutes ?? mins;
+    document.getElementById('summary-deviations').innerText = myRow?.deviations ?? state.myDeviations;
     const scoreEl = document.getElementById('summary-score');
     if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
     const memberCountEl = document.getElementById('summary-member-count');
@@ -126,17 +235,15 @@ function handleSessionEnded(msg) {
         else if (reason === 'member_ended') hint.innerText = '有成員結束了聚會';
         else if (!state.amIHost) hint.innerText = '房主已結束聚會';
         else hint.innerText = '';
+        hint.style.display = 'none';   // 這句只在「提前離開」的個人結算才顯示
     }
 
     renderScoreRanking(ranking);
+    const rejoinBtn = document.getElementById('btn-summary-rejoin');
+    if (rejoinBtn) rejoinBtn.style.display = 'none';
+    state.leftRoomId = null;
 
-    state.currentPhase = 'SUMMARY';
-    document.body.className = '';
-    if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
-    if (state.hiddenTimerObj) { clearTimeout(state.hiddenTimerObj); state.hiddenTimerObj = null; }
-    state.deviationDeadline = null;
-    closeWs();
-    switchView('view-summary', { replace: true });
+    enterSummaryView();
 }
 
 // 聚會總結的吉祥物卡：
@@ -174,7 +281,7 @@ function renderSummaryPet(msg, myScore) {
     const xp = document.getElementById('summary-pet-xp');
     if (xp) {
         const gain = Number(msg.pet_xp_gain || 0);
-        xp.textContent = gain > 0 ? `本場成長 +${gain} XP` : '';
+        xp.textContent = gain > 0 ? t('本場成長 +{gain} XP', { gain }) : '';
         xp.style.display = gain > 0 ? 'inline-flex' : 'none';
     }
 
@@ -184,7 +291,7 @@ function renderSummaryPet(msg, myScore) {
 }
 
 function summaryMascotMessage(myScore, petName) {
-    const who = petName ? `${petName}` : '大家的吉祥物';
+    const who = petName ? `${petName}` : t('大家的吉祥物');
     const score = Number.isFinite(Number(myScore)) ? Number(myScore) : null;
     // 有分數就照分數分級；沒有分數（重連漏收結算）退回用分心次數判斷
     let tier;
@@ -193,9 +300,9 @@ function summaryMascotMessage(myScore, petName) {
     } else {
         tier = state.myDeviations <= 3 ? 'great' : state.myDeviations <= 8 ? 'good' : 'try';
     }
-    if (tier === 'great') return `太專注了！這場聚會超棒，${who}獲得了豐盛養分 🎉`;
-    if (tier === 'good') return `不錯的一場聚會，${who}也一起成長了，下次再更投入一點！`;
-    return `這次分心多了些，下次多陪陪彼此，${who}會更健壯的！`;
+    if (tier === 'great') return t('太專注了！這場聚會超棒，{who}獲得了豐盛養分 🎉', { who });
+    if (tier === 'good') return t('不錯的一場聚會，{who}也一起成長了，下次再更投入一點！', { who });
+    return t('這次分心多了些，下次多陪陪彼此，{who}會更健壯的！', { who });
 }
 
 // 聚會分數排行：分數由高到低（後端已排序），每列同時顯示分數與分心次數
@@ -218,7 +325,7 @@ function renderScoreRanking(ranking) {
         li.innerHTML = `
             <span class="ps-rank-num">${i + 1}</span>
             <span class="ps-rank-avatar" style="width:36px;height:36px;background:${COLORS[i % COLORS.length]};">${initial}</span>
-            <span class="ps-rank-name">${escHtml(name)}${isMe ? ' <span class="ps-rank-me-tag">（你）</span>' : ''}</span>
+            <span class="ps-rank-name">${escHtml(name)}${isMe ? ' <span class="ps-rank-me-tag">（你）</span>' : ''}${item.left_early ? ` <span class="ps-rank-me-tag">${escHtml(t('（提前離開）'))}</span>` : ''}</span>
             <span class="ps-rank-stats">
                 <span class="ps-rank-score">${escHtml(t('{n} 分', { n: score }))}</span>
                 <span class="ps-rank-dev">${escHtml(t('分心 {n} 次', { n: deviations }))}</span>
@@ -239,9 +346,7 @@ function handleAnchorEstablished() {
     showAnchorEstablished().then(() => {
         switchView('view-focus', { replace: true });
         document.body.classList.add('mode-flow');
-        if (state.amIHost) {
-            document.getElementById('host-only-controls').style.display = 'block';
-        }
+        refreshSessionControls();
     });
 }
 

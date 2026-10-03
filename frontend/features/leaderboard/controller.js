@@ -79,7 +79,7 @@ function buildPodium(top, meUid) {
                 ${c.first ? '' : `<span class="lb-medal">${c.medal}</span>`}
             </div>
             <p class="lb-podium-name${isMe ? ' me' : ''}">${escHtml(e.nickname || '(無名)')}</p>
-            <p class="lb-podium-score${isMe ? ' me' : ''}">${e.score || 0}分</p>
+            <p class="lb-podium-score${isMe ? ' me' : ''}">${escHtml(t('{n} 分', { n: e.score || 0 }))}</p>
             <div class="lb-podium-bar" style="height:${c.bar}px;background:${c.barBg};"></div>`;
         wrap.appendChild(col);
     });

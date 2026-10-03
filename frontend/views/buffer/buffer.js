@@ -12,7 +12,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=74';
+import { vibrate } from '../../core/haptics.js?v=75';
 import { getLockState } from '../../core/lockstate.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
@@ -36,11 +36,28 @@ export function init() {
 
     // WS 重連後補送暫存的分心次數
     events.on('ws:open', () => {
-        if (state.pendingDeviation > 0 && state.currentPhase === 'ACTIVE') {
+        if (state.currentPhase !== 'ACTIVE') return;
+        if (state.pendingDeviation > 0) {
             sendAction('LOG_DEVIATION', { count: state.pendingDeviation });
             state.pendingDeviation = 0;
         }
+        // 從背景回來時 WS 多半已斷，當下那次「回到 App」的通知送不出去；重連後補報，
+        // 否則後端會以為暫離一直沒回來（之後被當成超時、甚至自動離開）。
+        sendAction('VISIBILITY_CHANGE', { state: document.visibilityState === 'visible' ? 'visible' : 'hidden' });
     });
+}
+
+// 暫離延長後：還在外面的話，分心的起算點跟著往後移到新的到期時間。
+export function pushDeviationDeadlineToExemptEnd() {
+    if (state.deviationDeadline && state.exemptUntil > Date.now()) {
+        state.deviationDeadline = state.exemptUntil + getGraceMs();
+    }
+}
+
+// 告訴後端「我回到 App 了」。從背景回來時 WS 常常已斷：送不出去就重連，
+// 連上後 ws:open 會補報（沒補報的話，後端會以為暫離一直沒回來）。
+function reportVisible() {
+    if (!sendAction('VISIBILITY_CHANGE', { state: 'visible' })) reconnectSilent();
 }
 
 function handleVisibilityChange() {
@@ -50,6 +67,15 @@ function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         const hiddenAt = state.hiddenAt;
         state.hiddenAt = null;
+        const backWithinExemption = state.exemptUntil > Date.now();
+        state.exemptUntil = 0;   // 回到 App 專心 → 這次暫離結束（後端也是這樣算）
+
+        // 暫離窗口內就回來：不算分心、不跳警告，直接回聚會畫面。
+        if (backWithinExemption) {
+            endCognitiveBuffer(true);
+            reportVisible();
+            return;
+        }
 
         // 沒有進行中的截止時間（理論上不會發生於回來時），保險起見直接回 focus
         if (!state.deviationDeadline) {
@@ -60,10 +86,11 @@ function handleVisibilityChange() {
         // 需要問原生「這段離開是不是鎖定造成的」，屬非同步，交給 resolveVisibleReturn。
         resolveVisibleReturn(hiddenAt);
     } else {
-        // 用戶離開：若尚未起算，現在起算 15 秒截止時間
+        // 用戶離開：若尚未起算，現在起算截止時間。暫離窗口內離開 → 從窗口到期才開始算，
+        // 這樣超時回來只會補算「超過窗口」的部分，不會把整段暫離都算成分心。
         state.hiddenAt = Date.now();
         if (!state.deviationDeadline) {
-            state.deviationDeadline = Date.now() + getGraceMs();
+            state.deviationDeadline = Math.max(Date.now(), state.exemptUntil || 0) + getGraceMs();
         }
         // 停掉前景倒數（背景不依賴計時器，回來時再補算）
         clearInterval(state.bufferTimerObj);
@@ -95,7 +122,7 @@ async function resolveVisibleReturn(hiddenAt) {
         if (attributedToScreenOff) {
             // 情境 1：在 App 內關螢幕 → 豁免，靜默回 focus，不補算、不跳警告。
             endCognitiveBuffer(true);
-            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+            reportVisible();
             return;
         }
 
@@ -103,7 +130,7 @@ async function resolveVisibleReturn(hiddenAt) {
             // 情境 2：先離開、後鎖定 → 只補算到鎖定當下，鎖定後不再計。
             reconcileDeviations(lockedAt);
             endCognitiveBuffer(true);
-            sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+            reportVisible();
             return;
         }
     }
@@ -111,7 +138,7 @@ async function resolveVisibleReturn(hiddenAt) {
     // 情境 3：沿用原本行為。
     reconcileDeviations();
     startCognitiveBuffer();
-    sendAction('VISIBILITY_CHANGE', { state: 'visible' });
+    reportVisible();
 }
 
 // 依目前時間與 deviationDeadline 補算應記的分心次數，並把截止時間往後推。

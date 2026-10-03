@@ -34,7 +34,8 @@ export function resetWeather() {
 }
 
 function presentCount() {
-    return Math.max(1, Object.keys(state.roomMembers || {}).length);
+    // 已離開聚會的人不算在場
+    return Math.max(1, Object.values(state.roomMembers || {}).filter(m => m && m.state !== 'LEFT').length);
 }
 
 function strugglingRatio() {

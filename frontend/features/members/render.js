@@ -6,12 +6,15 @@ import { switchView } from '../../core/router.js';
 
 export function renderMemberList(members) {
     const entries = Object.entries(members || {});
+    // 已離開聚會的人仍列在清單裡（標示「已離開」），但不算進在場人數與頭像列
+    const hasLeft = (info) => !!info && info.state === 'LEFT';
+    const presentEntries = entries.filter(([, info]) => !hasLeft(info));
     const renderTo = (ulEl, countEl) => {
         if (!ulEl) return;
         ulEl.innerHTML = '';
         entries.forEach(([uid, info]) => {
             const li = document.createElement('li');
-            li.className = 'member-row';
+            li.className = 'member-row' + (hasLeft(info) ? ' left' : '');
 
             const nameWrap = document.createElement('div');
             nameWrap.className = 'member-name-wrap';
@@ -37,6 +40,12 @@ export function renderMemberList(members) {
                 const tag = document.createElement('span');
                 tag.className = 'member-tag guest';
                 tag.innerText = '(訪客)';
+                nameWrap.appendChild(tag);
+            }
+            if (hasLeft(info)) {
+                const tag = document.createElement('span');
+                tag.className = 'member-tag left';
+                tag.innerText = '(已離開)';
                 nameWrap.appendChild(tag);
             }
             li.appendChild(nameWrap);
@@ -83,7 +92,7 @@ export function renderMemberList(members) {
 
             ulEl.appendChild(li);
         });
-        if (countEl) countEl.innerText = entries.length;
+        if (countEl) countEl.innerText = presentEntries.length;
     };
 
     renderTo(document.getElementById('member-list-ul'),
@@ -99,7 +108,7 @@ export function renderMemberList(members) {
         const COLORS = ['#a8c8e8', '#f5c6b8', '#c8e6c9', '#ffe0b2', '#d8b8e8', '#e8c8a8', '#c8d8e8'];
         avatarsEl.innerHTML = '';
         const MAX_AV = 5; // 過多時只顯示前幾個，人數靠旁邊的計數呈現
-        entries.slice(0, MAX_AV).forEach(([uid, info], i) => {
+        presentEntries.slice(0, MAX_AV).forEach(([uid, info], i) => {
             const name = (info && info.nickname) ? info.nickname : '(無名)';
             const av = document.createElement('div');
             av.className = 'pa-member-av';

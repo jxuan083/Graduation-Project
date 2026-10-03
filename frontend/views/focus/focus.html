@@ -649,6 +649,28 @@
         <button class="btn-primary orange" id="btn-end-session" type="button">結束聚會</button>
     </div>
 
+    <!-- 離開／結束：底部彈出選單（樣式同遊戲區／拍照選單）。
+         主持人：結束整場，或自己先離開（主持自動交給目前最專心的人）；其他人：只離開自己，其他人繼續 -->
+    <div id="leave-sheet" class="pa-sheet hidden" role="dialog" aria-modal="true" aria-label="離開聚會">
+        <div class="pa-sheet-panel">
+            <div class="pa-sheet-grip"></div>
+            <p class="pa-sheet-title" id="leave-sheet-title">離開聚會</p>
+            <button class="pa-sheet-item" id="btn-leave-end-all" type="button">
+                <span class="pa-sheet-item-icon" style="background:rgba(224,120,48,0.12);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e07830" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                </span>
+                <span class="pa-sheet-item-text"><strong>結束整場聚會</strong><small>所有人一起結算</small></span>
+            </button>
+            <button class="pa-sheet-item" id="btn-leave-self" type="button">
+                <span class="pa-sheet-item-icon" style="background:rgba(155,121,85,0.13);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9b7955" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </span>
+                <span class="pa-sheet-item-text"><strong id="leave-self-title">離開聚會</strong><small id="leave-self-note">分數算到現在，其他人繼續</small></span>
+            </button>
+            <button class="pa-sheet-cancel" id="btn-leave-sheet-cancel" type="button">取消</button>
+        </div>
+    </div>
+
     <!-- 遊戲區：底部彈出選單（選項按鈕沿用原 id，功能不變） -->
     <div id="game-sheet" class="pa-sheet hidden" role="dialog" aria-modal="true" aria-label="遊戲區">
         <div class="pa-sheet-panel">

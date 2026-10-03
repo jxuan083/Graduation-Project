@@ -61,6 +61,15 @@ export const isSecure = isNativeApp
 export const HTTP_PROTOCOL = isSecure ? 'https://' : 'http://';
 export const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
 
+// 邀請連結／QR Code 要指向「別人的裝置打得開」的前端網址。
+// 瀏覽器：就是目前這個網站。原生 App：頁面是從 App 內部的 http://localhost 載入的，
+// 那個網址只有自己看得到，所以改指向網頁版（本機開發 → 開發機的 Hosting；正式 → 正式站）。
+const PRODUCTION_FRONTEND_ORIGIN = 'https://graduation-6ae65.web.app';
+const LOCAL_HOSTING_PORT = 5002;
+export const INVITE_BASE_URL = !isNativeApp
+    ? window.location.origin
+    : (isLocalFrontend ? `http://${nativeDevHost}:${LOCAL_HOSTING_PORT}` : PRODUCTION_FRONTEND_ORIGIN);
+
 export const FIREBASE_EMULATORS = {
     enabled: isLocalFrontend,
     authHost: `http://${runtimeHost}:9099`,

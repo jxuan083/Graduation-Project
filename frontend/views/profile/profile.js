@@ -1,10 +1,11 @@
 // views/profile/profile.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { storage } from '../../core/firebase.js?v=74';
+import { storage } from '../../core/firebase.js?v=75';
 import { apiFetch } from '../../core/api.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
+import { isImeComposing } from '../../utils/ime.js';
 
 // Tinder 風格預設興趣（key 為繁中，顯示時經 t() 翻譯）
 const PRESET_INTERESTS = [
@@ -30,6 +31,7 @@ export function init() {
     document.getElementById('btn-profile-back').onclick = back;
     document.getElementById('btn-interest-add').onclick = addCustomInterest;
     document.getElementById('profile-interest-input').addEventListener('keydown', (e) => {
+        if (isImeComposing(e)) return;   // 輸入法選字中的 Enter 不新增標籤
         if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); }
     });
 

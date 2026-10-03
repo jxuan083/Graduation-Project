@@ -3,13 +3,13 @@ import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import {
     CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
-    EXEMPT_WINDOW_SEC, CONTEXT_NOTES,
-} from '../../core/config.js?v=74';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=74';
+    EXEMPT_WINDOW_SEC, CONTEXT_NOTES, INVITE_BASE_URL,
+} from '../../core/config.js?v=75';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=75';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=74';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=75';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -254,7 +254,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=74');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=75');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }
@@ -278,9 +278,9 @@ async function handleConfirm() {
 
     try {
         state.amIHost = true;
-        state.myNickname = getDisplayNickname() || '房主';
+        state.myNickname = getDisplayNickname() || t('房主');
 
-        const frontendUrl = window.location.protocol + '//' + window.location.host;
+        const frontendUrl = INVITE_BASE_URL;
         const res = await fetch(`${apiBase}/api/create_room`, {
             method: 'POST',
             headers: await getAuthHeaders(),

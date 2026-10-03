@@ -508,7 +508,9 @@ body.bottom-nav-hidden #app { padding-bottom: 0; }
   transition: transform var(--motion-fast) var(--ease-standard), background var(--motion-base) var(--ease-standard), box-shadow var(--motion-base) var(--ease-standard), opacity var(--motion-base) var(--ease-standard);
 }
 .btn-primary:active { transform: translate3d(var(--press-shift-x, 0),3px,0) scale(.99); background: var(--action-primary-press); box-shadow: 0 0 0 #34200e, inset 0 2px 8px rgba(0,0,0,.18); }
-.btn-primary.orange { background: #e07830; }
+/* 橘色主按鈕（聚會中的結束／離開）：整顆單一橘色，不套咖啡色主按鈕的深色立體底邊 */
+.btn-primary.orange { background: #e07830; box-shadow: none; }
+.btn-primary.orange:active { background: #c96a28; box-shadow: none; }
 .btn-primary:disabled { opacity: .4; pointer-events: none; }
 
 /* 只保留低調的實體縮進感，不在每個點擊上疊加波紋或粒子。 */
@@ -1676,7 +1678,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-stat-card { flex: 1; min-width: 0; background: #fff; border-radius: var(--r-lg); padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #view-summary .ps-stat-val { font-size: 26px; font-weight: 800; color: var(--brown); line-height: 1; margin: 0; }
 #view-summary .ps-stat-label { font-size: 11px; color: var(--brown-45); font-weight: 500; margin: 0; white-space: nowrap; }
-#view-summary #summary-host-hint { font-size: 13px; color: var(--brown-50); text-align: center; margin: 12px 0 0; }
+#view-summary #summary-host-hint { font-size: 13px; font-weight: 400; line-height: 1.6; color: var(--brown-50); text-align: center; margin: 12px 0 0; }
 #view-summary .ps-rank-section { margin-top: 16px; }
 #view-summary .ps-rank-label { font-size: 13px; font-weight: 600; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 8px; padding: 0 4px; }
 #view-summary #summary-score-list { list-style: none; padding: 0; margin: 0; }
@@ -1693,6 +1695,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-rank-score { font-size: 15px; font-weight: 700; color: var(--brown-60); line-height: 1.2; white-space: nowrap; }
 #view-summary .ps-rank-dev { font-size: 11px; color: var(--brown-45); font-weight: 500; line-height: 1.2; white-space: nowrap; }
 #view-summary .ps-footer { margin-top: 24px; }
+#view-summary #btn-summary-rejoin { margin-bottom: 10px; }
 
 /* 聚會報紙（meeting-news） */
 #view-meeting-news { justify-content: flex-start; align-items: stretch; text-align: left; padding: 0; background: #f5f0e2; color: #1a1208; overflow: hidden; }
@@ -1761,6 +1764,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-members-panel .member-row { background: var(--brown-06); border: 1px solid var(--brown-08); color: var(--brown); }
 #view-focus .pa-members-panel .member-name-wrap { color: var(--brown); }
 #view-focus .pa-members-panel .member-action-btn { background: var(--brown-08); border: none; color: var(--brown); }
+#view-focus .pa-members-panel .member-row.left { opacity: .5; }
 #view-focus .pa-members-panel .member-action-btn.add { background: var(--gold); color: #fff; }
 #view-focus .pa-members-panel .member-action-btn.done { background: var(--green); color: #fff; }
 

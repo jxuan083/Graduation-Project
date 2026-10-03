@@ -9,8 +9,10 @@ const contract = readFileSync(
 );
 
 function websocketSource() {
-  const start = backend.indexOf('@app.websocket("/ws/{room_id}/{user_id}")');
-  assert.ok(start >= 0, 'WebSocket endpoint decorator must exist');
+  // 從房間區塊開頭算起：結算、離開、交棒的廣播寫在 WebSocket endpoint 前面的共用函式裡
+  const start = backend.indexOf('# ===== 房間與 WebSocket 管理 =====');
+  assert.ok(start >= 0, 'room / WebSocket section marker must exist');
+  assert.ok(backend.indexOf('@app.websocket("/ws/{room_id}/{user_id}")') > start, 'WebSocket endpoint decorator must exist');
   return backend.slice(start);
 }
 
@@ -79,6 +81,8 @@ test('REST route surface stays compatible with the Phase 0 contract', () => {
     'GET /api/context_defaults',
     'POST /api/create_room',
     'POST /api/rooms/{room_id}/end',
+    'POST /api/rooms/{room_id}/leave',
+    'POST /api/rooms/{room_id}/intent/extend',
   ];
 
   assert.deepEqual(actual, expected);
@@ -135,6 +139,11 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'TABOO_ENDED',
     'INTENT_GRANTED',
     'INTENT_REJECTED',
+    'ACTION_REJECTED',
+    'JOIN_REJECTED',
+    'MEMBER_LEFT',
+    'MEMBER_REJOINED',
+    'HOST_CHANGED',
   ];
 
   assert.deepEqual([...inbound].sort(), expectedInbound.sort());

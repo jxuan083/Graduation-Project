@@ -245,6 +245,51 @@ test('frontend exemption display values mirror backend intent.py (no drift)', ()
   );
 });
 
+test('leave / rejoin: frontend mirrors backend limits and only the acting host ends the room', () => {
+  const py = read('backend/attendance.py');
+  const backend = read('backend/main.py');
+  const leave = read('frontend/core/leave.js');
+  const focusJs = read('frontend/views/focus/focus.js');
+  const focusHtml = read('frontend/views/focus/focus.html');
+  const summaryHtml = read('frontend/views/summary/summary.html');
+  const handlers = read('frontend/core/wsHandlers.js');
+
+  // 加回次數上限：前端顯示用的數字必須等於後端真正把關的數字
+  const pyLimit = py.match(/^REJOIN_LIMIT\s*=\s*(\d+)/m)?.[1];
+  const jsLimit = leave.match(/export const REJOIN_LIMIT\s*=\s*(\d+)/)?.[1];
+  assert.ok(pyLimit && jsLimit, 'REJOIN_LIMIT must exist on both sides');
+  assert.equal(jsLimit, pyLimit, 'REJOIN_LIMIT 前後端不一致');
+
+  // 結算只有一條路：WS 與 HTTP 都交給 _finalize_room，且只有主持人能結束整場
+  const endAction = backend.slice(backend.indexOf('if action == "END_SESSION":'), backend.indexOf('# 1. 房主切換模式'));
+  assert.match(endAction, /_att\.acting_host\(rooms\[room_id\]\) not in \(None, user_id\)/);
+  assert.match(endAction, /await _finalize_room\(room_id, reason, client_minutes\)/);
+  const endHttp = backend.slice(backend.indexOf('async def end_room_http'), backend.indexOf('async def leave_room_http'));
+  assert.match(endHttp, /await _finalize_room\(room_id, reason, duration_minutes\)/);
+  assert.equal([...backend.matchAll(/_build_score_ranking\(/g)].length, 1, '計分排行只能在單一結算函式裡算一次');
+
+  // 重連不得整筆覆蓋成員資料（暫離次數、不專注秒數會被洗掉）
+  assert.match(backend, /_att\.admit\(rooms\[room_id\], user_id, nickname, join_ms\)/);
+  assert.doesNotMatch(backend, /rooms\[room_id\]\["members"\]\[user_id\] = \{/);
+
+  // 前端：離開選單的元素都在、非主持人不再送 END_SESSION
+  for (const id of ['leave-sheet', 'leave-sheet-title', 'btn-leave-end-all', 'btn-leave-self',
+                    'leave-self-title', 'leave-self-note', 'btn-leave-sheet-cancel']) {
+    assert.match(focusHtml, new RegExp(`id="${id}"`), `focus.html 缺少 #${id}`);
+  }
+  assert.match(summaryHtml, /id="btn-summary-rejoin"/);
+  assert.doesNotMatch(focusJs, /member_ended/);
+  assert.match(focusJs, /requestLeaveSession\(\{ fromTimeout \}\)/);
+  // 主持權只在主持人離開時由後端自動轉移：沒有手動指派，也沒有趁主持人斷線接手
+  for (const source of [backend, focusJs, focusHtml, handlers, read('frontend/features/members/render.js')]) {
+    assert.doesNotMatch(source, /TRANSFER_HOST|CLAIM_HOST/);
+  }
+  assert.match(backend, /new_host = _att\.pick_successor\(room_data, uid, at_ms\) if was_host else None/);
+  for (const type of ['MEMBER_LEFT', 'MEMBER_REJOINED', 'HOST_CHANGED', 'JOIN_REJECTED', 'ACTION_REJECTED']) {
+    assert.match(handlers, new RegExp(`registerHandler\\('${type}'`), `wsHandlers 沒處理 ${type}`);
+  }
+});
+
 test('js and css are served no-cache so a stale import cannot break the module graph', () => {
   // 只有 36 個 import 帶 ?v=N，250 個沒帶。Hosting 預設給 .js 的是 max-age=3600，
   // 所以 bump 版號時有版號的抓到新檔、沒版號的沿用舊快取 —— 兩邊對不起來，

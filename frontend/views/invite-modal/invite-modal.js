@@ -1,6 +1,7 @@
 // views/invite-modal/invite-modal.js — 邀請朋友 modal + 複製連結
 import { state } from '../../core/state.js';
 import { apiBase } from '../../core/api.js';
+import { INVITE_BASE_URL } from '../../core/config.js';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -63,7 +64,7 @@ export function closeInviteModal() {
 
 function buildInviteUrl() {
     if (!state.roomId) return null;
-    return `${window.location.origin}/?room=${state.roomId}`;
+    return `${INVITE_BASE_URL}/?room=${state.roomId}`;
 }
 
 export async function copyInviteLink() {

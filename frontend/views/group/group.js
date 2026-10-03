@@ -62,7 +62,7 @@ async function onShow() {
     renderMeetings(g.group_id);
 
     try {
-        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=74');
+        const { fetchGroupDetail } = await import('../../features/groups/controller.js?v=75');
         const full = await fetchGroupDetail(g.group_id);
         if (full) {
             state.currentGroupDetail = { ...g, ...full };
@@ -126,7 +126,7 @@ async function renderMeetings(groupId) {
             return `<button class="grp-meeting-item" data-id="${escHtml(m.id)}">
                 <div class="grp-meeting-info">
                     <p class="grp-meeting-mode">${mode}</p>
-                    <p class="grp-meeting-meta">${escHtml(String(m.member_count || 0))} 人 · ${escHtml(String(m.duration_minutes || 0))} 分鐘 · ${escHtml(date)}</p>
+                    <p class="grp-meeting-meta">${escHtml(t('{members} 人 · {minutes} 分鐘 · {date}', { members: m.member_count || 0, minutes: m.duration_minutes || 0, date }))}</p>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 26 14.73" fill="none" style="transform:rotate(180deg);flex-shrink:0;"><path d="M25 7.36H1M1 7.36L8 1M1 7.36L8 13.73" stroke="var(--brown)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>`;

@@ -117,6 +117,14 @@ def compute_perf_points(quality_score: int, difficulty: str = "M", context: str 
     return int(round(max(0, int(quality_score)) * d_mult * c_mult))
 
 
+def participant_minutes(info: Optional[dict], duration_minutes: int) -> int:
+    """這個人計分用的分鐘數：有個人在場分鐘（提前離開／中途加入）就用它，否則用整場時長。"""
+    attended = (info or {}).get("attended_minutes")
+    if attended is None:
+        return duration_minutes
+    return max(0, int(_num(attended, 0.0)))
+
+
 def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minutes: int,
                         context: str = "general", difficulty: str = "M"):
     """個人計分：每個人依「自己的」分心次數（未來含感測器 metrics）算分。
@@ -133,8 +141,9 @@ def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minute
     for uid, info in (all_ever or {}).items():
         deviations = int((info or {}).get("deviations", 0) or 0)
         metrics = (info or {}).get("quality_metrics")  # 未來 client 送的被動訊號
+        minutes = participant_minutes(info, duration_minutes)
         score = compute_meeting_score(
-            duration_minutes, deviations, is_host=(uid == host_uid),
+            minutes, deviations, is_host=(uid == host_uid),
             difficulty=difficulty, context=context, metrics=metrics,
         )
         perf = compute_perf_points(score, difficulty, context)
@@ -146,6 +155,8 @@ def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minute
             "deviations": deviations,
             "score": score,
             "perf_points": perf,
+            "attended_minutes": minutes,
+            "left_early": (info or {}).get("presence") == "left",
         })
 
     rows.sort(key=lambda x: (-x["score"], x["deviations"]))
@@ -161,7 +172,7 @@ def score_for_uid(uid: str, score_by_uid: dict, all_ever: dict, host_uid: Option
         info = all_ever.get(uid) or {}
         deviations = int(info.get("deviations", 0) or 0)
         score = compute_meeting_score(
-            duration_minutes, deviations, is_host=(uid == host_uid),
+            participant_minutes(info, duration_minutes), deviations, is_host=(uid == host_uid),
             difficulty=difficulty, context=context, metrics=info.get("quality_metrics"),
         )
     return score

@@ -22,7 +22,9 @@ export function registerHandler(type, handler) {
 
 // 🔒 [Bug 5 修正 v15.3] token 改用 first-message handshake (不再放 URL query)
 //    流程:open → 立刻送 {action:"AUTH", token, nickname} → 等 AUTH_OK → 才呼叫 onOpen
-export async function connectRoom(roomId, userId, nickname, onOpen) {
+//    silent=true：從背景回來的自動重連。後端不會把它當成「加回聚會」（加回要使用者自己按）。
+//    shouldProceed：取完 token 後再確認一次要不要連（取 token 期間使用者可能已離開聚會）。
+export async function connectRoom(roomId, userId, nickname, onOpen, { silent = false, shouldProceed = null } = {}) {
     state.roomId = roomId;
 
     // 預先取 ID token(若已登入)
@@ -34,6 +36,8 @@ export async function connectRoom(roomId, userId, nickname, onOpen) {
             console.error('[WS] failed to get ID token,連線會被後端拒絕:', err);
         }
     }
+
+    if (shouldProceed && !shouldProceed()) return;
 
     // URL 不再帶 token,僅保留 nickname 作為 server-side fallback
     const nickParam = encodeURIComponent(nickname || '訪客');
@@ -50,6 +54,7 @@ export async function connectRoom(roomId, userId, nickname, onOpen) {
                 action: 'AUTH',
                 token: idToken,            // 訪客為 null,後端會根據 user_id 格式辨識
                 nickname: nickname || '訪客',
+                silent,
             }));
         } catch (err) {
             console.error('[WS] failed to send AUTH:', err);

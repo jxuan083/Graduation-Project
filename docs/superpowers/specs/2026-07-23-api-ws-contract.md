@@ -69,6 +69,8 @@
 | GET | `/api/context_defaults` |
 | POST | `/api/create_room` |
 | POST | `/api/rooms/{room_id}/end` |
+| POST | `/api/rooms/{room_id}/leave` |
+| POST | `/api/rooms/{room_id}/intent/extend` |
 
 ## WebSocket endpoint
 
@@ -83,7 +85,7 @@
 | `AUTH` | Required first frame. Returns `AUTH_OK` on success. |
 | `START_SYNC` | Host-only. Valid only from `WAITING`; resets member progress and broadcasts `SYNC_STARTED`. |
 | `CANCEL_ROOM` | Host-only. Valid only from `WAITING`; marks room `CANCELLED`. |
-| `END_SESSION` | Ends room, broadcasts summary payload, writes meeting mirror data and group pet reward. |
+| `END_SESSION` | Acting-host-only. Ends room, broadcasts summary payload, writes meeting mirror data and group pet reward. Non-hosts get `ACTION_REJECTED` and leave individually via `POST /api/rooms/{room_id}/leave`. The acting-host role moves only when the acting host leaves that way: it passes automatically to the present member with the longest current focus streak (random among ties) and `HOST_CHANGED` is broadcast; creator `host_uid` never changes. |
 | `CHANGE_MODE` | Host-only, mode allowlist: `GATHERING`, `FAMILY`, `MEETING`, `CLASS`. |
 | `START_QA` | Host-only. Starts QA mode from own/public/specific question or legacy inline payload. |
 | `SUBMIT_ANSWER` | Accepts only active QA answers matching current options; first answer wins. |
@@ -117,6 +119,11 @@
 | `TABOO_ENDED` |
 | `INTENT_GRANTED` |
 | `INTENT_REJECTED` |
+| `ACTION_REJECTED` |
+| `JOIN_REJECTED` |
+| `MEMBER_LEFT` |
+| `MEMBER_REJOINED` |
+| `HOST_CHANGED` |
 
 ## Phase 1/2 test upgrade target
 

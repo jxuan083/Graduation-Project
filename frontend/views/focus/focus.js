@@ -10,9 +10,13 @@ import { startPhotoMode, endPhotoMode, uploadMeetingPhoto } from '../../features
 import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
+import { isImeComposing } from '../../utils/ime.js';
+import { reconnectSilent } from '../../core/session.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
 import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
-import { scheduleIntentEnd, cancelIntentNotifications } from '../../core/localNotify.js';
+import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions } from '../../core/localNotify.js';
+import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=75';
 
 export function init() {
     register('view-focus', {
@@ -102,16 +106,29 @@ export function init() {
     if (intentConfirm) intentConfirm.onclick = confirmIntentModal;
     if (intentModal) intentModal.addEventListener('click', (e) => { if (e.target === intentModal) closeIntentModal(); });
     if (intentInput) intentInput.addEventListener('keydown', (e) => {
+        if (isImeComposing(e)) return;   // 這顆 Enter 是輸入法在選字，不是送出
         if (e.key === 'Enter') { e.preventDefault(); confirmIntentModal(); }
         else if (e.key === 'Escape') { e.preventDefault(); closeIntentModal(); }
     });
-    // 回到 App 專心時，豁免已由後端結束 → 按鈕還原
+    // 回到 App 專心時，豁免已由後端結束 → 按鈕還原，並提示這次暫離結束了
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && _intentEndMs > Date.now()) endIntentCountdown();
+        if (document.visibilityState === 'visible' && _intentEndMs > Date.now()) {
+            endIntentCountdown();
+            showToast(t('暫離結束，回到專心'), 'info');
+        }
     });
 
-    // 結束聚會
-    document.getElementById('btn-end-session').onclick = handleEndSession;
+    // 結束／離開聚會：主持人可結束整場或自己先離開；其他人只離開自己（其他人繼續）
+    document.getElementById('btn-end-session').onclick = openLeaveSheet;
+    bindSheet('leave-sheet', 'btn-leave-sheet-cancel');
+    document.getElementById('btn-leave-end-all').onclick = () => { closeSheets(); handleEndSession(); };
+    document.getElementById('btn-leave-self').onclick = () => leaveSelf();
+
+    // 「暫離時間到」通知上的兩個按鈕：延長一次／提前離開
+    initIntentActions({
+        extend: extendIntentFromNotification,
+        leave: () => leaveSelf({ fromTimeout: true }),
+    });
 }
 
 // ── 意圖暫離：宣告後換一段不算分心的窗口；回到 App 專心或時間到就還原 ──
@@ -125,8 +142,18 @@ let _intentReason = '';        // 這次暫離要做什麼（只有自己看得�
 function handleDeclareIntent() {
     const btn = document.getElementById('btn-declare-intent');
     if (!btn || btn.style.display === 'none' || btn.disabled) return;
-    if (_intentEndMs > Date.now()) return;  // 進行中不重複宣告
+    if (_intentEndMs > Date.now()) { endIntentEarly(); return; }  // 暫離中再按一次 → 提前結束
     openIntentModal();
+}
+
+// 暫離中再按一次按鈕：提前結束這次暫離、回到專心。這次的暫離次數已經用掉，不會還回來。
+function endIntentEarly() {
+    // 後端把「回到 App 專心」當成暫離結束的訊號；人本來就在 App 裡，直接送同一個訊號。
+    // 連線斷了就重連，連上後 buffer.js 會補報目前在 App 內。
+    if (!sendAction('VISIBILITY_CHANGE', { state: 'visible' })) reconnectSilent();
+    state.exemptUntil = 0;
+    endIntentCountdown();
+    showToast(t('暫離結束，回到專心'), 'info');
 }
 
 // ── 意圖輸入彈窗 ──
@@ -176,7 +203,10 @@ function renderIntentButton() {
         label.textContent = t('暫離次數已用完');
     } else {
         btn.disabled = false;
-        label.textContent = t('需要用一下手機');
+        // 顯示剩餘次數：暫離結束後按鈕回到這個狀態時，看得出次數有被用掉（不是被重置）
+        label.textContent = _intentRemaining === null
+            ? t('需要用一下手機')
+            : t('需要用一下手機 · 還可 {n} 次', { n: _intentRemaining });
     }
 }
 
@@ -184,6 +214,7 @@ function renderIntentButton() {
 export function applyIntentGranted(windowSec, remaining) {
     _intentRemaining = Math.max(0, Number(remaining) || 0);
     _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
+    state.exemptUntil = _intentEndMs;   // buffer.js 依此決定離開時從何時開始算分心
     clearInterval(_intentTimer);
     renderIntentCountdown();
     _intentTimer = setInterval(renderIntentCountdown, 1000);
@@ -220,7 +251,7 @@ function renderIntentCountdown() {
         const shortReason = _intentReason.length > 12 ? _intentReason.slice(0, 12) + '…' : _intentReason;
         label.textContent = t('暫離中 · {reason} · 剩 {time}', { reason: shortReason, time: mmss });
     } else {
-        label.textContent = t('暫離中 · 剩 {time} · 還可 {n} 次', { time: mmss, n: _intentRemaining ?? 0 });
+        label.textContent = t('暫離中 · 剩 {time} · 再按一次結束', { time: mmss });
     }
 }
 
@@ -273,7 +304,88 @@ export function refreshFocusMascot() {
     }
 }
 
-// ── 底部彈出選單（遊戲區 / 拍照）──
+// 暫離到期通知按了「延長一次」：後端同意才延長（每次暫離限一次，延長的時間算在場不專注）。
+async function extendIntentFromNotification() {
+    try {
+        const data = await requestExtendIntent();
+        const sec = Math.max(1, Number(data.remaining_sec) || 0);
+        _intentEndMs = Date.now() + sec * 1000;
+        state.exemptUntil = _intentEndMs;
+        pushDeviationDeadlineToExemptEnd();
+        clearInterval(_intentTimer);
+        renderIntentCountdown();
+        _intentTimer = setInterval(renderIntentCountdown, 1000);
+        scheduleIntentEnd(sec, { allowExtend: false });   // 已延長過，下一則通知只剩「提前離開」
+    } catch (err) {
+        showToast(err.message || t('延長暫離失敗'), 'warn');
+    }
+}
+
+// ── 離開／結束聚會 ──
+// 主持人：結束整場，或自己先離開（後端自動把主持交給目前連續專注最久的人）。
+// 其他人：只離開自己，分數結算到離開為止，之後可加回。
+function openLeaveSheet() {
+    const isHost = !!state.amIHost;
+    const othersPresent = presentMemberEntries().some(([uid]) => uid !== state.userId);
+    const show = (id, visible) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+    };
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+
+    setText('leave-sheet-title', isHost ? t('結束或離開') : t('離開聚會'));
+    show('btn-leave-end-all', isHost);
+    // 主持人是最後一個在場的人時，離開就等於結束，只留「結束整場」一個選項
+    show('btn-leave-self', !isHost || othersPresent);
+
+    if (isHost) {
+        setText('leave-self-title', t('我先離開'));
+        setText('leave-self-note', t('聚會繼續，主持交給最專心的人'));
+    } else {
+        const left = myRejoinsLeft();
+        setText('leave-self-title', t('離開聚會'));
+        setText('leave-self-note', left > 0
+            ? t('分數算到現在，還能加回 {n} 次', { n: left })
+            : t('分數算到現在，離開後無法再加回'));
+    }
+
+    openSheet('leave-sheet');
+}
+
+let _leaving = false;
+
+async function leaveSelf({ fromTimeout = false } = {}) {
+    closeSheets();
+    if (_leaving || !state.roomId) return;
+    _leaving = true;
+    try {
+        const result = await requestLeaveSession({ fromTimeout });
+        if (state.liveTranscript.active) stopLiveTranscript('已離開聚會，已停止即時轉文字');
+        endIntentCountdown();
+        state.exemptUntil = 0;
+        events.emit('session:left', result);   // wsHandlers 接手顯示個人結算
+    } catch (err) {
+        showToast(err.message || t('離開聚會失敗'), 'error');
+    } finally {
+        _leaving = false;
+    }
+}
+
+// 依「我現在是不是主持人」更新聚會畫面：遊戲區只有主持人看得到，底部按鈕文字跟著換。
+// 主持人離開後會自動換人，所以每次 room 更新都要重算（wsHandlers 呼叫）。
+export function refreshSessionControls() {
+    const hostControls = document.getElementById('host-only-controls');
+    if (hostControls && state.currentPhase === 'ACTIVE') {
+        hostControls.style.display = state.amIHost ? 'block' : 'none';
+    }
+    const endBtn = document.getElementById('btn-end-session');
+    if (endBtn) endBtn.textContent = state.amIHost ? t('結束聚會') : t('離開聚會');
+}
+
+// ── 底部彈出選單（遊戲區 / 拍照 / 離開）──
 function openSheet(id) {
     const sheet = document.getElementById(id);
     if (!sheet) return;
@@ -729,10 +841,11 @@ async function uploadCapturedPhoto(file) {
     }
 }
 
+// 結束整場聚會（只有主持人；後端也會擋）。
 async function handleEndSession() {
     if (state.liveTranscript.active) stopLiveTranscript('聚會結束，已停止即時轉文字');
     const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
-    const reason = state.amIHost ? 'host_ended' : 'member_ended';
+    const reason = 'host_ended';
     const roomId = state.roomId;
     let sentByWs = false;
 

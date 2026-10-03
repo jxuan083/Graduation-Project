@@ -29,6 +29,8 @@ export const state = {
     currentRoomMode: 'GATHERING',
     currentPhase: 'HOME',
     roomMembers: {},
+    roomAllParticipants: {},   // 曾加入過的所有人的累計資料（含加回次數），隨 room_state 廣播
+    leftRoomId: null,          // 我提前離開的那場聚會（總結頁「加回聚會」用）
     sessionStartTime: null,
     totalDeviations: 0,        // 整個房間的分心總次數
     myDeviations: 0,           // 我自己的分心次數
@@ -62,6 +64,7 @@ export const state = {
     hiddenAt: null,         // 離開時的時間戳，回來時算差值
     deviationDeadline: null,// 下一次分心 +1 的絕對時間戳（不論前景/背景都以此為準）
     pendingDeviation: 0,    // WS 斷線時暫存的分心次數，重連後補送
+    exemptUntil: 0,         // 暫離窗口到期的絕對時間戳；窗口內離開不起算分心（0 = 沒有進行中的暫離）
 
     // === 好友 cache ===
     friendUidSet: new Set(),

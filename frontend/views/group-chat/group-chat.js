@@ -3,10 +3,11 @@
 // 支援：文字 / 圖片（含拍照）/ 語音訊息、跨日日期分隔線（類 IG）。
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { storage } from '../../core/firebase.js?v=74';
+import { storage } from '../../core/firebase.js?v=75';
 import { apiFetch } from '../../core/api.js';
 import { t, getLang } from '../../core/i18n.js';
 import { showToast } from '../../utils/toast.js';
+import { isImeComposing } from '../../utils/ime.js';
 
 const POLL_MS = 3000;
 const AVATAR_COLORS = ['#a8c8e8', '#f5c6b8', '#b8e4c6', '#f5e4a8', '#d8b8e8', '#e8c8a8', '#c8d8e8'];
@@ -41,6 +42,7 @@ export function init() {
     document.getElementById('btn-gc-back').onclick = back;
     document.getElementById('gc-send').onclick = sendMessage;
     document.getElementById('gc-input').addEventListener('keydown', (e) => {
+        if (isImeComposing(e)) return;   // 輸入法選字中的 Enter 不送出訊息
         if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
     });
 

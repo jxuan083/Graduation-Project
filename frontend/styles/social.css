@@ -52,6 +52,13 @@
   border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
+/* 已離開聚會的成員（其他人仍在進行中） */
+.member-tag.left {
+  background: rgba(148, 163, 184, 0.18);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
 .member-actions {
   display: flex;
   gap: 6px;

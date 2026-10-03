@@ -12,6 +12,9 @@ export function cleanupSession() {
     state.currentPhase = 'HOME';
     state.roomHostUid = null;
     state.roomMembers = {};
+    state.roomAllParticipants = {};
+    state.leftRoomId = null;
+    state.exemptUntil = 0;
     state.myNickname = '';
     state.myProgress = 0;
     state.isReady = false;
@@ -48,11 +51,13 @@ export async function joinRoom(roomId) {
 
 // WS 斷線後靜默重連（不切換畫面，用於從背景回來補送訊息）
 export async function reconnectSilent() {
-    if (!state.roomId || !state.myNickname) return;
+    // 已經在總結頁（聚會結束或自己離開了）就不要再連回去
+    const stillInSession = () => state.currentPhase !== 'SUMMARY' && state.currentPhase !== 'HOME';
+    if (!state.roomId || !state.myNickname || !stillInSession()) return;
     if (state.ws && state.ws.readyState === WebSocket.OPEN) return;
     await connectRoom(state.roomId, state.userId, state.myNickname, () => {
         events.emit('session:reconnected');
-    });
+    }, { silent: true, shouldProceed: stillInSession });
 }
 
 // 同步 body class 顯示模式對應顏色

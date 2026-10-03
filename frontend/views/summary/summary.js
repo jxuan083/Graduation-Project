@@ -1,28 +1,34 @@
 // views/summary/summary.js
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-
-// 聚會總結頁：隱藏右上角帳號 chip（聚會結束畫面不需要），
-// 帳號 chip 藏掉後，語言切換(中/EN)自然變成右上角最右邊的元素。
-let _savedChipDisplay = null;
-
-function onShow() {
-    const chip = document.getElementById('auth-logged-in');
-    if (chip) { _savedChipDisplay = chip.style.display; chip.style.display = 'none'; }
-}
-
-function onHide() {
-    const chip = document.getElementById('auth-logged-in');
-    if (chip && _savedChipDisplay !== null) { chip.style.display = _savedChipDisplay; _savedChipDisplay = null; }
-}
+import { connectRoom } from '../../core/ws.js';
+import { events } from '../../core/events.js';
+import { t } from '../../core/i18n.js';
 
 export function init() {
-    register('view-summary', {
-        element: document.getElementById('view-summary'),
-        onShow,
-        onHide,
-    });
+    // 右上角帳號 chip 在這頁不顯示，由 core/chrome.js 的 refreshAuthBarVisibility 統一處理
+    register('view-summary', { element: document.getElementById('view-summary') });
     document.getElementById('btn-summary-home')?.addEventListener('click', () => switchView('view-home', { replace: true }));
+    document.getElementById('btn-summary-rejoin')?.addEventListener('click', rejoinLeftSession);
+}
+
+// 提前離開後想回來：重新連進同一場聚會。後端認帳號，同一人才算加回（每場有次數上限），
+// 連上後 ROOM_UPDATE 會把畫面帶回聚會中；被拒絕（次數用完）則由 JOIN_REJECTED 處理。
+async function rejoinLeftSession() {
+    const roomId = state.leftRoomId;
+    if (!roomId) return;
+    const btn = document.getElementById('btn-summary-rejoin');
+    if (btn) btn.disabled = true;
+    state.leftRoomId = null;
+    state.amIHost = false;
+    try {
+        await connectRoom(roomId, state.userId, state.myNickname, () => {
+            state.currentPhase = 'WAITING';
+            events.emit('session:joined', { roomId, amIHost: false });
+        });
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 export function renderPartySummaryFromMeeting(meeting, newspaper = null) {
@@ -85,7 +91,7 @@ function renderSummaryRanking(ranking, myUid) {
             <span class="ps-rank-num">${index + 1}</span>
             <span class="ps-rank-avatar" style="width:38px;height:38px;background:${colors[index % colors.length]};">${emojis[index % emojis.length]}</span>
             <span class="ps-rank-name">${escHtml(member.nickname)}${isMe ? ' <span class="ps-rank-me-tag">（我）</span>' : ''}</span>
-            <span class="ps-rank-count">${Number(member.deviations || 0)} 次</span>
+            <span class="ps-rank-count">${escHtml(t('{n} 次', { n: Number(member.deviations || 0) }))}</span>
         `;
         ul.appendChild(li);
     });

@@ -4,16 +4,17 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId, isChromeHiddenViewId } from './router.js';
-import { doSignOut } from './firebase.js?v=74';
+import { doSignOut } from './firebase.js?v=75';
 import { FIREBASE_EMULATORS } from './config.js';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
-import { openLoginMethodSheet } from './login-sheet.js?v=74';
+import { requestLeaveSession } from './leave.js';
+import { openLoginMethodSheet } from './login-sheet.js?v=75';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=74';
-import { openFriendsView } from '../views/friends/friends.js?v=74';
-import { handleCreateRoom } from '../views/home/home.js?v=74';
+import { openProfileView } from '../views/profile/profile.js?v=75';
+import { openFriendsView } from '../views/friends/friends.js?v=75';
+import { handleCreateRoom } from '../views/home/home.js?v=75';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -150,7 +151,9 @@ function refreshAuthBarVisibility(viewId) {
     const loggedIn = document.getElementById('auth-logged-in');
     const loggedOut = document.getElementById('auth-logged-out');
     if (!loggedIn && !loggedOut) return;
-    if (isChromeHiddenViewId(viewId)) {
+    // 聚會總結頁也不顯示帳號 chip（這頁只收帳號 chip，底部導覽列照原本規則）。
+    // 必須在這裡處理：view:changed 比各 view 的 onShow 晚觸發，在 onShow 藏起來會被下面的 renderAuthBar 蓋回去。
+    if (isChromeHiddenViewId(viewId) || viewId === 'view-summary') {
         // 聚會流程中,右上角不出現任何帳號 chip（正式登入的頭貼、訪客鈕都收起）
         if (loggedIn) loggedIn.style.display = 'none';
         if (loggedOut) loggedOut.style.display = 'none';
@@ -214,6 +217,10 @@ async function handleLogout() {
             } catch (err) {
                 console.warn('END_SESSION broadcast failed:', err);
             }
+        } else if (!state.amIHost && ['ACTIVE', 'QA_GAME', 'TABOO_GAME'].includes(state.currentPhase)) {
+            // 成員登出＝離開聚會：分數結算到現在，其他人繼續
+            try { await requestLeaveSession(); }
+            catch (err) { console.warn('leave session failed:', err); }
         }
         cleanupSession();
         switchView('view-home', { replace: true });

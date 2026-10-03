@@ -13,7 +13,10 @@ export function formatModeLabel(mode) {
 export function formatEndReason(r) {
     return ({
         "host_ended": "房主結束聚會",
-        "host_left": "房主離開了聚會"
+        "host_left": "房主離開了聚會",
+        "left_early": "已提前離開",
+        "exempt_timeout": "暫離超時離開",
+        "all_left": "所有人都離開了"
     })[r] || (r || '正常結束');
 }
 
