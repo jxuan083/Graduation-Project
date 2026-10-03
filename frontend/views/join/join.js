@@ -1,10 +1,10 @@
 // views/join/join.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { getDisplayNickname } from '../../core/firebase.js?v=75';
+import { getDisplayNickname } from '../../core/firebase.js?v=76';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { saveLocalGuestNickname } from '../../core/guest.js?v=75';
+import { saveLocalGuestNickname } from '../../core/guest.js?v=76';
 
 export function init() {
     register('view-join', { element: document.getElementById('view-join') });

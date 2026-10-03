@@ -3,6 +3,7 @@ import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { connectRoom } from '../../core/ws.js';
 import { events } from '../../core/events.js';
+import { resetSessionCounters } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
 
 export function init() {
@@ -24,6 +25,7 @@ async function rejoinLeftSession() {
     try {
         await connectRoom(roomId, state.userId, state.myNickname, () => {
             state.currentPhase = 'WAITING';
+            resetSessionCounters();
             events.emit('session:joined', { roomId, amIHost: false });
         });
     } finally {

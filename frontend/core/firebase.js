@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
-import { adoptLocalGuestIdentity, getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=75';
+import { adoptLocalGuestIdentity, getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=76';
 
 firebase.initializeApp(firebaseConfig);
 

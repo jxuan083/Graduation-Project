@@ -26,6 +26,20 @@ export function cleanupSession() {
     events.emit('session:cleanup');
 }
 
+// 進入一場聚會（新開、加入、加回）時，把上一場留下的「本場」計數清掉。
+// 正常結束後是從總結頁回首頁，不會經過 cleanupSession，所以要在進場時清。
+// 加回的人：分心次數與開始時間隨後會由 ROOM_UPDATE 依後端資料補上。
+export function resetSessionCounters() {
+    state.totalDeviations = 0;
+    state.myDeviations = 0;
+    state.sessionStartTime = null;
+    state.pendingDeviation = 0;
+    state.deviationDeadline = null;
+    state.exemptUntil = 0;
+    state.roomMembers = {};
+    state.roomAllParticipants = {};
+}
+
 // 從選單頁面「回到首頁」: 若還在聚會中(WS 連線仍在),就視為徹底離開
 export function goHomeFromMenu() {
     if (state.ws && state.ws.readyState === WebSocket.OPEN) {
@@ -45,6 +59,7 @@ export async function joinRoom(roomId) {
             state.currentPhase = 'WAITING';
             switchView('view-waiting-room', { replace: true });
         }
+        resetSessionCounters();
         events.emit('session:joined', { roomId, amIHost: state.amIHost });
     });
 }

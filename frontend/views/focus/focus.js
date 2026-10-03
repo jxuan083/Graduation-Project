@@ -16,7 +16,7 @@ import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeath
 import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions } from '../../core/localNotify.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=75';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=76';
 
 export function init() {
     register('view-focus', {
@@ -25,8 +25,14 @@ export function init() {
         onHide: stopWeather,
     });
 
-    // 每場聚會開始時把天氣清成晴天、清掉上一場的分心紀錄
-    events.on('session:joined', resetWeather);
+    // 每場聚會開始時把天氣清成晴天、清掉上一場的分心紀錄與暫離狀態
+    events.on('session:joined', () => {
+        resetWeather();
+        endIntentCountdown();
+        _intentRemaining = null;   // 等第一個 ROOM_UPDATE 依後端資料算出這一場的剩餘次數
+        const devEl = document.getElementById('deviation-count');
+        if (devEl) devEl.innerText = '0';
+    });
 
     // 折疊成員清單
     const btnFocusToggle = document.getElementById('btn-focus-members-toggle');
@@ -188,8 +194,24 @@ function updateIntentAvailability() {
     const budget = EXEMPT_BUDGET_BY_CONTEXT[state.currentContext] ?? 0;
     if (budget <= 0) { btn.style.display = 'none'; return; }
     btn.style.display = '';
-    if (_intentRemaining === null) _intentRemaining = budget;
+    // 剩餘次數 = 這個情境的額度 − 後端記的已用次數。每一場從頭算；重連、加回則會延續。
+    // （先前是沿用模組裡的舊數字，上一場用掉的次數會被帶進下一場。）
+    _intentRemaining = Math.max(0, budget - myExemptUsed());
     if (_intentEndMs <= Date.now()) renderIntentButton();
+}
+
+// 後端記在成員資料裡的「這一場已用掉幾次暫離」
+function myExemptUsed() {
+    return Number(state.roomMembers?.[state.userId]?.exempt_count_used || 0);
+}
+
+// INTENT_GRANTED／REJECTED 只會告訴自己剩幾次，不會重新廣播成員資料；
+// 把本機那份成員資料跟著更新，之後畫面重畫時才不會算回舊數字。
+function syncMyExemptUsed(remaining) {
+    const me = state.roomMembers?.[state.userId];
+    if (!me) return;
+    const budget = EXEMPT_BUDGET_BY_CONTEXT[state.currentContext] ?? 0;
+    me.exempt_count_used = Math.max(0, budget - remaining);
 }
 
 // 非倒數狀態下的按鈕外觀：用完 → 禁用；否則可用。
@@ -213,6 +235,7 @@ function renderIntentButton() {
 // 後端授予（wsHandlers 收到 INTENT_GRANTED 時呼叫）
 export function applyIntentGranted(windowSec, remaining) {
     _intentRemaining = Math.max(0, Number(remaining) || 0);
+    syncMyExemptUsed(_intentRemaining);
     _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
     state.exemptUntil = _intentEndMs;   // buffer.js 依此決定離開時從何時開始算分心
     clearInterval(_intentTimer);
@@ -232,6 +255,7 @@ export function applyIntentRejected(reason) {
     }
     if (r.includes('用完')) {
         _intentRemaining = 0;
+        syncMyExemptUsed(0);
         renderIntentButton();
         return;
     }
