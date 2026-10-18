@@ -8,8 +8,8 @@
      已用暫離次數、冷卻、已計的不專注秒數都跟著成員資料延續。
   3. 連續專注每段各自起算（離開會結束目前這段），最後取各段最長。
   4. 暫離窗口到期仍未回 App：未滿 AUTO_LEAVE_AFTER_SEC 照舊補記超時分心；
-     滿了就視為「窗口到期那一刻離開」，不再無上限補記。可延長一次，延長的時間
-     一律算「在場不專注」。
+     滿了就視為「窗口到期那一刻離開」，不再無上限補記。可延長一次，但延長要用掉
+     一次暫離次數（沒有次數就不能延長），延長的時間一律算「在場不專注」。
   5. 建立者（host_uid）不變；主持人（acting_host_uid）只在一種情況換人：主持人自己
      按「離開聚會」。這時自動交給「目前連續專注最久」的在場成員，一樣久就隨機挑。
      沒有手動指派，也不因斷線換人（鎖螢幕專心時 WebSocket 本來就會斷）。
@@ -173,8 +173,10 @@ def settle_exemption(room: dict, uid: str, at_ms: int, window_sec: int) -> float
         until = int(m.get("exempt_window_until_ms", 0) or 0)
         ext_from = int(m.get("exempt_ext_from_ms", 0) or 0)
         used = int(m.get("exempt_count_used", 0) or 0)
+        # 延長會多用掉一次暫離；原窗口要照「宣告當時是第幾次」來算（第 1 次仍全免）
+        base_used = used - 1 if ext_from else used
         base_end = min(at_ms, ext_from) if ext_from else at_ms
-        charged = charge_on_return(active_since, base_end, window_sec, used)
+        charged = charge_on_return(active_since, base_end, window_sec, base_used)
         if ext_from:
             ext_end = min(at_ms, until) if until else at_ms
             charged += max(0.0, (ext_end - max(ext_from, active_since)) / 1000.0)
@@ -195,8 +197,9 @@ def settle_exemption(room: dict, uid: str, at_ms: int, window_sec: int) -> float
     return charged
 
 
-def extend_exemption(room: dict, uid: str, now_ms: int, window_sec: int) -> Tuple[bool, str, int]:
-    """暫離延長一次：從原到期時間再加一個窗口。回傳 (ok, reason, 新的到期時間)。"""
+def extend_exemption(room: dict, uid: str, now_ms: int, window_sec: int,
+                     budget: int) -> Tuple[bool, str, int]:
+    """暫離延長一次：從原到期時間再加一個窗口，並用掉一次暫離次數。回傳 (ok, reason, 新的到期時間)。"""
     m = (room.get("members") or {}).get(uid)
     if not is_present(m) or room.get("status") != "ACTIVE":
         return False, "你不在這場聚會中", 0
@@ -207,6 +210,10 @@ def extend_exemption(room: dict, uid: str, now_ms: int, window_sec: int) -> Tupl
         return False, "這次暫離已經延長過了", 0
     if now_ms >= until + AUTO_LEAVE_AFTER_SEC * 1000:
         return False, "暫離已超時太久", 0
+    used = int(m.get("exempt_count_used", 0) or 0)
+    if used >= budget:
+        return False, "暫離次數已用完，不能延長", 0
+    m["exempt_count_used"] = used + 1
     m["exempt_ext_from_ms"] = until
     m["exempt_window_until_ms"] = until + int(window_sec) * 1000
     return True, "", m["exempt_window_until_ms"]

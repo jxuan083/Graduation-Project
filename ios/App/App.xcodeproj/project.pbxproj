@@ -17,7 +17,36 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		AA01AA01AA01AA01AA010001 /* LockStatePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA01AA01AA01AA01AA010002 /* LockStatePlugin.swift */; };
+		BB01BB01BB01BB01BB010002 /* AnchorCountdownAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01BB01BB01BB01BB010001 /* AnchorCountdownAttributes.swift */; };
+		BB01BB01BB01BB01BB010003 /* AnchorCountdownAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01BB01BB01BB01BB010001 /* AnchorCountdownAttributes.swift */; };
+		BB01BB01BB01BB01BB010005 /* AnchorLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB01BB01BB01BB01BB010004 /* AnchorLiveActivity.swift */; };
+		BB01BB01BB01BB01BB010015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB01BB01BB01BB01BB010014 /* Assets.xcassets */; };
+		BB01BB01BB01BB01BB010008 /* AnchorLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BB01BB01BB01BB01BB010007 /* AnchorLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BB01BB01BB01BB01BB01000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB01BB01BB01BB01BB01000A;
+			remoteInfo = AnchorLiveActivity;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BB01BB01BB01BB01BB01000E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BB01BB01BB01BB01BB010008 /* AnchorLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -32,6 +61,11 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		AA01AA01AA01AA01AA010002 /* LockStatePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockStatePlugin.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		BB01BB01BB01BB01BB010001 /* AnchorCountdownAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorCountdownAttributes.swift; sourceTree = "<group>"; };
+		BB01BB01BB01BB01BB010004 /* AnchorLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorLiveActivity.swift; sourceTree = "<group>"; };
+		BB01BB01BB01BB01BB010014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BB01BB01BB01BB01BB010006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BB01BB01BB01BB01BB010007 /* AnchorLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AnchorLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +77,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB01BB01BB01BB01BB01000C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -51,6 +92,7 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				BB01BB01BB01BB01BB010009 /* AnchorLiveActivity */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,6 +101,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				BB01BB01BB01BB01BB010007 /* AnchorLiveActivity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -68,6 +111,7 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				AA01AA01AA01AA01AA010002 /* LockStatePlugin.swift */,
+				BB01BB01BB01BB01BB010001 /* AnchorCountdownAttributes.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -80,6 +124,16 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		BB01BB01BB01BB01BB010009 /* AnchorLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				BB01BB01BB01BB01BB010004 /* AnchorLiveActivity.swift */,
+				BB01BB01BB01BB01BB010014 /* Assets.xcassets */,
+				BB01BB01BB01BB01BB010006 /* Info.plist */,
+			);
+			path = AnchorLiveActivity;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -90,10 +144,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				BB01BB01BB01BB01BB01000E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BB01BB01BB01BB01BB010010 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -102,6 +158,23 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		BB01BB01BB01BB01BB01000A /* AnchorLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB01BB01BB01BB01BB010011 /* Build configuration list for PBXNativeTarget "AnchorLiveActivity" */;
+			buildPhases = (
+				BB01BB01BB01BB01BB01000B /* Sources */,
+				BB01BB01BB01BB01BB01000C /* Frameworks */,
+				BB01BB01BB01BB01BB01000D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AnchorLiveActivity;
+			productName = AnchorLiveActivity;
+			productReference = BB01BB01BB01BB01BB010007 /* AnchorLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -112,6 +185,9 @@
 				LastSwiftUpdateCheck = 0920;
 				LastUpgradeCheck = 0920;
 				TargetAttributes = {
+					BB01BB01BB01BB01BB01000A = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
@@ -136,6 +212,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				BB01BB01BB01BB01BB01000A /* AnchorLiveActivity */,
 			);
 		};
 /* End PBXProject section */
@@ -154,6 +231,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB01BB01BB01BB01BB01000D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB01BB01BB01BB01BB010015 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -164,10 +249,28 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				AA01AA01AA01AA01AA010001 /* LockStatePlugin.swift in Sources */,
+				BB01BB01BB01BB01BB010002 /* AnchorCountdownAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB01BB01BB01BB01BB01000B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB01BB01BB01BB01BB010005 /* AnchorLiveActivity.swift in Sources */,
+				BB01BB01BB01BB01BB010003 /* AnchorCountdownAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BB01BB01BB01BB01BB010010 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB01BB01BB01BB01BB01000A /* AnchorLiveActivity */;
+			targetProxy = BB01BB01BB01BB01BB01000F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -342,6 +445,50 @@
 			};
 			name = Release;
 		};
+		BB01BB01BB01BB01BB010012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				INFOPLIST_FILE = AnchorLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = tw.edu.nccu.phubbinganchor.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BB01BB01BB01BB01BB010013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				INFOPLIST_FILE = AnchorLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = tw.edu.nccu.phubbinganchor.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -359,6 +506,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB01BB01BB01BB01BB010011 /* Build configuration list for PBXNativeTarget "AnchorLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB01BB01BB01BB01BB010012 /* Debug */,
+				BB01BB01BB01BB01BB010013 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

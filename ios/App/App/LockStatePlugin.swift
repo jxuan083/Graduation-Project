@@ -2,6 +2,7 @@ import Foundation
 import Capacitor
 import UIKit
 import CoreMotion
+import ActivityKit
 
 /// LockState — 回報「裝置是否鎖定」給前端，讓分心偵測能分辨
 /// 「在 App 內按關螢幕鍵（鎖定）」與「切去別的 app」。
@@ -25,7 +26,12 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         // --- Pickup 偵測：規則式、全程在裝置上分析，只回傳事件與統計 ---
         CAPPluginMethod(name: "analyzePickups", returnType: CAPPluginReturnPromise),
         // --- 腳本測試時讓螢幕保持亮著（避免自動鎖定中斷腳本） ---
-        CAPPluginMethod(name: "setKeepAwake", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setKeepAwake", returnType: CAPPluginReturnPromise),
+        // --- 靈動島／鎖定畫面倒數（iOS 16.2+ 即時動態） ---
+        CAPPluginMethod(name: "startCountdown", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateCountdown", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "endCountdown", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setGraceCountdown", returnType: CAPPluginReturnPromise)
     ]
 
     // 協同處理器離線錄製器：App 可被 suspend / 螢幕可關，資料仍由 M 系列協同處理器記著。
@@ -37,6 +43,15 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
     private var locked = false
     private var lastLockedAt: Double = 0
     private var lastUnlockedAt: Double = 0
+
+    // 跳出 App 的寬限倒數：前端在聚會中先「預備」好，真正開始是 App 即將離開前景那一刻。
+    private var graceArmed = false
+    private var graceSeconds: Double = 20
+    private var graceLabels: [String: String] = [:]
+    private var graceStartedOnResign = false
+    private var graceStartedAt: Date? = nil
+    private var wentToBackground = false
+    private var overtimeTask: UIBackgroundTaskIdentifier = .invalid
 
     override public func load() {
         let center = NotificationCenter.default
@@ -52,12 +67,26 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
             name: UIApplication.protectedDataDidBecomeAvailableNotification,
             object: nil
         )
+        center.addObserver(self, selector: #selector(appWillResignActive),
+                           name: UIApplication.willResignActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(appDidEnterBackground),
+                           name: UIApplication.didEnterBackgroundNotification, object: nil)
+        center.addObserver(self, selector: #selector(appWillEnterForeground),
+                           name: UIApplication.willEnterForegroundNotification, object: nil)
+        center.addObserver(self, selector: #selector(appDidBecomeActive),
+                           name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc private func deviceDidLock() {
         locked = true
         lastLockedAt = Date().timeIntervalSince1970 * 1000
         notifyListeners("lockStateChange", data: stateData())
+        // 在 App 內按鎖定鍵不算分心 → 剛才離開前景時開的寬限倒數收掉（暫離倒數照常）。
+        // 鎖定訊號會晚約 10 秒才到，所以只有「離開前景後 12 秒內」收到的才算在 App 內關螢幕；
+        // 更晚才收到代表是先切去別的 App 再鎖螢幕，倒數照常，要回到 App 才結束（前端同樣這樣算）。
+        if let started = graceStartedAt, Date().timeIntervalSince(started) <= 12, #available(iOS 16.2, *) {
+            endCountdowns(kind: "grace")
+        }
     }
 
     @objc private func deviceDidUnlock() {
@@ -277,6 +306,158 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    // MARK: - 靈動島／鎖定畫面倒數（即時動態）
+    //
+    // 暫離倒數：前端在按下暫離（App 在前景）時呼叫 startCountdown，延長時 updateCountdown。
+    // 寬限倒數：iOS 只允許在前景開始即時動態，跳出 App 時已經來不及從前端呼叫，
+    //   所以前端先用 setGraceCountdown 預備（聚會中、沒在暫離時），由這裡在 willResignActive 開始。
+    //   那一瞬間分不出是跳去別的 App 還是按鎖定鍵；確定是鎖定（deviceDidLock）時再收掉。
+    // 回到 App（willEnterForeground）一律結束：回來了，暫離也就結束（後端同樣這樣算）。
+
+    @objc private func appWillResignActive() {
+        wentToBackground = false
+        graceStartedOnResign = false
+        guard graceArmed, #available(iOS 16.2, *) else { return }
+        guard Activity<AnchorCountdownAttributes>.activities.isEmpty else { return }  // 暫離倒數進行中就不另開
+        graceStartedOnResign = startActivity(kind: "grace",
+                                             endsAt: Date().addingTimeInterval(graceSeconds),
+                                             labels: graceLabels)
+        graceStartedAt = graceStartedOnResign ? Date() : nil
+    }
+
+    @objc private func appDidEnterBackground() {
+        wentToBackground = true
+        if #available(iOS 16.2, *) { scheduleOvertimeFlip() }
+    }
+
+    @objc private func appWillEnterForeground() {
+        graceStartedAt = nil
+        endOvertimeTask()
+        if #available(iOS 16.2, *) { endCountdowns(kind: nil) }
+    }
+
+    /// App 進背景後通常還能多跑約 30 秒。倒數若在這段時間內結束（寬限倒數 10～20 秒），
+    /// 就撐到那一刻主動把畫面切成超時；更長的倒數只能靠進度環變空與系統的過期標記。
+    @available(iOS 16.2, *)
+    private func scheduleOvertimeFlip() {
+        guard let activity = Activity<AnchorCountdownAttributes>.activities.first else { return }
+        let wait = activity.content.state.endsAt.timeIntervalSinceNow
+        guard wait > 0, wait < 28 else { return }
+        endOvertimeTask()
+        overtimeTask = UIApplication.shared.beginBackgroundTask(withName: "AnchorCountdownOvertime") { [weak self] in
+            self?.endOvertimeTask()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.3) { [weak self] in
+            Task {
+                for activity in Activity<AnchorCountdownAttributes>.activities where !activity.content.state.isOver {
+                    var state = activity.content.state
+                    state.isOver = true
+                    await activity.update(ActivityContent(state: state, staleDate: nil))
+                }
+                await MainActor.run { self?.endOvertimeTask() }
+            }
+        }
+    }
+
+    private func endOvertimeTask() {
+        guard overtimeTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(overtimeTask)
+        overtimeTask = .invalid
+    }
+
+    @objc private func appDidBecomeActive() {
+        // 只是拉下通知中心／控制中心又放開（沒有真的進背景）→ 剛開的寬限倒數收掉
+        if graceStartedOnResign && !wentToBackground, #available(iOS 16.2, *) {
+            endCountdowns(kind: "grace")
+        }
+        graceStartedOnResign = false
+    }
+
+    private static func labels(from call: CAPPluginCall) -> [String: String] {
+        var out: [String: String] = [:]
+        for key in ["title", "hint", "overTitle", "overHint", "appName"] {
+            out[key] = call.getString(key) ?? ""
+        }
+        return out
+    }
+
+    @available(iOS 16.2, *)
+    @discardableResult
+    private func startActivity(kind: String, endsAt: Date, labels: [String: String]) -> Bool {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return false }
+        let previous = Activity<AnchorCountdownAttributes>.activities
+        let state = AnchorCountdownAttributes.ContentState(
+            kind: kind, startedAt: Date(), endsAt: endsAt,
+            title: labels["title"] ?? "", hint: labels["hint"] ?? "",
+            overTitle: labels["overTitle"] ?? "", overHint: labels["overHint"] ?? "",
+            appName: labels["appName"] ?? ""
+        )
+        do {
+            // staleDate = 倒數結束：時間一到系統會把它標成過期，畫面就切成往上計時（App 在背景也一樣）
+            _ = try Activity.request(attributes: AnchorCountdownAttributes(),
+                                     content: ActivityContent(state: state, staleDate: endsAt),
+                                     pushType: nil)
+        } catch {
+            print("[LockState] Live Activity request failed: \(error)")
+            return false
+        }
+        for activity in previous {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+        return true
+    }
+
+    /// kind = nil 表示全部結束。
+    @available(iOS 16.2, *)
+    private func endCountdowns(kind: String?) {
+        for activity in Activity<AnchorCountdownAttributes>.activities
+        where kind == nil || activity.content.state.kind == kind {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+    }
+
+    /// 開始倒數。endsAt 為毫秒時間戳；文字由前端依介面語言帶入。
+    @objc func startCountdown(_ call: CAPPluginCall) {
+        guard #available(iOS 16.2, *) else { call.resolve(["started": false]); return }
+        let kind = call.getString("kind") ?? "break"
+        let endsAt = Date(timeIntervalSince1970: (call.getDouble("endsAt") ?? 0) / 1000)
+        let labels = Self.labels(from: call)
+        DispatchQueue.main.async {
+            call.resolve(["started": self.startActivity(kind: kind, endsAt: endsAt, labels: labels)])
+        }
+    }
+
+    /// 延長暫離：把進行中的倒數改到新的結束時間。
+    @objc func updateCountdown(_ call: CAPPluginCall) {
+        guard #available(iOS 16.2, *) else { call.resolve(); return }
+        let endsAt = Date(timeIntervalSince1970: (call.getDouble("endsAt") ?? 0) / 1000)
+        for activity in Activity<AnchorCountdownAttributes>.activities {
+            var state = activity.content.state
+            state.endsAt = endsAt
+            state.isOver = false
+            Task { await activity.update(ActivityContent(state: state, staleDate: endsAt)) }
+        }
+        call.resolve()
+    }
+
+    @objc func endCountdown(_ call: CAPPluginCall) {
+        if #available(iOS 16.2, *) { endCountdowns(kind: nil) }
+        call.resolve()
+    }
+
+    /// 預備（armed=true）或取消跳出 App 時的寬限倒數。
+    @objc func setGraceCountdown(_ call: CAPPluginCall) {
+        let armed = call.getBool("armed") ?? false
+        let seconds = max(1, call.getDouble("graceSec") ?? 20)
+        let labels = Self.labels(from: call)
+        DispatchQueue.main.async {
+            self.graceArmed = armed
+            self.graceSeconds = seconds
+            if armed { self.graceLabels = labels }
+            call.resolve()
+        }
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -325,6 +506,16 @@ struct PickupConfig {
     var bumpMaxSec = 1.0            // 碰撞/震動（規則一）：短於此秒數、峰值低、全程沒離開平放
     var bumpMaxPeak = 0.25
     var bumpStillMaxSec = 3.0       // 碰撞/震動（規則二）：全程平放且從沒真正搬動，3 秒內（連敲兩下桌子）
+    // 碰撞/震動（規則三，實機校準）：連續敲桌子會讓單一窗的姿態短暫跳動、動作強度也超過「搬動」門檻，
+    // 但瞬間峰值遠低於真的拿起（實測敲桌 0.24g，最輕的拿起 0.75g），而且幾乎都維持平放。
+    var knockMaxPeak = 0.5
+    var knockMaxSec = 8.0
+    var knockMaxTiltRatio = 0.5     // 不是平放的窗占比上限
+    // 長時間拿在手上、螢幕大多朝著自己（實機校準）：滑手機時手部動作大，常被當成「搬動」，
+    // 看螢幕姿勢的判定就斷斷續續；改看「螢幕朝上的時間占比」補判。
+    var engagedMinSec = 20.0
+    var engagedFacingRatio = 0.6
+    var facingMaxAct = 0.5          // 動作強度超過此值（劇烈晃動）時的姿態不可信，不算朝著自己
     var carryMinSec = 45.0          // 長時間在手上/口袋且很少看螢幕 → 攜帶中
     var carryMaxViewRatio = 0.3
     var locoOverlap = 0.5           // 與系統判定「移動中」重疊 ≥ 此比例 → 移動中
@@ -485,7 +676,7 @@ struct PickupAnalyzer {
             let endT = windows[lv].t + w
             let dur = max(w, endT - startT)
 
-            var nValid = 0, nView = 0, nHold = 0
+            var nValid = 0, nView = 0, nHold = 0, nTilt = 0, nFacing = 0
             var peak = 0.0, maxAct = 0.0
             var leftFlat = false
             var runs: [(Int, Int)] = []      // 看螢幕姿勢的連續片段（容許中間 1 窗空隙）
@@ -496,8 +687,9 @@ struct PickupAnalyzer {
                     nValid += 1
                     peak = max(peak, m.peak)
                     maxAct = max(maxAct, m.act)
-                    if abs(m.uz) < cfg.flatUz { leftFlat = true }
+                    if abs(m.uz) < cfg.flatUz { leftFlat = true; nTilt += 1 }
                     if isHold(m) { nHold += 1 }
+                    if m.uz < cfg.viewUzMax && m.act < cfg.facingMaxAct { nFacing += 1 }
                 }
                 if isViewing(m) {
                     nView += 1
@@ -515,6 +707,8 @@ struct PickupAnalyzer {
             let viewSec = Double(nView) * w
             let viewRatio = nValid > 0 ? Double(nView) / Double(nValid) : 0
             let steadyRatio = nValid > 0 ? Double(nHold) / Double(nValid) : 0
+            let tiltRatio = nValid > 0 ? Double(nTilt) / Double(nValid) : 0
+            let facingRatio = nValid > 0 ? Double(nFacing) / Double(nValid) : 0
             let (locoSec, locoType) = locoOverlap(startT, endT)
             let locoRatio = locoSec / dur
             let unlocked = unlocks.contains { $0 >= startT && $0 <= endT }
@@ -524,6 +718,7 @@ struct PickupAnalyzer {
                 "startMs": startT * 1000, "endMs": endT * 1000,
                 "durationSec": r1(dur), "viewLongestSec": r1(bestRunSec), "viewSec": r1(viewSec),
                 "viewRatio": r2(viewRatio), "steadyRatio": r2(steadyRatio), "peakAct": r2(peak),
+                "facingRatio": r2(facingRatio), "tiltRatio": r2(tiltRatio),
                 "locoRatio": r2(locoRatio), "beforeOri": seg.before ?? "", "afterOri": seg.after ?? "",
                 "unlocked": unlocked
             ]
@@ -539,7 +734,8 @@ struct PickupAnalyzer {
             // 碰撞 / 通知震動：全程沒離開平放，且（很短、峰值低）或（從沒真正搬動、3 秒內）
             let shortBump = dur <= cfg.bumpMaxSec && peak < cfg.bumpMaxPeak
             let stillBump = dur <= cfg.bumpStillMaxSec && maxAct < cfg.actMove
-            if !leftFlat && (shortBump || stillBump) {
+            let knockBump = dur <= cfg.knockMaxSec && peak < cfg.knockMaxPeak && tiltRatio <= cfg.knockMaxTiltRatio
+            if (!leftFlat && (shortBump || stillBump)) || knockBump {
                 counts["bump", default: 0] += 1
                 ev["kind"] = "bump"
                 ev["reasons"] = ["沒離開平放、沒有真正移動：碰到桌子或通知震動"]
@@ -548,7 +744,8 @@ struct PickupAnalyzer {
             }
             // 移動中（走路/搭車）或長時間攜帶：晃動不算拿起，但抽出「看螢幕夠久」的片段
             let isLoco = locoRatio >= cfg.locoOverlap
-            let isCarry = dur >= cfg.carryMinSec && viewRatio < cfg.carryMaxViewRatio
+            // 螢幕大多朝著自己的不算攜帶（滑手機時手部動作大，viewRatio 會偏低）
+            let isCarry = dur >= cfg.carryMinSec && viewRatio < cfg.carryMaxViewRatio && facingRatio < cfg.engagedFacingRatio
             if isLoco || isCarry {
                 let how = locoName[locoType ?? ""] ?? "移動"
                 counts["moving", default: 0] += 1
@@ -579,8 +776,9 @@ struct PickupAnalyzer {
             if unlocked { score += 0.20 }
             score = min(1, score)
 
+            let engaged = dur >= cfg.engagedMinSec && facingRatio >= cfg.engagedFacingRatio
             let cls: String
-            if bestRunSec >= cfg.viewDistractSec || (unlocked && bestRunSec >= 3) {
+            if bestRunSec >= cfg.viewDistractSec || (unlocked && bestRunSec >= 3) || engaged {
                 cls = "distracted"
             } else if viewSec < 1.0 && dur < 6 {
                 cls = "incidental"
@@ -595,6 +793,9 @@ struct PickupAnalyzer {
 
             var reasons = ["在手上 \(fmt1(dur)) 秒"]
             reasons.append(bestRunSec >= 1 ? "看螢幕的姿勢連續約 \(fmt1(bestRunSec)) 秒" : "幾乎沒有看螢幕的角度")
+            if engaged && bestRunSec < cfg.viewDistractSec {
+                reasons.append("螢幕朝著自己約 \(fmt1(facingRatio * dur)) 秒")
+            }
             if flipped { reasons.append("從螢幕朝下翻起來") }
             if steadyRatio >= 0.6 { reasons.append("拿得很平穩，像在閱讀") }
             else if steadyRatio < 0.3 { reasons.append("大多在搬動") }
@@ -627,6 +828,7 @@ struct PickupAnalyzer {
             "events": events,
             "params": [
                 "noiseFloor": r4(noise), "actStill": r4(actStill), "actMove": cfg.actMove,
+                "knockMaxPeak": cfg.knockMaxPeak, "engagedMinSec": cfg.engagedMinSec,
                 "viewDistractSec": cfg.viewDistractSec, "distractScore": cfg.distractScore,
                 "windowSec": w, "restMinSec": cfg.restMinSec
             ]

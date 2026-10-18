@@ -4,11 +4,11 @@ import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=76';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=77';
 import { FIREBASE_EMULATORS } from '../../core/config.js';
-import { openLoginMethodSheet } from '../../core/login-sheet.js?v=76';
+import { openLoginMethodSheet } from '../../core/login-sheet.js?v=77';
 import { t } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=76';
+import { vibrate } from '../../core/haptics.js?v=77';
 import { showToast } from '../../utils/toast.js';
 
 let _groupsCacheTs = 0;
@@ -16,7 +16,7 @@ const LANDING_GUIDE_KEY = 'phubbing_landing_guide_seen';
 const ONBOARDING_STEPS = [
     '你好，我是你們的群組寵物。',
     '手機可以留在手上，注意力留在彼此身上。',
-    'Phubbing Anchor 會幫你發起聚會、邀請夥伴、一起完成定錨。只要更了解彼此，這場聚會就有意義。',
+    '社交定錨會幫你發起聚會、邀請夥伴、一起完成定錨。只要更了解彼此，這場聚會就有意義。',
     '開始很簡單：揪齊夥伴 → 一起定錨 → 專心相聚。',
     '你可以現在發起聚會，或加入朋友的聚會。',
 ];
@@ -63,7 +63,7 @@ function loadHomeOnboardingStyles() {
     const link = document.createElement('link');
     link.id = 'home-onboarding-css';
     link.rel = 'stylesheet';
-    link.href = './views/home/home-onboarding.css?v=76';
+    link.href = './views/home/home-onboarding.css?v=77';
     document.head.appendChild(link);
 }
 

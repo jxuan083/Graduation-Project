@@ -8,14 +8,15 @@ import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
+import { endCountdown } from './liveActivity.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=76';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=77';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=76';
+} from '../views/sync-ritual/sync-ritual.js?v=77';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -113,6 +114,7 @@ function enterSummaryView() {
     state.deviationDeadline = null;
     state.exemptUntil = 0;
     state.pendingDeviation = 0;
+    endCountdown();   // 聚會結束／自己離開：靈動島倒數一併收掉
     closeWs();
     switchView('view-summary', { replace: true });
 }

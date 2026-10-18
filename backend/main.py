@@ -4059,14 +4059,17 @@ async def extend_intent_http(room_id: str, decoded: dict = Depends(verify_token_
 
     now_ms = _now_ms()
     window_sec = _room_window_sec(room_data)
-    ok, reject_reason, until_ms = _att.extend_exemption(room_data, uid, now_ms, window_sec)
+    budget = _intent_budget(room_data.get("context", "general"))
+    ok, reject_reason, until_ms = _att.extend_exemption(room_data, uid, now_ms, window_sec, budget)
     if not ok:
         raise HTTPException(status_code=409, detail=reject_reason)
-    print(f"[EXTEND_INTENT] room={room_id} user={uid} +{window_sec}s")
+    used = int((room_data["members"].get(uid) or {}).get("exempt_count_used", 0) or 0)
+    print(f"[EXTEND_INTENT] room={room_id} user={uid} +{window_sec}s used={used}/{budget}")
     return {
         "status": "success",
         "window_sec": window_sec,
         "remaining_sec": max(0, int((until_ms - now_ms) / 1000)),
+        "remaining": max(0, budget - used),   # 延長也用掉一次暫離，回傳剩餘次數
     }
 
 

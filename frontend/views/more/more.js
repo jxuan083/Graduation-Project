@@ -4,7 +4,7 @@
 // 不需要接 Mac 就能自我診斷。
 import { register, back } from '../../core/router.js';
 import { updateToggleUI } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=76';
+import { vibrate } from '../../core/haptics.js?v=77';
 import {
     IS_NATIVE_APP,
     BACKEND_HOST,
@@ -172,7 +172,19 @@ function bindMotionSpike() {
     if (read) read.onclick = async () => {
         const p = plugin();
         if (!p) { show('連 Capacitor 都取不到——你不在原生 App 裡。'); return; }
-        try { show(await p.readMotionRecording({ fromMsAgo: 120000 })); }
+        try {
+            const r = await p.readMotionRecording({ fromMsAgo: 120000 });
+            if (!r?.ok) { show(r); return; }
+            // 這個測試只用來確認「感測器有在背景錄資料」；拿起幾次要看下方的 Pickup 偵測。
+            show([
+                `感測器有錄到資料：${r.sampleCount} 筆（約 ${Math.round(r.sampleCount / 50)} 秒）`,
+                `螢幕朝下的時間：${Math.round((r.faceDownRatio || 0) * 100)}%`,
+                `晃動片段：${r.movementBursts} 段`,
+                '',
+                '「晃動片段」是加速度突然變大的次數，拿起、放下、搬動都會產生好幾段，不是拿起次數。',
+                '要看拿起幾次、是不是停留較久，請用下方的「Pickup 偵測」。',
+            ].join('\n'));
+        }
         catch (e) { fail('readMotionRecording', e); }
     };
 
@@ -215,25 +227,50 @@ function bindMotionSpike() {
 
 // 腳本：每一步有固定秒數，事件依「開始時間落在哪一步」自動對答案。
 // expect：incidental=無心、distracted=潛在分心、glance=瞄一眼（不算分心即正確）、none=不該有拿起、null=休息
+// 腳本測試的步驟。手機大多螢幕朝下或平放，看不到畫面，所以全程靠語音帶：
+//   休息時先唸下一步要做什麼（prep），最後 3 秒唸「三、二、一」，到點唸「開始」才動作；
+//   需要計時的動作（滑、瞄一眼）到時間會唸「放回」（doneAt 秒後）。
+// 這樣動作會跟步驟的時間對齊，評分才準。
 const PICKUP_SCRIPT = [
-    { title: '準備', sec: 15, say: '開始。請把手機螢幕朝上，平放在桌上，先不要動。', expect: null },
-    { title: '挪位置', sec: 12, say: '把手機拿起來，移到旁邊再放下。不用看螢幕，放好後不要動。', expect: 'incidental' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '拿起來滑', sec: 25, say: '拿起手機，看著螢幕滑動大約十五秒，然後螢幕朝上放回桌上。', expect: 'distracted' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '敲桌子', sec: 10, say: '不要碰手機，輕輕敲桌面兩下。', expect: 'none' },
-    { title: '休息', sec: 6, say: '放著不要動。', expect: null },
-    { title: '快速瞄一眼', sec: 10, say: '拿起手機，瞄一眼兩秒，馬上螢幕朝上放回。', expect: 'glance' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '挪位置並蓋上', sec: 12, say: '把手機拿起來移到另一邊，這次螢幕朝下放。', expect: 'incidental' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '翻起來滑', sec: 25, say: '把手機翻過來，看著螢幕滑動大約十五秒，看完螢幕朝下放回。', expect: 'distracted' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '蓋著挪位置', sec: 12, say: '把手機拿起來移到旁邊，保持螢幕朝下放回。', expect: 'incidental' },
-    { title: '休息', sec: 8, say: '放著不要動。', expect: null },
-    { title: '翻起來瞄一眼', sec: 10, say: '把手機翻過來瞄一眼兩秒，馬上螢幕朝下放回。', expect: 'glance' },
-    { title: '結束', sec: 10, say: '最後一步，放著不要動，等一下會自動分析。', expect: null },
+    { title: '準備', sec: 15, say: '開始測試。請把手機螢幕朝上，平放在桌上。', expect: null },
+    { title: '挪位置', sec: 12, prep: '下一步：拿起來移到旁邊放下，不用看螢幕。', expect: 'incidental' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '拿起來滑', sec: 25, prep: '下一步：拿起來看著螢幕滑，聽到放回再放下。', doneAt: 15, doneSay: '放回，螢幕朝上。', expect: 'distracted' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '敲桌子', sec: 10, prep: '下一步：不要碰手機，輕敲桌面兩下。', expect: 'none' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '快速瞄一眼', sec: 10, prep: '下一步：拿起來瞄一眼，聽到放回就放下。', doneAt: 2, doneSay: '放回。', expect: 'glance' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '挪位置並蓋上', sec: 12, prep: '下一步：拿起來移到另一邊，螢幕朝下放。', expect: 'incidental' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '翻起來滑', sec: 25, prep: '下一步：翻過來看著螢幕滑，聽到放回再蓋回去。', doneAt: 15, doneSay: '放回，螢幕朝下。', expect: 'distracted' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '蓋著挪位置', sec: 12, prep: '下一步：拿起來移到旁邊，螢幕保持朝下。', expect: 'incidental' },
+    { title: '休息', sec: 10, say: '放著不要動。', expect: null },
+    { title: '翻起來瞄一眼', sec: 10, prep: '下一步：翻過來瞄一眼，聽到放回就蓋回去。', doneAt: 2, doneSay: '放回。', expect: 'glance' },
+    { title: '結束', sec: 10, say: '最後，放著不要動，等一下會自動分析。', expect: null },
 ];
+
+// 把步驟轉成依時間排序的語音／震動提示。
+function buildScriptCues(slots) {
+    const cues = [];
+    const COUNT = ['', '一', '二', '三'];
+    slots.forEach((s, i) => {
+        if (s.expect === null) {
+            cues.push({ at: s.startMs, text: s.say, vib: 20 });
+            const next = slots[i + 1];
+            if (next && next.expect !== null) {
+                // 先講下一步要做什麼（約 5 秒講完），倒數三秒，到點講「開始」
+                cues.push({ at: Math.max(s.startMs + 1200, s.endMs - 9000), text: next.prep, vib: 0 });
+                for (const k of [3, 2, 1]) cues.push({ at: s.endMs - k * 1000, text: COUNT[k], vib: 15 });
+            }
+        } else {
+            cues.push({ at: s.startMs, text: '開始', vib: 80 });
+            if (s.doneAt) cues.push({ at: s.startMs + s.doneAt * 1000, text: s.doneSay, vib: 80 });
+        }
+    });
+    return cues.sort((a, b) => a.at - b.at);
+}
 const CLS_LABEL = { incidental: '無心', uncertain: '不確定', distracted: '潛在分心' };
 const KIND_LABEL = { bump: '碰撞/震動', moving: '移動中', setup: '剛放下' };
 const EXPECT_LABEL = { incidental: '無心', distracted: '潛在分心', glance: '不算分心', none: '無事件' };
@@ -296,8 +333,20 @@ function evaluateScript(slots, res) {
     const events = res?.events || [];
     const rows = [];
     let binOk = 0, binN = 0, strictOk = 0, strictN = 0, detectOk = 0, detectN = 0, extra = 0;
+    // 每個事件歸到跟它時間重疊最多的那一步（只看開始時間的話，比提示早 1～3 秒動手就會被算到前一段「休息」）
+    const overlap = (e, s) => Math.max(0, Math.min(e.endMs ?? e.startMs, s.endMs) - Math.max(e.startMs, s.startMs));
+    const slotOf = new Map();
+    for (const e of events) {
+        let best = null, bestOv = 0;
+        for (const s of slots) {
+            const ov = overlap(e, s);
+            if (ov > bestOv) { bestOv = ov; best = s; }
+        }
+        if (!best) best = slots.find(s => e.startMs >= s.startMs && e.startMs < s.endMs) || null;
+        if (best) slotOf.set(e, best);
+    }
     for (const s of slots) {
-        const inSlot = events.filter(e => e.startMs >= s.startMs && e.startMs < s.endMs);
+        const inSlot = events.filter(e => slotOf.get(e) === s);
         const picks = inSlot.filter(e => e.kind === 'pickup');
         if (s.expect === null) {
             // 休息/準備：不該出現拿起（準備階段的「剛放下」不算）
@@ -448,19 +497,26 @@ function bindPickupTest() {
             return slot;
         });
 
+        const cues = buildScriptCues(slots);
+        let ci = 0;
         for (let i = 0; i < slots.length && !cancelled; i++) {
             const s = slots[i];
+            const next = slots[i + 1];
             $('.pk-step').textContent = `第 ${i + 1} / ${slots.length} 步`;
             $('.pk-title').textContent = s.title;
-            $('.pk-say').textContent = s.say;
-            $('.pk-next').textContent = slots[i + 1] ? `下一步：${slots[i + 1].title}` : '';
-            say(s.say);
-            vibrate(s.expect ? 60 : 20);
-            while (!cancelled && Date.now() < s.endMs) {   // 以絕對時間倒數，不會累積誤差
+            $('.pk-say').textContent = s.expect === null ? s.say : s.prep.replace(/^下一步：/, '');
+            $('.pk-next').textContent = next ? `下一步：${next.title}` : '';
+            while (!cancelled && Date.now() < s.endMs) {   // 以絕對時間進行，不會累積誤差
+                while (ci < cues.length && cues[ci].at <= Date.now()) {
+                    const c = cues[ci++];
+                    say(c.text);
+                    if (c.vib) vibrate(c.vib);
+                }
                 $('.pk-count').textContent = Math.ceil((s.endMs - Date.now()) / 1000);
-                await sleep(200);
+                await sleep(100);
             }
         }
+        if (!cancelled) say('測試結束，正在分析。');
 
         overlay.remove();
         try { window.speechSynthesis?.cancel(); } catch (_) {}

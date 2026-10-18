@@ -6,6 +6,11 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hant</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>社交定錨</string>
 	<key>CFBundleExecutable</key>
@@ -37,6 +42,8 @@
 	<string>社交定錨在本機開發模式下，需要連線到同一個 WiFi 內的開發伺服器來載入聚會資料。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>社交定錨需要使用麥克風進行聚會語音轉錄與摘要。</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSMotionUsageDescription</key>
 	<string>社交定錨用動作感測器了解聚會中手機被拿起的情形與走動狀況，資料只在裝置本機處理。</string>
 	<key>UIApplicationSceneManifest</key>

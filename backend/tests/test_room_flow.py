@@ -343,11 +343,13 @@ class RoomFlowTest(unittest.TestCase):
         until = room["members"]["a"]["exempt_window_until_ms"]
         self.assertEqual(until, T0 + 10 * MIN + window_ms)
 
-        # 到期後按「延長一次」：從原到期時間再加一個窗口，且只能延長一次
+        # 到期後按「延長一次」：從原到期時間再加一個窗口、用掉一次暫離（一般情境額度 2 次），且只能延長一次
         self.clock.now = until + 10_000
         res = self.client.post(f"/api/rooms/{room_id}/intent/extend", headers=self.auth("a"))
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json()["remaining_sec"], 110)
+        self.assertEqual(res.json()["remaining"], 0)
+        self.assertEqual(room["members"]["a"]["exempt_count_used"], 2)
         self.assertEqual(room["members"]["a"]["exempt_window_until_ms"], until + window_ms)
         self.assertEqual(self.client.post(f"/api/rooms/{room_id}/intent/extend",
                                           headers=self.auth("a")).status_code, 409)

@@ -84,7 +84,7 @@ export async function scheduleIntentEnd(windowSec, { allowExtend = true } = {}) 
         id: INTENT_END_ID,
         title: t('暫離時間到'),
         body: allowExtend
-            ? t('回到 App 繼續專心，超過就會被算成分心。還需要時間可以延長一次，或提前離開聚會。')
+            ? t('回到 App 繼續專心，超過就會被算成分心。還需要時間可以延長一次（會用掉一次暫離），或提前離開聚會。')
             : t('延長的時間到了。回到 App 繼續專心，或提前離開聚會。'),
         schedule: { at: new Date(now + windowSec * 1000) },
         actionTypeId: allowExtend ? ACTION_TYPE_TIMEOUT : ACTION_TYPE_TIMEOUT_NO_EXTEND,

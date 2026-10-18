@@ -12,11 +12,12 @@ import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
 import { isImeComposing } from '../../utils/ime.js';
 import { reconnectSilent } from '../../core/session.js';
+import { startBreakCountdown, extendBreakCountdown, endCountdown } from '../../core/liveActivity.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
 import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions } from '../../core/localNotify.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=76';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=77';
 
 export function init() {
     register('view-focus', {
@@ -238,11 +239,13 @@ export function applyIntentGranted(windowSec, remaining) {
     syncMyExemptUsed(_intentRemaining);
     _intentEndMs = Date.now() + Math.max(1, Number(windowSec) || 0) * 1000;
     state.exemptUntil = _intentEndMs;   // buffer.js 依此決定離開時從何時開始算分心
+    startBreakCountdown(_intentEndMs);  // 靈動島／鎖定畫面倒數（iOS 即時動態）
     clearInterval(_intentTimer);
     renderIntentCountdown();
     _intentTimer = setInterval(renderIntentCountdown, 1000);
-    // 排「時間到」本地通知（原生 app 才會生效；桌機/web 自動略過）
-    scheduleIntentEnd(Number(windowSec) || 0);
+    // 排「時間到」本地通知（原生 app 才會生效；桌機/web 自動略過）。
+    // 延長也要用掉一次暫離，所以已經沒有次數時，通知上不放「延長一次」。
+    scheduleIntentEnd(Number(windowSec) || 0, { allowExtend: _intentRemaining > 0 });
 }
 
 // 後端拒絕：此情境不開放 → 隱藏；次數用完 → 禁用；其餘（冷卻中）→ toast。
@@ -285,6 +288,9 @@ function endIntentCountdown() {
     _intentEndMs = 0;
     _intentReason = '';
     cancelIntentNotifications();  // 回到 App / 時間到 → 清掉尚未觸發的到期通知
+    // 人在 App 裡（回來了、提前結束、時間到）才收掉靈動島倒數；
+    // 剛跳出 App 時計時器可能還會跑幾秒，那時時間到要留著倒數，讓它切成「超時」。
+    if (document.visibilityState === 'visible') endCountdown();
     renderIntentButton();  // 顯示可用或（用完）禁用
 }
 
@@ -328,14 +334,20 @@ export function refreshFocusMascot() {
     }
 }
 
-// 暫離到期通知按了「延長一次」：後端同意才延長（每次暫離限一次，延長的時間算在場不專注）。
+// 暫離到期通知按了「延長一次」：後端同意才延長（每次暫離限一次、會用掉一次暫離次數，
+// 延長的時間算在場不專注）。
 async function extendIntentFromNotification() {
     try {
         const data = await requestExtendIntent();
+        if (data.remaining !== undefined) {
+            _intentRemaining = Math.max(0, Number(data.remaining) || 0);
+            syncMyExemptUsed(_intentRemaining);
+        }
         const sec = Math.max(1, Number(data.remaining_sec) || 0);
         _intentEndMs = Date.now() + sec * 1000;
         state.exemptUntil = _intentEndMs;
         pushDeviationDeadlineToExemptEnd();
+        extendBreakCountdown(_intentEndMs);
         clearInterval(_intentTimer);
         renderIntentCountdown();
         _intentTimer = setInterval(renderIntentCountdown, 1000);

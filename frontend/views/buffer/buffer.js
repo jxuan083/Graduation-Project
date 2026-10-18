@@ -12,8 +12,9 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=76';
+import { vibrate } from '../../core/haptics.js?v=77';
 import { getLockState } from '../../core/lockstate.js';
+import { setGraceCountdown } from '../../core/liveActivity.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
 const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
@@ -33,6 +34,10 @@ export function init() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 靈動島的寬限倒數：在 App 裡時每秒同步「現在跳出去會不會開始算分心」給原生，
+    // 跳出 App 那一刻原生就照這個決定要不要開始倒數（倒數秒數 = 本場的寬限時間）。
+    setInterval(syncGraceCountdown, 1000);
 
     // WS 重連後補送暫存的分心次數
     events.on('ws:open', () => {
@@ -58,6 +63,14 @@ export function pushDeviationDeadlineToExemptEnd() {
 // 連上後 ws:open 會補報（沒補報的話，後端會以為暫離一直沒回來）。
 function reportVisible() {
     if (!sendAction('VISIBILITY_CHANGE', { state: 'visible' })) reconnectSilent();
+}
+
+function syncGraceCountdown() {
+    if (document.visibilityState !== 'visible') return;
+    const armed = state.currentPhase === 'ACTIVE'
+        && !state.photoModeActive
+        && !(state.exemptUntil > Date.now());   // 暫離中跳出去不算分心，顯示的是暫離倒數
+    setGraceCountdown(armed, getGraceMs());
 }
 
 function handleVisibilityChange() {
@@ -104,8 +117,10 @@ function handleVisibilityChange() {
 
 // 回到前景時，依原生鎖定訊號決定這段「離開」怎麼算：
 //   情境 1：離開是「在 App 內按關螢幕鍵（鎖定）」造成 → 整段豁免，不計分心、不跳警告。
-//   情境 2：先切別的 app、之後才鎖定 → 只計到鎖定當下為止（鎖定前才算真正離開）。
-//   情境 3：全程未鎖定（切 app）或無原生訊號 → 沿用原本行為（補算 + 顯示倒數）。
+//   情境 2：先切去別的 app → 不管之後有沒有鎖螢幕，都照算到回到 App 為止。
+//     （定錨的意思是黏在 App 上：跳出去就要回來，回到 App 後再關螢幕才不算分心。）
+//   iOS 的鎖定訊號會晚約 10 秒才到，所以「離開後 12 秒內收到鎖定」都當成情境 1；
+//   切出去不到 2 秒就鎖螢幕的極短情況會被當成情境 1，這是系統訊號延遲造成的限制。
 async function resolveVisibleReturn(hiddenAt) {
     let lock = null;
     try { lock = await getLockState(); } catch (_) { lock = null; }
@@ -125,28 +140,19 @@ async function resolveVisibleReturn(hiddenAt) {
             reportVisible();
             return;
         }
-
-        if (lockedAt && lockedAt > hiddenAt + LOCK_ATTRIBUTION_WINDOW_MS) {
-            // 情境 2：先離開、後鎖定 → 只補算到鎖定當下，鎖定後不再計。
-            reconcileDeviations(lockedAt);
-            endCognitiveBuffer(true);
-            reportVisible();
-            return;
-        }
     }
 
-    // 情境 3：沿用原本行為。
+    // 情境 2：切去別的 app（之後有沒有鎖螢幕都一樣）→ 補算到現在 + 顯示倒數。
     reconcileDeviations();
     startCognitiveBuffer();
     reportVisible();
 }
 
 // 依目前時間與 deviationDeadline 補算應記的分心次數，並把截止時間往後推。
-// effectiveNow 可指定「以哪個時間點為準」（情境 2 用鎖定時間），預設為現在。
 // 回傳這次補算的次數（0 表示還在本輪 grace 內）。
-function reconcileDeviations(effectiveNow) {
+function reconcileDeviations() {
     if (!state.deviationDeadline) return 0;
-    const now = effectiveNow || Date.now();
+    const now = Date.now();
     if (now < state.deviationDeadline) return 0;
 
     const overdue = now - state.deviationDeadline;

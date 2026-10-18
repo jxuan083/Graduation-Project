@@ -211,10 +211,11 @@ class TestExemptionTimeout(unittest.TestCase):
     def test_extension_once_and_always_charged(self):
         room = make_room("a")
         until = self._declare_and_go(room, "a", T0 + 10 * MIN, used=1)   # 第 1 次暫離：原窗口全免
-        ok, _, new_until = att.extend_exemption(room, "a", until + 5_000, WINDOW)
+        ok, _, new_until = att.extend_exemption(room, "a", until + 5_000, WINDOW, budget=3)
         self.assertTrue(ok)
         self.assertEqual(new_until, until + WINDOW * 1000)               # 從原到期時間起算，不是從按下起算
-        self.assertFalse(att.extend_exemption(room, "a", until + 6_000, WINDOW)[0])
+        self.assertEqual(room["members"]["a"]["exempt_count_used"], 2)  # 延長用掉一次暫離
+        self.assertFalse(att.extend_exemption(room, "a", until + 6_000, WINDOW, budget=3)[0])
 
         charged = att.settle_exemption(room, "a", until + 60_000, WINDOW)  # 延長後 60 秒回來
         self.assertEqual(charged, 60.0)
@@ -225,15 +226,23 @@ class TestExemptionTimeout(unittest.TestCase):
         room = make_room("a")
         declared = T0 + 10 * MIN
         until = self._declare_and_go(room, "a", declared, used=2)
-        att.extend_exemption(room, "a", until + 1_000, WINDOW)
+        self.assertTrue(att.extend_exemption(room, "a", until + 1_000, WINDOW, budget=3)[0])
         charged = att.settle_exemption(room, "a", until + 30_000, WINDOW)
         self.assertAlmostEqual(charged, (WINDOW - 1) + 30.0)             # 原窗口實際離開 119 秒 + 延長 30 秒
 
     def test_extension_refused_when_not_away_or_too_late(self):
         room = make_room("a")
-        self.assertFalse(att.extend_exemption(room, "a", T0 + MIN, WINDOW)[0])
+        self.assertFalse(att.extend_exemption(room, "a", T0 + MIN, WINDOW, budget=3)[0])
         until = self._declare_and_go(room, "a", T0 + 10 * MIN)
-        self.assertFalse(att.extend_exemption(room, "a", until + 300_000, WINDOW)[0])
+        self.assertFalse(att.extend_exemption(room, "a", until + 300_000, WINDOW, budget=3)[0])
+
+    def test_extension_refused_when_no_breaks_left(self):
+        room = make_room("a")
+        until = self._declare_and_go(room, "a", T0 + 10 * MIN, used=2)   # 額度 2 次都用掉了
+        ok, reason, _ = att.extend_exemption(room, "a", until + 5_000, WINDOW, budget=2)
+        self.assertFalse(ok)
+        self.assertIn("用完", reason)
+        self.assertEqual(room["members"]["a"]["exempt_count_used"], 2)
 
     def test_return_without_extension_matches_original_rule(self):
         room = make_room("a")
