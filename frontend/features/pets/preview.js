@@ -1,4 +1,4 @@
-import { PetViewer } from './viewer.js';
+import { PetViewer } from './viewer.js?v=2';
 
 const speech = document.getElementById('speech');
 const status = document.getElementById('status');
@@ -30,6 +30,11 @@ for (const button of document.querySelectorAll('[data-scene]')) button.onclick =
     document.querySelectorAll('[data-scene]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
 };
 document.getElementById('viewer').onclick = () => viewer?.play('tap');
+document.getElementById('viewer').onpointermove = event => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    viewer?.setAttention((event.clientX - rect.left) / rect.width * 2 - 1, (event.clientY - rect.top) / rect.height * 2 - 1);
+};
+document.getElementById('viewer').onpointerleave = () => viewer?.setAttention();
 
 const OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
 document.getElementById('portrait').onchange = async event => {

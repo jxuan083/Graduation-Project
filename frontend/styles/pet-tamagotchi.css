@@ -3,6 +3,9 @@
 /* ── 篝火旁寵物（首頁） ── */
 .pet-3d-stage { position: absolute; inset: 0; pointer-events: none; z-index: 1; visibility: hidden; }
 .pet-3d-canvas { display: block; width: 100%; height: 100%; }
+.pet-model-credit { display: none; margin: -5px 0 14px; color: var(--text-secondary, #777); font-size: 10px; line-height: 1.5; }
+.pet-model-credit a { color: inherit; }
+.pet-stage.has-3d-pet + .pet-model-credit { display: block; }
 #view-pet-tamagotchi .pet-stage.has-3d-pet { min-height: 340px; }
 #view-pet-tamagotchi .has-3d-pet .pet-3d-stage { visibility: visible; }
 #view-pet-tamagotchi .has-3d-pet .pet-avatar-wrap {

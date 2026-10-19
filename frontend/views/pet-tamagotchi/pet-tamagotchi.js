@@ -244,6 +244,11 @@ export function init() {
         playPetReaction('tap', { pet_happiness: 1 });
         setSpeech(s.status);
     });
+    document.getElementById('pet-avatar-wrap').addEventListener('pointermove', event => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        _petViewer?.setAttention((event.clientX - rect.left) / rect.width * 2 - 1, (event.clientY - rect.top) / rect.height * 2 - 1);
+    });
+    document.getElementById('pet-avatar-wrap').addEventListener('pointerleave', () => _petViewer?.setAttention());
 
     document.getElementById('btn-pet-rename').onclick     = openRenameDialog;
     document.getElementById('btn-rename-confirm').onclick  = confirmRename;
