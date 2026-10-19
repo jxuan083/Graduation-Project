@@ -72,6 +72,7 @@ for x in [-48,48]:
 for idx,(x,rot) in enumerate([(185,-.24),(315,.24)]):
     arm=el(ab,'Node',name='Arm',id=f'0:{13+idx}',x=x,y=307,rotation=rot)
     oval(arm,'Mitten',0,38,39,67,['FFFFDCA0','FFD9A063'])
+    ab.remove(arm); ab.insert(0,arm)
 tail=el(ab,'Node',id='0:15',name='Tail',x=315,y=384,rotation=.65)
 oval(tail,'Tail tip',0,-37,38,76,['FFFFD99A','FFCF9457'])
 oval(ab,'Ground shadow',250,451,184,16,'243D4231')

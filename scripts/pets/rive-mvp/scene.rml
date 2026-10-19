@@ -1,5 +1,27 @@
 <Rive version="1" kind="fragment">
   <Artboard id="0:2" name="Companion" width="500" height="500" styleId="0:5" defaultStateMachineId="0:7" viewModelId="0:40" viewModelInstanceId="0:41">
+    <Node name="Arm" id="0:14" x="315" y="307" rotation="0.24">
+      <Shape name="Mitten" x="0" y="38" rotation="0" id="0:241">
+        <Ellipse name="Contour" width="39" height="67" originX="0.5" originY="0.5" id="0:242" />
+        <Fill name="Paint" id="0:243">
+          <LinearGradient startX="-7.800000000000001" startY="-26.8" endX="13.649999999999999" endY="33.5" id="0:244">
+            <GradientStop colorValue="FFFFDCA0" position="0.0" id="0:245" />
+            <GradientStop colorValue="FFD9A063" position="1.0" id="0:246" />
+          </LinearGradient>
+        </Fill>
+      </Shape>
+    </Node>
+    <Node name="Arm" id="0:13" x="185" y="307" rotation="-0.24">
+      <Shape name="Mitten" x="0" y="38" rotation="0" id="0:235">
+        <Ellipse name="Contour" width="39" height="67" originX="0.5" originY="0.5" id="0:236" />
+        <Fill name="Paint" id="0:237">
+          <LinearGradient startX="-7.800000000000001" startY="-26.8" endX="13.649999999999999" endY="33.5" id="0:238">
+            <GradientStop colorValue="FFFFDCA0" position="0.0" id="0:239" />
+            <GradientStop colorValue="FFD9A063" position="1.0" id="0:240" />
+          </LinearGradient>
+        </Fill>
+      </Shape>
+    </Node>
     <LayoutComponentStyle id="0:5" name="Stage" />
     <Node name="Photo hood" x="250" y="180" id="0:101">
       <Shape name="Eye highlight L" x="-25" y="-6" rotation="0" id="0:102">
@@ -212,28 +234,6 @@
         </LinearGradient>
       </Fill>
     </Shape>
-    <Node name="Arm" id="0:13" x="185" y="307" rotation="-0.24">
-      <Shape name="Mitten" x="0" y="38" rotation="0" id="0:235">
-        <Ellipse name="Contour" width="39" height="67" originX="0.5" originY="0.5" id="0:236" />
-        <Fill name="Paint" id="0:237">
-          <LinearGradient startX="-7.800000000000001" startY="-26.8" endX="13.649999999999999" endY="33.5" id="0:238">
-            <GradientStop colorValue="FFFFDCA0" position="0.0" id="0:239" />
-            <GradientStop colorValue="FFD9A063" position="1.0" id="0:240" />
-          </LinearGradient>
-        </Fill>
-      </Shape>
-    </Node>
-    <Node name="Arm" id="0:14" x="315" y="307" rotation="0.24">
-      <Shape name="Mitten" x="0" y="38" rotation="0" id="0:241">
-        <Ellipse name="Contour" width="39" height="67" originX="0.5" originY="0.5" id="0:242" />
-        <Fill name="Paint" id="0:243">
-          <LinearGradient startX="-7.800000000000001" startY="-26.8" endX="13.649999999999999" endY="33.5" id="0:244">
-            <GradientStop colorValue="FFFFDCA0" position="0.0" id="0:245" />
-            <GradientStop colorValue="FFD9A063" position="1.0" id="0:246" />
-          </LinearGradient>
-        </Fill>
-      </Shape>
-    </Node>
     <Node id="0:15" name="Tail" x="315" y="384" rotation="0.65">
       <Shape name="Tail tip" x="0" y="-37" rotation="0" id="0:247">
         <Ellipse name="Contour" width="38" height="76" originX="0.5" originY="0.5" id="0:248" />
