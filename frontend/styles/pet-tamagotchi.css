@@ -1,6 +1,20 @@
 /* styles/pet-tamagotchi.css */
 
 /* ── 篝火旁寵物（首頁） ── */
+.pet-3d-stage { position: absolute; inset: 0; pointer-events: none; z-index: 1; visibility: hidden; }
+.pet-3d-canvas { display: block; width: 100%; height: 100%; }
+#view-pet-tamagotchi .pet-stage.has-3d-pet { min-height: 340px; }
+#view-pet-tamagotchi .has-3d-pet .pet-3d-stage { visibility: visible; }
+#view-pet-tamagotchi .has-3d-pet .pet-avatar-wrap {
+  position: absolute; inset: 45px 15% 0; width: 70%; height: calc(100% - 45px);
+  animation: none; transform: none; z-index: 2;
+}
+#view-pet-tamagotchi .has-3d-pet #pet-avatar-img,
+#view-pet-tamagotchi .has-3d-pet .pet-ground-shadow { visibility: hidden; }
+#view-pet-tamagotchi .has-3d-pet .pet-speech { position: absolute; top: 44px; z-index: 3; }
+#view-pet-tamagotchi .has-3d-pet .pet-status-chip,
+#view-pet-tamagotchi .has-3d-pet .pet-bg-btn { z-index: 4; }
+
 .campfire-pet-wrap {
   position: absolute;
   top: 50%;

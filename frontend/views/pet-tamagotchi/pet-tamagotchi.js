@@ -186,6 +186,9 @@ let _actionLock = false;
 let _clickIdx   = 0;
 let _lastRenderedStatus = null;
 let _pendingDelete = null;   // { groupId }
+let _petViewer = null;
+let _viewerKey = null;
+let _viewerVersion = 0;
 let _deleteBusy    = false;
 let _renameBusy    = false;
 
@@ -323,6 +326,7 @@ async function onShow() {
 }
 
 function onHide() {
+    disposePetViewer();
     stopPolling();
     clearTimeout(_feedbackTimer);
     _lastRenderedStatus = null;
@@ -491,6 +495,7 @@ async function doAction(action) {
             _groupPet.pet_cooldowns   = data.pet_cooldowns || _groupPet.pet_cooldowns || {};
         }
         const changeText = formatChanges(data?.changes || {});
+        _petViewer?.play(action);
         showActionFeedback(`${t('{action}完成', { action: t(ACTION_LABELS[action]) })}${changeText ? ` · ${changeText}` : ''}`, 'success');
         playPetReaction(action, data?.changes || {});
         setSpeech(_groupPet.pet_status || 'NORMAL', true);
@@ -548,6 +553,7 @@ function renderGroupMode() {
 
     const img = document.getElementById('pet-avatar-img');
     if (img.src !== _groupPet.pet_face_url) img.src = _groupPet.pet_face_url;
+    syncPetViewer();
     img.classList.toggle('pet-legacy-opaque', isLegacyOpaquePet(_groupPet.pet_face_url));
 
     const energy = _groupPet.pet_energy ?? 50;
@@ -730,6 +736,7 @@ function startPolling() {
 // ── 畫面切換 ─────────────────────────────────────────────────────────────────
 
 function showScreen(which) {
+    if (which !== 'game') disposePetViewer();
     document.getElementById('pet-tama-loading').style.display  = 'none';
     document.getElementById('pet-list-screen').style.display   = which === 'list'   ? 'block' : 'none';
     document.getElementById('pet-no-pet').style.display        = which === 'no-pet' ? 'block' : 'none';
@@ -738,6 +745,7 @@ function showScreen(which) {
 }
 
 function showLoading(show) {
+    if (show) disposePetViewer();
     document.getElementById('pet-tama-loading').style.display = show ? 'block' : 'none';
     if (show) {
         document.getElementById('pet-list-screen').style.display = 'none';
@@ -750,6 +758,7 @@ function showLoading(show) {
 // ── 小工具 ───────────────────────────────────────────────────────────────────
 
 function applyAvatarState(cls, restart = false) {
+    _petViewer?.setStatus(cls.toUpperCase());
     const avatar = document.getElementById('pet-avatar-wrap');
     if (!avatar) return;
     const nextClass = `state-${cls}`;
@@ -806,6 +815,10 @@ function playPetReaction(action, changes = {}) {
 }
 
 function playPetMotion(action) {
+    if (_petViewer) {
+        if (action === 'tap' || action === 'release') _petViewer.play(action);
+        return;
+    }
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || typeof window.gsap === 'undefined') return;
     const avatar = document.getElementById('pet-avatar-wrap');
     const shadow = document.querySelector('#pet-stage .pet-ground-shadow');
@@ -853,6 +866,50 @@ function playPetMotion(action) {
             .to(shadow, { duration: .25, scaleX: .66, scaleY: .66, opacity: .12 }, .15)
             .to(shadow, { duration: .28, scaleX: 1, scaleY: 1, opacity: .22, ease: 'back.out(2)' }, .48);
     }
+}
+
+function disposePetViewer() {
+    _viewerVersion++;
+    _petViewer?.dispose();
+    _petViewer = null;
+    _viewerKey = null;
+    document.getElementById('pet-stage')?.classList.remove('has-3d-pet');
+}
+
+async function syncPetViewer() {
+    // Old composites and the other species remain valid; only a separate original
+    // portrait can be placed on a new body without double faces or lost identity.
+    const portrait = _groupPet?.pet_portrait_url;
+    if (!portrait || _groupPet.pet_body_emoji !== '🐶') {
+        if (_viewerKey) disposePetViewer();
+        return;
+    }
+    const key = `${_groupId}:${portrait}`;
+    if (_viewerKey === key) {
+        _petViewer?.setStatus(_groupPet.pet_is_caged ? 'RESCUE' : _groupPet.pet_status);
+        return;
+    }
+    disposePetViewer();
+    _viewerKey = key;
+    const version = _viewerVersion;
+    const fallback = error => {
+        if (version !== _viewerVersion) return;
+        console.warn('Pet 3D falls back to saved portrait composite:', error);
+        disposePetViewer();
+        // Avoid retrying every polling tick after a GPU/load failure.
+        _viewerKey = key;
+    };
+    try {
+        const { PetViewer } = await import('../../features/pets/viewer.js');
+        if (version !== _viewerVersion) return;
+        const viewer = new PetViewer(document.getElementById('pet-3d-stage'), { onError: fallback });
+        _petViewer = viewer;
+        await viewer.load(portrait);
+        if (version !== _viewerVersion || viewer.disposed) return;
+        viewer.setStatus(_groupPet.pet_is_caged ? 'RESCUE' : _groupPet.pet_status);
+        document.getElementById('pet-stage').classList.add('has-3d-pet');
+        viewer.resize();
+    } catch (error) { fallback(error); }
 }
 
 function statusToAnimClass(status) {
