@@ -157,7 +157,7 @@ class RoomFlowTest(unittest.TestCase):
         room_id, socks = self.start("a")
         self.clock.now = T0 + 2 * MIN
         socks["a"].send_json({"action": "DECLARE_INTENT"})
-        self.assertEqual(self.until(socks["a"], "INTENT_GRANTED")["remaining"], 1)
+        self.assertEqual(self.until(socks["a"], "INTENT_GRANTED")["remaining"], 2)   # 一般聚會 3 次
         socks["a"].send_json({"action": "VISIBILITY_CHANGE", "state": "visible"})
         self.clock.now = T0 + 6 * MIN
         socks["a"].send_json({"action": "LOG_DEVIATION", "count": 2})
@@ -343,12 +343,12 @@ class RoomFlowTest(unittest.TestCase):
         until = room["members"]["a"]["exempt_window_until_ms"]
         self.assertEqual(until, T0 + 10 * MIN + window_ms)
 
-        # 到期後按「延長一次」：從原到期時間再加一個窗口、用掉一次暫離（一般情境額度 2 次），且只能延長一次
+        # 到期後按「延長一次」：從原到期時間再加一個窗口、用掉一次暫離（一般聚會額度 3 次），且只能延長一次
         self.clock.now = until + 10_000
         res = self.client.post(f"/api/rooms/{room_id}/intent/extend", headers=self.auth("a"))
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json()["remaining_sec"], 110)
-        self.assertEqual(res.json()["remaining"], 0)
+        self.assertEqual(res.json()["remaining"], 1)
         self.assertEqual(room["members"]["a"]["exempt_count_used"], 2)
         self.assertEqual(room["members"]["a"]["exempt_window_until_ms"], until + window_ms)
         self.assertEqual(self.client.post(f"/api/rooms/{room_id}/intent/extend",
@@ -374,6 +374,43 @@ class RoomFlowTest(unittest.TestCase):
         self.assertEqual(ap["quality_metrics"]["exempt_charged_seconds"], 120.0)   # 延長的那一截算在場不專注
         self.assertEqual(self.mirror(room_id, "a")["duration_minutes"], 14)
         self.assertEqual(room["status"], "ACTIVE")                                 # 房主還在，聚會繼續
+
+    def test_ordering_trip_exempts_leaving_the_app_for_fifteen_minutes(self):
+        room_id, socks = self.start("a", context="meal")
+        room = main.rooms[room_id]
+
+        # 被點餐網站帶出 App（付款／LINE 點餐）前先登記一次帶出
+        self.clock.now = T0 + 10 * MIN
+        res = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual((res.json()["window_sec"], res.json()["remind_sec"], res.json()["trips_left"]), (900, 600, 1))
+
+        # 帶出期間離開 App 回報的分心不算
+        socks["a"].send_json({"action": "VISIBILITY_CHANGE", "state": "hidden"})
+        self.until(socks["host"], "USER_HID_SCREEN")
+        self.clock.now = T0 + 20 * MIN
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 3})
+        socks["a"].send_json({"action": "VISIBILITY_CHANGE", "state": "visible"})   # 回到 App → 帶出結束
+        self.until(socks["host"], "USER_WOKE_SCREEN")
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 0)
+        self.assertEqual(room["members"]["a"]["order_window_until_ms"], 0)
+
+        # 回來之後再離開就照一般規則算
+        self.clock.now = T0 + 30 * MIN
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 1})
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 1)
+
+        # 每場最多 2 次；不支援點餐的情境不能用
+        self.assertEqual(self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a")).status_code, 200)
+        room["members"]["a"]["order_window_until_ms"] = 0
+        third = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))
+        self.assertEqual(third.status_code, 409)
+
+    def test_ordering_is_not_available_in_formal_settings(self):
+        room_id, socks = self.start("a", context="meeting")
+        res = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))
+        self.assertEqual(res.status_code, 409)
 
     def test_leave_from_timeout_notification_is_dated_at_expiry(self):
         room_id, socks = self.start("a")

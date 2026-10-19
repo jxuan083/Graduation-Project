@@ -4,7 +4,8 @@
 // 不需要接 Mac 就能自我診斷。
 import { register, back } from '../../core/router.js';
 import { updateToggleUI } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=77';
+import { vibrate } from '../../core/haptics.js?v=78';
+import { canSaveToDevice, autoSavePhotos, setAutoSavePhotos } from '../../features/photos/controller.js';
 import {
     IS_NATIVE_APP,
     BACKEND_HOST,
@@ -102,11 +103,23 @@ async function runTests() {
     if (btn) { btn.disabled = false; btn.textContent = '重新測試'; }
 }
 
+// 「拍照時同時存到手機」開關：只有原生 App 能存，網頁版整塊不顯示
+function renderPhotoSetting() {
+    const section = document.getElementById('more-photo-section');
+    const toggle = document.getElementById('save-photos-toggle');
+    if (!section || !toggle) return;
+    section.style.display = canSaveToDevice() ? '' : 'none';
+    toggle.checked = autoSavePhotos();
+}
+
 export function init() {
     register('view-more', {
         element: document.getElementById('view-more'),
-        onShow: () => { renderEnv(); updateToggleUI(); },
+        onShow: () => { renderEnv(); updateToggleUI(); renderPhotoSetting(); },
     });
+
+    const saveToggle = document.getElementById('save-photos-toggle');
+    if (saveToggle) saveToggle.onchange = () => setAutoSavePhotos(saveToggle.checked);
 
     const backBtn = document.getElementById('btn-more-back');
     if (backBtn) backBtn.onclick = () => back();
@@ -349,8 +362,8 @@ function evaluateScript(slots, res) {
         const inSlot = events.filter(e => slotOf.get(e) === s);
         const picks = inSlot.filter(e => e.kind === 'pickup');
         if (s.expect === null) {
-            // 休息/準備：不該出現拿起（準備階段的「剛放下」不算）
-            if (picks.length) {
+            // 休息：不該出現拿起。「準備」是讓人把手機放好的時間，期間調整手機不算錯。
+            if (picks.length && s !== slots[0]) {
                 extra += picks.length;
                 rows.push({ ok: false, title: `${s.title}（不該有拿起）`, expect: '無事件', got: picks.map(eventLabel).join('、') });
             }

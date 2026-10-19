@@ -92,19 +92,17 @@ export const firebaseConfig = {
 // 沒填之前 getToken() 會直接失敗（push.js 有擋，不會炸整個 app）。
 export const FCM_VAPID_KEY = "";
 
-// 11 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
+// 9 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
 export const CONTEXT_CONFIGS = {
     general:     { label: '一般聚會', icon: 'party-popper',   difficulty: 'L', duration: 90,  mode: 'GATHERING' },
     meeting:     { label: '開會',     icon: 'briefcase',      difficulty: 'H', duration: 60,  mode: 'MEETING'   },
-    family:      { label: '家庭聚會', icon: 'house',          difficulty: 'L', duration: 120, mode: 'FAMILY'    },
+    family:      { label: '家庭聚會', icon: 'house',          difficulty: 'M', duration: 120, mode: 'FAMILY'    },
     study:       { label: '自習讀書', icon: 'book-open',      difficulty: 'M', duration: 90,  mode: 'CLASS'     },
     class:       { label: '專心上課', icon: 'graduation-cap', difficulty: 'H', duration: 50,  mode: 'CLASS'     },
     meal:        { label: '吃飯聚餐', icon: 'utensils',       difficulty: 'L', duration: 90,  mode: 'GATHERING' },
     date:        { label: '約會',     icon: 'heart',          difficulty: 'M', duration: 120, mode: 'GATHERING' },
-    social:      { label: '交流',     icon: 'messages-square', difficulty: 'M', duration: 120, mode: 'GATHERING' },
-    outdoor:     { label: '戶外活動', icon: 'mountain',       difficulty: 'L', duration: 180, mode: 'GATHERING' },
-    team:        { label: '團隊聚會', icon: 'users',          difficulty: 'M', duration: 120, mode: 'GATHERING' },
-    custom:      { label: '自訂',     icon: 'settings',       difficulty: 'M', duration: 90,  mode: 'GATHERING' },
+    social:      { label: '認識新朋友', icon: 'handshake',    difficulty: 'M', duration: 120, mode: 'GATHERING' },
+    outdoor:     { label: '旅行',     icon: 'plane',          difficulty: 'L', duration: 180, mode: 'GATHERING' },
 };
 
 export const DIFFICULTY_LABELS = { L: '輕鬆', M: '標準', H: '嚴格' };
@@ -116,22 +114,24 @@ export const PET_BODY_OPTIONS = ['🐶', '🐱', '🐰', '🦊'];
 // 意圖暫離的次數/時長是顯示給使用者看的；真正的 enforcement 在後端 backend/intent.py。
 // 這裡是鏡像，且由 tests/project-invariants 讀後端比對，確保兩邊永遠一致（不會顯示錯）。
 export const EXEMPT_BUDGET_BY_CONTEXT = {
-    general: 2, meeting: 0, family: 3, study: 2, class: 0,
-    meal: 3, date: 1, social: 1, outdoor: 3, team: 2, custom: 2,
+    general: 3, meeting: 0, family: 2, study: 2, class: 0,
+    meal: 2, date: 1, social: 1, outdoor: 3,
 };
 export const EXEMPT_WINDOW_SEC = { L: 180, M: 120, H: 60 };
+
+// 掃碼點餐：哪些情境有「點餐」按鈕、每場可以帶出 App 幾次（顯示用鏡像；真正把關在 backend/ordering.py）
+export const ORDER_CONTEXTS = ['general', 'family', 'meal'];
+export const ORDER_TRIP_LIMIT = 2;
 
 // 每個情境選定後顯示的一句注意事項（口語、非評分細節）。
 export const CONTEXT_NOTES = {
     general:     '輕鬆聊天為主，手機偶爾看一下沒關係。',
     meeting:     '正式場合，建議全程專注，不開放暫離。',
-    family:      '家庭聚會比較彈性，家人有急事可以暫離一下。',
+    family:      '家人難得聚在一起，手機先收著，多聊幾句。',
     study:       '讀書會重視專注，查資料可以短暫暫離。',
     class:       '最嚴格模式，任何分心都會記錄，不開放暫離。',
     meal:        '用餐可以拍照、看菜單，手機使用比較寬容。',
     date:        '重視兩人相處，盡量別一直看手機。',
     social:      '把注意力放在眼前的人，聊開了氣氛自然就好。',
-    outdoor:     '在戶外一起走走看看，手機用來拍照、導航都方便。',
-    team:        '團隊活動以互動為主，適度使用手機。',
-    custom:      '自訂場景，依你設定的難度計分。',
+    outdoor:     '出門旅行一起走走看看，手機用來拍照、導航都方便。',
 };

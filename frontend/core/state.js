@@ -65,6 +65,8 @@ export const state = {
     deviationDeadline: null,// 下一次分心 +1 的絕對時間戳（不論前景/背景都以此為準）
     pendingDeviation: 0,    // WS 斷線時暫存的分心次數，重連後補送
     exemptUntil: 0,         // 暫離窗口到期的絕對時間戳；窗口內離開不起算分心（0 = 沒有進行中的暫離）
+    orderTripUntil: 0,      // 帶出 App 點餐的到期時間戳；這段時間內離開 App 不起算分心
+    orderingOpen: false,    // 這場聚會掃過點餐 QR Code、點餐網頁還留著（按鈕顯示「繼續點餐」）
 
     // === 好友 cache ===
     friendUidSet: new Set(),

@@ -31,6 +31,19 @@ export function startBreakCountdown(endsAtMs) {
     });
 }
 
+// 帶出 App 點餐：靈動島顯示「點餐中」，刻意不顯示時間；remindSec 後（系統重畫時）換成「還在點餐嗎？」
+export function startOrderActivity(remindSec) {
+    return invoke('startCountdown', {
+        kind: 'order',
+        endsAt: Date.now() + remindSec * 1000,
+        title: t('點餐中'),
+        hint: t('點完回到 App 就好'),
+        overTitle: t('還在點餐嗎？'),
+        overHint: t('再 5 分鐘沒回到 App，就會開始算分心'),
+        appName: t('社交定錨'),
+    });
+}
+
 export function extendBreakCountdown(endsAtMs) {
     return invoke('updateCountdown', { endsAt: endsAtMs });
 }

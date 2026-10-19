@@ -290,6 +290,20 @@ test('leave / rejoin: frontend mirrors backend limits and only the acting host e
   }
 });
 
+test('ordering: frontend mirrors backend contexts and limit, and the order button sits above the break button', () => {
+  const py = read('backend/ordering.py');
+  const config = read('frontend/core/config.js');
+  const focusHtml = read('frontend/views/focus/focus.html');
+  const pyContexts = py.match(/ORDER_CONTEXTS = \{([^}]*)\}/)?.[1].match(/"(\w+)"/g).map(s => s.replace(/"/g, '')).sort();
+  const jsContexts = config.match(/ORDER_CONTEXTS = \[([^\]]*)\]/)?.[1].match(/'(\w+)'/g).map(s => s.replace(/'/g, '')).sort();
+  assert.deepEqual(jsContexts, pyContexts, 'ORDER_CONTEXTS 前後端不一致');
+  assert.equal(config.match(/ORDER_TRIP_LIMIT = (\d+)/)?.[1], py.match(/^ORDER_TRIP_LIMIT = (\d+)/m)?.[1], 'ORDER_TRIP_LIMIT 前後端不一致');
+  for (const id of ['btn-order', 'order-btn-label', 'order-scan-modal', 'order-scan-reader', 'btn-order-scan-cancel']) {
+    assert.match(focusHtml, new RegExp(`id="${id}"`), `focus.html 缺少 #${id}`);
+  }
+  assert.ok(focusHtml.indexOf('id="btn-order"') < focusHtml.indexOf('id="btn-declare-intent"'), '點餐按鈕要在「需要用一下手機」上面');
+});
+
 test('js and css are served no-cache so a stale import cannot break the module graph', () => {
   // 只有 36 個 import 帶 ?v=N，250 個沒帶。Hosting 預設給 .js 的是 max-age=3600，
   // 所以 bump 版號時有版號的抓到新檔、沒版號的沿用舊快取 —— 兩邊對不起來，

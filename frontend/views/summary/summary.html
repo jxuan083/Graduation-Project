@@ -43,6 +43,13 @@
         </div>
         <p id="summary-host-hint" style="display:none;"></p>
 
+        <!-- 拿起手機的個人回饋：只有自己看得到、不影響分數（features/pickup/sessionPickups.js 填入） -->
+        <div class="ps-pickup-card" id="summary-pickup-card" style="display:none;">
+            <p class="ps-pickup-label"><i data-lucide="lock"></i>只有你看得到</p>
+            <p class="ps-pickup-main" id="summary-pickup-main"></p>
+            <p class="ps-pickup-sub" id="summary-pickup-sub"></p>
+        </div>
+
         <!-- 聚會分數排行（由 wsHandlers 填入 #summary-score-list） -->
         <div class="ps-rank-section" id="summary-score-ranking" style="display:none;">
             <p class="ps-rank-label">聚會分數排行</p>

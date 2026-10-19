@@ -50,8 +50,6 @@ _CONTEXT_PROFILE = {
     "date":        {"focus": 0.60, "presence": 0.40, "dev_mult": 1.15, "value": 1.05},
     "social":      {"focus": 0.55, "presence": 0.45, "dev_mult": 1.10, "value": 1.05},
     "outdoor":     {"focus": 0.40, "presence": 0.60, "dev_mult": 0.85, "value": 1.00},
-    "team":        {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.05},
-    "custom":      {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.00},
 }
 _DEFAULT_PROFILE = {"focus": 0.50, "presence": 0.50, "dev_mult": 1.00, "value": 1.00}
 

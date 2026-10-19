@@ -82,6 +82,7 @@ test('REST route surface stays compatible with the Phase 0 contract', () => {
     'POST /api/create_room',
     'POST /api/rooms/{room_id}/end',
     'POST /api/rooms/{room_id}/leave',
+    'POST /api/rooms/{room_id}/order-trip',
     'POST /api/rooms/{room_id}/intent/extend',
   ];
 

@@ -9,6 +9,8 @@ import { t } from './i18n.js';
 
 const INTENT_END_ID = 8801;    // 到期通知
 const INTENT_WARN_ID = 8802;   // 到期前提醒
+const ORDER_REMIND_ID = 8811;  // 帶出點餐：還在點餐嗎？
+const ORDER_END_ID = 8812;     // 帶出點餐：時間到，開始算分心
 const WARN_LEAD_SEC = 20;      // 到期前幾秒先提醒
 
 // 通知按鈕組：一般到期通知可延長或離開；已延長過的只剩離開
@@ -111,5 +113,44 @@ export async function cancelIntentNotifications() {
     if (!plugin) return;
     try {
         await plugin.cancel({ notifications: [{ id: INTENT_END_ID }, { id: INTENT_WARN_ID }] });
+    } catch (_) { /* noop */ }
+}
+
+// 帶出 App 點餐：remindSec 後問「還在點餐嗎？」，windowSec 後提醒「開始算分心」。回到 App 就取消。
+export async function scheduleOrderReminders(remindSec, windowSec) {
+    const plugin = getPlugin();
+    if (!plugin || !(windowSec > 0)) return false;
+    const granted = await ensureNotifyPermission();
+    if (!granted) return false;
+    await cancelOrderReminders();
+    const now = Date.now();
+    const notifications = [{
+        id: ORDER_END_ID,
+        title: t('點餐時間到了'),
+        body: t('現在開始會算分心，回到 App 繼續聚會吧。'),
+        schedule: { at: new Date(now + windowSec * 1000) },
+    }];
+    if (remindSec > 0 && remindSec < windowSec) {
+        const left = Math.round((windowSec - remindSec) / 60);
+        notifications.push({
+            id: ORDER_REMIND_ID,
+            title: t('還在點餐嗎？'),
+            body: t('再 {n} 分鐘沒回到 App，就會開始算分心。', { n: left }),
+            schedule: { at: new Date(now + remindSec * 1000) },
+        });
+    }
+    try {
+        await plugin.schedule({ notifications });
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+export async function cancelOrderReminders() {
+    const plugin = getPlugin();
+    if (!plugin) return;
+    try {
+        await plugin.cancel({ notifications: [{ id: ORDER_REMIND_ID }, { id: ORDER_END_ID }] });
     } catch (_) { /* noop */ }
 }

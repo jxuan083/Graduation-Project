@@ -1357,13 +1357,13 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-setup #setup-now-panel .cp-setup-card + .cp-setup-card { padding-top: 14px; border-top: 1px solid rgba(79,53,26,.10); }
 
 /* 場景格 4×N：保留 44pt 以上觸控區，但不讓 11 個選項撐滿首屏。 */
-#view-meeting-setup .cp-situation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-#view-meeting-setup .cp-sit-btn { min-width: 0; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: none; cursor: pointer; border-radius: var(--r-md); padding: 6px 3px; background: rgba(255,255,255,.68); transition: background var(--motion-base), box-shadow var(--motion-base), transform var(--motion-fast); box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); }
+#view-meeting-setup .cp-situation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+#view-meeting-setup .cp-sit-btn { min-width: 0; min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; border-radius: var(--r-md); padding: 10px 6px; background: rgba(255,255,255,.68); transition: background var(--motion-base), box-shadow var(--motion-base), transform var(--motion-fast); box-shadow: inset 0 0 0 1px rgba(79,53,26,.08); }
 #view-meeting-setup .cp-sit-btn:active { transform: translate3d(var(--press-shift-x, 0),2px,0) scale(.98); }
 #view-meeting-setup .cp-sit-btn.active-context { background: var(--brown); box-shadow: 0 3px 0 #34200e, 0 8px 14px -12px rgba(79,53,26,.72); transform: translate3d(0,-1px,0); }
 #view-meeting-setup .cp-sit-icon { color: var(--brown); display: flex; align-items: center; justify-content: center; }
-#view-meeting-setup .cp-sit-icon svg { width: 20px; height: 20px; }
-#view-meeting-setup .cp-sit-label { max-width: 100%; font-size: 10.5px; font-weight: 700; color: var(--brown-60); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+#view-meeting-setup .cp-sit-icon svg { width: 24px; height: 24px; }
+#view-meeting-setup .cp-sit-label { max-width: 100%; font-size: 13px; font-weight: 700; color: var(--brown-60); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
 #view-meeting-setup .cp-sit-btn.active-context .cp-sit-icon,
 #view-meeting-setup .cp-sit-btn.active-context .cp-sit-label { color: #fff; }
 /* 選定情境後的資訊：建議難度 / 暫離 chip + 一句注意事項（低調、沿用棕色系） */
@@ -1678,6 +1678,11 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-stat-card { flex: 1; min-width: 0; background: #fff; border-radius: var(--r-lg); padding: 16px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #view-summary .ps-stat-val { font-size: 26px; font-weight: 800; color: var(--brown); line-height: 1; margin: 0; }
 #view-summary .ps-stat-label { font-size: 11px; color: var(--brown-45); font-weight: 500; margin: 0; white-space: nowrap; }
+#view-summary .ps-pickup-card { background: #fff; border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+#view-summary .ps-pickup-label { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--brown-45); margin: 0; }
+#view-summary .ps-pickup-label svg { width: 12px; height: 12px; }
+#view-summary .ps-pickup-main { font-size: 15px; font-weight: 700; color: var(--brown); line-height: 1.5; margin: 0; text-wrap: pretty; }
+#view-summary .ps-pickup-sub { font-size: 13px; color: var(--brown-50); line-height: 1.6; margin: 0; text-wrap: pretty; }
 #view-summary #summary-host-hint { font-size: 13px; font-weight: 400; line-height: 1.6; color: var(--brown-50); text-align: center; margin: 12px 0 0; }
 #view-summary .ps-rank-section { margin-top: 16px; }
 #view-summary .ps-rank-label { font-size: 13px; font-weight: 600; color: var(--brown-50); letter-spacing: .04em; margin: 0 0 8px; padding: 0 4px; }
@@ -1902,30 +1907,6 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 :is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: .18; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: .36; }
 
-/* ── 情境場景：自訂（艾爾登法環風・金色黃昏花海）。只在 .pa-scene-card.scene-custom 生效 ── */
-:is(#view-focus,#view-summary) .pa-custom-bg,
-:is(#view-focus,#view-summary) .pa-custom-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-custom-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-custom-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-scene-dim { display: block; }
-/* 寵物走在街道正中央、站在路上突出：夾在街景(z1)與近景行人(z3)之間 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-seat-ball {
-    display: block; position: absolute; left: 50%; bottom: 26px; width: 84px; height: 84px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-pet-face { left: 50%; bottom: 28px; width: 82px; height: 82px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 街道入夜（都市夜） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom .pa-scene-dim { background: #0e1018; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom.weather-cloudy .pa-scene-dim { opacity: .3; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-custom.weather-rainy .pa-scene-dim { opacity: .56; }
-
 /* ── 情境場景：吃飯聚餐（暖色餐廳・圓桌）。只在 .pa-scene-card.scene-meal 生效 ── */
 :is(#view-focus,#view-summary) .pa-meal-bg,
 :is(#view-focus,#view-summary) .pa-meal-fg { display: none; }
@@ -2022,7 +2003,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 :is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-cloudy .pa-scene-dim { opacity: .24; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-rainy .pa-scene-dim { opacity: .48; }
 
-/* ── 情境場景：交流（高級餐酒館・吧台）。只在 .pa-scene-card.scene-social 生效 ── */
+/* ── 情境場景：認識新朋友（高級餐酒館・吧台）。只在 .pa-scene-card.scene-social 生效 ── */
 :is(#view-focus,#view-summary) .pa-social-bg,
 :is(#view-focus,#view-summary) .pa-social-fg { display: none; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-sun,
@@ -2070,7 +2051,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 :is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-cloudy .pa-scene-dim { opacity: .24; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-rainy .pa-scene-dim { opacity: .48; }
 
-/* ── 情境場景：戶外活動（夕陽河畔露營）。只在 .pa-scene-card.scene-outdoor 生效 ── */
+/* ── 情境場景：旅行（夕陽河畔露營）。只在 .pa-scene-card.scene-outdoor 生效 ── */
 :is(#view-focus,#view-summary) .pa-outdoor-bg,
 :is(#view-focus,#view-summary) .pa-outdoor-fg { display: none; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-sun,
@@ -2094,29 +2075,6 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 :is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-cloudy .pa-scene-dim { opacity: .28; }
 :is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-rainy .pa-scene-dim { opacity: .54; }
 
-/* ── 情境場景：團隊聚會（辦公室大合照）。只在 .pa-scene-card.scene-team 生效 ── */
-:is(#view-focus,#view-summary) .pa-team-bg,
-:is(#view-focus,#view-summary) .pa-team-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-team-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-team-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-scene-dim { display: block; }
-/* 寵物在正中間、站在地上（比人稍大、最醒目，不飄） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-seat-ball {
-    display: block; position: absolute; left: 50%; bottom: 14px; width: 84px; height: 84px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-pet-face { left: 50%; bottom: 14px; width: 82px; height: 82px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 辦公室燈變暗 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team .pa-scene-dim { background: #15161a; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team.weather-cloudy .pa-scene-dim { opacity: .24; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-team.weather-rainy .pa-scene-dim { opacity: .48; }
 @keyframes pa-bubble-in { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2215,6 +2173,9 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 .intent-card .hint { font-size: 12px; color: var(--brown-50); line-height: 1.5; margin: 0 0 14px; }
 .intent-reason-input { width: 100%; height: 44px; border-radius: var(--r-md); padding: 0 14px; font-size: 15px; }
 .intent-modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+/* 掃碼點餐的相機框（沿用暫離彈窗的卡片樣式） */
+.order-scan-reader { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--r-md); overflow: hidden; background: var(--brown-08); }
+.order-scan-reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
 .intent-modal-actions .btn { flex: 1; height: 46px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; }
 
 /* 電腦網頁鏡頭 modal（全螢幕；手機不會用到，走原生相機） */
@@ -2529,3 +2490,18 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-more .more-blank {
   flex: 1; width: 100%;
 }
+
+/* 更多：開關列（拍照時同時存到手機） */
+#view-more .more-switch-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #fff; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--brown-10); cursor: pointer; }
+#view-more .more-switch-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#view-more .more-switch-label { font-size: 15px; font-weight: 700; color: var(--brown); }
+#view-more .more-switch-hint { font-size: 12.5px; line-height: 1.45; color: var(--brown-55); word-break: keep-all; overflow-wrap: anywhere; }
+#view-more .more-switch { appearance: none; -webkit-appearance: none; flex: 0 0 auto; position: relative; width: 50px; height: 30px; margin: 0; border-radius: var(--r-pill); background: var(--brown-15); cursor: pointer; transition: background var(--motion-base, .2s); }
+#view-more .more-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(79,53,26,.3); transition: transform var(--motion-base, .2s); }
+#view-more .more-switch:checked { background: var(--accent-fire); }
+#view-more .more-switch:checked::after { transform: translateX(20px); }
+#view-more .more-switch:focus-visible { outline: 2px solid var(--brown-45); outline-offset: 2px; }
+
+/* 照片放大：按鈕最多四顆（關閉／存到手機／設為封面／刪除），一排平分不換行 */
+#view-photo-lightbox .lightbox-controls { width: 100%; flex-wrap: nowrap; }
+#view-photo-lightbox .lightbox-controls .btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; white-space: nowrap; }

@@ -15,8 +15,8 @@ main.py 只負責把 WS 訊號與 member 狀態接到這些純函式。
 EXEMPT_WINDOW_SEC = {"L": 180, "M": 120, "H": 60}
 # 每場可宣告次數（預算），依情境；0 = 不開放暫離
 EXEMPT_BUDGET_BY_CONTEXT = {
-    "general": 2, "meeting": 0, "family": 3, "study": 2, "class": 0,
-    "meal": 3, "date": 1, "social": 1, "outdoor": 3, "team": 2, "custom": 2,
+    "general": 3, "meeting": 0, "family": 2, "study": 2, "class": 0,
+    "meal": 2, "date": 1, "social": 1, "outdoor": 3,
 }
 EXEMPT_COOLDOWN_SEC = 90
 

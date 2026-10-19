@@ -9,14 +9,17 @@ import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
 import { noteDistraction } from './meetingWeather.js';
 import { endCountdown } from './liveActivity.js';
+import { startSessionPickupRecording, renderSessionPickupCard } from '../features/pickup/sessionPickups.js';
+import { orderingPlugin } from './ordering.js';
+import { cancelOrderReminders } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=77';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=78';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=77';
+} from '../views/sync-ritual/sync-ritual.js?v=78';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -84,6 +87,7 @@ function handleRoomUpdate(msg) {
         if (devEl) devEl.innerText = state.myDeviations;
         if (rs.mode) updateThemeByMode(rs.mode);
         switchView('view-focus', { replace: true });
+        startSessionPickupRecording();
         toast(t('已加入進行中的聚會'), 'success');
     }
     refreshSessionControls();
@@ -105,8 +109,17 @@ function handleRoomUpdate(msg) {
     }
 }
 
-// 切到聚會總結頁：停掉分心計時、關掉連線。
-function enterSummaryView() {
+// 切到聚會總結頁：停掉分心計時、關掉連線，並整理「拿起手機」的個人回饋卡。
+// final=false 是自己先離開（之後可能加回，回饋卡的起點保留）。
+function enterSummaryView({ final = true } = {}) {
+    renderSessionPickupCard({ final });
+    // 掃碼點餐：提醒取消；聚會結束時把點餐網頁丟掉（自己先離開則留著，加回後還能繼續點）
+    state.orderTripUntil = 0;
+    cancelOrderReminders();
+    if (final) {
+        state.orderingOpen = false;
+        try { orderingPlugin()?.resetOrdering(); } catch (_) {}
+    }
     state.currentPhase = 'SUMMARY';
     document.body.className = '';
     if (state.bufferTimerObj) { clearInterval(state.bufferTimerObj); state.bufferTimerObj = null; }
@@ -154,7 +167,7 @@ function showLeftSummary(result) {
     if (result.session_ended) hintText = t('所有人都離開了，聚會已結束');
     else if (result.leave_reason === 'exempt_timeout') hintText = t('暫離超時未回來，已自動離開，分數算到暫離到期為止');
     setLeftSummaryExtras(hintText, canRejoin, Number(result.rejoins_left || 0));
-    enterSummaryView();
+    enterSummaryView({ final: !!result.session_ended });
 }
 
 function handleMemberLeft(msg) {
@@ -345,6 +358,7 @@ function escHtml(s) {
 function handleAnchorEstablished() {
     state.currentPhase = 'ACTIVE';
     state.sessionStartTime = Date.now();
+    startSessionPickupRecording();   // 開始錄「拿起手機」的感測資料（只在這支手機上分析）
     showAnchorEstablished().then(() => {
         switchView('view-focus', { replace: true });
         document.body.classList.add('mode-flow');

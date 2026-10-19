@@ -70,6 +70,7 @@
 | POST | `/api/create_room` |
 | POST | `/api/rooms/{room_id}/end` |
 | POST | `/api/rooms/{room_id}/leave` |
+| POST | `/api/rooms/{room_id}/order-trip` |
 | POST | `/api/rooms/{room_id}/intent/extend` |
 
 ## WebSocket endpoint

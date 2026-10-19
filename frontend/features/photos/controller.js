@@ -1,8 +1,9 @@
 // features/photos/controller.js — 聚會照片上傳/壓縮/列表
 import { state } from '../../core/state.js';
-import { apiFetch, apiBase, setProtectedImage } from '../../core/api.js';
+import { apiFetch, apiBase, setProtectedImage, fetchProtectedBlob } from '../../core/api.js';
 import { switchView } from '../../core/router.js';
 import { t } from '../../core/i18n.js';
+import { showToast } from '../../utils/toast.js';
 
 // === photoMode 旗標 — 拍照時暫停分心偵測 ===
 export function startPhotoMode() {
@@ -21,6 +22,65 @@ export function endPhotoMode() {
         clearTimeout(state.photoModeTimeoutObj);
         state.photoModeTimeoutObj = null;
     }
+}
+
+// === 存到手機「照片」App ===
+// 只有原生 App 有（LockState.savePhoto，只要「加入照片」權限）；網頁版不顯示相關選項。
+// 用 App 相機拍的照片預設自動存一份（「更多」頁可以關）；聚會相簿的大圖可以手動存。
+const AUTO_SAVE_KEY = 'phubbing_save_photos';
+const DENIED_HINT_KEY = 'phubbing_photo_denied_hint';
+
+function photoPlugin() {
+    const p = window.Capacitor?.Plugins?.LockState;
+    return p && typeof p.savePhoto === 'function' ? p : null;
+}
+
+export function canSaveToDevice() {
+    return !!photoPlugin();
+}
+
+export function autoSavePhotos() {
+    try { return localStorage.getItem(AUTO_SAVE_KEY) !== '0'; } catch (_) { return true; }
+}
+
+export function setAutoSavePhotos(on) {
+    try { localStorage.setItem(AUTO_SAVE_KEY, on ? '1' : '0'); } catch (_) { /* 存不了就只在這次有效 */ }
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('read failed'));
+        reader.readAsDataURL(blob);
+    });
+}
+
+const DENIED_TEXT = '沒有相簿權限，照片沒有存到手機。可以到「設定」→「社交定錨」→「照片」打開。';
+
+// 存一張照片到手機。回傳 'saved' | 'denied' | 'failed' | 'unavailable'。
+export async function savePhotoToDevice(blob) {
+    const p = photoPlugin();
+    if (!p || !blob) return 'unavailable';
+    try {
+        const res = await p.savePhoto({ data: await blobToBase64(blob) });
+        if (res?.saved) return 'saved';
+        return res?.reason === 'denied' ? 'denied' : 'failed';
+    } catch (_) {
+        return 'failed';
+    }
+}
+
+// 拍照後自動存：拒絕權限只提示一次，之後安靜略過（不要每拍一張就吵一次）。
+export async function autoSaveCapturedPhoto(file) {
+    if (!canSaveToDevice() || !autoSavePhotos()) return 'unavailable';
+    const result = await savePhotoToDevice(file);
+    if (result === 'denied') {
+        let shown = false;
+        try { shown = localStorage.getItem(DENIED_HINT_KEY) === '1'; localStorage.setItem(DENIED_HINT_KEY, '1'); } catch (_) {}
+        if (!shown) showToast(t(DENIED_TEXT), 'info');
+    }
+    return result;
 }
 
 // === 圖片壓縮 — canvas resize 到長邊 1920 + JPEG 0.8 ===
@@ -147,6 +207,8 @@ export function openPhotoLightbox(photo) {
         console.warn('load protected lightbox photo failed:', err);
     });
     const canManage = state.currentMeetingIsHost;
+    const saveBtn = document.getElementById('btn-lightbox-save');
+    if (saveBtn) saveBtn.style.display = canSaveToDevice() ? 'inline-block' : 'none';
     document.getElementById('btn-lightbox-set-cover').style.display = (canManage && !photo.is_cover) ? 'inline-block' : 'none';
     document.getElementById('btn-lightbox-delete').style.display = canManage ? 'inline-block' : 'none';
     switchView('view-photo-lightbox');
@@ -155,6 +217,24 @@ export function openPhotoLightbox(photo) {
 export function closePhotoLightbox() {
     state.lightboxPhoto = null;
     switchView('view-meeting-detail');
+}
+
+export async function lightboxSaveToDevice() {
+    const photo = state.lightboxPhoto;
+    const btn = document.getElementById('btn-lightbox-save');
+    if (!photo || !btn || btn.disabled) return;
+    btn.disabled = true;
+    let result = 'failed';
+    try {
+        result = await savePhotoToDevice(await fetchProtectedBlob(photo.content_path));
+    } catch (err) {
+        console.warn('save lightbox photo failed:', err);
+    } finally {
+        btn.disabled = false;
+    }
+    if (result === 'saved') showToast(t('已存到手機'), 'success');
+    else if (result === 'denied') showToast(t(DENIED_TEXT), 'info');
+    else showToast(t('存到手機失敗，請再試一次'), 'error');
 }
 
 export async function lightboxSetCover() {

@@ -10,17 +10,17 @@
 
 import { state } from './core/state.js';
 import { switchView, register, initNavigationRuntime } from './core/router.js';
-import { listenAuthChanges } from './core/firebase.js?v=77';
+import { listenAuthChanges } from './core/firebase.js?v=78';
 import { loadBackendVersion, apiFetch } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
-import { initChrome } from './core/chrome.js?v=77';
-import { initButtonHaptics } from './core/haptics.js?v=77';
-import { initInteractionFeedback } from './core/feedback.js?v=77';
-import { showJoinView } from './views/join/join.js?v=77';
+import { initChrome } from './core/chrome.js?v=78';
+import { initButtonHaptics } from './core/haptics.js?v=78';
+import { initInteractionFeedback } from './core/feedback.js?v=78';
+import { showJoinView } from './views/join/join.js?v=78';
 import { events } from './core/events.js';
-import { initI18n, t } from './core/i18n.js?v=77';
+import { initI18n, t } from './core/i18n.js?v=78';
 
-const ASSET_VERSION = '77';
+const ASSET_VERSION = '78';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -40,43 +40,43 @@ const VIEW_NAMES = [
 
 // ===== view 模組(動態 import,parallel) =====
 const VIEW_MODULES = {
-    'home':              () => import('./views/home/home.js?v=77'),
-    'more':              () => import('./views/more/more.js?v=77'),
-    'scanner':           () => import('./views/scanner/scanner.js?v=77'),
-    'meetings':          () => import('./views/meetings/meetings.js?v=77'),
-    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=77'),
-    'friends':           () => import('./views/friends/friends.js?v=77'),
-    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=77'),
-    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=77'),
-    'question-bank':     () => import('./views/question-bank/question-bank.js?v=77'),
-    'question-edit':     () => import('./views/question-edit/question-edit.js?v=77'),
-    'qa-source':         () => import('./views/qa-source/qa-source.js?v=77'),
-    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=77'),
-    'profile':           () => import('./views/profile/profile.js?v=77'),
-    'join-method':       () => import('./views/join-method/join-method.js?v=77'),
-    'join':              () => import('./views/join/join.js?v=77'),
-    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=77'),
-    'host-room':         () => import('./views/host-room/host-room.js?v=77'),
-    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=77'),
-    'focus':             () => import('./views/focus/focus.js?v=77'),
-    'qa-game':           () => import('./views/qa-game/qa-game.js?v=77'),
-    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=77'),
-    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=77'),
-    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=77'),
-    'buffer':            () => import('./views/buffer/buffer.js?v=77'),
-    'summary':           () => import('./views/summary/summary.js?v=77'),
-    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=77'),
-    'member-preview':    () => import('./views/member-preview/member-preview.js?v=77'),
-    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=77'),
-    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=77'),
-    'groups':            () => import('./views/groups/groups.js?v=77'),
-    'group':             () => import('./views/group/group.js?v=77'),
-    'group-setup':       () => import('./views/group-setup/group-setup.js?v=77'),
-    'group-invite':      () => import('./views/group-invite/group-invite.js?v=77'),
-    'group-chat':        () => import('./views/group-chat/group-chat.js?v=77'),
-    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=77'),
-    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=77'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=77'),
+    'home':              () => import('./views/home/home.js?v=78'),
+    'more':              () => import('./views/more/more.js?v=78'),
+    'scanner':           () => import('./views/scanner/scanner.js?v=78'),
+    'meetings':          () => import('./views/meetings/meetings.js?v=78'),
+    'meeting-detail':    () => import('./views/meeting-detail/meeting-detail.js?v=78'),
+    'friends':           () => import('./views/friends/friends.js?v=78'),
+    'leaderboard':       () => import('./views/leaderboard/leaderboard.js?v=78'),
+    'photo-lightbox':    () => import('./views/photo-lightbox/photo-lightbox.js?v=78'),
+    'question-bank':     () => import('./views/question-bank/question-bank.js?v=78'),
+    'question-edit':     () => import('./views/question-edit/question-edit.js?v=78'),
+    'qa-source':         () => import('./views/qa-source/qa-source.js?v=78'),
+    'qa-picker':         () => import('./views/qa-picker/qa-picker.js?v=78'),
+    'profile':           () => import('./views/profile/profile.js?v=78'),
+    'join-method':       () => import('./views/join-method/join-method.js?v=78'),
+    'join':              () => import('./views/join/join.js?v=78'),
+    'waiting-room':      () => import('./views/waiting-room/waiting-room.js?v=78'),
+    'host-room':         () => import('./views/host-room/host-room.js?v=78'),
+    'sync-ritual':       () => import('./views/sync-ritual/sync-ritual.js?v=78'),
+    'focus':             () => import('./views/focus/focus.js?v=78'),
+    'qa-game':           () => import('./views/qa-game/qa-game.js?v=78'),
+    'taboo-prepare':     () => import('./views/taboo-prepare/taboo-prepare.js?v=78'),
+    'taboo-countdown':   () => import('./views/taboo-countdown/taboo-countdown.js?v=78'),
+    'taboo-card':        () => import('./views/taboo-card/taboo-card.js?v=78'),
+    'buffer':            () => import('./views/buffer/buffer.js?v=78'),
+    'summary':           () => import('./views/summary/summary.js?v=78'),
+    'meeting-news':      () => import('./views/meeting-news/meeting-news.js?v=78'),
+    'member-preview':    () => import('./views/member-preview/member-preview.js?v=78'),
+    'invite-modal':      () => import('./views/invite-modal/invite-modal.js?v=78'),
+    'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=78'),
+    'groups':            () => import('./views/groups/groups.js?v=78'),
+    'group':             () => import('./views/group/group.js?v=78'),
+    'group-setup':       () => import('./views/group-setup/group-setup.js?v=78'),
+    'group-invite':      () => import('./views/group-invite/group-invite.js?v=78'),
+    'group-chat':        () => import('./views/group-chat/group-chat.js?v=78'),
+    'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=78'),
+    'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=78'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=78'),
 };
 
 async function loadAllViewHtml() {
@@ -214,7 +214,7 @@ function handleGroupInviteOnBoot(code) {
             return;
         }
         try {
-            const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js?v=77');
+            const { getGroupInviteInfo, joinGroupByInviteCode } = await import('./features/groups/controller.js?v=78');
             const { res, data: info } = await getGroupInviteInfo(code);
             if (!res.ok || !info?.name) {
                 alert(t('邀請碼無效或已過期：') + (info?.detail || `HTTP ${res.status}`));

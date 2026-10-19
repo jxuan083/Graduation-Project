@@ -981,6 +981,7 @@ from intent import (  # noqa: E402
 )
 # 個人離開／加回、主持人交棒、暫離超時的規則在 backend/attendance.py（純函式，可單元測試）。
 import attendance as _att  # noqa: E402
+import ordering as _ordering  # noqa: E402
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -2567,15 +2568,13 @@ CONTEXT_PARAM_OVERRIDES: Dict[str, dict] = {
 CONTEXT_DEFAULTS: Dict[str, dict] = {
     "general":     {"difficulty": "L", "expected_duration_min": 90,  "mode": "GATHERING"},
     "meeting":     {"difficulty": "H", "expected_duration_min": 60,  "mode": "MEETING"},
-    "family":      {"difficulty": "L", "expected_duration_min": 120, "mode": "FAMILY"},
+    "family":      {"difficulty": "M", "expected_duration_min": 120, "mode": "FAMILY"},
     "study":       {"difficulty": "M", "expected_duration_min": 90,  "mode": "CLASS"},
     "class":       {"difficulty": "H", "expected_duration_min": 50,  "mode": "CLASS"},
     "meal":        {"difficulty": "L", "expected_duration_min": 90,  "mode": "GATHERING"},
     "date":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
     "social":      {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
     "outdoor":     {"difficulty": "L", "expected_duration_min": 180, "mode": "GATHERING"},
-    "team":        {"difficulty": "M", "expected_duration_min": 120, "mode": "GATHERING"},
-    "custom":      {"difficulty": "M", "expected_duration_min": 90,  "mode": "GATHERING"},
 }
 
 VALID_CONTEXTS = set(CONTEXT_DEFAULTS.keys())
@@ -4046,6 +4045,34 @@ async def leave_room_http(room_id: str, body: LeaveRoomRequest, decoded: dict = 
     return {"status": "success", "room_id": room_id, **result}
 
 
+@app.post("/api/rooms/{room_id}/order-trip")
+async def order_trip_http(room_id: str, decoded: dict = Depends(verify_token_or_guest)):
+    """點餐網站要把人帶出 App（外部網頁、LINE、付款 App）時登記一次「帶出」。
+    每場最多 2 次；15 分鐘內離開 App 不算分心，回到 App 就結束。用 HTTP：點餐瀏覽器開著時 WS 可能已斷。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    room_data = rooms.get(room_id)
+    if room_data is None:
+        raise HTTPException(status_code=404, detail="找不到房間")
+    member = (room_data.get("members") or {}).get(uid)
+    if room_data.get("status") != "ACTIVE" or not _att.is_present(member):
+        raise HTTPException(status_code=409, detail="你不在這場進行中的聚會裡")
+
+    now_ms = _now_ms()
+    ok, reject_reason, until_ms = _ordering.start_order_trip(member, room_data.get("context", "general"), now_ms)
+    if not ok:
+        raise HTTPException(status_code=409, detail=reject_reason)
+    print(f"[ORDER_TRIP] room={room_id} user={uid} used={member.get('order_trips_used')}")
+    return {
+        "status": "success",
+        "window_sec": max(0, int((until_ms - now_ms) / 1000)),
+        "remind_sec": _ordering.ORDER_REMIND_SEC,
+        "trips_left": _ordering.trips_left(member),
+    }
+
+
 @app.post("/api/rooms/{room_id}/intent/extend")
 async def extend_intent_http(room_id: str, decoded: dict = Depends(verify_token_or_guest)):
     """暫離延長一次（從「暫離時間到」通知按下）。用 HTTP：App 在背景時 WebSocket 多半已斷。"""
@@ -4506,10 +4533,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                         if _intent_within_exemption(int(_im.get("exempt_window_until_ms", 0) or 0), _im_now) \
                                 and not _im.get("exempt_active_since_ms"):
                             _im["exempt_active_since_ms"] = _im_now
+                        _ordering.note_hidden(_im, _im_now)
                     else:
-                        # 回到 App 專心 → 豁免結束（含延長的那一截）
+                        # 回到 App 專心 → 豁免結束（含延長的那一截）；帶出點餐也一併結束
                         _att.settle_exemption(
                             rooms[room_id], user_id, _im_now, _room_window_sec(rooms[room_id]))
+                        _ordering.end_order_trip(_im)
 
                 if rooms[room_id]["status"] == "ACTIVE" and rooms[room_id].get("mode") != "QA_GAME":
                     # 同步更新資料庫中的使用者狀態
@@ -4544,6 +4573,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _exempt_now_ms = _now_ms()
                 if _intent_within_exemption(int(_exempt_member.get("exempt_window_until_ms", 0) or 0), _exempt_now_ms):
                     print(f"[LOG_DEVIATION] exempted by intent user={user_id} room={room_id}")
+                    continue
+                # 帶出 App 點餐（付款、LINE 點餐）的時間內不算分心
+                if _ordering.within_order_trip(_exempt_member, _exempt_now_ms):
+                    print(f"[LOG_DEVIATION] exempted by ordering trip user={user_id} room={room_id}")
                     continue
 
                 # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定

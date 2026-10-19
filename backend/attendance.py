@@ -21,6 +21,7 @@ import random
 from typing import List, Optional, Tuple
 
 from intent import charge_on_return, overage_deviations
+import ordering
 
 REJOIN_LIMIT = 2                # 每場最多加回幾次
 AUTO_LEAVE_AFTER_SEC = 300      # 暫離窗口到期後多久沒回 App → 自動視為離開
@@ -234,6 +235,7 @@ def leave(room: dict, uid: str, at_ms: int, reason: str, window_sec: int) -> boo
     if room.get("status") != "ACTIVE" or not is_present(m):
         return False
     settle_exemption(room, uid, at_ms, window_sec)
+    ordering.end_order_trip(m)
     ap = room.setdefault("all_participants", {}).setdefault(
         uid, {"nickname": m.get("nickname", ""), "deviations": int(m.get("deviations", 0) or 0)})
     _close_segment(ap, at_ms)
@@ -266,14 +268,17 @@ def apply_exempt_timeouts(room: dict, now_ms: int, window_sec: int) -> List[str]
 
 
 def apply_intent_overage(room: dict, now_ms: int) -> None:
-    """結算時補算：宣告暫離後還沒回來、窗口已過（但未滿自動離開門檻）的超時 → 補記分心。"""
+    """結算時補算：宣告暫離（或帶出 App 點餐）後還沒回來、時間已過的超時 → 補記分心。
+    暫離滿自動離開門檻的人在這之前已被處理成離開，這裡只會碰到未滿門檻的。"""
     params = room.get("session_params", {}) or {}
     per_dev_sec = int(params.get("deviation_rate_limit_sec", 25) or 25)
     all_part = room.get("all_participants", {}) or {}
     for uid, m in (room.get("members") or {}).items():
-        if not is_present(m) or not m.get("exempt_active_since_ms"):
+        if not is_present(m):
             continue
-        add = overage_deviations(int(m.get("exempt_window_until_ms", 0) or 0), now_ms, per_dev_sec)
+        add = ordering.overage_deviations(m, now_ms, per_dev_sec)
+        if m.get("exempt_active_since_ms"):
+            add += overage_deviations(int(m.get("exempt_window_until_ms", 0) or 0), now_ms, per_dev_sec)
         if add <= 0:
             continue
         m["deviations"] = int(m.get("deviations", 0) or 0) + add
