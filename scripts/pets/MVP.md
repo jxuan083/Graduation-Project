@@ -73,9 +73,12 @@ can play in web runtimes: https://rive.app/docs/cli/getting-started
 ## Validation
 
 Run `npm test`, syntax checks on the lab modules, and Rive verify/inspect.
-A development-only Playwright run checks the served page and screenshots on
+A development-only Playwright run passed 13 groups of checks (2026-10-19): it checks the served page and screenshots on
 desktop/mobile, loads both actual renderers, switches every equipment type,
 plays actions repeatedly, drops food inside/outside the target, checks photo
 sharing/removal and reduced motion, and asserts no page errors or external
 network requests. No browser automation dependency is added to the app.
-Device performance and final art preference still require the user's selection.
+The existing 40 JavaScript tests passed. Rive verify/inspect reported no errors or warnings.
+The photo test used an obvious drawn crop fixture, not a real person: no identity-quality
+claim has been made from that test. Real-phone performance and final art preference
+still require the user's selection.
