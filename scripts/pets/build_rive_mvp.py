@@ -103,9 +103,10 @@ for n,name in enumerate(['Idle','Feed','Pet']):
     key(a,11,'rotation',[(0,-.18),(15,-.08),(30,-.18),(45,-.3 if n==0 else -.5),(60,-.18)])
     key(a,15,'rotation',[(0,.65),(10,.5),(20,.8),(30,.5),(40,.8),(50,.5),(60,.65)])
     for arm,base in [(13,-.24),(14,.24)]:
-        sign=1 if arm==13 else -1
-        v=[(0,base),(30,base+.06*sign),(60,base)] if n==0 else [(0,base),(12,base+.85*sign),(24,base+(.65 if n==1 else 1.2)*sign),(36,base+.85*sign),(48,base+.65*sign),(60,base)]
+        sign=-1 if arm==13 else 1
+        v=[(0,base),(30,base+.06*sign),(60,base)] if n==0 else [(0,base),(12,base+(1.8 if n==1 else .8)*sign),(24,base+(1.6 if n==1 else 1.1)*sign),(36,base+(1.8 if n==1 else .8)*sign),(48,base+(1.6 if n==1 else 1.1)*sign),(60,base)]
         key(a,arm,'rotation',v)
+        key(a,arm,'y',[(0,307),(12,280 if n==1 else 307),(48,283 if n==1 else 307),(60,307)])
 vm=el(r,'ViewModel',name='Companion',id='0:40',defaultInstanceId='0:41')
 for name,pid,typ in [('action',45,'Number'),('cat',46,'Number'),('dog',47,'Number'),('shirtColor',48,'Color')]:
     el(vm,'ViewModelProperty'+typ,name=name,id=f'0:{pid}')
