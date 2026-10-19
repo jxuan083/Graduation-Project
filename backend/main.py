@@ -2620,7 +2620,7 @@ def _generate_invite_code() -> str:
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
     out["group_id"] = doc_id
-    for internal_field in ("pet_action_cooldowns", "pet_rewarded_room_ids", "pet_face_path"):
+    for internal_field in ("pet_action_cooldowns", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
         out.pop(internal_field, None)
     for f in ("created_at", "pet_last_fed_at", "pet_face_updated_at", "pet_last_session_at"):
         if out.get(f) and hasattr(out[f], "isoformat"):
@@ -3025,6 +3025,7 @@ async def set_group_pet_face(
     target_uid: Optional[str] = Form(default=None),
     pet_name: Optional[str] = Form(default=None),
     pet_body_emoji: Optional[str] = Form(default=None),
+    portrait: Optional[UploadFile] = File(default=None),
     decoded: dict = Depends(verify_token),
 ):
     """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。只有群組建立者可設定。"""
@@ -3057,22 +3058,46 @@ async def set_group_pet_face(
     if len(content) > PHOTO_MAX_BYTES:
         raise HTTPException(status_code=400, detail="檔案太大 (>10MB)")
 
+    portrait_content = None
+    if portrait is not None:
+        if portrait.content_type != "image/png":
+            raise HTTPException(status_code=400, detail="原照片臉部請使用透明 PNG")
+        portrait_content = await portrait.read()
+        if not portrait_content or len(portrait_content) > PHOTO_MAX_BYTES:
+            raise HTTPException(status_code=400, detail="臉部圖片為空或超過 10MB")
+        if not portrait_content.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise HTTPException(status_code=400, detail="臉部圖片不是有效 PNG")
+
     ext_by_ct = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
     ext = ext_by_ct[file.content_type]
     blob_name = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}.{ext}"
+    uploaded_paths = []
+    metadata_saved = False
 
     try:
         bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
+        uploaded_paths.append(blob_name)
         if not USING_FIREBASE_EMULATORS:
             blob.make_public()
         public_url = _storage_media_url(blob_name)
 
-        old_path = data.get("pet_face_path")
+        portrait_url, portrait_path = None, None
+        if portrait_content is not None:
+            portrait_path = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}-portrait.png"
+            portrait_blob = bucket.blob(portrait_path)
+            portrait_blob.upload_from_string(portrait_content, content_type="image/png")
+            uploaded_paths.append(portrait_path)
+            if not USING_FIREBASE_EMULATORS:
+                portrait_blob.make_public()
+            portrait_url = _storage_media_url(portrait_path)
+
         face_updates = {
             "pet_face_url": public_url,
             "pet_face_path": blob_name,
+            "pet_portrait_url": portrait_url,
+            "pet_portrait_path": portrait_path,
             "pet_face_updated_at": firestore.SERVER_TIMESTAMP,
             "pet_face_target_uid": target_uid or None,
             "pet_name": clean_name,
@@ -3095,9 +3120,12 @@ async def set_group_pet_face(
             if data.get(_f) is None:
                 face_updates[_f] = _default
         doc_ref.update(face_updates)
+        metadata_saved = True
 
         # 換圖成功後刪舊 blob（失敗不阻斷，避免殘留指向不存在檔案的 metadata）
-        if old_path and old_path != blob_name:
+        for old_path in (data.get("pet_face_path"), data.get("pet_portrait_path")):
+            if not old_path or old_path in uploaded_paths:
+                continue
             try:
                 old_blob = bucket.blob(old_path)
                 if old_blob.exists():
@@ -3105,10 +3133,16 @@ async def set_group_pet_face(
             except Exception as e:
                 print(f"Warning: failed to delete old pet face blob: {e}")
 
-        return {"status": "success", "pet_face_url": public_url}
+        return {"status": "success", "pet_face_url": public_url, "pet_portrait_url": portrait_url}
     except HTTPException:
         raise
     except Exception as e:
+        if not metadata_saved:
+            for uploaded_path in uploaded_paths:
+                try:
+                    bucket.blob(uploaded_path).delete()
+                except Exception:
+                    pass
         print(f"Error setting group pet face: {e}")
         raise HTTPException(status_code=500, detail=f"設定頭像失敗: {e}")
 
@@ -3136,6 +3170,7 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         return {}
     payload = {
         "pet_face_url": data.get("pet_face_url", ""),
+        "pet_portrait_url": data.get("pet_portrait_url"),
         "pet_name": data.get("pet_name", ""),
         "pet_body_emoji": data.get("pet_body_emoji"),
         "pet_target_uid": data.get("pet_target_uid"),
@@ -3295,8 +3330,9 @@ async def delete_group_pet(group_id: str, decoded: dict = Depends(verify_token))
     clear = {f: firestore.DELETE_FIELD for f in pet_fields}
     try:
         doc_ref.update(clear)
-        old_path = data.get("pet_face_path")
-        if old_path:
+        for old_path in (data.get("pet_face_path"), data.get("pet_portrait_path")):
+            if not old_path:
+                continue
             try:
                 _storage_bucket().blob(old_path).delete()
             except Exception:

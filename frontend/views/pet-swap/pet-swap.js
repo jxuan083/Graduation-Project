@@ -679,6 +679,28 @@ async function getRenderedBlob() {
     });
 }
 
+async function getPortraitBlob() {
+    // Reuse the original photo cutout, before the animal composite. No AI redraw,
+    // color grading or geometric face warp: preserve identity and aspect ratio.
+    renderFilter();
+    if (!faceCanvas || !currentLandmarks) throw new Error('請先辨識照片中的臉');
+    const pts = landmarkPoints(currentLandmarks);
+    const oval = FACE_OVAL.map(index => pts[index]);
+    const xs = oval.map(p => p.x), ys = oval.map(p => p.y);
+    const padding = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * .09;
+    const x = Math.max(0, Math.floor(Math.min(...xs) - padding));
+    const y = Math.max(0, Math.floor(Math.min(...ys) - padding));
+    const width = Math.min(faceCanvas.width - x, Math.ceil(Math.max(...xs) + padding) - x);
+    const height = Math.min(faceCanvas.height - y, Math.ceil(Math.max(...ys) + padding) - y);
+    if (width < 2 || height < 2) throw new Error('臉部範圍不完整，請重新拍攝');
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 1024 / Math.max(width, height));
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    canvas.getContext('2d').drawImage(faceCanvas, x, y, width, height, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('臉部圖片輸出失敗')), 'image/png'));
+}
+
 async function setAsGroupAvatar() {
     const groupId = state.currentGroupDetail?.group_id;
     if (!groupId) { showError('目前不是從群組頁進來，不能設為群組頭像。'); return; }
@@ -698,12 +720,14 @@ async function setAsGroupAvatar() {
         btn.disabled = true;
         btn.innerHTML = '建立中…';
         const blob = await getRenderedBlob();
+        const portraitBlob = await getPortraitBlob();
         const { setGroupPetFace } = await import('../../features/groups/controller.js?v=77');
-        const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji);
+        const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji, portraitBlob);
         if (!res.ok || data?.status !== 'success') throw new Error(data?.detail || `HTTP ${res.status}`);
         state.currentGroupDetail = {
             ...state.currentGroupDetail,
             pet_face_url: data.pet_face_url,
+            pet_portrait_url: data.pet_portrait_url,
             pet_name: petName,
             pet_body_emoji: petBodyEmoji,
         };
