@@ -51,6 +51,8 @@ export const state = {
     pendingGroupInviteCode: null,   // URL ?group_invite=CODE 暫存
     petSwapTarget: null,            // { uid, nickname } 要生成寵物臉的成員
     petSwapReturnView: 'view-group', // 寵物拍攝頁返回位置
+    tamagotchiGroupId: null,
+    tamagotchiChooseCharacter: false,
 
     // === Sync Ritual ===
     holdInterval: null,

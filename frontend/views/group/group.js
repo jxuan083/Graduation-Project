@@ -26,19 +26,14 @@ export function init() {
         if (state.currentGroupDetail) switchView('view-group-chat');
     };
 
-    // 建立 / 更新群組寵物 → 直接進拍照合成，不再走投票流程。
-    document.getElementById('btn-group-pet-create').onclick = () => {
+    // Adoption and care share one group-owned pet flow; no photo is required.
+    const openPet = () => {
         if (!state.currentGroupDetail) return;
-        state.petSwapTarget = null;
-        state.petSwapReturnView = 'view-group';
-        switchView('view-pet-swap');
+        state.tamagotchiGroupId = state.currentGroupDetail.group_id;
+        switchView('view-pet-tamagotchi');
     };
-    document.getElementById('btn-group-pet-regen').onclick = () => {
-        if (!state.currentGroupDetail) return;
-        state.petSwapTarget = null;
-        state.petSwapReturnView = 'view-group';
-        switchView('view-pet-swap');
-    };
+    document.getElementById('btn-group-pet-create').onclick = openPet;
+    document.getElementById('btn-group-pet-regen').onclick = () => { state.tamagotchiChooseCharacter = true; openPet(); };
 
     document.getElementById('btn-group-pet-tama').onclick = () => {
         state.tamagotchiGroupId = state.currentGroupDetail?.group_id || null;
@@ -153,10 +148,13 @@ function fmtMeetingDate(iso) {
 function renderPet(g) {
     const empty = document.getElementById('group-pet-empty');
     const has = document.getElementById('group-pet-has');
-    const hasPet = !!g.pet_target_uid;
+    const hasPet = Boolean(g.pet_face_url);
 
     empty.style.display = hasPet ? 'none' : '';
     has.style.display = hasPet ? '' : 'none';
+    document.getElementById('btn-group-pet-create').textContent = g.creator_uid === state.currentUser?.uid ? '領養群組寵物' : '看看領養方式';
+    document.getElementById('btn-group-pet-regen').style.display = g.creator_uid !== state.currentUser?.uid || g.pet_character_id === 'puppy-v1' ? 'none' : '';
+    document.getElementById('group-pet-img').classList.toggle('is-illustrated-pet', Boolean(g.pet_character_id));
     if (!hasPet) return;
 
     document.getElementById('group-pet-name').textContent = g.pet_name || t('群組寵物');
