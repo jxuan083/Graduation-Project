@@ -130,3 +130,12 @@ class PetCareApiTests(unittest.TestCase):
         pets = asyncio.run(main.get_group_pets({'uid': 'owner'}))['pets']
         self.assertEqual(len(pets), 1)
         self.assertEqual(pets[0]['pet'], {})
+
+    def test_group_cards_and_care_page_derive_the_same_growth(self):
+        self.adopt()
+        self.data.update(pet_accumulated_score=250, pet_level=1)
+        group = main._serialize_group(self.data, 'group')
+        pet = main._group_pet_public_payload(self.data, 'owner')
+        self.assertEqual(group['pet_level'], 3)
+        for key in ['pet_level', 'pet_xp_current', 'pet_status', 'pet_energy', 'pet_hp']:
+            self.assertEqual(group[key], pet[key], key)

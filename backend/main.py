@@ -2633,6 +2633,8 @@ def _generate_invite_code() -> str:
 
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
+    if data.get("pet_face_url"):
+        out.update(_group_pet_display(data))
     out["group_id"] = doc_id
     for internal_field in ("pet_action_cooldowns", "pet_action_receipts", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
         out.pop(internal_field, None)
