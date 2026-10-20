@@ -2612,6 +2612,20 @@ class UpdatePetPayload(BaseModel):
     pet_target_uid: Optional[str] = None
 
 
+PET_CHARACTERS = {
+    "puppy-v1": {
+        "name": "奶糖",
+        "avatar": "/assets/pets/illustrated/puppy-poster-v1.png",
+        "body": "🐶",
+    },
+}
+
+
+class AdoptPetPayload(BaseModel):
+    character_id: str = "puppy-v1"
+    name: str = Field(default="", max_length=20)
+
+
 def _generate_invite_code() -> str:
     chars = string.ascii_uppercase + string.digits
     return ''.join(secrets.choice(chars) for _ in range(8))
@@ -2620,7 +2634,7 @@ def _generate_invite_code() -> str:
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
     out["group_id"] = doc_id
-    for internal_field in ("pet_action_cooldowns", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
+    for internal_field in ("pet_action_cooldowns", "pet_action_receipts", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
         out.pop(internal_field, None)
     for f in ("created_at", "pet_last_fed_at", "pet_face_updated_at", "pet_last_session_at"):
         if out.get(f) and hasattr(out[f], "isoformat"):
@@ -3018,6 +3032,52 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
     }
 
 
+@app.post("/api/groups/{group_id}/pet/adopt")
+async def adopt_group_pet(group_id: str, payload: AdoptPetPayload, decoded: dict = Depends(verify_token)):
+    """領養插畫角色或更換外觀；既有養成、冷卻與聚會紀錄保持不變。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    character = PET_CHARACTERS.get(payload.character_id)
+    if not character:
+        raise HTTPException(status_code=400, detail="目前沒有這個角色")
+    ref = db.collection("groups").document(group_id)
+
+    @firestore.transactional
+    def adopt(tx):
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = snap.to_dict() or {}
+        if uid not in (data.get("member_uids") or []) or uid != data.get("creator_uid"):
+            raise HTTPException(status_code=403, detail="只有群組建立者可以領養或更換角色")
+        updates = {
+            "pet_character_id": payload.character_id,
+            # Retain this avatar field for existing room/list clients.
+            "pet_face_url": character["avatar"],
+            "pet_portrait_url": None,
+            "pet_body_emoji": character["body"],
+            "pet_name": payload.name.strip() or data.get("pet_name") or character["name"],
+        }
+        if not data.get("pet_face_url"):
+            updates.update({
+                **GROUP_PET_STAT_DEFAULTS,
+                "pet_last_updated": datetime.datetime.now(datetime.timezone.utc),
+                "pet_face_updated_at": datetime.datetime.now(datetime.timezone.utc),
+            })
+        for key, value in {
+            "pet_accumulated_score": 0, "pet_meetings_completed": 0,
+            "pet_action_cooldowns": {}, "pet_rewarded_room_ids": [],
+        }.items():
+            if data.get(key) is None:
+                updates[key] = value
+        tx.update(ref, updates)
+        return _group_pet_public_payload({**data, **updates}, uid)
+
+    pet = adopt(db.transaction())
+    return {"status": "success", "pet": pet}
+
+
 @app.post("/api/groups/{group_id}/pet-face")
 async def set_group_pet_face(
     group_id: str,
@@ -3094,6 +3154,7 @@ async def set_group_pet_face(
             portrait_url = _storage_media_url(portrait_path)
 
         face_updates = {
+            "pet_character_id": None,
             "pet_face_url": public_url,
             "pet_face_path": blob_name,
             "pet_portrait_url": portrait_url,
@@ -3154,6 +3215,7 @@ async def set_group_pet_face(
 
 class GroupPetActionPayload(BaseModel):
     action: str  # "feed" | "play" | "wipe"
+    request_id: Optional[str] = Field(default=None, min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 def _group_pet_cooldowns(data: dict, uid: str) -> dict:
@@ -3172,6 +3234,7 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         "pet_face_url": data.get("pet_face_url", ""),
         "pet_portrait_url": data.get("pet_portrait_url"),
         "pet_name": data.get("pet_name", ""),
+        "pet_character_id": data.get("pet_character_id"),
         "pet_body_emoji": data.get("pet_body_emoji"),
         "pet_target_uid": data.get("pet_target_uid"),
         "pet_cooldowns": _group_pet_cooldowns(data, uid),
@@ -3203,6 +3266,18 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             raise HTTPException(status_code=403, detail="你不是群組成員")
         if not data.get("pet_face_url"):
             raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
+        receipts = dict(data.get("pet_action_receipts") or {})
+        user_receipts = list(receipts.get(uid) or [])
+        if payload.request_id:
+            for receipt in user_receipts:
+                if receipt.get("request_id") != payload.request_id:
+                    continue
+                if receipt.get("action") != action:
+                    raise HTTPException(status_code=409, detail="這次操作編號已用於其他動作")
+                return {
+                    **receipt["result"], **_group_pet_display(data),
+                    "pet_cooldowns": _group_pet_cooldowns(data, uid), "replayed": True,
+                }
         if _group_pet_meeting_state(data).get("pet_is_caged"):
             raise HTTPException(
                 status_code=423,
@@ -3248,7 +3323,6 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
         updates["pet_action_cooldowns"] = cooldowns
         if action == "feed":
             updates["pet_last_fed_at"] = firestore.SERVER_TIMESTAMP
-        tx.update(doc_ref, updates)
         changes = {
             key: round(next_stats[key] - stats[key])
             for key in ("pet_energy", "pet_happiness", "pet_cleanliness")
@@ -3259,28 +3333,30 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             for key in ("feed", "play", "wipe")
         }
         response_cooldowns[action] = GROUP_PET_ACTION_COOLDOWN_SECONDS
-        return energy, happiness, cleanliness, new_status, changes, response_cooldowns
+        result = {
+            "status": "success", "action": action,
+            "pet_energy": round(energy), "pet_happiness": round(happiness),
+            "pet_cleanliness": round(cleanliness), "pet_status": new_status,
+            "pet_hp": _group_pet_hp(next_stats), "changes": changes,
+            "pet_cooldowns": response_cooldowns,
+        }
+        if payload.request_id:
+            receipts[uid] = (user_receipts + [{
+                "request_id": payload.request_id, "action": action, "result": result,
+            }])[-8:]
+            updates["pet_action_receipts"] = receipts
+        tx.update(doc_ref, updates)
+        return result
 
     try:
-        energy, happiness, cleanliness, new_status, changes, response_cooldowns = apply_action(transaction)
+        result = apply_action(transaction)
     except HTTPException:
         raise
     except Exception as e:
         print(f"[group_pet_action] transaction failed: {e}")
         raise HTTPException(status_code=500, detail="寵物狀態更新失敗")
 
-    hp = _group_pet_hp({"pet_energy": energy, "pet_happiness": happiness, "pet_cleanliness": cleanliness})
-    return {
-        "status": "success",
-        "pet_energy": round(energy),
-        "pet_happiness": round(happiness),
-        "pet_cleanliness": round(cleanliness),
-        "pet_status": new_status,
-        "pet_hp": hp,
-        "action": action,
-        "changes": changes,
-        "pet_cooldowns": response_cooldowns,
-    }
+    return result
 
 
 @app.get("/api/group-pets")
@@ -3295,8 +3371,6 @@ async def get_group_pets(decoded: dict = Depends(verify_token)):
         docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
         for doc in docs:
             data = doc.to_dict() or {}
-            if not data.get("pet_face_url"):
-                continue
             pet_fields = _group_pet_public_payload(data, uid)
             pets.append({
                 "group_id":   doc.id,
