@@ -195,6 +195,11 @@ for idx,a in ANIMATIONS.items():
   obj=next(o for o in a if o.tag=='KeyedObject' and o.get('objectId')==f'0:{pid}')
   for prop in list(obj):obj.remove(prop)
   for prop,val in BASE[pid].items():keys(a,pid,prop,[(0,val),(duration,val)])
+ # Freeze the torso too: its painted shoulder fur must not breathe under fixed paws.
+ torso=next(o for o in a if o.tag=='KeyedObject' and o.get('objectId')=='0:11')
+ for kp in torso.findall('KeyedProperty'):
+  if kp.get('property')=='scaleY':
+   for k in kp.findall('KeyFrameDouble'):k.set('value','.64')
  # User requested completely stationary front paws, including during feeding.
  # BASE keeps both resting drawings visible and every alternate drawing hidden.
  if idx==2:
