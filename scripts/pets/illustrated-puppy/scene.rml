@@ -42,7 +42,7 @@
         </Fill>
       </Shape>
     </Node>
-    <Node id="0:23" name="Receive paw drawing" x="320" y="365" scaleX="0.35" scaleY="0.35">
+    <Node id="0:23" name="Receive paw drawing" x="320" y="365" scaleX="0.35" scaleY="0.35" opacity="0">
       <Image assetId="0:7" name="Receive paw drawing paint" originX="0" originY="0" id="0:1019">
         <Mesh name="Receive paw drawing UV cutout" triangleIndexBytes="AAECAAID" id="0:1020">
           <ContourMeshVertex x="-295" y="-145" u="0.5078125" v="0.015625" id="0:1021" />
@@ -52,7 +52,7 @@
         </Mesh>
       </Image>
     </Node>
-    <Node id="0:24" name="Raised paw drawing" x="320" y="365" scaleX="0.42" scaleY="0.42">
+    <Node id="0:24" name="Raised paw drawing" x="320" y="365" scaleX="0.42" scaleY="0.42" opacity="0">
       <Image assetId="0:7" name="Raised paw drawing paint" originX="0" originY="0" id="0:1025">
         <Mesh name="Raised paw drawing UV cutout" triangleIndexBytes="AAECAAID" id="0:1026">
           <ContourMeshVertex x="-325" y="-260" u="0.0078125" v="0.5" id="0:1027" />
@@ -62,7 +62,7 @@
         </Mesh>
       </Image>
     </Node>
-    <Node id="0:25" name="Belly pat drawing" x="320" y="365" scaleX="0.36" scaleY="0.36">
+    <Node id="0:25" name="Belly pat drawing" x="320" y="365" scaleX="0.36" scaleY="0.36" opacity="0">
       <Image assetId="0:7" name="Belly pat drawing paint" originX="0" originY="0" id="0:1031">
         <Mesh name="Belly pat drawing UV cutout" triangleIndexBytes="AAECAAID" id="0:1032">
           <ContourMeshVertex x="-295" y="-110" u="0.5078125" v="0.5078125" id="0:1033" />
@@ -108,7 +108,7 @@
         </Mesh>
       </Image>
     </Node>
-    <Node id="0:10" name="Head pose" x="320" y="300">
+    <Node id="0:10" name="Head pose" x="320" y="314">
       <Node id="0:16" name="Attention" rotation="0">
         <DataBindContext sourcePathIds="0:40-0:47" propertyKey="15" id="0:1065" />
         <Node id="0:30" name="Open eyes" x="0" y="0" scaleX="0.7" scaleY="0.7">

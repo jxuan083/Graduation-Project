@@ -23,6 +23,7 @@ ARM_VERTICES={}
 ANIMATIONS={}
 def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4'):
  n=el(parent,'Node',id=f'0:{pid}',name=name,x=pos[0],y=pos[1],scaleX=scale,scaleY=scale)
+ if pid in [23,24,25]:n.set('opacity','0')
  image=el(n,'Image',assetId=asset,name=name+' paint',originX=0,originY=0)
  mesh=el(image,'Mesh',name=name+' UV cutout',triangleIndexBytes='AAECAAID')
  x,y,w,h=crop
@@ -61,7 +62,7 @@ part(ab,'Belly pat drawing',25,(650,650,600,550),(945,760),(320,365),.36,asset='
 # Shoulder anchors are hidden by natural fur overlaps; no cut-out faces or photo.
 armL=part(ab,'Left front paw',12,(550,445,240,380),(665,515),(248,365),.45)
 armR=part(ab,'Right front paw',13,(900,445,235,380),(1020,515),(394,362),.45)
-head=el(ab,'Node',id='0:10',name='Head pose',x=320,y=300)
+head=el(ab,'Node',id='0:10',name='Head pose',x=320,y=314)
 look=el(head,'Node',id='0:16',name='Attention',rotation=0)
 el(look,'DataBindContext',sourcePathIds='0:40-0:47',propertyKey=15)
 for idx,pid in enumerate([30,31,32]):
