@@ -190,40 +190,18 @@ for idx,a in ANIMATIONS.items():
    for prop in obj.findall('KeyedProperty'):
     if prop.get('property')=='y':
      for k in prop.findall('KeyFrameDouble'):k.set('value',str(float(k.get('value'))+14))
- # Keep the resting limbs physically registered. Replacement drawings own the
- # contact shapes instead of bending the source texture through itself.
+ # Keep resting paws fixed in every state; feeding uses the mouth and face.
  for pid in [12,13]:
   obj=next(o for o in a if o.tag=='KeyedObject' and o.get('objectId')==f'0:{pid}')
   for prop in list(obj):obj.remove(prop)
   for prop,val in BASE[pid].items():keys(a,pid,prop,[(0,val),(duration,val)])
- replacements={}
- # Opaque, registered drawings avoid ghost limbs during a large elbow bend.
- # A new chest-height inbetween connects the lap contact to the muzzle.
- if idx==2:
-  replacements={(12,'opacity'):[(0,1),(5,0),(27,0)],(13,'opacity'):[(0,1),(5,0),(27,0)],
-   (23,'opacity'):[(0,0),(5,1),(15,0),(27,0)],
-   (26,'opacity'):[(0,0),(15,1),(21,0),(27,0)],
-   (24,'opacity'):[(0,0),(21,1),(27,1)]}
- elif idx==3:
-  replacements={(12,'opacity'):[(0,0),(54,0)],(13,'opacity'):[(0,0),(54,0)],(24,'opacity'):[(0,1),(54,1)]}
- elif idx==4:
-  replacements={(12,'opacity'):[(0,0),(30,1),(36,1)],(13,'opacity'):[(0,0),(30,1),(36,1)],
-   (24,'opacity'):[(0,1),(6,0),(36,0)],
-   (26,'opacity'):[(0,0),(6,1),(13,0),(36,0)],
-   (25,'opacity'):[(0,0),(13,1),(30,0),(36,0)]}
- for (pid,prop),seq in replacements.items():
-  obj=next((o for o in a if o.tag=='KeyedObject' and o.get('objectId')==f'0:{pid}'),None)
-  if obj is not None:
-   for child in list(obj):
-    if child.get('property')==prop:obj.remove(child)
-  keys(a,pid,prop,seq,hold=(prop=='opacity'))
+ # User requested completely stationary front paws, including during feeding.
+ # BASE keeps both resting drawings visible and every alternate drawing hidden.
  if idx==2:
   food_obj=next(o for o in a if o.tag=='KeyedObject' and o.get('objectId')=='0:20')
-  for kp in food_obj.findall('KeyedProperty'):
-   if kp.get('property')=='y':
-    for k in kp.findall('KeyFrameDouble'):
-     k.set('interpolationType','hold')
-     for curve in list(k):k.remove(curve)
+  for kp in list(food_obj):
+   if kp.get('property')=='y':food_obj.remove(kp)
+  keys(a,20,'y',[(0,300),(duration,300)])
   o=el(a,'KeyedObject',objectId='0:90');prop=el(o,'KeyedProperty',property='trigger')
   el(prop,'KeyFrameCallback',frame=9)
 vm=el(r,'ViewModel',id='0:40',name='PuppyCare',defaultInstanceId='0:41')
