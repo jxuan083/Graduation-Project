@@ -16,7 +16,7 @@ python3 -m http.server 5178 --directory frontend
 
 - 核准的美術方向：`docs/pet-concepts/character-directions-v1.png`。
 - 圖片由內建 image_gen 產生；完整提示詞、來源和限制記在 `frontend/assets/pets/illustrated/source.json`。
-- `puppy-parts-v1.png` 包含身體、頭部表情、耳朵、尾巴等分層；`puppy-paw-poses-v1.png` 是手部姿勢替換圖。
+- `puppy-parts-v1.png` 包含身體、頭部表情、耳朵、尾巴等分層；`puppy-paw-poses-v1.png` 是手部姿勢替換圖；`puppy-paw-mid-v2.png` 補上胸前的中間姿勢。
 - 原生、無腳本 Rive 使用 UV 裁取與分層變換，搭配表情及手部替換圖。保留毛髮輪廓，避免過度拉伸手臂圖片。
 - 六個狀態：Idle、Notice、Receive、Chew、Satisfied、Pet。待機有呼吸、眨眼、耳尾輕動；手邊食物離開後可取消期待。
 - View Model `PuppyCare`：`feed` / `pet` trigger、`nearFood` boolean、`attention` number。
@@ -40,3 +40,5 @@ cp scripts/pets/illustrated-puppy/build/illustrated-puppy.riv frontend/assets/pe
 ## 本輪驗證
 
 2026-10-20：原生 Rive verify/inspect 無錯誤或警告；既有前端測試 40/40 通過。另用 Playwright 實際載入 Rive，檢查桌面、390px 手機、DPR 2、拖放成功／失敗／取消、快速重複操作、連續餵食、摸頭、減少動態切換、重新整理及載入失敗後重試。目視檢查待機、接食、咀嚼和靜止畫面。這些確認功能與顯示正常，不代表使用者已驗收動畫品質。
+
+2026-10-20 前腳修正：使用者指出手不自然後，縮短休息前腳並調整到背心旁；接食、胸前、嘴邊各自固定肩膀接點，移除整組手臂上下平移。用新的胸前姿勢做不透明替換，避免交疊淡入造成殘影；餅乾位置同步到當下手掌。此版仍是分層插畫替換動畫，需使用者重新評估自然度。
