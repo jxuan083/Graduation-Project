@@ -1,4 +1,4 @@
-import { IllustratedPetViewer } from './illustrated-viewer.js';
+import { IllustratedPetViewer } from './illustrated-viewer.js?v=stationary-paws-20261020-2';
 const stage = document.getElementById('stage'), host = document.getElementById('viewer');
 const speech = document.getElementById('speech'), mood = document.getElementById('mood');
 const loading = document.getElementById('loading'), retry = document.getElementById('retry');

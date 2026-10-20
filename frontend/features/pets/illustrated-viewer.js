@@ -1,5 +1,6 @@
 // Script-free native Rive rig. Image layers keep the approved painted artwork.
 const ASSET = new URL('../../assets/pets/illustrated/puppy-v1.riv', import.meta.url);
+ASSET.searchParams.set('v', 'stationary-paws-20261020-2');
 const RUNTIME = new URL('../../vendor/rive/rive.js', import.meta.url);
 let runtimePromise;
 function loadRuntime() {
