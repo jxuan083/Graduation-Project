@@ -1,6 +1,6 @@
 // Script-free native Rive rig. Image layers keep the approved painted artwork.
 const ASSET = new URL('../../assets/pets/illustrated/puppy-v1.riv', import.meta.url);
-ASSET.searchParams.set('v', 'care-20261020-3');
+ASSET.searchParams.set('v', 'care-inventory-20261020-4');
 const RUNTIME = new URL('../../vendor/rive/rive.js', import.meta.url);
 let runtimePromise;
 function loadRuntime() {
@@ -25,7 +25,7 @@ export class IllustratedPetViewer {
             if (this.disposed || !this.loaded) return;
             const interrupted = this.currentAction;
             this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
-            this.vm = this.rive.viewModelInstance;
+            this.vm = this.rive.viewModelInstance; this._applyCareItems();
             this.currentAction = null;
             this._finishAction?.(false);
             if (interrupted) this.onEvent({ name: 'actionCancelled', action: interrupted });
@@ -65,7 +65,7 @@ export class IllustratedPetViewer {
                 });
             });
             if (this.disposed) { this.rive.cleanup(); return; }
-            this.vm = this.rive.viewModelInstance;
+            this.vm = this.rive.viewModelInstance; this._applyCareItems();
             if (!['feed', 'pet', 'wipe', 'play'].every(action => this.vm?.trigger(action))) throw new Error('狗狗互動資料沒有載入完成');
             this.loaded = true;
             this.rive.on(EventType.RiveEvent, this._riveEvent);
@@ -100,7 +100,20 @@ export class IllustratedPetViewer {
         if (this.loaded && !this.disposed && !this.busy && !this.motion.matches) this.vm.number('attention').value = Math.max(-1, Math.min(1, x)) * .025;
     }
     setStatus(status) { this.container.dataset.petStatus = status || 'NORMAL'; }
-    playAndWait(action) {
+    setCareItem(item) {
+        if (item?.kind === 'food') this.foodItem = item;
+        if (item?.kind === 'toy') this.toyItem = item;
+        this._applyCareItems();
+    }
+    _applyCareItems() {
+        if (!this.vm) return;
+        const food = this.foodItem?.visual?.index ?? 0;
+        const toy = this.toyItem?.visual?.sheet === 'toy' ? this.toyItem.visual.index + 1 : 0;
+        for (let i = 0; i < 9; i++) { const p = this.vm.number(`food${i}`); if (p) p.value = i === food ? 1 : 0; }
+        for (let i = 0; i < 7; i++) { const p = this.vm.number(`toy${i}`); if (p) p.value = i === toy ? 1 : 0; }
+    }
+    playAndWait(action, item) {
+        if (item && !this.busy) this.setCareItem(item);
         if (!this.loaded || this.disposed || this.busy) return Promise.resolve(false);
         return new Promise(resolve => {
             const finish = completed => {
@@ -110,7 +123,7 @@ export class IllustratedPetViewer {
                 if (!this.disposed) {
                     this.currentAction = null;
                     this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
-                    this.vm = this.rive.viewModelInstance; this.syncMotion();
+                    this.vm = this.rive.viewModelInstance; this._applyCareItems(); this.syncMotion();
                 }
                 finish(false);
             }, 9000);
@@ -133,7 +146,10 @@ export class IllustratedPetViewer {
                 this._finishAction?.(true);
                 this.onEvent({ name: `${action}Complete`, reducedMotion: true });
             });
-        } else this.vm.trigger(action).trigger();
+        } else {
+            const variant = { tug: 'playTug', bounce: 'playBounce', toss: 'playToss' }[this.toyItem?.motion];
+            this.vm.trigger(action === 'play' && variant ? variant : action).trigger();
+        }
         return true;
     }
     dispose() {

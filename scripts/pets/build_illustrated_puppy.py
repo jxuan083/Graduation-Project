@@ -4,9 +4,12 @@ Run with Python, then `rive scripts/pets/illustrated-puppy --verify/--once`.
 """
 from pathlib import Path
 import base64
+import sys
 import xml.etree.ElementTree as E
 ROOT=Path(__file__).resolve().parents[2]
 PROJECT=ROOT/'scripts/pets/illustrated-puppy'
+sys.path.insert(0,str(ROOT/'backend'))
+from pet_care import FOOD_CROPS, TOY_CROPS
 r=E.Element('Rive',version='1',kind='fragment'); serial=1000
 
 def el(p,tag,**attrs):
@@ -18,6 +21,9 @@ ab=el(r,'Artboard',id='0:1',name='Puppy',width=640,height=640,styleId='0:2',defa
 el(ab,'LayoutComponentStyle',id='0:2',name='Puppy artboard')
 # The single atlas is embedded once; UV quads keep real alpha and paint detail.
 el(r,'ImageAsset',id='0:4',name='Painted puppy layers',file='../../../frontend/assets/pets/illustrated/puppy-parts-v1.png')
+
+for aid,name,file in [(7,'Cloth ball','puppy-cloth-ball-v1.png'),(8,'Food atlas','care-foods-v1.png'),(9,'Toy atlas','care-toys-v1.png')]:
+ el(r,'ImageAsset',id=f'0:{aid}',name=name,file='../../../frontend/assets/pets/illustrated/'+file)
 
 ARM_VERTICES={}
 ANIMATIONS={}
@@ -47,19 +53,21 @@ def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4',resolution=1280):
  return n
 
 # Front-to-back source order in Rive. Food and paws can cross the muzzle.
-food=el(ab,'Node',id='0:20',name='Held biscuit',x=320,y=430,opacity=0)
-for x in [-10,0,10]:
- s=el(food,'Shape',x=x,y=0,name='Biscuit hole');el(s,'Ellipse',width=2.4,height=2.4,originX=.5,originY=.5)
- f=el(s,'Fill');el(f,'SolidColor',colorValue='FF95643C')
-s=el(food,'Shape',name='Baked biscuit');el(s,'Rectangle',width=38,height=27,originX=.5,originY=.5,cornerRadiusTL=9)
-f=el(s,'Fill');g=el(f,'LinearGradient',startX=-12,startY=-10,endX=15,endY=14)
-el(g,'GradientStop',colorValue='FFE9C38A',position=0);el(g,'GradientStop',colorValue='FFC28C50',position=1)
-# Small care props move independently; the puppy's paws and torso never move.
-ball=el(ab,'Node',id='0:21',name='Play ball',x=440,y=590,opacity=0)
-for name,x,y,w,h,color in [('Ball',0,0,37,37,'FF839866'),('Ball highlight',-6,-7,11,8,'FFB8C899')]:
- shape=el(ball,'Shape',name=name,x=x,y=y)
- el(shape,'Ellipse',width=w,height=h,originX=.5,originY=.5)
- fill=el(shape,'Fill');el(fill,'SolidColor',colorValue=color)
+food=el(ab,'Node',id='0:20',name='Meal',x=320,y=430,opacity=0)
+def item_part(parent,name,pid,crop,asset,size,propid):
+ x,y,w,h=[v*1254 for v in crop]
+ n=part(parent,name,pid,(x,y,w,h),(x+w/2,y+h/2),(0,0),size/max(w,h),asset=asset,resolution=1254)
+ n.set('opacity','1' if propid in [300,309] else '0')
+ el(n,'DataBindContext',sourcePathIds=f'0:40-0:{propid}',propertyKey=18)
+for i,crop in enumerate(FOOD_CROPS):item_part(food,f'Food {i}',200+i,crop,'0:8',43,300+i)
+# Persistent props keep their resting position after play; paws remain stationary.
+ball=el(ab,'Node',id='0:21',name='Selected toy',x=480,y=580,opacity=1)
+item_part(ball,'Cloth ball',209,(0,0,1,1),'0:7',94,309)
+for i,crop in enumerate(TOY_CROPS):item_part(ball,f'Toy {i}',210+i,crop,'0:9',88,310+i)
+contact=el(ab,'Node',id='0:18',name='Toy contact',x=480,y=615,opacity=1)
+shape=el(contact,'Shape',name='Soft toy shadow')
+el(shape,'Ellipse',width=61,height=8,originX=.5,originY=.5)
+fill=el(shape,'Fill');el(fill,'SolidColor',colorValue='293F3525')
 bubbles=el(ab,'Node',id='0:22',name='Cleaning bubbles',x=320,y=250,opacity=0)
 for x,y,size in [(-72,-38,16),(65,-55,12),(-86,4,10),(83,-8,19)]:
  shape=el(bubbles,'Shape',x=x,y=y,name='Soap bubble')
@@ -91,33 +99,34 @@ ent=el(layer,'EntryState',x=0,y=0);el(ent,'StateTransition',stateToId='0:50')
 # Public inputs: nearFood is reversible, feed/pet are consumable one-shot triggers.
 def cond(t,name):
  c=el(t,'TransitionViewModelCondition');cp=el(c,'TransitionPropertyViewModelComparator')
- if name in ['feed','pet','wipe','play']:
-  property_id={'feed':45,'pet':46,'wipe':49,'play':44}[name]
+ if name in ['feed','pet','wipe','play','playTug','playBounce','playToss']:
+  property_id={'feed':45,'pet':46,'wipe':49,'play':44,'playTug':320,'playBounce':321,'playToss':322}[name]
   b=el(cp,'BindablePropertyTrigger');el(b,'DataBindContext',sourcePathIds=f'0:40-0:{property_id}',propertyKey=686)
   el(c,'TransitionValueTriggerComparator')
  else:
   b=el(cp,'BindablePropertyBoolean');el(b,'DataBindContext',sourcePathIds='0:40-0:48',propertyKey=634)
   el(c,'TransitionValueBooleanComparator',value='true' if name=='near' else 'false')
+STATE_IDS={**{i:50+i for i in range(8)},8:80,9:81,10:82}
 def transition(s,to,condition=None,end=False):
- t=el(s,'StateTransition',stateToId=f'0:{50+to}',duration=120)
+ t=el(s,'StateTransition',stateToId=f'0:{STATE_IDS[to]}',duration=120)
  if end:
   t.set('enableExitTime','true');t.set('exitTimeIsPercetange','true');t.set('exitTime','100')
  if condition:cond(t,condition)
  return t
-for idx in range(8):
- st=el(layer,'AnimationState',id=f'0:{50+idx}',animationId=f'0:{60+idx}',x=220+idx*200,y=(idx%2)*150,reset='true')
+for idx in range(11):
+ st=el(layer,'AnimationState',id=f'0:{STATE_IDS[idx]}',animationId=f'0:{60+idx}',x=220+idx*200,y=(idx%2)*150,reset='true')
  if idx in [0,1]:
-  transition(st,2,'feed');transition(st,5,'pet');transition(st,6,'wipe');transition(st,7,'play');transition(st,1 if idx==0 else 0,'near' if idx==0 else 'far')
+  transition(st,2,'feed');transition(st,5,'pet');transition(st,6,'wipe');transition(st,7,'play');transition(st,8,'playTug');transition(st,9,'playBounce');transition(st,10,'playToss');transition(st,1 if idx==0 else 0,'near' if idx==0 else 'far')
  elif idx in [2,3,4]:transition(st,idx+1 if idx<4 else 0,end=True)
  else:transition(st,0,end=True)
  if idx==2:el(st,'StateMachineFireEvent',eventId='0:94',occursValue='atStart')
  if idx==3:el(st,'StateMachineFireEvent',eventId='0:91',occursValue='atStart')
  if idx==4:el(st,'StateMachineFireEvent',eventId='0:92',occursValue='atEnd')
- if idx in [5,6,7]:
-  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:95,6:96,7:98}[idx]}',occursValue='atStart')
-  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:93,6:97,7:99}[idx]}',occursValue='atEnd')
+ if idx in [5,6,7,8,9,10]:
+  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:95,6:96,7:98,8:98,9:98,10:98}[idx]}',occursValue='atStart')
+  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:93,6:97,7:99,8:99,9:99,10:99}[idx]}',occursValue='atEnd')
 # All timings below are authored for this character, not claimed industry rules.
-BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':255,'y':397,'rotation':0,'opacity':1},13:{'x':385,'y':397,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},21:{'x':440,'y':590,'rotation':0,'opacity':0},22:{'y':250,'opacity':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0}}
+BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':255,'y':397,'rotation':0,'opacity':1},13:{'x':385,'y':397,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},18:{'x':480,'y':615,'scaleX':1,'opacity':1},21:{'x':480,'y':580,'rotation':0,'opacity':1},22:{'y':250,'opacity':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0}}
 def keys(a,obj,prop,values,hold=False):
  o=next((n for n in a if n.tag=='KeyedObject' and n.get('objectId')==f'0:{obj}'),None)
  if o is None:o=el(a,'KeyedObject',objectId=f'0:{obj}')
@@ -191,13 +200,27 @@ animation(6,'Gentle face clean',54,{
  (14,'rotation'):[(0,0),(18,.06),(35,-.03),(54,0)],(15,'rotation'):[(0,0),(18,-.04),(35,.04),(54,0)],
  (22,'opacity'):[(0,0),(7,1),(44,0),(54,0)],(22,'y'):[(0,265),(24,240),(54,220)],
 })
-animation(7,'Watch and play with ball',78,{
- (10,'rotation'):[(0,0),(18,.06),(42,-.06),(60,.04),(78,0)],
- (17,'rotation'):[(0,0),(12,.12),(24,-.12),(36,.12),(48,-.12),(60,.1),(78,0)],
- (21,'opacity'):[(0,0),(5,1),(69,0),(78,0)],
- (21,'x'):[(0,440),(21,200),(47,440),(69,220),(78,220)],
- (21,'rotation'):[(0,0),(21,-5),(47,0),(69,-5),(78,-5)],
-})
+def toy_animation(idx,name,xs,ys,rotations):
+ changes={
+  (10,'rotation'):[(0,0),(18,.055),(42,-.055),(60,.025),(78,0)],
+  (17,'rotation'):[(0,0),(12,.12),(24,-.12),(36,.12),(48,-.12),(60,.07),(78,0)],
+  (21,'x'):xs,(21,'y'):ys,(21,'rotation'):rotations,
+  (18,'x'):xs,
+  (18,'scaleX'):[(f,max(.55,1-(580-y)/150)) for f,y in ys],
+ }
+ animation(idx,name,78,changes)
+toy_animation(7,'Roll and settle',[(0,480),(20,190),(43,440),(59,400),(69,480),(78,480)],
+ [(0,580),(20,574),(43,580),(59,578),(69,580),(78,580)],
+ [(0,0),(20,-8.8),(43,-1.2),(59,-2.4),(69,0),(78,0)])
+toy_animation(8,'Tug and release',[(0,480),(16,452),(28,474),(40,451),(52,478),(66,480),(78,480)],
+ [(0,580),(16,565),(28,576),(40,568),(52,578),(78,580)],
+ [(0,0),(16,-.18),(28,.12),(40,-.14),(52,.08),(66,0),(78,0)])
+toy_animation(9,'Bounce and settle',[(0,480),(22,448),(44,460),(62,480),(78,480)],
+ [(0,580),(12,538),(22,580),(34,555),(44,580),(54,570),(62,580),(78,580)],
+ [(0,0),(12,-.12),(22,.08),(34,-.07),(44,.04),(62,0),(78,0)])
+toy_animation(10,'Toss and return',[(0,480),(20,200),(43,420),(60,460),(70,480),(78,480)],
+ [(0,580),(12,470),(20,510),(32,480),(43,555),(60,568),(70,580),(78,580)],
+ [(0,0),(20,-6.28),(43,-12.56),(60,-6.28),(70,0),(78,0)])
 # All care animations retain the fixed resting front paws.
 
 for idx,a in ANIMATIONS.items():
@@ -227,9 +250,11 @@ for idx,a in ANIMATIONS.items():
   o=el(a,'KeyedObject',objectId='0:90');prop=el(o,'KeyedProperty',property='trigger')
   el(prop,'KeyFrameCallback',frame=9)
 vm=el(r,'ViewModel',id='0:40',name='PuppyCare',defaultInstanceId='0:41')
-for name,pid,typ in [('feed',45,'Trigger'),('pet',46,'Trigger'),('wipe',49,'Trigger'),('play',44,'Trigger'),('attention',47,'Number'),('nearFood',48,'Boolean')]:el(vm,'ViewModelProperty'+typ,name=name,id=f'0:{pid}')
+for name,pid,typ in [('feed',45,'Trigger'),('pet',46,'Trigger'),('wipe',49,'Trigger'),('play',44,'Trigger'),('playTug',320,'Trigger'),('playBounce',321,'Trigger'),('playToss',322,'Trigger'),('attention',47,'Number'),('nearFood',48,'Boolean')]:el(vm,'ViewModelProperty'+typ,name=name,id=f'0:{pid}')
+for i in range(16):el(vm,'ViewModelPropertyNumber',name=f'food{i}' if i<9 else f'toy{i-9}',id=f'0:{300+i}')
 inst=el(vm,'ViewModelInstance',id='0:41',name='Default',exports='true')
-for pid,typ,val in [(45,'Trigger',0),(46,'Trigger',0),(49,'Trigger',0),(44,'Trigger',0),(47,'Number',0),(48,'Boolean','false')]:el(inst,'ViewModelInstance'+typ,viewModelPropertyId=f'0:{pid}',propertyValue=val)
+for pid,typ,val in [(45,'Trigger',0),(46,'Trigger',0),(49,'Trigger',0),(44,'Trigger',0),(320,'Trigger',0),(321,'Trigger',0),(322,'Trigger',0),(47,'Number',0),(48,'Boolean','false')]:el(inst,'ViewModelInstance'+typ,viewModelPropertyId=f'0:{pid}',propertyValue=val)
+for i in range(16):el(inst,'ViewModelInstanceNumber',viewModelPropertyId=f'0:{300+i}',propertyValue=1 if i in [0,9] else 0)
 # Explicit hit geometry is independent of texture UV mesh extents.
 for hid,hy,hh in [(5,430,140),(6,245,150)]:
  hit=el(ab,'Shape',id=f'0:{hid}',name='Preview hit target',x=320,y=hy)
