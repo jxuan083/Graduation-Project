@@ -21,7 +21,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from pet_care import care_catalog, draw_care_item, apply_item_effects, discovered_items, item_by_id
+from pet_care import (care_catalog, apply_item_effects, discovered_items, item_by_id,
+                      economy_payload, session_coins, draw_inventory_item, apply_inventory_draw,
+                      use_inventory_item, DRAW_PRICES)
 from pet_logic import (
     GROUP_PET_ACTION_COOLDOWN_SECONDS,
     GROUP_PET_STAT_DEFAULTS,
@@ -3217,7 +3219,56 @@ async def set_group_pet_face(
 # 關鍵：衰減 anchor（pet_last_updated）只在「有動作」時更新，GET 只讀出來顯示、
 # GET 只計算顯示值、不回寫 timestamp，避免輪詢重設衰減 anchor。
 
+class PetDrawPayload(BaseModel):
+    kind: str = Field(pattern=r"^(food|toy)$")
+    request_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+@app.post("/api/groups/{group_id}/pet/draw")
+async def draw_group_pet_item(group_id: str, payload: PetDrawPayload, decoded: dict = Depends(verify_token)):
+    """扣群組金幣與入背包在同一 transaction；重送回傳原抽取結果。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    ref = db.collection('groups').document(group_id)
+    receipt_ref = ref.collection('pet_draw_receipts').document(f'{uid}_{payload.request_id}')
+
+    @firestore.transactional
+    def draw(tx):
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = snap.to_dict() or {}
+        if uid not in (data.get('member_uids') or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+        receipt = receipt_ref.get(transaction=tx)
+        if receipt.exists:
+            saved = receipt.to_dict()
+            if saved['kind'] != payload.kind:
+                raise HTTPException(status_code=409, detail="這次操作編號已用於其他抽取")
+            return {**saved['result'], **economy_payload(data),
+                    'pet_discovered_items': discovered_items(data), 'replayed': True}
+        if not data.get('pet_face_url'):
+            raise HTTPException(status_code=409, detail="先領養一位寵物，再幫牠準備物品")
+        if economy_payload(data)['pet_coins'] < DRAW_PRICES[payload.kind]:
+            raise HTTPException(status_code=409, detail="金幣不足，一起完成聚會來累積金幣")
+        item = draw_inventory_item(payload.kind)
+        try:
+            economy, outcome = apply_inventory_draw(data, item)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail="這項食物已經放滿背包，先使用一些再抽") from error
+        discoveries = sorted(set(discovered_items(data)) | {item['id']})
+        result = {'status': 'success', 'care_item': item, **outcome, **economy,
+                  'pet_discovered_items': discoveries}
+        tx.update(ref, {**economy, 'pet_discovered_items': discoveries})
+        tx.set(receipt_ref, {'kind': payload.kind, 'result': result, 'at': firestore.SERVER_TIMESTAMP})
+        return result
+
+    return draw(db.transaction())
+
+
 class GroupPetActionPayload(BaseModel):
+    item_id: Optional[str] = Field(default=None, max_length=40)
     action: str  # "feed" | "play" | "wipe"
     request_id: Optional[str] = Field(default=None, min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
@@ -3243,10 +3294,12 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         "pet_target_uid": data.get("pet_target_uid"),
         "pet_cooldowns": _group_pet_cooldowns(data, uid),
         "pet_discovered_items": discovered_items(data),
+        "pet_last_reward_coins": max(0, int(data.get("pet_last_reward_coins", 0) or 0)),
         "pet_last_care": item_by_id(data.get("pet_last_care_id")),
         "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
     }
     payload.update(_group_pet_display(data))
+    payload.update(economy_payload(data))
     return payload
 
 
@@ -3279,7 +3332,7 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             for receipt in user_receipts:
                 if receipt.get("request_id") != payload.request_id:
                     continue
-                if receipt.get("action") != action:
+                if receipt.get("action") != action or receipt.get("item_id") != payload.item_id:
                     raise HTTPException(status_code=409, detail="這次操作編號已用於其他動作")
                 return {
                     **receipt["result"], **_group_pet_display(data),
@@ -3287,6 +3340,7 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
                     "pet_discovered_items": discovered_items(data),
                     "pet_last_care": item_by_id(data.get("pet_last_care_id")),
                     "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
+                    **economy_payload(data),
                 }
         if _group_pet_meeting_state(data).get("pet_is_caged"):
             raise HTTPException(
@@ -3315,7 +3369,10 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
         if action == "wipe" and stats["pet_cleanliness"] >= 95:
             raise HTTPException(status_code=409, detail="寵物現在很乾淨，不需要再清潔")
 
-        care_item = draw_care_item(action)
+        try:
+            care_item, economy = use_inventory_item(data, action, payload.item_id)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail="背包裡沒有這個物品，請重新選擇") from error
         next_stats = apply_item_effects(stats, care_item) if care_item else _apply_group_pet_action(stats, action)
         energy = next_stats["pet_energy"]
         happiness = next_stats["pet_happiness"]
@@ -3323,6 +3380,7 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
 
         new_status = _group_pet_status(energy, happiness, cleanliness)
         updates = {
+            **economy,
             "pet_energy": energy,
             "pet_happiness": happiness,
             "pet_cleanliness": cleanliness,
@@ -3356,13 +3414,14 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             "pet_hp": _group_pet_hp(next_stats), "changes": changes,
             "pet_cooldowns": response_cooldowns,
             "care_item": care_item,
+            **economy,
             "pet_discovered_items": discovered_items({**data, **updates}),
             "pet_last_care": item_by_id(updates.get("pet_last_care_id", data.get("pet_last_care_id"))),
             "pet_last_toy": item_by_id(updates.get("pet_last_toy_id", data.get("pet_last_toy_id"))),
         }
         if payload.request_id:
             receipts[uid] = (user_receipts + [{
-                "request_id": payload.request_id, "action": action, "result": result,
+                "request_id": payload.request_id, "action": action, "item_id": payload.item_id, "result": result,
             }])[-8:]
             updates["pet_action_receipts"] = receipts
         tx.update(doc_ref, updates)
@@ -3796,7 +3855,16 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                 if not g_snap.exists:
                     return None
                 g_data = g_snap.to_dict() or {}
+                ledger_ref = g_ref.collection('pet_reward_ledger').document(room_id)
+                if ledger_ref.get(transaction=tx).exists:
+                    return None
+                member_count = len(set(score_by_uid) & set(g_data.get('member_uids') or []))
+                coin_gain = session_coins(avg_score, duration_minutes, member_count)
+                coin_updates = {'pet_coins': economy_payload(g_data)['pet_coins'] + coin_gain,
+                                'pet_last_reward_coins': coin_gain}
                 if not g_data.get("pet_face_url"):
+                    tx.update(g_ref, coin_updates)
+                    tx.set(ledger_ref, {'coins': coin_gain, 'at': firestore.SERVER_TIMESTAMP})
                     return None
                 rewarded_room_ids = list(g_data.get("pet_rewarded_room_ids") or [])
                 if room_id in rewarded_room_ids:
@@ -3823,6 +3891,7 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_meetings_completed": int(g_data.get("pet_meetings_completed", 0) or 0) + 1,
                 })
                 tx.update(g_ref, {
+                    **coin_updates,
                     "pet_energy":       pet_energy,
                     "pet_happiness":    pet_happiness,
                     "pet_cleanliness":  pet_cleanliness,
@@ -3837,6 +3906,7 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_last_session_at": firestore.SERVER_TIMESTAMP,
                     "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
                 })
+                tx.set(ledger_ref, {"coins": coin_gain, "xp": xp_gain, "at": firestore.SERVER_TIMESTAMP})
                 return pet_energy, pet_happiness, new_status, xp_gain, growth["pet_level"]
 
             pet_result = apply_session_reward(pet_transaction)

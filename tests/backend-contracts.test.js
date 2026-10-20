@@ -73,6 +73,7 @@ test('REST route surface stays compatible with the Phase 0 contract', () => {
     'GET /api/groups/{group_id}/pet',
     'POST /api/groups/{group_id}/pet/adopt',
     'POST /api/groups/{group_id}/pet-face',
+    'POST /api/groups/{group_id}/pet/draw',
     'POST /api/groups/{group_id}/pet/action',
     'GET /api/group-pets',
     'DELETE /api/groups/{group_id}/pet',

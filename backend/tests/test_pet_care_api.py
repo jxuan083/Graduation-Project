@@ -37,8 +37,15 @@ class PetCareApiTests(unittest.TestCase):
                 return value
             self.data.update(resolve(fields))
         self.tx.update.side_effect = update
-        for patcher in [patch.object(main, 'draw_care_item', side_effect=lambda action: main.item_by_id({'feed': 'oat_biscuit', 'play': 'cloth_ball'}.get(action))),
-                        patch.object(main, 'db', self.db),
+        self.records = {}
+        def subdoc(key):
+            ref = Mock()
+            ref.key = key
+            ref.get.side_effect = lambda **kwargs: Mock(exists=key in self.records, to_dict=lambda: self.records.get(key))
+            return ref
+        self.doc.collection.return_value.document.side_effect = subdoc
+        self.tx.set.side_effect = lambda ref, fields: self.records.update({ref.key: fields})
+        for patcher in [patch.object(main, 'db', self.db),
                         patch.object(main.firestore, 'transactional', side_effect=lambda fn: fn)]:
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -46,9 +53,9 @@ class PetCareApiTests(unittest.TestCase):
     def adopt(self, uid='owner', **payload):
         return asyncio.run(main.adopt_group_pet('group', main.AdoptPetPayload(**payload), {'uid': uid}))
 
-    def action(self, action='feed', request_id='request-0001', uid='owner'):
+    def action(self, action='feed', request_id='request-0001', uid='owner', item_id=None):
         return asyncio.run(main.group_pet_action('group', main.GroupPetActionPayload(
-            action=action, request_id=request_id), {'uid': uid}))
+            action=action, request_id=request_id, item_id=item_id), {'uid': uid}))
 
     def test_adopt_without_a_photo_is_immediately_careable(self):
         pet = self.adopt(name='奶茶')['pet']
@@ -90,12 +97,12 @@ class PetCareApiTests(unittest.TestCase):
             self.action(action='play')
         self.assertEqual(ctx.exception.status_code, 409)
 
-    def test_rare_draw_is_applied_once_and_discoveries_are_shared(self):
+    def test_rare_food_is_consumed_once_and_discoveries_are_shared(self):
         self.adopt()
-        with patch.object(main, 'draw_care_item', return_value=main.item_by_id('heart_biscuit')) as draw:
-            first = self.action()
-            replay = self.action()
-            draw.assert_called_once_with('feed')
+        self.data['pet_food_inventory'] = {'heart_biscuit': 2}
+        first = self.action(item_id='heart_biscuit')
+        replay = self.action(item_id='heart_biscuit')
+        self.assertEqual(self.data['pet_food_inventory']['heart_biscuit'], 1)
         self.assertEqual(first['care_item']['rarity'], 'treasure')
         self.assertEqual(first['changes']['pet_energy'], 35)
         self.assertEqual(replay['care_item'], first['care_item'])
@@ -155,3 +162,48 @@ class PetCareApiTests(unittest.TestCase):
         self.assertEqual(group['pet_level'], 3)
         for key in ['pet_level', 'pet_xp_current', 'pet_status', 'pet_energy', 'pet_hp']:
             self.assertEqual(group[key], pet[key], key)
+
+
+    def test_draw_retry_never_spends_or_rolls_twice(self):
+        self.adopt()
+        self.data['pet_coins'] = 100
+        payload = main.PetDrawPayload(kind='toy', request_id='draw-request-001')
+        with patch.object(main, 'draw_inventory_item', return_value=main.item_by_id('star_plush')) as draw:
+            first = asyncio.run(main.draw_group_pet_item('group', payload, {'uid': 'member'}))
+            second = asyncio.run(main.draw_group_pet_item('group', payload, {'uid': 'member'}))
+            draw.assert_called_once_with('toy')
+        self.assertEqual(first['care_item'], second['care_item'])
+        self.assertTrue(second['replayed'])
+        self.assertEqual(self.data['pet_coins'], 40)
+        self.assertIn('star_plush', self.data['pet_owned_toys'])
+        with self.assertRaises(HTTPException):
+            asyncio.run(main.draw_group_pet_item('group', main.PetDrawPayload(kind='food', request_id='draw-request-001'), {'uid': 'member'}))
+
+    def test_draw_requires_membership_and_enough_coins_before_rolling(self):
+        self.adopt()
+        with patch.object(main, 'draw_inventory_item') as draw:
+            for uid, code in [('outsider', 403), ('owner', 409)]:
+                with self.assertRaises(HTTPException) as ctx:
+                    asyncio.run(main.draw_group_pet_item('group', main.PetDrawPayload(kind='food', request_id='draw-request-002'), {'uid': uid}))
+                self.assertEqual(ctx.exception.status_code, code)
+            draw.assert_not_called()
+
+    def test_unowned_food_does_not_spend_cooldown_or_mutate_stats(self):
+        self.adopt()
+        writes = self.tx.update.call_count
+        with self.assertRaises(HTTPException) as ctx:
+            self.action(item_id='heart_biscuit')
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertEqual(self.tx.update.call_count, writes)
+
+    def test_meeting_coins_share_the_xp_transaction_and_have_durable_receipts(self):
+        self.adopt()
+        main._apply_group_pet_reward('room-001', 'group', {'owner': 90, 'member': 90}, 90, 30)
+        self.assertEqual(self.data['pet_coins'], 68)
+        first_xp = self.data['pet_accumulated_score']
+        self.data['pet_rewarded_room_ids'] = []  # even beyond the legacy 50-room window
+        main._apply_group_pet_reward('room-001', 'group', {'owner': 90, 'member': 90}, 90, 30)
+        self.assertEqual(self.data['pet_coins'], 68)
+        self.assertEqual(self.data['pet_accumulated_score'], first_xp)
+        main._apply_group_pet_reward('room-002', 'group', {'owner': 90}, 90, 30)
+        self.assertEqual(self.data['pet_coins'], 68)

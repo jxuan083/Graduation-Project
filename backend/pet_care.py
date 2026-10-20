@@ -1,4 +1,4 @@
-"""Server-owned, free care draws. No currency, inventory or meeting XP writes."""
+"""Server-owned meeting coins, item draws and shared pet inventory."""
 from __future__ import annotations
 
 import secrets
@@ -67,13 +67,17 @@ def item_by_id(item_id):
 
 
 def care_catalog():
-    return {"version": 1, "mode": "draw_and_use",
+    return {"version": 2, "mode": "inventory",
+            "prices": DRAW_PRICES, "food_portions": FOOD_DRAW_PORTIONS,
+            "toy_duplicate_refund": TOY_DUPLICATE_REFUND,
+            "base_food": BASE_FOOD, "base_toy": BASE_TOY,
+            "coin_rules": {"min_minutes": 10, "min_members": 2},
             "rarities": [{"id": key, **meta, "probability": meta["weight"] / 10000}
                          for key, meta in RARITIES.items()],
             "items": [public_item(item) for item in CARE_ITEMS]}
 
 
-def draw_care_item(action, randbelow=None, choice=None):
+def draw_care_item(action, randbelow=None, choice=None, exclude=None):
     kind = {"feed": "food", "play": "toy"}.get(action)
     if kind is None:
         return None
@@ -82,7 +86,7 @@ def draw_care_item(action, randbelow=None, choice=None):
     for key, meta in RARITIES.items():
         ceiling += meta["weight"]
         if roll < ceiling:
-            candidates = [item for item in CARE_ITEMS if item["kind"] == kind and item["rarity"] == key]
+            candidates = [item for item in CARE_ITEMS if item["kind"] == kind and item["rarity"] == key and item['id'] not in (exclude or set())]
             return public_item((choice or secrets.choice)(candidates))
     raise ValueError("care roll outside configured weights")
 
@@ -96,3 +100,71 @@ def apply_item_effects(stats, item):
 
 def discovered_items(data):
     return sorted({item_id for item_id in (data.get("pet_discovered_items") or []) if item_id in CARE_BY_ID})
+
+DRAW_PRICES = {"food": 30, "toy": 60}
+FOOD_DRAW_PORTIONS = 3
+TOY_DUPLICATE_REFUND = 20
+BASE_FOOD = "oat_biscuit"
+BASE_TOY = "cloth_ball"
+
+
+def economy_payload(data):
+    food = {key: min(9999, max(0, int(value))) for key, value in (data.get('pet_food_inventory') or {}).items()
+            if key in CARE_BY_ID and CARE_BY_ID[key]['kind'] == 'food' and int(value) > 0}
+    toys = sorted({BASE_TOY} | {key for key in (data.get('pet_owned_toys') or [])
+                              if key in CARE_BY_ID and CARE_BY_ID[key]['kind'] == 'toy'})
+    return {'pet_coins': max(0, int(data.get('pet_coins', 0) or 0)),
+            'pet_food_inventory': food, 'pet_owned_toys': toys}
+
+
+def session_coins(avg_score, duration_minutes, member_count):
+    # Only an actual group meeting earns coins; no zero-minute solo room farming.
+    if duration_minutes < 10 or member_count < 2:
+        return 0
+    return 20 + int(min(120, duration_minutes) // 5) * 5 + round(max(0, min(100, avg_score)) * .2)
+
+
+def draw_inventory_item(kind, randbelow=None, choice=None):
+    # The free starter ball is excluded from the paid toy pool.
+    return draw_care_item('feed' if kind == 'food' else 'play', randbelow, choice,
+                          exclude={BASE_TOY} if kind == 'toy' else set())
+
+
+def apply_inventory_draw(data, item):
+    economy = economy_payload(data)
+    cost = DRAW_PRICES[item['kind']]
+    if economy['pet_coins'] < cost:
+        raise ValueError('insufficient_coins')
+    economy['pet_coins'] -= cost
+    duplicate = item['kind'] == 'toy' and item['id'] in economy['pet_owned_toys']
+    if item['kind'] == 'food':
+        food = economy['pet_food_inventory']
+        if food.get(item['id'], 0) > 9999 - FOOD_DRAW_PORTIONS:
+            raise ValueError('inventory_full')
+        food[item['id']] = food.get(item['id'], 0) + FOOD_DRAW_PORTIONS
+    elif duplicate:
+        economy['pet_coins'] += TOY_DUPLICATE_REFUND
+    else:
+        economy['pet_owned_toys'] = sorted(set(economy['pet_owned_toys']) | {item['id']})
+    return economy, {'duplicate': duplicate, 'refund': TOY_DUPLICATE_REFUND if duplicate else 0,
+                     'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': cost}
+
+
+def use_inventory_item(data, action, item_id=None):
+    economy = economy_payload(data)
+    kind = {'feed': 'food', 'play': 'toy'}.get(action)
+    if not kind:
+        return None, economy
+    item = item_by_id(item_id or (BASE_FOOD if kind == 'food' else BASE_TOY))
+    if not item or item['kind'] != kind:
+        raise ValueError('invalid_item')
+    if kind == 'food':
+        quantity = economy['pet_food_inventory'].get(item['id'], 0)
+        # Starter biscuit stays available even with an empty backpack.
+        if item['id'] != BASE_FOOD and quantity < 1:
+            raise ValueError('item_not_owned')
+        if quantity:
+            economy['pet_food_inventory'][item['id']] = quantity - 1
+    elif item['id'] not in economy['pet_owned_toys']:
+        raise ValueError('item_not_owned')
+    return item, economy
