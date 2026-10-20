@@ -24,5 +24,11 @@
     "asset": "puppy-paw-mid-v2.png",
     "tool": "built-in image_gen",
     "prompt": "Use case: stylized-concept. Asset: one transparent paired front-paw intermediate drawing for a 2D cutout puppy animation. Reference image is existing puppy paw atlas; match its honey golden upper forelegs, ivory rounded mitten paws, soft fine hand-painted fur and exact lighting. Draw ONLY two connected-in-pose but separate anatomically natural puppy front legs, no torso/head/ears/clothes/food/background. Frontal view. Pose is halfway between the TOP RIGHT receiving pose and BOTTOM LEFT raised-to-mouth pose of the reference: shoulders stay low at the outer sides; elbows bend down beside the belly; forepaws curl inward and upward to meet gently at chest height. The silhouette is a broad rounded W: rounded honey shoulder roots at image coordinates approximately (280,730) and (744,730), elbows just below at y850, ivory paws meeting near (490,460) and (534,460). Upper arms attach at LOWER OUTER tips, fur blending honey to ivory toward the upper central paws; no detached scraps. Exactly two paws and two forelegs, softly curved elbows, short cute animal anatomy, no human fingers, no long straight arms. Square canvas, alpha transparent, no lines, no text, no checkerboard. Keep whole drawing within x150..875 and y330..920 with margins. Match existing artwork quality and palette; this is an in-between animation drawing to connect two existing poses, not a new character design."
+  },
+  "current_hand_behavior": {
+    "date": "2026-10-20",
+    "instruction": "我是說讓他的手不動",
+    "status": "implemented_pending_user_review",
+    "behavior": "Resting front paws remain completely fixed and visible in every state; alternate paw drawings stay hidden. Feeding targets the mouth and uses facial/head reactions."
   }
 }
