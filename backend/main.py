@@ -3840,7 +3840,7 @@ async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str) -> Option
 
 
 def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_by_uid: dict,
-                            avg_score: int, duration_minutes: int) -> None:
+                            avg_score: int, duration_minutes: int) -> Optional[dict]:
     # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
     # score_by_uid 為空 = 沒有任何參與者留下紀錄，此時 avg_score=0 並非「表現差」，
     # 不可拿來扣寵物能量，直接跳過。
@@ -3865,7 +3865,7 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                 if not g_data.get("pet_face_url"):
                     tx.update(g_ref, coin_updates)
                     tx.set(ledger_ref, {'coins': coin_gain, 'at': firestore.SERVER_TIMESTAMP})
-                    return None
+                    return {'coins': coin_gain, 'xp': 0}
                 rewarded_room_ids = list(g_data.get("pet_rewarded_room_ids") or [])
                 if room_id in rewarded_room_ids:
                     return None
@@ -3907,12 +3907,12 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
                 })
                 tx.set(ledger_ref, {"coins": coin_gain, "xp": xp_gain, "at": firestore.SERVER_TIMESTAMP})
-                return pet_energy, pet_happiness, new_status, xp_gain, growth["pet_level"]
+                return {"coins": coin_gain, "xp": xp_gain, "level": growth["pet_level"]}
 
             pet_result = apply_session_reward(pet_transaction)
             if pet_result:
-                pet_energy, pet_happiness, new_status, xp_gain, pet_level = pet_result
-                print(f"[END_SESSION] group pet updated: group={group_id_local} energy={round(pet_energy)} happy={round(pet_happiness)} status={new_status} xp=+{xp_gain} level={pet_level}")
+                print(f"[END_SESSION] group rewards committed: group={group_id_local} coins=+{pet_result['coins']} xp=+{pet_result['xp']}")
+            return pet_result
         except Exception as pet_err:
             print(f"[END_SESSION] group pet update failed: {pet_err}")
 
@@ -3941,11 +3941,10 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
     score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
         all_ever, host_uid_local, duration_minutes, context_local, difficulty_local
     )
-    pet_xp_gain = (
-        _group_pet_session_xp(avg_score, duration_minutes)
-        if group_id_local and room_data.get("group_pet_face_url") and score_by_uid
-        else 0
-    )
+    # Confirm the atomic reward before showing a coin balance on the summary.
+    pet_reward = _apply_group_pet_reward(room_id, group_id_local, score_by_uid, avg_score, duration_minutes)
+    pet_xp_gain = (pet_reward or {}).get('xp', 0)
+    pet_coin_gain = (pet_reward or {}).get('coins', 0)
     room_data["pet_xp_gain"] = pet_xp_gain
 
     summary = {
@@ -3960,12 +3959,13 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
         "group_pet_name": room_data.get("group_pet_name", ""),
         "group_pet_level": room_data.get("group_pet_level", 1),
         "pet_xp_gain": pet_xp_gain,
+        "pet_coin_gain": pet_coin_gain,
         "score_ranking": score_ranking,
         "deviation_ranking": score_ranking,   # 舊前端相容
     }
     room_data["final_result"] = summary
 
-    # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
+    # 獎勵確認後廣播，再寫聚會紀錄與個人鏡像。
     print(f"[END_SESSION] room={room_id} reason={reason}")
     await manager.broadcast_to_room(room_id, summary)
 
@@ -3974,6 +3974,7 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
         db.collection("rooms").document(room_id).update({
             "status": "ENDED",
             "pet_xp_gain": pet_xp_gain,
+        "pet_coin_gain": pet_coin_gain,
             "all_participants": room_data.get("all_participants") or {},
         })
     except Exception as e:
@@ -4076,7 +4077,6 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
     except Exception as e:
         print(f"Error saving meeting record: {e}")
 
-    _apply_group_pet_reward(room_id, group_id_local, score_by_uid, avg_score, duration_minutes)
     return summary
 
 

@@ -287,6 +287,13 @@ function renderSummaryPet(msg, myScore) {
         xp.style.display = gain > 0 ? 'inline-flex' : 'none';
     }
 
+    const coins = document.getElementById('summary-pet-coins');
+    if (coins) {
+        const gain = Number(msg.pet_coin_gain || 0);
+        coins.textContent = gain > 0 ? t('群組金幣 +{gain}', {gain}) : '';
+        coins.style.display = gain > 0 ? 'inline-flex' : 'none';
+    }
+
     // --- 依分數分級的文字 ---
     const mascotMessage = document.getElementById('summary-mascot-message');
     if (mascotMessage) mascotMessage.textContent = summaryMascotMessage(myScore, face ? petName : '');
