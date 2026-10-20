@@ -46,8 +46,6 @@ def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4',resolution=1280):
    el(mesh,'ContourMeshVertex',x=xx-anchor[0],y=yy-anchor[1],u=xx/resolution,v=yy/resolution)
  return n
 
-el(r,'ImageAsset',id='0:7',name='Authored paw replacement poses',file='../../../frontend/assets/pets/illustrated/puppy-paw-poses-v1.png')
-el(r,'ImageAsset',id='0:8',name='Chest height paw inbetween',file='../../../frontend/assets/pets/illustrated/puppy-paw-mid-v2.png')
 # Front-to-back source order in Rive. Food and paws can cross the muzzle.
 food=el(ab,'Node',id='0:20',name='Held biscuit',x=320,y=430,opacity=0)
 for x in [-10,0,10]:
@@ -56,13 +54,17 @@ for x in [-10,0,10]:
 s=el(food,'Shape',name='Baked biscuit');el(s,'Rectangle',width=38,height=27,originX=.5,originY=.5,cornerRadiusTL=9)
 f=el(s,'Fill');g=el(f,'LinearGradient',startX=-12,startY=-10,endX=15,endY=14)
 el(g,'GradientStop',colorValue='FFE9C38A',position=0);el(g,'GradientStop',colorValue='FFC28C50',position=1)
-# Purpose-drawn replacements preserve fur and rounded anatomy through a large bend.
-mid=part(ab,'Chest paw drawing',26,(0,0,1254,1254),(627,500),(320,397),.24,asset='0:8',resolution=1254)
-mid.set('scaleY','.20')
-receive=part(ab,'Receive paw drawing',23,(650,20,610,590),(945,165),(320,397),.35,asset='0:7')
-raised=part(ab,'Raised paw drawing',24,(10,640,625,365),(335,950),(320,430),.40,asset='0:7')
-settle=part(ab,'Belly pat drawing',25,(650,650,600,550),(945,760),(320,397),.35,asset='0:7')
-receive.set('scaleY','.30');raised.set('scaleY','.50');settle.set('scaleY','.30')
+# Small care props move independently; the puppy's paws and torso never move.
+ball=el(ab,'Node',id='0:21',name='Play ball',x=440,y=590,opacity=0)
+for name,x,y,w,h,color in [('Ball',0,0,37,37,'FF839866'),('Ball highlight',-6,-7,11,8,'FFB8C899')]:
+ shape=el(ball,'Shape',name=name,x=x,y=y)
+ el(shape,'Ellipse',width=w,height=h,originX=.5,originY=.5)
+ fill=el(shape,'Fill');el(fill,'SolidColor',colorValue=color)
+bubbles=el(ab,'Node',id='0:22',name='Cleaning bubbles',x=320,y=250,opacity=0)
+for x,y,size in [(-72,-38,16),(65,-55,12),(-86,4,10),(83,-8,19)]:
+ shape=el(bubbles,'Shape',x=x,y=y,name='Soap bubble')
+ el(shape,'Ellipse',width=size,height=size,originX=.5,originY=.5)
+ fill=el(shape,'Fill');el(fill,'SolidColor',colorValue='88CAE0DC')
 # Shoulder anchors are hidden by natural fur overlaps; no cut-out faces or photo.
 armL=part(ab,'Left front paw',12,(550,445,240,380),(665,515),(255,397),.36)
 armR=part(ab,'Right front paw',13,(900,445,235,380),(1020,515),(385,397),.36)
@@ -81,7 +83,7 @@ shadow=el(ab,'Shape',name='Contact shadow',x=320,y=579)
 el(shadow,'Ellipse',width=275,height=22,originX=.5,originY=.5)
 f=el(shadow,'Fill');el(f,'SolidColor',colorValue='203F3525')
 # Native events separate visual progress from host application state.
-for eid,name in [(90,'foodTaken'),(91,'chewing'),(92,'feedComplete'),(93,'petComplete'),(94,'feedStart'),(95,'petStart')]:el(ab,'Event',id=f'0:{eid}',name=name)
+for eid,name in [(90,'foodTaken'),(91,'chewing'),(92,'feedComplete'),(93,'petComplete'),(94,'feedStart'),(95,'petStart'),(96,'wipeStart'),(97,'wipeComplete'),(98,'playStart'),(99,'playComplete')]:el(ab,'Event',id=f'0:{eid}',name=name)
 sm=el(ab,'StateMachine',id='0:3',name='Care')
 layer=el(sm,'StateMachineLayer',name='Character activity')
 el(layer,'AnyState',x=200,y=-160);el(layer,'ExitState',x=420,y=-160)
@@ -89,8 +91,9 @@ ent=el(layer,'EntryState',x=0,y=0);el(ent,'StateTransition',stateToId='0:50')
 # Public inputs: nearFood is reversible, feed/pet are consumable one-shot triggers.
 def cond(t,name):
  c=el(t,'TransitionViewModelCondition');cp=el(c,'TransitionPropertyViewModelComparator')
- if name in ['feed','pet']:
-  b=el(cp,'BindablePropertyTrigger');el(b,'DataBindContext',sourcePathIds=f'0:40-0:{45 if name=="feed" else 46}',propertyKey=686)
+ if name in ['feed','pet','wipe','play']:
+  property_id={'feed':45,'pet':46,'wipe':49,'play':44}[name]
+  b=el(cp,'BindablePropertyTrigger');el(b,'DataBindContext',sourcePathIds=f'0:40-0:{property_id}',propertyKey=686)
   el(c,'TransitionValueTriggerComparator')
  else:
   b=el(cp,'BindablePropertyBoolean');el(b,'DataBindContext',sourcePathIds='0:40-0:48',propertyKey=634)
@@ -101,20 +104,20 @@ def transition(s,to,condition=None,end=False):
   t.set('enableExitTime','true');t.set('exitTimeIsPercetange','true');t.set('exitTime','100')
  if condition:cond(t,condition)
  return t
-for idx in range(6):
+for idx in range(8):
  st=el(layer,'AnimationState',id=f'0:{50+idx}',animationId=f'0:{60+idx}',x=220+idx*200,y=(idx%2)*150,reset='true')
  if idx in [0,1]:
-  transition(st,2,'feed');transition(st,5,'pet');transition(st,1 if idx==0 else 0,'near' if idx==0 else 'far')
+  transition(st,2,'feed');transition(st,5,'pet');transition(st,6,'wipe');transition(st,7,'play');transition(st,1 if idx==0 else 0,'near' if idx==0 else 'far')
  elif idx in [2,3,4]:transition(st,idx+1 if idx<4 else 0,end=True)
  else:transition(st,0,end=True)
  if idx==2:el(st,'StateMachineFireEvent',eventId='0:94',occursValue='atStart')
  if idx==3:el(st,'StateMachineFireEvent',eventId='0:91',occursValue='atStart')
  if idx==4:el(st,'StateMachineFireEvent',eventId='0:92',occursValue='atEnd')
- if idx==5:
-  el(st,'StateMachineFireEvent',eventId='0:95',occursValue='atStart')
-  el(st,'StateMachineFireEvent',eventId='0:93',occursValue='atEnd')
+ if idx in [5,6,7]:
+  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:95,6:96,7:98}[idx]}',occursValue='atStart')
+  el(st,'StateMachineFireEvent',eventId=f'0:{ {5:93,6:97,7:99}[idx]}',occursValue='atEnd')
 # All timings below are authored for this character, not claimed industry rules.
-BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':255,'y':397,'rotation':0,'opacity':1},13:{'x':385,'y':397,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0},23:{'opacity':0,'y':397},24:{'opacity':0,'y':430},25:{'opacity':0,'y':397},26:{'opacity':0,'y':397}}
+BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':255,'y':397,'rotation':0,'opacity':1},13:{'x':385,'y':397,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},21:{'x':440,'y':590,'rotation':0,'opacity':0},22:{'y':250,'opacity':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0}}
 def keys(a,obj,prop,values,hold=False):
  o=next((n for n in a if n.tag=='KeyedObject' and n.get('objectId')==f'0:{obj}'),None)
  if o is None:o=el(a,'KeyedObject',objectId=f'0:{obj}')
@@ -182,7 +185,21 @@ animation(5,'Enjoy petting',45,{
  (14,'rotation'):[(0,0),(15,.12),(32,.06),(45,0)],(15,'rotation'):[(0,0),(18,-.1),(35,-.04),(45,0)],
  (17,'rotation'):[(0,0),(9,.1),(18,-.1),(27,.1),(36,-.1),(45,0)],
 })
-# Native replacement-pose animation: no extreme UV warping of painted arms.
+animation(6,'Gentle face clean',54,{
+ (10,'rotation'):[(0,0),(12,-.045),(25,.045),(39,-.02),(54,0)],
+ (30,'opacity'):[(0,1),(8,0),(42,1),(54,1)],(31,'opacity'):[(0,0),(8,1),(42,0),(54,0)],
+ (14,'rotation'):[(0,0),(18,.06),(35,-.03),(54,0)],(15,'rotation'):[(0,0),(18,-.04),(35,.04),(54,0)],
+ (22,'opacity'):[(0,0),(7,1),(44,0),(54,0)],(22,'y'):[(0,265),(24,240),(54,220)],
+})
+animation(7,'Watch and play with ball',78,{
+ (10,'rotation'):[(0,0),(18,.06),(42,-.06),(60,.04),(78,0)],
+ (17,'rotation'):[(0,0),(12,.12),(24,-.12),(36,.12),(48,-.12),(60,.1),(78,0)],
+ (21,'opacity'):[(0,0),(5,1),(69,0),(78,0)],
+ (21,'x'):[(0,440),(21,200),(47,440),(69,220),(78,220)],
+ (21,'rotation'):[(0,0),(21,-5),(47,0),(69,-5),(78,-5)],
+})
+# All care animations retain the fixed resting front paws.
+
 for idx,a in ANIMATIONS.items():
  duration=int(a.get('duration'))
  for obj in a.findall('KeyedObject'):
@@ -210,9 +227,9 @@ for idx,a in ANIMATIONS.items():
   o=el(a,'KeyedObject',objectId='0:90');prop=el(o,'KeyedProperty',property='trigger')
   el(prop,'KeyFrameCallback',frame=9)
 vm=el(r,'ViewModel',id='0:40',name='PuppyCare',defaultInstanceId='0:41')
-for name,pid,typ in [('feed',45,'Trigger'),('pet',46,'Trigger'),('attention',47,'Number'),('nearFood',48,'Boolean')]:el(vm,'ViewModelProperty'+typ,name=name,id=f'0:{pid}')
+for name,pid,typ in [('feed',45,'Trigger'),('pet',46,'Trigger'),('wipe',49,'Trigger'),('play',44,'Trigger'),('attention',47,'Number'),('nearFood',48,'Boolean')]:el(vm,'ViewModelProperty'+typ,name=name,id=f'0:{pid}')
 inst=el(vm,'ViewModelInstance',id='0:41',name='Default',exports='true')
-for pid,typ,val in [(45,'Trigger',0),(46,'Trigger',0),(47,'Number',0),(48,'Boolean','false')]:el(inst,'ViewModelInstance'+typ,viewModelPropertyId=f'0:{pid}',propertyValue=val)
+for pid,typ,val in [(45,'Trigger',0),(46,'Trigger',0),(49,'Trigger',0),(44,'Trigger',0),(47,'Number',0),(48,'Boolean','false')]:el(inst,'ViewModelInstance'+typ,viewModelPropertyId=f'0:{pid}',propertyValue=val)
 # Explicit hit geometry is independent of texture UV mesh extents.
 for hid,hy,hh in [(5,430,140),(6,245,150)]:
  hit=el(ab,'Shape',id=f'0:{hid}',name='Preview hit target',x=320,y=hy)

@@ -1,6 +1,6 @@
 // Script-free native Rive rig. Image layers keep the approved painted artwork.
 const ASSET = new URL('../../assets/pets/illustrated/puppy-v1.riv', import.meta.url);
-ASSET.searchParams.set('v', 'stationary-paws-20261020-2');
+ASSET.searchParams.set('v', 'care-20261020-3');
 const RUNTIME = new URL('../../vendor/rive/rive.js', import.meta.url);
 let runtimePromise;
 function loadRuntime() {
@@ -27,6 +27,7 @@ export class IllustratedPetViewer {
             this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
             this.vm = this.rive.viewModelInstance;
             this.currentAction = null;
+            this._finishAction?.(false);
             if (interrupted) this.onEvent({ name: 'actionCancelled', action: interrupted });
             this.syncMotion();
         };
@@ -37,9 +38,9 @@ export class IllustratedPetViewer {
             // Public actions own their lifetime, so stale/duplicate events cannot
             // complete an unrelated action or cause a second food consumption.
             if (!this.currentAction) return;
-            if (name === 'feedComplete' && this.currentAction !== 'feed') return;
-            if (name === 'petComplete' && this.currentAction !== 'pet') return;
-            if (name.endsWith('Complete')) this.currentAction = null;
+            const action = ['feed', 'pet', 'wipe', 'play'].find(action => name.startsWith(action));
+            if (action && action !== this.currentAction) return;
+            if (name.endsWith('Complete')) { this.currentAction = null; this._finishAction?.(true); }
             this.onEvent({ name, reducedMotion: false });
         };
     }
@@ -65,7 +66,7 @@ export class IllustratedPetViewer {
             });
             if (this.disposed) { this.rive.cleanup(); return; }
             this.vm = this.rive.viewModelInstance;
-            if (!this.vm?.trigger('feed') || !this.vm?.trigger('pet')) throw new Error('狗狗互動資料沒有載入完成');
+            if (!['feed', 'pet', 'wipe', 'play'].every(action => this.vm?.trigger(action))) throw new Error('狗狗互動資料沒有載入完成');
             this.loaded = true;
             this.rive.on(EventType.RiveEvent, this._riveEvent);
             this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -98,19 +99,39 @@ export class IllustratedPetViewer {
     setAttention(x = 0) {
         if (this.loaded && !this.disposed && !this.busy && !this.motion.matches) this.vm.number('attention').value = Math.max(-1, Math.min(1, x)) * .025;
     }
+    setStatus(status) { this.container.dataset.petStatus = status || 'NORMAL'; }
+    playAndWait(action) {
+        if (!this.loaded || this.disposed || this.busy) return Promise.resolve(false);
+        return new Promise(resolve => {
+            const finish = completed => {
+                clearTimeout(timer); this._finishAction = null; resolve(completed);
+            };
+            const timer = setTimeout(() => {
+                if (!this.disposed) {
+                    this.currentAction = null;
+                    this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
+                    this.vm = this.rive.viewModelInstance; this.syncMotion();
+                }
+                finish(false);
+            }, 9000);
+            this._finishAction = finish;
+            if (!this.play(action)) finish(false);
+        });
+    }
     play(action) {
-        if (!this.loaded || this.disposed || this.busy || !['feed', 'pet'].includes(action)) return false;
+        if (!this.loaded || this.disposed || this.busy || !['feed', 'pet', 'wipe', 'play'].includes(action)) return false;
         this.vm.boolean('nearFood').value = false;
         this.vm.number('attention').value = 0;
         this.currentAction = action;
         if (this.motion.matches) {
             // With reduced motion, keep the animal still and confirm via text.
-            // This preview has no server-side care, inventory or reward writes.
-            this.onEvent({ name: action === 'feed' ? 'feedStart' : 'petStart', reducedMotion: true });
+            // The renderer never writes care stats; its caller owns API confirmation.
+            this.onEvent({ name: `${action}Start`, reducedMotion: true });
             queueMicrotask(() => {
                 if (this.disposed || this.currentAction !== action) return;
                 this.currentAction = null;
-                this.onEvent({ name: action === 'feed' ? 'feedComplete' : 'petComplete', reducedMotion: true });
+                this._finishAction?.(true);
+                this.onEvent({ name: `${action}Complete`, reducedMotion: true });
             });
         } else this.vm.trigger(action).trigger();
         return true;
@@ -118,6 +139,7 @@ export class IllustratedPetViewer {
     dispose() {
         if (this.disposed) return;
         this.disposed = true; this.loaded = false; this.currentAction = null;
+        this._finishAction?.(false);
         cancelAnimationFrame(this.motionFrame);
         this.resizeObserver?.disconnect();
         document.removeEventListener('visibilitychange', this._visibility);
