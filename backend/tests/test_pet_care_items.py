@@ -74,3 +74,4 @@ class EconomyTests(unittest.TestCase):
         from pet_care import draw_inventory_item
         for roll in [0, 7000, 9500]:
             self.assertNotEqual(draw_inventory_item('toy', lambda n: roll, lambda items: items[0])['id'], 'cloth_ball')
+            self.assertNotEqual(draw_inventory_item('food', lambda n: roll, lambda items: items[0])['id'], 'oat_biscuit')

@@ -125,9 +125,9 @@ def session_coins(avg_score, duration_minutes, member_count):
 
 
 def draw_inventory_item(kind, randbelow=None, choice=None):
-    # The free starter ball is excluded from the paid toy pool.
+    # Free starter items are excluded from paid pools.
     return draw_care_item('feed' if kind == 'food' else 'play', randbelow, choice,
-                          exclude={BASE_TOY} if kind == 'toy' else set())
+                          exclude={BASE_TOY} if kind == 'toy' else {BASE_FOOD})
 
 
 def apply_inventory_draw(data, item):
