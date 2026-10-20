@@ -154,6 +154,12 @@
                 <small id="pet-play-state">可互動</small>
             </button>
         </div>
+        <div class="pet-supplies-bar">
+            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>群組金幣</small></span>
+            <button id="btn-pet-draw" type="button">抽物品</button>
+            <button id="btn-pet-bag" type="button">背包</button>
+        </div>
+        <div id="pet-care-result" class="care-item-result" role="status" hidden></div>
         <div id="pet-action-feedback" class="pet-action-feedback" role="status" aria-live="polite"></div>
         <p id="pet-sync-status" class="pet-sync-status" role="status"></p>
 
@@ -194,6 +200,17 @@
 
         <button id="btn-pet-tama-back" class="btn secondary" style="width:100%; margin-top:4px;">返回</button>
     </div>
+
+    <dialog id="pet-care-shop" class="pet-care-shop" aria-labelledby="pet-shop-title">
+        <div class="care-shop-heading"><div><p>一起聚會，替牠添點新東西</p><h2 id="pet-shop-title">補給小舖</h2></div><button data-shop-close type="button" aria-label="關閉補給小舖">×</button></div>
+        <div class="care-shop-wallet"><span>群組共用金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
+        <p class="care-shop-rules">至少兩位群組成員參與、滿 10 分鐘的聚會可獲得金幣。時長與專注表現會影響獎勵。</p>
+        <div class="care-shop-tabs"><button data-shop-tab="draw" type="button" aria-pressed="true">抽物品</button><button data-shop-tab="bag" type="button" aria-pressed="false">群組背包</button></div>
+        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button></div>
+        <div data-shop-result class="care-item-result" role="status" aria-live="polite" hidden></div>
+        <p id="pet-draw-status" class="care-draw-status" role="status" aria-live="polite"></p>
+        <div data-shop-content></div>
+    </dialog>
 
     <dialog id="pet-adopt-dialog" class="pet-adopt-dialog" aria-labelledby="pet-adopt-title">
         <form id="pet-adopt-form">

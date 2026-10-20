@@ -3,6 +3,7 @@ import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
+import { CareCollection, renderCareResult } from '../../features/pets/care-collection.js';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -175,6 +176,8 @@ function isLegacyOpaquePet(url) {
 // ── 狀態 ─────────────────────────────────────────────────────────────────────
 
 let _groupPet   = null;
+let _careCatalog = null, _careCollection = null, _drawBusy = false;
+const _pendingDraw = new Map();
 let _groupId    = null;
 let _isCreator  = false;
 let _entryMode  = 'list';   // 'list' | 'direct'
@@ -231,6 +234,12 @@ export function init() {
         }
     };
 
+    _careCollection = new CareCollection(document.getElementById('pet-care-shop'), {
+        onDraw: drawCareItem, onUse: doAction,
+        availability: action => careAvailability(_groupPet, action, {busy: _actionLock || _petViewer?.busy || Boolean(_pendingCare.get(careKey())), pending: _pendingCare.get(careKey())?.action}),
+    });
+    document.getElementById('btn-pet-draw').onclick = () => { syncCareCollection(); _careCollection.open('draw'); };
+    document.getElementById('btn-pet-bag').onclick = () => { syncCareCollection(); _careCollection.open('bag'); };
     document.getElementById('btn-pet-feed').onclick  = () => doAction('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
     document.getElementById('btn-pet-play').onclick  = () => doAction('play');
@@ -494,6 +503,7 @@ async function loadGroupPet() {
         if (!petRes.res.ok) throw new Error(readApiError(petRes.data, '寵物狀態載入失敗'));
         if (!grpRes.res.ok) throw new Error(readApiError(grpRes.data, '群組資料載入失敗'));
         _groupPet = petRes.data?.pet || null;
+        _careCatalog = petRes.data?.care_catalog || null;
         if (_groupPet) {
             _groupPet._groupName = grpRes.data?.group?.name || '群組';
         }
@@ -511,12 +521,12 @@ async function loadGroupPet() {
     }
 }
 
-async function doAction(action) {
+async function doAction(action, itemId) {
     const pending = _pendingCare.get(careKey());
     const availability = careAvailability(_groupPet, action, { busy: _actionLock || _petViewer?.busy, pending: pending?.action });
     if (availability.disabled) return;
     const seq = _screenSeq, groupId = _groupId, key = careKey();
-    const request = pending || { action, request_id: (crypto.randomUUID?.() || [...crypto.getRandomValues(new Uint8Array(16))].map(n => n.toString(16).padStart(2, '0')).join('')) };
+    const request = pending || { action, item_id: itemId, request_id: (crypto.randomUUID?.() || [...crypto.getRandomValues(new Uint8Array(16))].map(n => n.toString(16).padStart(2, '0')).join('')) };
     _pendingCare.set(key, request); _actionLock = true; renderActionButtons();
     showActionFeedback('正在確認這次互動…', 'pending');
     let confirmed = false;
@@ -531,13 +541,15 @@ async function doAction(action) {
         }
         confirmed = true; _pendingCare.delete(key);
         if (!sameScreen(seq, groupId)) return;
-        for (const field of ['pet_energy','pet_happiness','pet_cleanliness','pet_status','pet_hp','pet_cooldowns']) {
+        for (const field of ['pet_energy','pet_happiness','pet_cleanliness','pet_status','pet_hp','pet_cooldowns','pet_discovered_items','pet_last_care','pet_last_toy','pet_coins','pet_food_inventory','pet_owned_toys']) {
             if (data?.[field] !== undefined) _groupPet[field] = data[field];
         }
         showActionFeedback(`${t('{action}完成', { action: t(ACTION_LABELS[action]) })} · ${formatChanges(data?.changes || {})}`, 'success');
         playPetReaction(action, data?.replayed ? {} : data?.changes || {});
+        renderCareResult(document.getElementById('pet-care-result'), data?.care_item, `${t(action === 'feed' ? '這次吃的是' : '這次玩的是')} · ${formatChanges(data?.changes || {})}`);
+        syncCareCollection();
         if (!data?.replayed) {
-            if (_petViewer?.loaded) await _petViewer.playAndWait(action);
+            if (_petViewer?.loaded) await _petViewer.playAndWait(action, data?.care_item);
             else { applyAvatarState({ feed: 'eating', wipe: 'wiping', play: 'playing' }[action], true); await delay(900); }
         }
         if (sameScreen(seq, groupId)) setSpeech(_groupPet.pet_status || 'NORMAL', true);
@@ -655,6 +667,7 @@ function renderGroupMode() {
         if (_lastRenderedStatus !== status) setSpeech(status, true);
         _lastRenderedStatus = status;
     }
+    syncCareCollection();
     renderActionButtons();
     if (window.lucide) window.lucide.createIcons();
     if (shouldPlayRelease) playPetRelease();
@@ -821,6 +834,10 @@ function applyAvatarState(cls, restart = false) {
 }
 
 function resetSceneFeedback() {
+    document.getElementById('pet-care-shop')?.close();
+    renderCareResult(document.getElementById('pet-care-result'), null, '');
+    renderCareResult(document.querySelector('[data-shop-result]'), null, '');
+    document.getElementById('pet-draw-status').textContent = '';
     clearTimeout(_reactionTimer); clearTimeout(_releaseTimer); clearTimeout(_feedbackTimer);
     _reactionTimer = _releaseTimer = _feedbackTimer = null;
     const stage = document.getElementById('pet-stage');
@@ -949,19 +966,20 @@ async function syncPetViewer() {
     const status = document.getElementById('pet-viewer-status'), retry = document.getElementById('btn-pet-animation-retry');
     stage.classList.add('has-illustrated-pet'); status.hidden = false; status.textContent = '狗狗正在過來…';
     try {
-        const { IllustratedPetViewer } = await import('../../features/pets/illustrated-viewer.js?v=care-20261020-3');
+        const { IllustratedPetViewer } = await import('../../features/pets/illustrated-viewer.js?v=care-inventory-20261020-4');
         if (version !== _viewerVersion) return;
         const viewer = new IllustratedPetViewer(document.getElementById('pet-3d-stage'), {
             onEvent: event => {
                 if (version !== _viewerVersion) return;
                 stage.dataset.carePhase = event.name;
-                const words = { feedStart: '啊，開飯了。', chewing: '嚼嚼，好香。', wipeStart: '閉上眼睛，輕輕擦一下。', playStart: '球球滾到哪裡了？', petStart: '嗯，再摸一下。' };
+                const words = { feedStart: '啊，開飯了。', chewing: '嚼嚼，好香。', wipeStart: '閉上眼睛，輕輕擦一下。', playStart: '一起玩一下。', petStart: '嗯，再摸一下。' };
                 if (words[event.name]) document.getElementById('pet-speech').textContent = words[event.name];
                 renderActionButtons();
             },
         });
         _petViewer = viewer; await viewer.load();
         if (version !== _viewerVersion || viewer.disposed) return;
+        viewer.setCareItem(_groupPet?.pet_last_toy);
         stage.classList.add('illustrated-ready'); status.hidden = true;
         document.getElementById('btn-pet-touch').hidden = false; renderActionButtons();
     } catch (error) {
@@ -1117,3 +1135,57 @@ function formatChanges(changes) {
 }
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+
+function syncCareCollection() {
+    if (!_groupPet) return;
+    const key = careKey();
+    if (!_pendingDraw.has(key)) {
+        try {
+            const saved = JSON.parse(sessionStorage.getItem(`pet_draw_pending:${key}`));
+            if (saved && ['food','toy'].includes(saved.kind) && /^[A-Za-z0-9_-]{8,64}$/.test(saved.request_id)) _pendingDraw.set(key,saved);
+        } catch { /* Storage may be unavailable; in-memory retries still work. */ }
+    }
+    document.getElementById('pet-coin-balance').textContent = Number(_groupPet.pet_coins || 0);
+    document.getElementById('btn-pet-draw').disabled = !_careCatalog;
+    document.getElementById('btn-pet-bag').disabled = !_careCatalog;
+    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,pending:_pendingDraw.get(careKey()),busy:_drawBusy});
+}
+async function drawCareItem(kind) {
+    if (_drawBusy || !_groupId) return;
+    const key = careKey(), seq = _screenSeq, groupId = _groupId;
+    const pending = _pendingDraw.get(key);
+    if (pending && pending.kind !== kind) return;
+    const request = pending || {kind,request_id:crypto.randomUUID()};
+    _pendingDraw.set(key,request);
+    try { sessionStorage.setItem(`pet_draw_pending:${key}`,JSON.stringify(request)); } catch { /* Keep in-memory request. */ }
+    _drawBusy = true;
+    const status = document.getElementById('pet-draw-status'); status.textContent = t('正在打開小包…');
+    syncCareCollection();
+    try {
+        const {res,data} = await petRequest(`/api/groups/${encodeURIComponent(groupId)}/pet/draw`, {method:'POST',body:JSON.stringify(request)});
+        if (!res.ok) {
+            if (res.status < 500) clearPendingDraw(key);
+            throw new Error(readApiError(data,'抽取失敗，請再試一次'));
+        }
+        clearPendingDraw(key);
+        if (!sameScreen(seq,groupId)) return;
+        for (const field of ['pet_coins','pet_food_inventory','pet_owned_toys','pet_discovered_items']) {
+            if (data[field] !== undefined) _groupPet[field] = data[field];
+        }
+        const message = data.duplicate ? t('已收藏的玩具，返還 {n} 金幣', {n:data.refund})
+            : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，可重複使用');
+        _careCollection.result(data.care_item,message);
+        status.textContent = t(data.replayed ? '已確認上次的抽取結果，沒有再次扣款。' : '打開背包就能使用。');
+    } catch(error) {
+        if (sameScreen(seq,groupId)) status.textContent = _pendingDraw.has(key) ? t('尚未確認結果，請按原抽取按鈕重試，不會再次扣款。') : error.message;
+    } finally {
+        _drawBusy = false;
+        if (sameScreen(seq,groupId)) syncCareCollection();
+    }
+}
+
+function clearPendingDraw(key) {
+    _pendingDraw.delete(key);
+    try { sessionStorage.removeItem(`pet_draw_pending:${key}`); } catch { /* Optional persistence. */ }
+}
