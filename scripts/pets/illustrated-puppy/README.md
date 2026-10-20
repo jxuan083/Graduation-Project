@@ -1,31 +1,38 @@
-# 手繪狗狗互動預覽
+# 手繪狗狗與正式養成整合
 
-本輪先完成使用者喜歡的手繪角色 A，供實際互動評估。人臉合成暫緩；尚未接入正式養成 API、背包、抽角色或換裝。綠色背心目前畫在身體素材上，不能獨立更換。
+正式入口是群組的「領養群組寵物」與「去養成」。`frontend/pet-preview.html` 保留為純美術互動試玩，不會呼叫養成 API。
 
-## 本機試玩
+## 目前角色
 
-在專案根目錄執行：
+- `puppy-v1`：使用者選定的手繪狗狗。前腳與身體在所有狀態都固定，僅頭部、表情、耳朵、尾巴和道具會動。
+- 使用者於 2026-10-20 明確要求「讓他的手不動」；不可重新加入抬手、手部替換、身體呼吸縮放或外層角色彈跳。
+- 背心畫在身體上。抽角色、獨立衣服與玩具背包尚未實作，不能把目前的成長收藏徽章當成可穿戴衣服。
+- 人臉合成暫緩。既有照片角色仍以保存的圖片顯示；建立者可換成插畫狗狗，保留成長與冷卻。
 
-```sh
-python3 -m http.server 5178 --directory frontend
-```
+## 資產
 
-開啟 <http://127.0.0.1:5178/pet-preview.html>。可按按鈕餵食、拖餅乾到嘴邊，或點頭部摸摸牠。餵食完成事件才累計試玩次數，重新整理即歸零。
+`frontend/assets/pets/illustrated/` 中目前生效的是：
 
-## 素材與動畫
+- `puppy-parts-v1.png`：原始透明分層圖集。
+- `puppy-poster-v1.png`：由實際 Rive 畫布輸出的透明縮圖，供群組卡片、聚會和載入失敗時使用。
+- `puppy-v1.riv`：無腳本原生 Rive，約 1.76 MB。只嵌入原始分層圖集一次。
 
-- 核准的美術方向：`docs/pet-concepts/character-directions-v1.png`。
-- 圖片由內建 image_gen 產生；完整提示詞、來源和限制記在 `frontend/assets/pets/illustrated/source.json`。
-- `puppy-parts-v1.png` 包含身體、頭部表情、耳朵、尾巴等分層；`puppy-paw-poses-v1.png` 是手部姿勢替換圖；`puppy-paw-mid-v2.png` 補上胸前的中間姿勢。
-- 原生、無腳本 Rive 使用 UV 裁取與分層變換，搭配表情及手部替換圖。保留毛髮輪廓，避免過度拉伸手臂圖片。
-- 六個狀態：Idle、Notice、Receive、Chew、Satisfied、Pet。待機有呼吸、眨眼、耳尾輕動；手邊食物離開後可取消期待。
-- View Model `PuppyCare`：`feed` / `pet` trigger、`nearFood` boolean、`attention` number。
-- 原生事件：`feedStart`、`foodTaken`、`chewing`、`feedComplete`、`petStart`、`petComplete`。瀏覽器以完成事件解鎖操作，避免連按重複計數。
-- 本機 vendored Rive runtime 和 WASM，不需要外部 CDN。減少動態偏好使用靜止角色與文字回饋。
+先前手部姿勢圖留作來源紀錄，已從執行中的 Rive 移除。內建 image_gen 的完整提示詞與美術來源保存在 `source.json`，不依賴機器上的生成快取路徑。
+
+## 動畫與介面
+
+Artboard `Puppy`，State Machine `Care`，View Model `PuppyCare`。
+
+- 觸發器：`feed`、`pet`、`wipe`、`play`。
+- 輔助輸入：`nearFood` boolean、`attention` number。
+- 八個狀態：Idle、Notice、Receive、Chew、Satisfied、Pet、Wipe、Play。
+- 餵食在嘴邊顯示餅乾與咀嚼；清潔閉眼並出現泡泡；玩耍看著球滾動；摸頭有獨立表情。
+- 事件：`feedStart`、`foodTaken`、`chewing`、`feedComplete`，以及 `pet` / `wipe` / `play` 的 `Start` 與 `Complete`。
+- `IllustratedPetViewer.playAndWait(action)` 等實際原生完成事件，取消／卸載會結束等待；有超時恢復。減少動態模式改為靜止圖與文字回饋。
 
 ## 重建
 
-需要 Rive CLI 1.6.0；將 `rive` 加入 PATH 後，在專案根目錄執行：
+需要 Rive CLI 1.6.0，將 `rive` 加入 PATH 後在專案根目錄執行：
 
 ```sh
 python3 scripts/pets/build_illustrated_puppy.py
@@ -35,12 +42,6 @@ rive scripts/pets/illustrated-puppy --once
 cp scripts/pets/illustrated-puppy/build/illustrated-puppy.riv frontend/assets/pets/illustrated/puppy-v1.riv
 ```
 
-`scene.rml` 由 Python 產生，修改生成器後應重新生成。CLI 的 `--advance=N` 以 60 fps 的幀數計算；截取特定階段建議使用 `--advance=2s` 這類秒數。
+`scene.rml` 是生成檔。CLI 的 `--advance=N` 用 60 fps 幀數計算，截圖建議用 `--advance=2s` 指定秒數。
 
-## 本輪驗證
-
-2026-10-20：原生 Rive verify/inspect 無錯誤或警告；既有前端測試 40/40 通過。另用 Playwright 實際載入 Rive，檢查桌面、390px 手機、DPR 2、拖放成功／失敗／取消、快速重複操作、連續餵食、摸頭、減少動態切換、重新整理及載入失敗後重試。目視檢查待機、接食、咀嚼和靜止畫面。這些確認功能與顯示正常，不代表使用者已驗收動畫品質。
-
-2026-10-20 前腳修正：使用者指出手不自然後，縮短休息前腳並調整到背心旁；接食、胸前、嘴邊各自固定肩膀接點，移除整組手臂上下平移。用新的胸前姿勢做不透明替換，避免交疊淡入造成殘影；餅乾位置同步到當下手掌。此版仍是分層插畫替換動畫，需使用者重新評估自然度。
-
-2026-10-20 最新指示覆蓋前述手部修正：使用者明確要求「讓他的手不動」。目前六個狀態均固定休息前腳的位置、旋轉及可見度，所有替換前腳圖保持隱藏。餵食改拖到嘴邊，只保留頭部與表情反應。先前姿勢圖及提示詞保留為來源紀錄，不代表目前有啟用抬手動作。
+正式系統、API、驗證與部署說明見 [pet-system.md](../../../docs/pet-system.md)。

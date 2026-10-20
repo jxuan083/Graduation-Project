@@ -210,3 +210,14 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 - 2026-08-05：建立本檔；新增 UX 升級計畫；確認 repo 雙 clone 問題。
 - 2026-07-24：local-first CI、後端 sync 強化、shared anchor UI、requirements 拆分、scheduled gatherings 併入 start flow（`36e44ee`..`57ed2fc`）。
 - 2026-07-23：產品重新定位、CI/CD 分流、codebase 優化計畫成文。
+
+## 2026-10-20 寵物系統整合
+
+- 原生手繪狗狗接入正式群組養成頁，直接領養、取名，不需要人臉；舊照片角色保留靜態顯示及換角入口。
+- 使用者明確要求手不動：前腳、身體及外層 CSS 均固定；餵食／清潔／玩球／摸頭使用表情、頭部與獨立道具回應。Rive 從約 4.2 MB 降為 1.76 MB。
+- 領養保留原養成與聚會進度。照顧 API 新增同筆重試回執，操作等後端確認，斷線不假成功；改名／刪除／領養使用原生 dialog。
+- 群組入口、未領養群組列表、狀態一致性、冷卻原因、手機操作、動畫失敗回退、離頁清理與中英文字串一起更新。
+- 完整流程見 docs/pet-system.md；素材與重建見 scripts/pets/illustrated-puppy/README.md。
+- 本輪以單元測試、正式頁面瀏覽器測試，以及完整 App + 真 FastAPI + 隔離 Firebase Emulator 驗證。正式部署與原生裝置驗收尚未執行；既有 android/ 未追蹤目錄不動。
+- 最終檢查：前端 42/42、後端 109/109、全 JS/Python 語法及原生 Rive verify 通過。瀏覽器涵蓋 API 拒絕、回應遺失重試、靜態回退／恢復、減少動態和原生動作完成。
+- 本機驗收服務：前端 5178、後端 8080、Auth 9099、獨立 Firestore 8281；原有 8081 未改動。臨時啟動設定在 /tmp/pet-care-review，試玩帳號與群組只存在隔離 Emulator，不是正式群組。
