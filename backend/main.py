@@ -21,6 +21,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from pet_care import care_catalog, draw_care_item, apply_item_effects, discovered_items, item_by_id
 from pet_logic import (
     GROUP_PET_ACTION_COOLDOWN_SECONDS,
     GROUP_PET_STAT_DEFAULTS,
@@ -3028,6 +3029,7 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
     return {
         "status": "success",
         "pet": pet_fields,
+        "care_catalog": care_catalog(),
         "pet_person": pet_person_profile,
         "pet_body_options": PET_BODY_OPTIONS,
         "member_count": len(data.get("member_uids", [])),
@@ -3240,6 +3242,9 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         "pet_body_emoji": data.get("pet_body_emoji"),
         "pet_target_uid": data.get("pet_target_uid"),
         "pet_cooldowns": _group_pet_cooldowns(data, uid),
+        "pet_discovered_items": discovered_items(data),
+        "pet_last_care": item_by_id(data.get("pet_last_care_id")),
+        "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
     }
     payload.update(_group_pet_display(data))
     return payload
@@ -3279,6 +3284,9 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
                 return {
                     **receipt["result"], **_group_pet_display(data),
                     "pet_cooldowns": _group_pet_cooldowns(data, uid), "replayed": True,
+                    "pet_discovered_items": discovered_items(data),
+                    "pet_last_care": item_by_id(data.get("pet_last_care_id")),
+                    "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
                 }
         if _group_pet_meeting_state(data).get("pet_is_caged"):
             raise HTTPException(
@@ -3307,7 +3315,8 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
         if action == "wipe" and stats["pet_cleanliness"] >= 95:
             raise HTTPException(status_code=409, detail="寵物現在很乾淨，不需要再清潔")
 
-        next_stats = _apply_group_pet_action(stats, action)
+        care_item = draw_care_item(action)
+        next_stats = apply_item_effects(stats, care_item) if care_item else _apply_group_pet_action(stats, action)
         energy = next_stats["pet_energy"]
         happiness = next_stats["pet_happiness"]
         cleanliness = next_stats["pet_cleanliness"]
@@ -3320,6 +3329,11 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             "pet_status": new_status,
             "pet_last_updated": firestore.SERVER_TIMESTAMP,
         }
+        if care_item:
+            updates["pet_discovered_items"] = sorted(set(discovered_items(data)) | {care_item["id"]})
+            updates["pet_last_care_id"] = care_item["id"]
+            if action == "play":
+                updates["pet_last_toy_id"] = care_item["id"]
         user_cooldowns[action] = firestore.SERVER_TIMESTAMP
         cooldowns[uid] = user_cooldowns
         updates["pet_action_cooldowns"] = cooldowns
@@ -3341,6 +3355,10 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             "pet_cleanliness": round(cleanliness), "pet_status": new_status,
             "pet_hp": _group_pet_hp(next_stats), "changes": changes,
             "pet_cooldowns": response_cooldowns,
+            "care_item": care_item,
+            "pet_discovered_items": discovered_items({**data, **updates}),
+            "pet_last_care": item_by_id(updates.get("pet_last_care_id", data.get("pet_last_care_id"))),
+            "pet_last_toy": item_by_id(updates.get("pet_last_toy_id", data.get("pet_last_toy_id"))),
         }
         if payload.request_id:
             receipts[uid] = (user_receipts + [{

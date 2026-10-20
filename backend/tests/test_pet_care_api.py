@@ -37,7 +37,8 @@ class PetCareApiTests(unittest.TestCase):
                 return value
             self.data.update(resolve(fields))
         self.tx.update.side_effect = update
-        for patcher in [patch.object(main, 'db', self.db),
+        for patcher in [patch.object(main, 'draw_care_item', side_effect=lambda action: main.item_by_id({'feed': 'oat_biscuit', 'play': 'cloth_ball'}.get(action))),
+                        patch.object(main, 'db', self.db),
                         patch.object(main.firestore, 'transactional', side_effect=lambda fn: fn)]:
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -88,6 +89,21 @@ class PetCareApiTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             self.action(action='play')
         self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_rare_draw_is_applied_once_and_discoveries_are_shared(self):
+        self.adopt()
+        with patch.object(main, 'draw_care_item', return_value=main.item_by_id('heart_biscuit')) as draw:
+            first = self.action()
+            replay = self.action()
+            draw.assert_called_once_with('feed')
+        self.assertEqual(first['care_item']['rarity'], 'treasure')
+        self.assertEqual(first['changes']['pet_energy'], 35)
+        self.assertEqual(replay['care_item'], first['care_item'])
+        self.assertEqual(self.data['pet_discovered_items'], ['heart_biscuit'])
+        public = main._group_pet_public_payload(self.data, 'member')
+        self.assertEqual(public['pet_last_care']['id'], 'heart_biscuit')
+        self.assertEqual(public['pet_discovered_items'], ['heart_biscuit'])
+        self.assertNotIn('pet_accumulated_score', first['changes'])
 
     def test_separate_action_still_obeys_cooldown_and_membership(self):
         self.adopt()
