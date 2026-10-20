@@ -7,7 +7,7 @@ let viewer, drag, suppressClick = false, fed = 0, version = 0;
 function controls() { buttons.forEach(button => button.disabled = !viewer?.loaded || viewer.busy); }
 function onEvent(event) {
     const text = {
-        feedStart: ['給我吃的嗎？', '伸手接住餅乾'], foodTaken: ['接到了！', '把餅乾拿到嘴邊'],
+        feedStart: ['給我吃的嗎？', '等你把餅乾拿近'], foodTaken: ['啊嗚！', '咬一口餅乾'],
         chewing: ['嚼嚼，好香。', '正在吃餅乾'], feedComplete: ['吃飽了，還想陪你一下。', '吃飽後，舒服地坐一下'],
         petStart: ['嗯，再摸一下。', '放鬆地靠過來'], petComplete: ['有你陪著真好。', '心情很好'],
         actionCancelled: ['陪我坐一下吧。', '休息一下'],
@@ -64,11 +64,11 @@ snack.onpointermove=e=>{
     }
     if(!drag.active)return;
     drag.ghost.style.left=`${e.clientX}px`;drag.ghost.style.top=`${e.clientY}px`;
-    // Match the actual hand location in the square, bottom-aligned Rive canvas.
+    // Match the actual mouth location in the square, bottom-aligned Rive canvas.
     const r=viewer.canvas.getBoundingClientRect();
-    drag.near=Math.hypot((e.clientX-r.left)/r.width-.5,(e.clientY-r.top)/r.height-.74)<.17;
+    drag.near=Math.hypot((e.clientX-r.left)/r.width-.5,(e.clientY-r.top)/r.height-.46)<.17;
     stage.classList.toggle('food-near',drag.near);viewer.noticeFood(drag.near);
-    speech.textContent=drag.near?'是給我的嗎？放開就接住。':'把餅乾拿到我的手邊。';
+    speech.textContent=drag.near?'是給我的嗎？放開就接住。':'把餅乾拿到我的嘴邊。';
 };
 snack.onpointerup=()=>{
     if(!drag)return;
