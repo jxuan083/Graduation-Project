@@ -21,9 +21,9 @@ el(r,'ImageAsset',id='0:4',name='Painted puppy layers',file='../../../frontend/a
 
 ARM_VERTICES={}
 ANIMATIONS={}
-def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4'):
+def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4',resolution=1280):
  n=el(parent,'Node',id=f'0:{pid}',name=name,x=pos[0],y=pos[1],scaleX=scale,scaleY=scale)
- if pid in [23,24,25]:n.set('opacity','0')
+ if pid in [23,24,25,26]:n.set('opacity','0')
  image=el(n,'Image',assetId=asset,name=name+' paint',originX=0,originY=0)
  mesh=el(image,'Mesh',name=name+' UV cutout',triangleIndexBytes='AAECAAID')
  x,y,w,h=crop
@@ -34,7 +34,7 @@ def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4'):
   triangles=[]; rows=[]
   for row,col in ring:
    xx=x+col*w; yy=ys[row]
-   v=el(mesh,'ContourMeshVertex',x=xx-anchor[0],y=yy-anchor[1],u=xx/1280,v=yy/1280)
+   v=el(mesh,'ContourMeshVertex',x=xx-anchor[0],y=yy-anchor[1],u=xx/resolution,v=yy/resolution)
    rows.append((int(v.get('id').split(':')[1]),row,xx,yy,anchor))
   for j in range(5):
    a,b,c,d=[indices[z] for z in [(j,0),(j,1),(j+1,1),(j+1,0)]]
@@ -43,10 +43,11 @@ def part(parent,name,pid,crop,anchor,pos,scale=1,asset='0:4'):
   ARM_VERTICES[pid]=rows
  else:
   for xx,yy in [(x,y),(x+w,y),(x+w,y+h),(x,y+h)]:
-   el(mesh,'ContourMeshVertex',x=xx-anchor[0],y=yy-anchor[1],u=xx/1280,v=yy/1280)
+   el(mesh,'ContourMeshVertex',x=xx-anchor[0],y=yy-anchor[1],u=xx/resolution,v=yy/resolution)
  return n
 
 el(r,'ImageAsset',id='0:7',name='Authored paw replacement poses',file='../../../frontend/assets/pets/illustrated/puppy-paw-poses-v1.png')
+el(r,'ImageAsset',id='0:8',name='Chest height paw inbetween',file='../../../frontend/assets/pets/illustrated/puppy-paw-mid-v2.png')
 # Front-to-back source order in Rive. Food and paws can cross the muzzle.
 food=el(ab,'Node',id='0:20',name='Held biscuit',x=320,y=430,opacity=0)
 for x in [-10,0,10]:
@@ -56,12 +57,15 @@ s=el(food,'Shape',name='Baked biscuit');el(s,'Rectangle',width=38,height=27,orig
 f=el(s,'Fill');g=el(f,'LinearGradient',startX=-12,startY=-10,endX=15,endY=14)
 el(g,'GradientStop',colorValue='FFE9C38A',position=0);el(g,'GradientStop',colorValue='FFC28C50',position=1)
 # Purpose-drawn replacements preserve fur and rounded anatomy through a large bend.
-part(ab,'Receive paw drawing',23,(650,20,610,590),(945,165),(320,365),.35,asset='0:7')
-part(ab,'Raised paw drawing',24,(10,640,625,365),(335,900),(320,365),.42,asset='0:7')
-part(ab,'Belly pat drawing',25,(650,650,600,550),(945,760),(320,365),.36,asset='0:7')
+mid=part(ab,'Chest paw drawing',26,(0,0,1254,1254),(627,500),(320,397),.24,asset='0:8',resolution=1254)
+mid.set('scaleY','.20')
+receive=part(ab,'Receive paw drawing',23,(650,20,610,590),(945,165),(320,397),.35,asset='0:7')
+raised=part(ab,'Raised paw drawing',24,(10,640,625,365),(335,950),(320,430),.40,asset='0:7')
+settle=part(ab,'Belly pat drawing',25,(650,650,600,550),(945,760),(320,397),.35,asset='0:7')
+receive.set('scaleY','.30');raised.set('scaleY','.50');settle.set('scaleY','.30')
 # Shoulder anchors are hidden by natural fur overlaps; no cut-out faces or photo.
-armL=part(ab,'Left front paw',12,(550,445,240,380),(665,515),(248,365),.45)
-armR=part(ab,'Right front paw',13,(900,445,235,380),(1020,515),(394,362),.45)
+armL=part(ab,'Left front paw',12,(550,445,240,380),(665,515),(255,397),.36)
+armR=part(ab,'Right front paw',13,(900,445,235,380),(1020,515),(385,397),.36)
 head=el(ab,'Node',id='0:10',name='Head pose',x=320,y=314)
 look=el(head,'Node',id='0:16',name='Attention',rotation=0)
 el(look,'DataBindContext',sourcePathIds='0:40-0:47',propertyKey=15)
@@ -110,7 +114,7 @@ for idx in range(6):
   el(st,'StateMachineFireEvent',eventId='0:95',occursValue='atStart')
   el(st,'StateMachineFireEvent',eventId='0:93',occursValue='atEnd')
 # All timings below are authored for this character, not claimed industry rules.
-BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':248,'y':365,'rotation':0,'opacity':1},13:{'x':394,'y':362,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0},23:{'opacity':0,'y':365},24:{'opacity':0,'y':365},25:{'opacity':0,'y':365}}
+BASE={10:{'y':300,'rotation':0},11:{'scaleY':.64},12:{'x':255,'y':397,'rotation':0,'opacity':1},13:{'x':385,'y':397,'rotation':0,'opacity':1},14:{'rotation':0},15:{'rotation':0},17:{'rotation':0},20:{'x':320,'y':430,'opacity':0,'rotation':0},30:{'opacity':1},31:{'opacity':0},32:{'opacity':0},23:{'opacity':0,'y':397},24:{'opacity':0,'y':430},25:{'opacity':0,'y':397},26:{'opacity':0,'y':397}}
 def keys(a,obj,prop,values,hold=False):
  o=next((n for n in a if n.tag=='KeyedObject' and n.get('objectId')==f'0:{obj}'),None)
  if o is None:o=el(a,'KeyedObject',objectId=f'0:{obj}')
@@ -141,8 +145,8 @@ animation(1,'Notice food',60,{
  (12,'rotation'):[(0,0),(15,-.22),(60,-.22)],(13,'rotation'):[(0,0),(18,.2),(60,.2)],
  (17,'rotation'):[(0,0),(15,-.1),(30,.12),(45,-.1),(60,0)],
 },True)
-# Paw local texture extends down from its shoulder. Raising needs a near half-turn,
-# plus shoulder translation, so the tips meet at the actual food attachment.
+# Drawn elbow bends replace the resting paws; registration is applied below.
+# The biscuit follows their contact point from lap to muzzle.
 animation(2,'Receive and bring biscuit',27,{
  (10,'y'):[(0,294),(8,301),(20,307),(27,307)],
  (12,'x'):[(0,248),(12,268),(27,292)],(12,'y'):[(0,365),(12,378),(27,369)],
@@ -151,7 +155,7 @@ animation(2,'Receive and bring biscuit',27,{
  (13,'rotation'):[(0,0),(9,.72),(15,1.8),(27,2.46)],
  (20,'opacity'):[(0,0),(9,1),(27,1)],
  (20,'x'):[(0,320),(9,320),(15,320),(27,320)],
- (20,'y'):[(0,472),(9,472),(17,382),(27,300)],
+ (20,'y'):[(0,499),(14,499),(15,380),(20,380),(21,300),(27,300)],
  (14,'rotation'):[(0,0),(13,.08),(27,.02)],(15,'rotation'):[(0,0),(15,-.06),(27,0)],
 })
 # Discrete expression drawings preserve the painterly face rather than warping it.
@@ -193,23 +197,33 @@ for idx,a in ANIMATIONS.items():
   for prop in list(obj):obj.remove(prop)
   for prop,val in BASE[pid].items():keys(a,pid,prop,[(0,val),(duration,val)])
  replacements={}
+ # Opaque, registered drawings avoid ghost limbs during a large elbow bend.
+ # A new chest-height inbetween connects the lap contact to the muzzle.
  if idx==2:
-  replacements={(12,'opacity'):[(0,1),(4,1),(8,0),(27,0)],(13,'opacity'):[(0,1),(4,1),(8,0),(27,0)],
-   (23,'opacity'):[(0,0),(4,0),(8,1),(15,1),(20,0),(27,0)],(23,'y'):[(0,365),(9,365),(18,275),(27,275)],
-   (24,'opacity'):[(0,0),(15,0),(20,1),(27,1)],(24,'y'):[(0,450),(15,450),(27,365)]}
+  replacements={(12,'opacity'):[(0,1),(5,0),(27,0)],(13,'opacity'):[(0,1),(5,0),(27,0)],
+   (23,'opacity'):[(0,0),(5,1),(15,0),(27,0)],
+   (26,'opacity'):[(0,0),(15,1),(21,0),(27,0)],
+   (24,'opacity'):[(0,0),(21,1),(27,1)]}
  elif idx==3:
   replacements={(12,'opacity'):[(0,0),(54,0)],(13,'opacity'):[(0,0),(54,0)],(24,'opacity'):[(0,1),(54,1)]}
  elif idx==4:
-  replacements={(12,'opacity'):[(0,0),(28,0),(32,1),(36,1)],(13,'opacity'):[(0,0),(28,0),(32,1),(36,1)],
-   (24,'opacity'):[(0,1),(8,1),(12,0),(36,0)],(24,'y'):[(0,365),(10,450),(36,450)],
-   (25,'opacity'):[(0,0),(6,0),(10,1),(28,1),(32,0),(36,0)],(25,'y'):[(0,270),(8,270),(24,365),(36,365)]}
+  replacements={(12,'opacity'):[(0,0),(30,1),(36,1)],(13,'opacity'):[(0,0),(30,1),(36,1)],
+   (24,'opacity'):[(0,1),(6,0),(36,0)],
+   (26,'opacity'):[(0,0),(6,1),(13,0),(36,0)],
+   (25,'opacity'):[(0,0),(13,1),(30,0),(36,0)]}
  for (pid,prop),seq in replacements.items():
   obj=next((o for o in a if o.tag=='KeyedObject' and o.get('objectId')==f'0:{pid}'),None)
   if obj is not None:
    for child in list(obj):
     if child.get('property')==prop:obj.remove(child)
-  keys(a,pid,prop,seq)
+  keys(a,pid,prop,seq,hold=(prop=='opacity'))
  if idx==2:
+  food_obj=next(o for o in a if o.tag=='KeyedObject' and o.get('objectId')=='0:20')
+  for kp in food_obj.findall('KeyedProperty'):
+   if kp.get('property')=='y':
+    for k in kp.findall('KeyFrameDouble'):
+     k.set('interpolationType','hold')
+     for curve in list(k):k.remove(curve)
   o=el(a,'KeyedObject',objectId='0:90');prop=el(o,'KeyedProperty',property='trigger')
   el(prop,'KeyFrameCallback',frame=9)
 vm=el(r,'ViewModel',id='0:40',name='PuppyCare',defaultInstanceId='0:41')
