@@ -18,8 +18,9 @@ on:
           - all
 
 # push / PR 自動跑 CI；部署只允許從 GitHub Actions 手動觸發。
+# 依事件分組：手動部署不會把同一分支 push 觸發的 CI 取消掉（2026-10 發生過，顯示成紅叉）。
 concurrency:
-  group: ci-deploy-${{ github.workflow }}-${{ github.ref }}
+  group: ci-deploy-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:
