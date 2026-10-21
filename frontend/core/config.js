@@ -70,27 +70,16 @@ export const INVITE_BASE_URL = !isNativeApp
     ? window.location.origin
     : (isLocalFrontend ? `http://${nativeDevHost}:${LOCAL_HOSTING_PORT}` : PRODUCTION_FRONTEND_ORIGIN);
 
-export const FIREBASE_EMULATORS = {
-    enabled: isLocalFrontend,
-    authHost: `http://${runtimeHost}:9099`,
-    storageHost: runtimeHost,
-    storagePort: 9199,
+// Amazon Cognito（公開的 client 設定，非機密）。對應 config/aws.env。
+export const COGNITO = {
+    region: 'ap-northeast-1',
+    userPoolId: 'ap-northeast-1_ZZeqcm0E2',
+    clientId: '1sdrgh39bdgcoquopsn58lbv81',
+    domain: 'phubbing-anchor.auth.ap-northeast-1.amazoncognito.com',
 };
 
-export const firebaseConfig = {
-    apiKey: "AIzaSyBD_Q2H2H7HalmKV2A4TT1I2J9md9Mtq3k",
-    authDomain: "graduation-6ae65.firebaseapp.com",
-    projectId: "graduation-6ae65",
-    storageBucket: "graduation-6ae65.firebasestorage.app",
-    messagingSenderId: "798458690617",
-    appId: "1:798458690617:web:bda0f994b531be1f4461e8",
-    measurementId: "G-8STMGY1K1C"
-};
-
-// FCM Web Push 用的 VAPID public key。
-// 去 Firebase Console → 專案設定 → Cloud Messaging → Web Push 憑證 → 產生金鑰組，貼在這裡。
-// 沒填之前 getToken() 會直接失敗（push.js 有擋，不會炸整個 app）。
-export const FCM_VAPID_KEY = "";
+// Web Push 的 VAPID public key（私鑰只在後端 VAPID_PRIVATE_KEY）。
+export const VAPID_PUBLIC_KEY = "BGcdHVLrHCO1uVuYo3Y6SKVcOfjzjPCqel3NLO0K_A8t7L2wSrwWagw-EvSAyDhrXBPJpvKP8FaXB7-81N7FaCI";
 
 // 11 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
 export const CONTEXT_CONFIGS = {

@@ -142,9 +142,9 @@ test('unused Firebase Functions package is not part of the deploy surface', () =
   assert.equal(config.functions, undefined);
 });
 
-test('guest mode stays local and does not depend on Firebase anonymous auth', () => {
+test('guest mode stays local and does not depend on cloud anonymous auth', () => {
   const guest = read('frontend/core/guest.js');
-  const firebase = read('frontend/core/firebase.js');
+  const firebase = read('frontend/core/auth.js');
   const chrome = read('frontend/core/chrome.js');
   const ws = read('frontend/core/ws.js');
   const home = read('frontend/views/home/home.js');

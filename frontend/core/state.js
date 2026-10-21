@@ -16,11 +16,11 @@ export const state = {
     lang: localStorage.getItem('phubbing_lang') === 'en' ? 'en' : 'zh',
 
     // === 使用者 ===
-    currentUser: null,             // Firebase user 物件
+    currentUser: null,             // 登入使用者 { uid, email, displayName, photoURL, getIdToken }
     currentProfile: null,          // /api/me 回傳的 profile
     localGuestActive: localStorage.getItem('phubbing_local_guest_active') === '1',
     guestUserId: guestId,
-    userId: guestId,               // 登入後切成 firebase uid
+    userId: guestId,               // 登入後切成 Cognito sub (uid)
 
     // === 房間/聚會 ===
     amIHost: false,

@@ -1,6 +1,6 @@
 // core/api.js — REST API 封裝 + 後端版本載入
 import { HTTP_PROTOCOL, BACKEND_HOST } from './config.js';
-import { getAuthHeaders } from './firebase.js?v=77';
+import { getAuthHeaders } from './auth.js?v=77';
 import { t } from './i18n.js';
 
 export const apiBase = `${HTTP_PROTOCOL}${BACKEND_HOST}`;
@@ -24,7 +24,7 @@ export async function apiFetch(path, options = {}) {
 
 const protectedImageUrls = new WeakMap();
 
-// 聚會照片是 private blob；先帶 Firebase ID token 取回，再用本機 object URL 顯示。
+// 聚會照片是 private blob；先帶 Cognito ID token 取回，再用本機 object URL 顯示。
 export async function setProtectedImage(element, path, { background = false } = {}) {
     if (!element || !path) return false;
     const headers = await getAuthHeaders();
