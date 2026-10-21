@@ -1,6 +1,6 @@
 #!/bin/bash
 # EC2 第一次開機時執行：裝 Docker、抓程式碼、從 SSM 讀密鑰、啟動後端。
-# 之後更新程式只要跑 /opt/phubbing/deploy.sh（GitHub Actions 透過 SSM 呼叫）。
+# 之後更新程式跑 deploy/deploy.sh（GitHub Actions 透過 SSM 呼叫）。
 set -euxo pipefail
 BRANCH="${BRANCH:-aws-migration}"
 REGION=ap-northeast-1
@@ -26,28 +26,4 @@ if [ -z "${DOMAIN:-}" ]; then
 fi
 echo "DOMAIN=$DOMAIN" > /opt/phubbing/app/deploy/.env
 
-cat > /opt/phubbing/deploy.sh <<'DEPLOY'
-#!/bin/bash
-set -euo pipefail
-REGION=ap-northeast-1
-# SSM 參數沒設就不寫那一行（空字串會蓋掉程式裡的預設值）
-param() {
-  local v
-  v=$(aws ssm get-parameter --region $REGION --with-decryption --name "/phubbing/$1" --query Parameter.Value --output text 2>/dev/null) || return 0
-  echo "$1=$v"
-}
-{
-  echo "AWS_REGION=$REGION"
-  param VAPID_PRIVATE_KEY
-  param DASHSCOPE_API_KEY
-  param ALLOWED_ORIGINS
-} > /opt/phubbing/backend.env
-chmod 600 /opt/phubbing/backend.env
-cd /opt/phubbing/app
-git pull --ff-only
-cd deploy
-docker compose up -d --build
-docker image prune -f
-DEPLOY
-chmod +x /opt/phubbing/deploy.sh
-/opt/phubbing/deploy.sh
+bash /opt/phubbing/app/deploy/deploy.sh "$BRANCH"

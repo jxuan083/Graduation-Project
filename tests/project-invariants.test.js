@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import test from 'node:test';
@@ -13,15 +13,20 @@ test('non-active pet view is not forced visible by a high-specificity selector',
     assert.doesNotMatch(block, /display\s*:\s*flex/);
 });
 
-test('Cloud Run stays single-instance while WebSocket state is process-local', () => {
+test('backend stays single-instance while WebSocket state is process-local', () => {
     const workflow = read('.github/workflows/deploy.yml');
-    assert.match(workflow, /--max-instances 1/);
+    const compose = read('deploy/docker-compose.yml');
+    // 部署是對「那一台」EC2 下指令重建，不是開新機器；compose 也不能開多個 backend。
+    assert.match(workflow, /aws ssm send-command --instance-ids "\$INSTANCE"/);
     assert.match(workflow, /deploy-backend:\s*\n\s+needs: verify/);
+    assert.doesNotMatch(compose, /replicas|scale/);
 });
 
-test('security rules are deployed together with Hosting', () => {
-    const workflow = read('.github/workflows/deploy.yml');
-    assert.match(workflow, /--only hosting,firestore:rules,storage/);
+test('only public media prefixes are world-readable; meeting photos stay private', () => {
+    const backend = read('backend/main.py');
+    const prefixes = backend.match(/PUBLIC_MEDIA_PREFIXES = \(([^)]*)\)/)?.[1] || '';
+    assert.match(prefixes, /"avatars\/"/);
+    assert.doesNotMatch(prefixes, /meeting-photos/);
 });
 
 test('pushes and pull requests verify automatically but deployment stays manual', () => {
@@ -32,24 +37,23 @@ test('pushes and pull requests verify automatically but deployment stays manual'
     assert.match(workflow, /deploy-backend:[\s\S]*?github\.event_name == 'workflow_dispatch'/);
 });
 
-test('client cannot directly overwrite user system fields', () => {
-    const rules = read('firestore.rules');
-    const userBlock = rules.match(/match \/users\/\{uid\}\s*\{([\s\S]*?)match \/questions/)?.[1] || '';
-    assert.match(userBlock, /allow write:\s*if false/);
-    assert.doesNotMatch(userBlock, /allow create, update/);
+test('client cannot directly write the database (all writes go through the backend)', () => {
+    const root = fileURLToPath(new URL('../frontend', import.meta.url));
+    const files = readdirSync(root, { recursive: true }).filter((f) => String(f).endsWith('.js'));
+    for (const file of files) {
+        assert.doesNotMatch(readFileSync(path.join(root, String(file)), 'utf8'), /dynamodb/i, String(file));
+    }
 });
 
 test('pet feature is group-only', () => {
   const backend = read('backend/main.py');
   const tamagotchi = read('frontend/views/pet-tamagotchi/pet-tamagotchi.js');
   const petSwap = read('frontend/views/pet-swap/pet-swap.js');
-  const storageRules = read('storage.rules');
   assert.match(backend, /@app\.get\("\/api\/group-pets"\)/);
   for (const source of [backend, tamagotchi, petSwap]) {
     assert.doesNotMatch(source, /\/api\/my-pet(?:s|\/|"|')/);
     assert.doesNotMatch(source, /my_pet_/);
   }
-  assert.doesNotMatch(storageRules, /match \/pet-images\//);
 });
 
 test('created group pets keep a transparent background and persist the chosen body and name', () => {
@@ -137,9 +141,10 @@ test('shared anchor exposes every member progress and tactile completion feedbac
   assert.match(backend, /all\(m\.get\("progress", 0\) == 100/);
 });
 
-test('unused Firebase Functions package is not part of the deploy surface', () => {
-  const config = JSON.parse(read('firebase.json'));
-  assert.equal(config.functions, undefined);
+test('no Firebase config is left in the deploy surface', () => {
+  for (const file of ['firebase.json', 'firestore.rules', 'storage.rules', 'functions/index.js']) {
+    assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
+  }
 });
 
 test('guest mode stays local and does not depend on cloud anonymous auth', () => {
@@ -192,12 +197,12 @@ test('view modules are always imported with the same cache-bust version', () => 
 });
 
 test('group chat media uploads require owner folder and group membership', () => {
-  const rules = read('storage.rules');
-  const start = rules.indexOf('match /group-chat/{groupId}/{uid}/{fileName}');
+  const backend = read('backend/main.py');
+  const start = backend.indexOf('async def presign_upload');
   assert.ok(start >= 0);
-  const block = rules.slice(start, rules.indexOf('match /', start + 1));
-  assert.match(block, /request\.auth\.uid == uid/);
-  assert.match(block, /member_uids\.hasAny\(\[request\.auth\.uid\]\)/);
+  const block = backend.slice(start, backend.indexOf('\n@app.', start + 1));
+  assert.match(block, /uid not in \(\(group\.to_dict\(\) or \{\}\)\.get\("member_uids"\)/);
+  assert.match(block, /key = f"group-chat\/\{group_id\}\/\{uid\}\//);
 });
 
 test('meeting photos are not made public during upload', () => {
@@ -297,12 +302,10 @@ test('js and css are served no-cache so a stale import cannot break the module g
   // （2026-09 實際發生過：firebase.js?v=64 import 無版號的 config.js，
   //  舊快取那份還沒有 FIREBASE_EMULATORS。）
   // no-cache 不等於不快取：ETag 仍然成立，回的是 304，只是每次都先問過伺服器。
-  const config = JSON.parse(read('firebase.json'));
-  const headers = config.hosting.headers || [];
-  for (const source of ['**/*.js', '**/*.css']) {
-    const rule = headers.find(h => h.source === source);
-    assert.ok(rule, `firebase.json 缺少 ${source} 的 Cache-Control 設定`);
-    const cacheControl = rule.headers.find(h => h.key === 'Cache-Control');
-    assert.equal(cacheControl?.value, 'no-cache', `${source} 必須是 no-cache`);
+  const config = read('deploy/amplify-headers.yml');
+  for (const pattern of ['**/*.js', '**/*.css']) {
+    const block = config.split('- pattern:').find(b => b.trim().startsWith(`'${pattern}'`));
+    assert.ok(block, `amplify-headers.yml 缺少 ${pattern} 的 Cache-Control 設定`);
+    assert.match(block, /key: Cache-Control\s+value: no-cache/, `${pattern} 必須是 no-cache`);
   }
 });

@@ -1067,8 +1067,7 @@ async def get_leaderboard_global(
             entry["meetings_count"] += 1
     except Exception as e:
         print(f"[leaderboard global] query failed: {e}")
-        # collection_group 需要 index，一開始可能還沒有；回傳空清單
-        return {"status": "success", "period": period, "period_start": start_utc.isoformat(), "entries": [], "note": "尚未建立索引，請到 Firebase Console 建立 collection_group index for 'meetings' on 'ended_at' asc"}
+        return {"status": "success", "period": period, "period_start": start_utc.isoformat(), "entries": [], "note": "排行榜暫時無法讀取"}
 
     # 把 uid 補上 nickname/avatar
     entries = []
