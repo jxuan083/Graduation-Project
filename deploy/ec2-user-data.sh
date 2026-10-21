@@ -18,9 +18,13 @@ systemctl enable --now docker
 mkdir -p /opt/phubbing
 git clone --branch "$BRANCH" https://github.com/jxuan083/Graduation-Project.git /opt/phubbing/app
 
-TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
-PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
-echo "DOMAIN=${PUBLIC_IP//./-}.sslip.io" > /opt/phubbing/app/deploy/.env
+# DOMAIN 由啟動指令帶入（Elastic IP 對應的 <ip>.sslip.io），沒帶就用目前的 public IP
+if [ -z "${DOMAIN:-}" ]; then
+  TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+  PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+  DOMAIN="${PUBLIC_IP//./-}.sslip.io"
+fi
+echo "DOMAIN=$DOMAIN" > /opt/phubbing/app/deploy/.env
 
 cat > /opt/phubbing/deploy.sh <<'DEPLOY'
 #!/bin/bash

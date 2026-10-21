@@ -2,11 +2,11 @@
 
 // 本機開發判定。除了 localhost，也認私有網段 IP，這樣同一個 WiFi 下的手機
 // 連 http://<mac-ip>:5002 時仍然走本地 emulator + 本地 backend，
-// 而不是誤連正式 Cloud Run（目前 billing 關閉，會 503）。
+// 而不是誤連正式後端（AWS EC2）。
 const HOSTNAME = window.location.hostname;
 const PRIVATE_IP_RE = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const NATIVE_DEV_HOST_KEY = 'phubbing_native_dev_host';
-const PRODUCTION_BACKEND_HOST = 'phubbing-backend-798458690617.asia-east1.run.app';
+const PRODUCTION_BACKEND_HOST = '35-73-255-236.sslip.io';
 const nativeRuntimeConfig = window.PHUBBING_NATIVE_CONFIG || {};
 const isNativeApp = Boolean(
     window.Capacitor?.isNativePlatform?.()
@@ -64,7 +64,7 @@ export const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
 // 邀請連結／QR Code 要指向「別人的裝置打得開」的前端網址。
 // 瀏覽器：就是目前這個網站。原生 App：頁面是從 App 內部的 http://localhost 載入的，
 // 那個網址只有自己看得到，所以改指向網頁版（本機開發 → 開發機的 Hosting；正式 → 正式站）。
-const PRODUCTION_FRONTEND_ORIGIN = 'https://graduation-6ae65.web.app';
+const PRODUCTION_FRONTEND_ORIGIN = 'https://main.dm3mlaqpivp0d.amplifyapp.com';
 const LOCAL_HOSTING_PORT = 5002;
 export const INVITE_BASE_URL = !isNativeApp
     ? window.location.origin

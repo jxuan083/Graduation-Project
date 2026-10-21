@@ -79,8 +79,10 @@ app = FastAPI()
 # ===== CORS FOR FRONTEND SEPARATION =====
 # 正式環境只允許本專案 Hosting；本機開發 origin 明確列舉，不開 wildcard。
 DEFAULT_FRONTEND_ORIGINS = [
+    "https://main.dm3mlaqpivp0d.amplifyapp.com",
     "http://localhost:3000",
     "http://localhost:5000",
+    "http://localhost:5002",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5000",
