@@ -14,6 +14,7 @@ import secrets
 import string
 import tempfile
 import boto3
+import botocore.config
 import jwt
 import docstore as firestore
 from pywebpush import webpush, WebPushException
@@ -72,7 +73,11 @@ _STT_MODEL_CACHE: Dict[str, object] = {}
 
 # DynamoDB（經 docstore 相容層，寫法同 Firestore）；DOCSTORE=memory 可離線開發
 db = firestore.client()
-s3 = boto3.client("s3", region_name=AWS_REGION)
+# 用東京區域端點：全球端點對新 bucket 可能回 307 轉址，瀏覽器直傳（presigned POST）會因此失敗
+s3 = boto3.client(
+    "s3", region_name=AWS_REGION, endpoint_url=f"https://s3.{AWS_REGION}.amazonaws.com",
+    config=botocore.config.Config(s3={"addressing_style": "virtual"}),
+)
 
 app = FastAPI()
 
@@ -1673,7 +1678,7 @@ async def upload_meeting_photo(
         raise HTTPException(status_code=400, detail=f"每場聚會最多 {MAX_PHOTOS_PER_MEETING} 張照片")
 
     # 🔒 [Bug 4 修正 v15.3] content_type 白名單,排除 SVG (含可執行 script,
-    #     若使用者直接點 storage URL 會在 storage.googleapis.com 域下執行 JS)
+    #     若使用者直接點 storage URL 會在 S3 網域下執行 JS)
     ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
     if not file.content_type or file.content_type not in ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="只接受 JPEG / PNG / WebP / HEIC 圖片")
@@ -2793,11 +2798,6 @@ class GroupMessagePayload(BaseModel):
     duration_sec: Optional[float] = None  # audio 長度（秒）
 
 
-# 只接受本專案 Firebase Storage 的下載 URL，避免訊息掛任意外部連結
-ALLOWED_MEDIA_PREFIXES = (
-    "https://firebasestorage.googleapis.com/",
-    "https://storage.googleapis.com/",
-)
 
 
 def _require_group_member(group_id: str, uid: str) -> dict:
@@ -2862,7 +2862,8 @@ async def send_group_message(group_id: str, payload: GroupMessagePayload, decode
             raise HTTPException(status_code=400, detail="訊息不能為空")
         media_url = ""
     else:
-        if not media_url.startswith(ALLOWED_MEDIA_PREFIXES):
+        # 只接受本專案 S3 上、這個群組資料夾裡的檔案（/api/uploads/presign 產生的），避免掛任意外部連結
+        if not media_url.startswith(_storage_media_url(f"group-chat/{group_id}/")):
             raise HTTPException(status_code=400, detail="無效的媒體網址")
 
     me = _ensure_user_doc(decoded)
