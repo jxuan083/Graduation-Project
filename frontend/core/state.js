@@ -3,7 +3,9 @@
 import { uuidv4 } from '../utils/uuid.js';
 
 // 訪客 ID — 一旦發過就存 localStorage,登出回到訪客時還是同一個 id
-const guestId = localStorage.getItem('phubbing_uid') || uuidv4();
+// 一定要有 guest- 前綴：Cognito uid 也是 uuid，後端靠前綴分辨訪客（舊版沒前綴的 id 直接換新的）
+const storedGuestId = localStorage.getItem('phubbing_uid') || '';
+const guestId = storedGuestId.startsWith('guest-') ? storedGuestId : `guest-${uuidv4()}`;
 localStorage.setItem('phubbing_uid', guestId);
 
 export const state = {

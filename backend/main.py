@@ -118,12 +118,19 @@ BACKEND_VERSION = "v15.4-group-pet-avatar"
 BACKEND_BUILD_DATE = "2026-06-02"  # 每次部署手動更新
 
 
+GUEST_ID_PREFIX = "guest-"
+
+
 def _is_guest_user_id(user_id: str) -> bool:
-    """Guest ids are generated as uuid4; Firebase UIDs must not be inferred by punctuation."""
+    """訪客 id 是 "guest-" + uuid4（前端 core/state.js 產生）。
+    一定要有前綴：Cognito 的 uid (sub) 本身也是 uuid4，只看 uuid 格式會把登入使用者當成訪客。"""
+    user_id = str(user_id or "")
+    if not user_id.startswith(GUEST_ID_PREFIX):
+        return False
     try:
-        uuid.UUID(str(user_id), version=4)
+        uuid.UUID(user_id[len(GUEST_ID_PREFIX):], version=4)
         return True
-    except (ValueError, TypeError, AttributeError):
+    except ValueError:
         return False
 
 

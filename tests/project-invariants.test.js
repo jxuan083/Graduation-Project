@@ -169,6 +169,17 @@ test('guest mode stays local and does not depend on cloud anonymous auth', () =>
   assert.match(backend, /if not _is_guest_user_id\(guest_uid\)/);
 });
 
+test('guest ids are recognised by the guest- prefix, never by uuid shape or dashes', () => {
+  // Cognito uid 本身就是 uuid（有 "-"），用格式猜訪客會把登入使用者當成訪客。
+  assert.match(read('frontend/core/state.js'), /`guest-\$\{uuidv4\(\)\}`/);
+  assert.match(read('backend/main.py'), /GUEST_ID_PREFIX = "guest-"/);
+  const root = fileURLToPath(new URL('../frontend', import.meta.url));
+  for (const file of readdirSync(root, { recursive: true }).filter((f) => String(f).endsWith('.js'))) {
+    const src = readFileSync(path.join(root, String(file)), 'utf8');
+    assert.doesNotMatch(src, /uid\w*\.includes\(['"]-['"]\)/, String(file));
+  }
+});
+
 test('view modules are always imported with the same cache-bust version', () => {
   // 同一個 view 模組若以不同 URL（有無 ?v=N）被 import,瀏覽器會建立兩個模組實例,
   // 模組內狀態會分裂（例:興趣標籤選了卻存出空陣列）。

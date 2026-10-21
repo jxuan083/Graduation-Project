@@ -12,6 +12,7 @@ import os
 import pathlib
 import sys
 import unittest
+import uuid
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -116,17 +117,19 @@ class ApiEndToEndTest(unittest.TestCase):
                 return msg
         self.fail(f"never received {msg_type}")
 
-    def connect(self, room_id, uid):
+    def connect(self, room_id, uid, token=True):
         cm = self.client.websocket_connect(f"/ws/{room_id}/{uid}?nickname={uid}")
         ws = cm.__enter__()
         self._sockets.append(cm)
-        ws.send_json({"action": "AUTH", "token": uid, "nickname": uid})
+        ws.send_json({"action": "AUTH", "token": uid if token else None, "nickname": uid[:8]})
         self.assertEqual(ws.receive_json()["type"], "AUTH_OK")
         return ws
 
     # ── 整個網站的使用流程 ──
     def test_every_api_the_site_calls(self):
-        a, b, c = "e2e-alice", "e2e-bob", "e2e-carol"
+        # uid 跟正式環境一樣是 uuid（Cognito sub）；訪客是 guest- + uuid
+        a, b, c = (str(uuid.uuid4()) for _ in range(3))
+        guest = f"guest-{uuid.uuid4()}"
 
         # 公開資訊
         self.assertIn("version", self.call("GET", "/api/version"))
@@ -209,6 +212,8 @@ class ApiEndToEndTest(unittest.TestCase):
         room = self.call("POST", "/api/create_room", a, json={"context": "study", "group_id": gid, "frontend_url": "https://example.com"})
         room_id = room["room_id"]
         socks = {uid: self.connect(room_id, uid) for uid in (a, b, c)}
+        socks[guest] = self.connect(room_id, guest, token=False)
+        self.call("POST", f"/api/rooms/{room_id}/leave", None, expect=401, json={})   # 沒身分不能操作
         socks[a].send_json({"action": "START_SYNC"})
         for ws in socks.values():
             ws.send_json({"action": "SYNC_PROGRESS", "progress": 100})
@@ -216,7 +221,7 @@ class ApiEndToEndTest(unittest.TestCase):
             self.until(ws, "ANCHOR_ESTABLISHED")
         socks[a].send_json({"action": "START_QA", "source": "public", "question_id": "pub_e2e"})
         self.assertEqual(self.until(socks[b], "QA_STARTED")["options"], ["蛋餅", "飯糰"])
-        for uid, answer in ((a, "飯糰"), (b, "蛋餅"), (c, "蛋餅")):
+        for uid, answer in ((a, "飯糰"), (b, "蛋餅"), (c, "蛋餅"), (guest, "飯糰")):
             socks[uid].send_json({"action": "SUBMIT_ANSWER", "answer": answer})
         self.until(socks[b], "QA_FINISHED")                          # 全員作答完才回到專注模式
         socks[b].send_json({"action": "LOG_DEVIATION", "count": 1})
@@ -238,6 +243,10 @@ class ApiEndToEndTest(unittest.TestCase):
         meetings = self.call("GET", "/api/meetings", b)["meetings"]
         self.assertIn(room_id, [m.get("id") or m.get("room_id") for m in meetings])
         self.call("GET", f"/api/meetings/{room_id}", b)
+        saved = main.db.collection("meetings").document(room_id).get().to_dict()
+        self.assertEqual(sorted(saved["participants"]), sorted([a, b, c]))     # 登入者都有紀錄、訪客沒有
+        self.assertEqual({m["uid"]: m["is_guest"] for m in saved["members_snapshot"]}[guest], True)
+        self.assertFalse({m["uid"]: m["is_guest"] for m in saved["members_snapshot"]}[a])
         self.call("PATCH", f"/api/meetings/{room_id}/favorite", b)
         self.call("GET", f"/api/groups/{gid}/meetings", a)
         photo = self.call("POST", f"/api/meetings/{room_id}/photos", a, files={"file": ("p.png", _png(), "image/png")})["photo"]
