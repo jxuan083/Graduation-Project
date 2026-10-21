@@ -3,5 +3,5 @@
 // or set localStorage.phubbing_native_dev_host from Web Inspector.
 window.PHUBBING_NATIVE_CONFIG = {
     devHost: '',
-    backendHost: 'phubbing-backend-798458690617.asia-east1.run.app',
+    backendHost: '35-73-255-236.sslip.io',
 };

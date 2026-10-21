@@ -50,7 +50,7 @@ export function goHomeFromMenu() {
 
 // 加入房間 (WebSocket 連上 + 切到對應 view)
 // 由 host 與訪客共用,差別在 amIHost 旗標
-// 🔒 [C1 v15.2] connectRoom 變 async 因為要取 Firebase ID token
+// 🔒 [C1 v15.2] connectRoom 變 async 因為要取 Cognito ID token
 export async function joinRoom(roomId) {
     await connectRoom(roomId, state.userId, state.myNickname, () => {
         if (state.amIHost) {
