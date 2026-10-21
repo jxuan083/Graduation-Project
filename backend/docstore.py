@@ -165,7 +165,8 @@ class _DynamoBackend:
         import boto3
         from boto3.dynamodb.conditions import Key
         self._key = Key
-        self._table = boto3.resource("dynamodb").Table(table_name)
+        region = os.environ.get("AWS_REGION", "ap-northeast-1")  # boto3 只認 AWS_DEFAULT_REGION，要明確指定
+        self._table = boto3.resource("dynamodb", region_name=region).Table(table_name)
 
     def get(self, pk, sk):
         item = self._table.get_item(Key={"pk": pk, "sk": sk}).get("Item")
