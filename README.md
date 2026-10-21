@@ -339,6 +339,7 @@ client ↔ server   正常 message loop
 
 | 版本 | 日期 | 主要內容 |
 |:---:|:---:|---|
+| **v16.0** | 2026-10-22 | ☁️ 全面從 GCP / Firebase 搬到 AWS：DynamoDB（資料庫）、S3（照片／頭像／語音）、Cognito（Email + Google 登入）、EC2（後端）、Amplify（網站）、標準 Web Push（推播）；GitHub Actions 改用 OIDC 部署；新增全站 API 端對端測試；修正搬家後訪客判斷、群組聊天媒體、S3 上傳的問題 |
 | **v15.4** | 2026-06-24 | 🐾 群組系統（邀請碼加入）+ 共同寵物（投票選寵物人、emoji 造型、合成寵物臉頭像、餵養互動）；🌐 中英雙語 i18n（DOM 翻譯引擎 + 語言切換） |
 | **v15.3** | 2026-04-28 | 🔒 WS 改 first-message handshake；LOG_DEVIATION 加 phase + rate-limit；SUBMIT_ANSWER 嚴格驗證；SVG 上傳擋掉；avatar 改 placeholder |
 | **v15.2** | 2026-04-26 | 🔒 收緊 Firestore 讀取規則（其他人 email 不再可被任意登入者讀）；好友系統 + 排行榜 API |

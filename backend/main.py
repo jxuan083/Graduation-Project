@@ -114,8 +114,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v15.4-group-pet-avatar"
-BACKEND_BUILD_DATE = "2026-06-02"  # 每次部署手動更新
+BACKEND_VERSION = "v16.0-aws"
+BACKEND_BUILD_DATE = "2026-10-22"  # 每次部署手動更新
 
 
 GUEST_ID_PREFIX = "guest-"

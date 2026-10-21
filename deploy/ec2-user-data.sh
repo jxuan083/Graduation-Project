@@ -2,7 +2,7 @@
 # EC2 第一次開機時執行：裝 Docker、抓程式碼、從 SSM 讀密鑰、啟動後端。
 # 之後更新程式跑 deploy/deploy.sh（GitHub Actions 透過 SSM 呼叫）。
 set -euxo pipefail
-BRANCH="${BRANCH:-aws-migration}"
+BRANCH="${BRANCH:-main}"
 REGION=ap-northeast-1
 
 fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
