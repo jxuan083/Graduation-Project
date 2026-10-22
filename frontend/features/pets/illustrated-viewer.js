@@ -23,6 +23,7 @@ export class IllustratedPetViewer {
         this._visibility = () => this.syncMotion();
         this._motion = () => {
             if (this.disposed || !this.loaded) return;
+            clearTimeout(this.completionTimer);
             const interrupted = this.currentAction;
             this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
             this.vm = this.rive.viewModelInstance; this._applyCareItems();
@@ -40,7 +41,18 @@ export class IllustratedPetViewer {
             if (!this.currentAction) return;
             const action = ['feed', 'pet', 'wipe', 'play'].find(action => name.startsWith(action));
             if (action && action !== this.currentAction) return;
-            if (name.endsWith('Complete')) { this.currentAction = null; this._finishAction?.(true); }
+            if (name.endsWith('Complete')) {
+                // Native completion is at animation end; the return-to-Idle
+                // transition still blends for 120ms. Keep triggers locked until
+                // it settles, otherwise a quick next action can be consumed.
+                clearTimeout(this.completionTimer);
+                this.completionTimer = setTimeout(() => {
+                    if (this.disposed || !this.currentAction) return;
+                    this.currentAction = null; this._finishAction?.(true);
+                    this.onEvent({name,reducedMotion:false});
+                },160);
+                return;
+            }
             this.onEvent({ name, reducedMotion: false });
         };
     }
@@ -121,6 +133,7 @@ export class IllustratedPetViewer {
             };
             const timer = setTimeout(() => {
                 if (!this.disposed) {
+                    clearTimeout(this.completionTimer);
                     this.currentAction = null;
                     this.rive.reset({ artboard: 'Puppy', stateMachine: 'Care', autoBind: true, autoplay: true });
                     this.vm = this.rive.viewModelInstance; this._applyCareItems(); this.syncMotion();
@@ -154,6 +167,7 @@ export class IllustratedPetViewer {
     }
     dispose() {
         if (this.disposed) return;
+        clearTimeout(this.completionTimer);
         this.disposed = true; this.loaded = false; this.currentAction = null;
         this._finishAction?.(false);
         cancelAnimationFrame(this.motionFrame);
