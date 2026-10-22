@@ -3,6 +3,15 @@
 // 含變數者以 {name} 佔位（供 i18n.js 的 t() 使用）。
 export const dict = {
   en: {
+    "小寵物頭像": "Companion avatar",
+    "誰來當小寵物？": "Who will be your little companion?",
+    "小寵物使用這位成員的 Profile 頭像，完整養成角色維持原本外觀。": "The little companion uses this member’s profile photo. Your full pet character stays the same.",
+    "使用原本角色": "Use the original character",
+    "摸摸": "Pet",
+    "進入小屋": "Enter pet room",
+    "有你陪著，真好。": "It’s nice having you here.",
+    "今天也一起加油": "Let’s make today a good one",
+    "有點餓，來小屋找我": "A little hungry. Visit my room!",
     "更多與設定": "More & settings",
     "寵物": "Pets",
     "補給小舖": "Pet supplies",
