@@ -65,6 +65,70 @@ npm test
 
 前端與後端要一起發佈，因為舊後端沒有領養 API；保留專案既有的手動部署流程。此次沒有執行部署，也沒有同步或覆寫原生 app 的產物。
 
-目前只有狗狗 A。抽角色、獨立換裝和玩具背包需另做角色資產／穿戴圖層及後端物品擁有權，再接入現有 `pet_character_id`；這輪沒有假裝把成長收藏徽章做成可穿衣服。
+目前只有狗狗 A。抽角色與獨立換裝仍需角色資產／穿戴圖層；食物與玩具背包已於 2026-10-22 接入群組養成；這輪沒有假裝把成長收藏徽章做成可穿衣服。
 
 2026-10-20 最終檢查：前端 42/42、後端 109/109 通過；全部 JavaScript／Python 語法檢查通過，原生 Rive verify 無錯誤或警告。瀏覽器另驗證動畫檔失敗後靜態回退、重新載入恢復、減少動態，以及三種照顧的原生完成事件。
+
+
+## 2026-10-22：AWS、兩層寵物與聚會補給
+
+已合併 GitHub `origin/main` 的 v16 AWS 遷移（`d36b903` 與 `366c435`）。正式服務改用 Cognito、DynamoDB、S3、Amplify、單一 EC2；本輪測試使用記憶體資料庫或 moto，不存取正式 AWS 資料。
+
+### 小陪伴與大養成
+
+- 首頁群組縮圖與群組頁使用小寵物；`pet_mini_profile` 僅包含群組指定成員的 uid、暱稱與公開 Profile 頭像。沒有指定時顯示角色縮圖。
+- 建立者在群組頁的「小寵物頭像」選擇成員，沿用 `PATCH /api/groups/{group_id}/pet` 的 `pet_target_uid`；空字串清除指定，非成員會拒絕。離開群組的成員不再被解析為小寵物。
+- 小寵物的「摸摸」僅顯示陪伴反應，不呼叫照顧 API 或增加數值。點「進入小屋」才載入完整原生 Rive；頭像設定不更換大角色或重設進度。
+- 右下角主導覽是「寵物」；「更多與設定」在右上角帳號選單及個人資料頁。
+
+### 群組共用金幣、抽取與背包
+
+| 內容 | 規則 |
+| --- | --- |
+| 聚會金幣 | 至少 2 位群組成員有計分紀錄，聚會滿 10 分鐘；`20 + floor(min(120,分鐘)/5)*5 + round(專注分數*0.2)`，每場最高 160 |
+| 食物小包 | 30 金幣，隨機 1 種食物，共 3 份；餵食扣 1 份 |
+| 玩具禮盒 | 60 金幣，隨機 1 款永久玩具；重複款返還 20 金幣 |
+| 等級 | 普通 70%、稀有 25%、珍藏 5%；先抽等級，再於該等級內等機率抽款式 |
+| 基本款 | 燕麥小餅與拼布小球免費可用，不在付費抽取池 |
+| 物品總數 | 食物 9 種（含基本款）、玩具 7 種（含基本款） |
+
+金幣、食物份數與玩具擁有權由群組共用。沒有真實金錢購買。不同物品有不同數值效果、食物插畫和玩具動作。照顧冷卻、滿飽／快樂上限與救援條件繼續由伺服器檢查，照顧不增加 XP。
+
+`GET /api/groups/{group_id}/pet` 額外回傳 `care_catalog`；寵物欄位含 `pet_coins`、`pet_food_inventory`、`pet_owned_toys`、`pet_discovered_items`、`pet_last_care`、`pet_last_toy`。
+
+```json
+POST /api/groups/{group_id}/pet/draw
+{"kind":"food","request_id":"unique-request-id"}
+
+POST /api/groups/{group_id}/pet/action
+{"action":"feed","item_id":"heart_biscuit","request_id":"unique-care-id"}
+```
+
+未提供 `item_id` 時，餵食／玩耍使用免費基本款，以相容原有入口。非擁有物品或種類不符的請求會拒絕，不扣份數或啟動冷卻。
+
+### 原子性與重試
+
+- `backend/docstore.py` 的 transaction 現在將讀取快照轉成 DynamoDB 條件式 `TransactWriteItems`，同時提交金幣、背包和抽取回執；條件衝突最多重讀重試 5 次。一般 `update` 與 `set(merge=True)` 同樣使用條件寫入，避免覆寫已提交的錢包。
+- 每筆抽取回執永久保存在群組子集合 `pet_draw_receipts`；同 ID 回傳原物品與目前餘額，不重新抽取或扣款。前端將待確認 ID 存在 sessionStorage，重新整理後仍可重試。
+- 每場聚會的獎勵回執保存在 `pet_reward_ledger`，不受舊 50 場列表截斷影響。結算畫面的金幣只顯示實際成功提交的結果。
+- 照顧回執仍為每人最近 8 筆的短期重試；食物扣份數與數值、冷卻同時提交。
+- 一般 WriteBatch 仍沿用上游依序提交；金幣相關流程全部使用已補強的 transaction。
+
+### CI/CD 與驗證
+
+```sh
+python -m pip install -r backend/requirements-test.txt
+python scripts/test_backend.py
+npm ci
+npm test
+npx playwright install chromium
+PYTHON=python npx playwright test
+```
+
+後端 CI 不能略過測試；缺依賴會失敗。瀏覽器測試使用專用的 `scripts/browser_review_server.py`，只在 localhost 與記憶體資料庫跑，Cognito 身分使用測試替身；正式啟動仍為 `backend/main.py`，不包含測試伺服器入口。
+
+部署仍需手動從 main 觸發。完整部署會先更新 EC2 後端、檢查 `/api/health` 的 commit，再上傳前端到 Amplify；兩者使用同一個已驗證的 GitHub SHA，不以部署當下移動中的分支 HEAD 取代。手動部署不取消正在執行的部署。尚未執行本輪正式部署。
+
+設計參考： [PicPet 官方介紹](https://play.google.com/store/apps/details?id=com.o3o.android.picpet&hl=en_US) 的共同飼養與日常分享，以及 [My Talking Tom 2 官方頁](https://talkingtomandfriends.com/apps/my-talking-tom-2) 的餵食、清潔與遊玩。小／大兩層是本專案依使用者要求採用的安排，不是宣稱兩款產品有相同架構。
+
+2026-10-22 本輪驗證：後端 134/134（零略過）、前端 43/43、完整瀏覽器 4/4。瀏覽器包含指定頭像與完整角色分離、斷線後重新整理重試、食物扣份數、永久玩具，以及全部 7 款玩具的原生完成事件與前腳固定檢查。8-bit 畫素比較容許 4/255 的渲染捨入差異。Workflow YAML 與每個 shell 區塊均完成語法檢查；未觸發遠端 GitHub Actions 或正式部署。

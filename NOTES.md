@@ -223,3 +223,15 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 - 本輪以單元測試、正式頁面瀏覽器測試，以及完整 App + 真 FastAPI + 隔離 Firebase Emulator 驗證。正式部署與原生裝置驗收尚未執行；既有 android/ 未追蹤目錄不動。
 - 最終檢查：前端 42/42、後端 109/109、全 JS/Python 語法及原生 Rive verify 通過。瀏覽器涵蓋 API 拒絕、回應遺失重試、靜態回退／恢復、減少動態和原生動作完成。
 - 本機驗收服務：前端 5178、後端 8080、Auth 9099、獨立 Firestore 8281；原有 8081 未改動。臨時啟動設定在 /tmp/pet-care-review，試玩帳號與群組只存在隔離 Emulator，不是正式群組。
+
+
+## 2026-10-22 寵物補給／AWS／導覽
+
+- 使用者決定：聚會獎勵給共用金幣，到小舖抽食物與玩具，再進共用背包使用；非照顧當下直接隨機。
+- 30 金幣抽食物 3 份、60 金幣抽永久玩具；重複玩具返 20；70/25/5 三級。
+- 已合併 origin/main v16 AWS。DynamoDB transaction 補條件式原子提交，回執防重扣與重複聚會獎勵。
+- 使用者決定：小區塊用群組指定成員的 Profile 頭像，小寵物只作陪伴；大插畫角色點進完整養成才顯示。沒有重新加入人臉到大 Rive。
+- 更多移到右上角 Profile／個人資料；右下角新增寵物。CI 安裝完整測試依賴、零略過 gate、瀏覽器測試；部署固定 SHA、後端先於前端。未部署、未 push。
+- 舊 android/ 為既有 untracked 目錄，未更動。詳細規則與驗證入口見 docs/pet-system.md。
+
+- 最終本機驗證：134 後端／43 前端／4 瀏覽器全通過；AWS 資源未寫入。Playwright 的 DynamoDB API 行為由 moto 與記憶體相容層驗證，非正式 DynamoDB 實測。
