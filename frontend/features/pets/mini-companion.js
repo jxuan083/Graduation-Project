@@ -18,7 +18,7 @@ export function bindMiniCompanion(container,{onEnter}={}){
     root.querySelector('[data-mini-enter]')?.addEventListener('click',onEnter);
     root.querySelector('[data-mini-touch]')?.addEventListener('click',()=>{
         root.querySelector('.mini-pet-words').textContent=t('有你陪著，真好。');
-        const head=root.querySelector('.mini-person-head') || root.querySelector('.mini-original-pet');
+        const head=root.querySelector('.mini-person-head');
         if(head && !matchMedia('(prefers-reduced-motion: reduce)').matches){
             head.getAnimations().forEach(a=>a.cancel());
             head.animate([{transform:'rotate(0)'},{transform:'rotate(-5deg)',offset:.45},{transform:'rotate(0)'}],{duration:420,easing:'ease-in-out'});
