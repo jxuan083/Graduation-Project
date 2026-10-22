@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 try:
-    os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "127.0.0.1:1")   # 只為了不需要憑證；實際不會連線
+    os.environ.setdefault("DOCSTORE", "memory")   # 不連 DynamoDB；測試裡再換成假的 db
     from fastapi.testclient import TestClient
     import main
 except Exception as _import_err:  # noqa: BLE001
@@ -86,12 +86,12 @@ class _Clock:
 @unittest.skipIf(main is None, _SKIP_REASON)
 class RoomFlowTest(unittest.TestCase):
     def setUp(self):
-        self._saved = (main.db, main._now_ms, main.fb_auth.verify_id_token)
+        self._saved = (main.db, main._now_ms, main._verify_id_token)
         self.db = _FakeDb()
         self.clock = _Clock()
         main.db = self.db
         main._now_ms = self.clock
-        main.fb_auth.verify_id_token = lambda token: {"uid": token, "name": token}   # 測試用：token 就是 uid
+        main._verify_id_token = lambda token: {"uid": token, "name": token}   # 測試用：token 就是 uid
         main.rooms.clear()
         main.manager.active_connections.clear()
         self._client_cm = TestClient(main.app)
@@ -105,7 +105,7 @@ class RoomFlowTest(unittest.TestCase):
             except Exception:  # noqa: BLE001
                 pass
         self._client_cm.__exit__(None, None, None)
-        main.db, main._now_ms, main.fb_auth.verify_id_token = self._saved
+        main.db, main._now_ms, main._verify_id_token = self._saved
         main.rooms.clear()
         main.manager.active_connections.clear()
 

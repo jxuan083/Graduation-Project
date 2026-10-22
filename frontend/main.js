@@ -1,7 +1,7 @@
 // main.js — App entry point (ES Module)
 // 啟動順序:
 //   1. 載入所有 view 的 HTML 片段 (parallel fetch),插入到 #app
-//   2. 初始化 Firebase + auth listener
+//   2. 初始化 Cognito auth listener
 //   3. 呼叫每個 view module 的 init() 註冊 router + 綁按鈕
 //   4. 註冊 WebSocket 訊息 handlers
 //   5. 初始化 chrome (auth bar / 浮動鈕 / 邀請橫幅)
@@ -10,7 +10,7 @@
 
 import { state } from './core/state.js';
 import { switchView, register, initNavigationRuntime } from './core/router.js';
-import { listenAuthChanges } from './core/firebase.js?v=77';
+import { listenAuthChanges } from './core/auth.js?v=77';
 import { loadBackendVersion, apiFetch } from './core/api.js';
 import { registerAllWsHandlers } from './core/wsHandlers.js';
 import { initChrome } from './core/chrome.js?v=77';
@@ -162,7 +162,7 @@ async function boot() {
         // 6. 初始化 chrome (auth bar / 浮動鈕 / 橫幅)
         initChrome();
 
-        // 7. 啟動 Firebase auth listener
+        // 7. 啟動 Cognito auth listener
         listenAuthChanges();
 
         // 8. 載入後端版本顯示

@@ -1,0 +1,19 @@
+# Amplify Hosting 的 Cache-Control（deploy.yml 部署前端時套用）。
+# js / css 一定要 no-cache：只有部分 import 帶 ?v=N，混到舊快取整個 module graph 會壞。
+customHeaders:
+  - pattern: '/'
+    headers:
+      - key: Cache-Control
+        value: no-cache
+  - pattern: '**/*.html'
+    headers:
+      - key: Cache-Control
+        value: no-cache
+  - pattern: '**/*.js'
+    headers:
+      - key: Cache-Control
+        value: no-cache
+  - pattern: '**/*.css'
+    headers:
+      - key: Cache-Control
+        value: no-cache

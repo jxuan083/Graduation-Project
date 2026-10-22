@@ -5,7 +5,7 @@ import {
     CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
     EXEMPT_WINDOW_SEC, CONTEXT_NOTES, INVITE_BASE_URL,
 } from '../../core/config.js?v=77';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/firebase.js?v=77';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/auth.js?v=77';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';

@@ -3,7 +3,9 @@
 import { uuidv4 } from '../utils/uuid.js';
 
 // 訪客 ID — 一旦發過就存 localStorage,登出回到訪客時還是同一個 id
-const guestId = localStorage.getItem('phubbing_uid') || uuidv4();
+// 一定要有 guest- 前綴：Cognito uid 也是 uuid，後端靠前綴分辨訪客（舊版沒前綴的 id 直接換新的）
+const storedGuestId = localStorage.getItem('phubbing_uid') || '';
+const guestId = storedGuestId.startsWith('guest-') ? storedGuestId : `guest-${uuidv4()}`;
 localStorage.setItem('phubbing_uid', guestId);
 
 export const state = {
@@ -16,11 +18,11 @@ export const state = {
     lang: localStorage.getItem('phubbing_lang') === 'en' ? 'en' : 'zh',
 
     // === 使用者 ===
-    currentUser: null,             // Firebase user 物件
+    currentUser: null,             // 登入使用者 { uid, email, displayName, photoURL, getIdToken }
     currentProfile: null,          // /api/me 回傳的 profile
     localGuestActive: localStorage.getItem('phubbing_local_guest_active') === '1',
     guestUserId: guestId,
-    userId: guestId,               // 登入後切成 firebase uid
+    userId: guestId,               // 登入後切成 Cognito sub (uid)
 
     // === 房間/聚會 ===
     amIHost: false,

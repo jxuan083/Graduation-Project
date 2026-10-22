@@ -43,7 +43,7 @@ export async function refreshLeaderboard() {
         entries.slice(3).forEach((e, i) => listEl.appendChild(buildLeaderboardRow(e, i + 4, data.me_uid)));
     } catch (err) {
         console.error(err);
-        listEl.innerHTML = '<p class="hint">讀取排行榜失敗(可能需要在 Firebase Console 建立索引)</p>';
+        listEl.innerHTML = '<p class="hint">讀取排行榜失敗，請稍後再試</p>';
     }
 }
 

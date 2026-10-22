@@ -24,7 +24,8 @@ export function renderMemberList(members) {
 
             const isHost = state.roomHostUid && uid === state.roomHostUid;
             const isMe = uid === state.userId;
-            const isGuest = typeof uid === 'string' && uid.includes('-');
+            // 訪客 id 是 guest- 開頭（core/state.js）；Cognito uid 本身也有 "-"，不能只看有沒有 "-"
+            const isGuest = typeof uid === 'string' && uid.startsWith('guest-');
 
             if (isHost) {
                 const tag = document.createElement('span');

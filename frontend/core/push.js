@@ -1,25 +1,32 @@
-// core/push.js — Web Push 通知（Firebase Cloud Messaging）
-// 流程：註冊 service worker → 跟使用者要權限 → 拿 FCM token → 存到後端 users/{uid}.fcm_tokens
-// 前景（App 開著時）收到的推播不會跳系統通知，改用 toast 顯示；背景推播由 firebase-messaging-sw.js 處理。
+// core/push.js — 標準 Web Push 通知（VAPID，不依賴 Firebase）
+// 流程：註冊 service worker → 跟使用者要權限 → PushManager 訂閱 → 存到後端 users/{uid}.push_subscriptions
+// 前景（App 開著時）收到的推播不會跳系統通知，push-sw.js 會轉給頁面用 toast 顯示。
 
-import { FCM_VAPID_KEY } from './config.js';
+import { VAPID_PUBLIC_KEY } from './config.js';
 import { apiFetch } from './api.js';
 import { showToast } from '../utils/toast.js';
 import { state } from './state.js';
 import { t } from './i18n.js';
 
-let messaging = null;
+let foregroundListenerAdded = false;
 
 function isPushSupported() {
-    return 'serviceWorker' in navigator && 'Notification' in window && typeof firebase !== 'undefined' && !!firebase.messaging;
+    return 'serviceWorker' in navigator && 'Notification' in window && 'PushManager' in window;
 }
 
 export function isPushAvailable() {
-    return isPushSupported() && Boolean(FCM_VAPID_KEY);
+    return isPushSupported() && Boolean(VAPID_PUBLIC_KEY);
 }
 
 async function registerServiceWorker() {
-    return navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await navigator.serviceWorker.register('/push-sw.js');
+    return navigator.serviceWorker.ready;
+}
+
+function vapidKeyBytes() {
+    const base64 = (VAPID_PUBLIC_KEY + '='.repeat((4 - VAPID_PUBLIC_KEY.length % 4) % 4))
+        .replace(/-/g, '+').replace(/_/g, '/');
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
 // 呼叫時機：使用者登入後，且在 UI 上主動點了「開啟通知」才呼叫（不要一進站就跳權限請求，體驗很差）
@@ -28,8 +35,8 @@ export async function enablePush() {
         showToast(t('這個瀏覽器不支援推播通知'), 'warn');
         return false;
     }
-    if (!FCM_VAPID_KEY) {
-        console.warn('[push] FCM_VAPID_KEY 未設定，去 Firebase Console → Cloud Messaging 產生後填入 core/config.js');
+    if (!VAPID_PUBLIC_KEY) {
+        console.warn('[push] VAPID_PUBLIC_KEY 未設定（core/config.js）');
         showToast(t('推播通知尚未啟用'), 'warn');
         return false;
     }
@@ -43,16 +50,12 @@ export async function enablePush() {
         }
 
         const registration = await registerServiceWorker();
-        if (!messaging) messaging = firebase.messaging();
-
-        const token = await messaging.getToken({
-            vapidKey: FCM_VAPID_KEY,
-            serviceWorkerRegistration: registration,
-        });
-        if (!token) {
-            showToast(t('無法取得推播 token'), 'warn');
-            return false;
-        }
+        const subscription = await registration.pushManager.getSubscription()
+            || await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: vapidKeyBytes(),
+            });
+        const token = JSON.stringify(subscription);
 
         await apiFetch('/api/push_token', {
             method: 'POST',
@@ -60,11 +63,14 @@ export async function enablePush() {
         });
 
         // 前景訊息：App 開著時不跳系統通知，用 toast 代替（避免跟系統通知重複又干擾）
-        messaging.onMessage((payload) => {
-            const title = payload.notification?.title || '';
-            const body = payload.notification?.body || '';
-            showToast(`${title} ${body}`.trim(), 'info');
-        });
+        if (!foregroundListenerAdded) {
+            foregroundListenerAdded = true;
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data?.type !== 'push') return;
+                const { title = '', body = '' } = event.data.payload || {};
+                showToast(`${title} ${body}`.trim(), 'info');
+            });
+        }
 
         localStorage.setItem('pushEnabled', '1');
         showToast(t('通知已開啟'), 'success');

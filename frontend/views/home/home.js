@@ -5,7 +5,6 @@ import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
 import { fetchMyGroups } from '../../features/groups/controller.js?v=77';
-import { FIREBASE_EMULATORS } from '../../core/config.js';
 import { openLoginMethodSheet } from '../../core/login-sheet.js?v=77';
 import { t } from '../../core/i18n.js';
 import { vibrate } from '../../core/haptics.js?v=77';
@@ -47,11 +46,6 @@ export function init() {
 
     const homeGoogleLogin = document.getElementById('btn-home-google-login');
     if (homeGoogleLogin) homeGoogleLogin.onclick = openLoginMethodSheet;
-    const homeDevLogin = document.getElementById('btn-home-dev-login');
-    if (homeDevLogin) {
-        homeDevLogin.style.display = FIREBASE_EMULATORS.enabled ? 'inline-flex' : 'none';
-        homeDevLogin.onclick = openLoginMethodSheet;
-    }
 
     // 登入/登出後刷新群組
     events.on('auth:logged-in', () => { _groupsCacheTs = 0; renderGroups(); });

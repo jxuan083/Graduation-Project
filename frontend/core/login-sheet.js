@@ -1,6 +1,6 @@
 // core/login-sheet.js — reusable login method bottom sheet.
-import { FIREBASE_EMULATORS, IS_NATIVE_APP } from './config.js';
-import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doLocalDevLogin, doPasswordReset } from './firebase.js?v=77';
+import { IS_NATIVE_APP } from './config.js';
+import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doPasswordReset } from './auth.js?v=77';
 import { continueAsLocalGuest } from './guest.js?v=77';
 import { impact } from './haptics.js?v=77';
 import { applyTo, t } from './i18n.js';
@@ -41,16 +41,8 @@ const LOGIN_METHOD_OPTIONS = [
         // Future Apple Sign-In handler goes here when the native capability exists.
     },
     {
-        id: 'local-dev',
-        label: '本機快速登入',
-        icon: 'terminal',
-        note: () => '僅 Firebase emulator',
-        renderWhen: () => FIREBASE_EMULATORS.enabled,
-        action: doLocalDevLogin,
-    },
-    {
         id: 'anonymous',
-        // 真正的本機訪客：不建立 Firebase 帳號，只帶裝置 UUID 進入聚會。
+        // 真正的本機訪客：不建立雲端帳號，只帶裝置 UUID 進入聚會。
         label: '以本機訪客繼續',
         icon: 'user-round',
         note: () => '不需帳號，可直接加入聚會',
