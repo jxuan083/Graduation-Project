@@ -42,6 +42,7 @@ export function initChrome() {
         userMenuToggle.setAttribute('aria-expanded', 'false');
     };
 
+    document.getElementById('btn-menu-more').onclick = () => { closeMenu(); switchView('view-more'); };
     document.getElementById('btn-open-profile').onclick = () => { closeMenu(); openProfileView(); };
     document.getElementById('btn-open-friends').onclick = () => { closeMenu(); openFriendsView(); };
     document.getElementById('btn-open-group-pets').onclick = () => { closeMenu(); state.tamagotchiGroupId = null; switchView('view-pet-tamagotchi'); };
@@ -99,7 +100,7 @@ const BOTTOM_NAV_CURRENT_BY_VIEW = new Map([
     ['view-scanner', 'btn-scan-qr'],
     ['view-join', 'btn-scan-qr'],
     ['view-meeting-setup', 'btn-create-room'],
-    ['view-more', 'btn-home-more-slot'],
+    ['view-pet-tamagotchi', 'btn-bottom-pets'],
 ]);
 
 function initBottomNavigation() {
@@ -110,17 +111,17 @@ function initBottomNavigation() {
     const friends = bar.querySelector('#btn-open-friends');
     const create = bar.querySelector('#btn-create-room');
     const join = bar.querySelector('#btn-scan-qr');
-    const moreSlot = bar.querySelector('#btn-home-more-slot');
+    const pets = bar.querySelector('#btn-bottom-pets');
 
     if (groups) groups.onclick = () => switchView('view-groups');
     if (friends) friends.onclick = () => openFriendsView('add');
     if (create) create.onclick = handleCreateRoom;
     if (join) join.onclick = () => switchView('view-join-method');
-    // 「更多」目前只是預設的空白版面，功能待定。
-    if (moreSlot) {
-        moreSlot.removeAttribute('aria-disabled');
-        moreSlot.onclick = () => switchView('view-more');
-    }
+    if (pets) pets.onclick = () => {
+        state.tamagotchiGroupId = null;
+        state.tamagotchiChooseCharacter = false;
+        switchView('view-pet-tamagotchi');
+    };
 
     events.on('view:changed', ({ viewId }) => refreshBottomNavigation(viewId));
     refreshBottomNavigation(getActiveViewElement()?.id || 'view-home');
@@ -138,6 +139,8 @@ function refreshBottomNavigation(viewId) {
     const currentButtonId = BOTTOM_NAV_CURRENT_BY_VIEW.get(viewId) || null;
     bar.querySelectorAll('.btn-bottom').forEach((button) => {
         button.classList.toggle('is-current', button.id === currentButtonId);
+        if (button.id === currentButtonId) button.setAttribute('aria-current','page');
+        else button.removeAttribute('aria-current');
     });
 }
 

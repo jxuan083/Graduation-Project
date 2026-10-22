@@ -29,6 +29,7 @@ export function init() {
     register('view-profile', { element: document.getElementById('view-profile') });
     document.getElementById('btn-profile-save').onclick = saveProfile;
     document.getElementById('btn-profile-back').onclick = back;
+    document.getElementById('btn-profile-more').onclick = () => switchView('view-more');
     document.getElementById('btn-interest-add').onclick = addCustomInterest;
     document.getElementById('profile-interest-input').addEventListener('keydown', (e) => {
         if (isImeComposing(e)) return;   // 輸入法選字中的 Enter 不新增標籤
