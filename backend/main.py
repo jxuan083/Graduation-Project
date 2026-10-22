@@ -148,6 +148,7 @@ async def get_health():
     """本機與部署前檢查用；不丟 500，讓 caller 能看到是哪個 capability 失效。"""
     health = {
         "status": "ok",
+        "commit": os.environ.get("APP_COMMIT", "local"),
         "version": BACKEND_VERSION,
         "build_date": BACKEND_BUILD_DATE,
         "aws": {
@@ -2690,11 +2691,23 @@ def _generate_invite_code() -> str:
     return ''.join(secrets.choice(chars) for _ in range(8))
 
 
+def _mini_pet_profile(data: dict):
+    target = data.get('pet_target_uid')
+    if not target or target not in (data.get('member_uids') or []):
+        return None
+    snap = db.collection('users').document(target).get()
+    if not snap.exists:
+        return {'uid':target,'nickname':'','photoURL':''}
+    profile = snap.to_dict() or {}
+    return {'uid':target,'nickname':profile.get('nickname',''),'photoURL':profile.get('photoURL','')}
+
+
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
     if data.get("pet_face_url"):
         out.update(_group_pet_display(data))
     out["group_id"] = doc_id
+    out["pet_mini_profile"] = _mini_pet_profile(data)
     for internal_field in ("pet_action_cooldowns", "pet_action_receipts", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
         out.pop(internal_field, None)
     for f in ("created_at", "pet_last_fed_at", "pet_face_updated_at", "pet_last_session_at"):
@@ -3041,9 +3054,9 @@ async def update_pet(group_id: str, payload: UpdatePetPayload, decoded: dict = D
     if payload.pet_name is not None:
         updates["pet_name"] = payload.pet_name.strip()[:20]
     if payload.pet_target_uid is not None:
-        if payload.pet_target_uid not in (data.get("member_uids") or []):
+        if payload.pet_target_uid and payload.pet_target_uid not in (data.get("member_uids") or []):
             raise HTTPException(status_code=400, detail="寵物人必須是群組成員")
-        updates["pet_target_uid"] = payload.pet_target_uid
+        updates["pet_target_uid"] = payload.pet_target_uid or None
 
     if not updates:
         raise HTTPException(status_code=400, detail="沒有要更新的欄位")
@@ -3340,6 +3353,7 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         "pet_character_id": data.get("pet_character_id"),
         "pet_body_emoji": data.get("pet_body_emoji"),
         "pet_target_uid": data.get("pet_target_uid"),
+        "pet_mini_profile": _mini_pet_profile(data),
         "pet_cooldowns": _group_pet_cooldowns(data, uid),
         "pet_discovered_items": discovered_items(data),
         "pet_last_reward_coins": max(0, int(data.get("pet_last_reward_coins", 0) or 0)),

@@ -919,3 +919,25 @@
 .care-draw-status { font-size:12px; line-height:1.7; color:#7d7356; }
 .pet-care-shop button:focus-visible,.pet-supplies-bar button:focus-visible { outline:2px solid #70805d; outline-offset:3px; }
 @media(max-width:380px) { .pet-care-shop { padding:16px; } .care-draw-card { gap:8px; padding:10px; } .care-draw-card .care-art { width:52px; height:52px; } .pet-supplies-bar small { font-size:10px; } }
+
+.mini-companion { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; width:100%; color:#576147; }
+.mini-pet-art { position:relative; display:flex; justify-content:center; align-items:center; width:100px; height:110px; flex-shrink:0; }
+.mini-person-pet { position:relative; display:block; width:100%; height:100%; }
+.mini-pet-body { display:block; width:100%; height:100%; }
+.mini-person-head { position:absolute; top:8px; left:23px; width:54px; height:54px; border:4px solid #e2bf88; box-sizing:border-box; border-radius:45% 45% 43% 43%; background:#f4e9d3; overflow:hidden; display:flex; align-items:center; justify-content:center; transform-origin:50% 85%; font-size:23px; color:#6c593e; }
+.mini-person-head img { width:100%!important; height:100%!important; object-fit:cover!important; }
+.mini-original-pet { width:94px!important; height:102px!important; object-fit:contain!important; }
+.mini-pet-words { display:block; text-align:center; font-size:11px; line-height:1.5; margin:5px 0 8px; }
+.mini-pet-controls { display:flex; gap:6px; }
+.mini-pet-controls button { border:1px solid #d8dcca; background:#f6f6eb; border-radius:10px; padding:7px 9px; color:#5d6c4c; font-size:11px; cursor:pointer; }
+.mini-pet-controls button:last-child { background:#65734f; color:#fff; border-color:#65734f; }
+.mini-pet-controls button:focus-visible { outline:2px solid #73845a; outline-offset:3px; }
+#view-home .group-img-area:has(.mini-companion) { background:#f4efdc; }
+#view-home .group-img-area .mini-pet-art { width:86px; height:95px; }
+#view-home .group-img-area .mini-person-head { left:20px; width:47px; height:47px; top:7px; }
+#view-group .grp-pet-card { align-items:center; }
+#view-group .grp-pet-card-img-wrap:has(#group-mini-companion) { width:160px; height:auto; flex-shrink:0; overflow:visible; background:transparent; }
+#view-group #btn-mini-pet-person { margin:0; padding:7px 10px; font-size:11px; width:auto; }
+#view-group .grp-pet-header { display:flex; align-items:center; justify-content:space-between; }
+#mini-person-dialog select { width:100%; margin:12px 0; }
+@media(max-width:360px) { #view-group .grp-pet-card-img-wrap:has(#group-mini-companion) { width:135px; } }

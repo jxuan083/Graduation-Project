@@ -1,5 +1,6 @@
 // views/group/group.js — 群組詳情頁（front-preview screen-group）
 // 中樞頁：成員、群組寵物（空/有）、最近聚會；再導向設定/聊天/邀請/寵物養成。
+import { miniCompanionMarkup, bindMiniCompanion } from '../../features/pets/mini-companion.js';
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { apiFetch } from '../../core/api.js';
@@ -13,9 +14,13 @@ export function init() {
     register('view-group', {
         element: document.getElementById('view-group'),
         onShow: onShow,
+        onHide: () => document.getElementById('mini-person-dialog').close(),
     });
 
     document.getElementById('btn-group-back').onclick = back;
+    document.getElementById('btn-mini-pet-person').onclick = openMiniPerson;
+    document.getElementById('mini-person-cancel').onclick = () => document.getElementById('mini-person-dialog').close();
+    document.getElementById('mini-person-form').onsubmit = saveMiniPerson;
 
     document.getElementById('btn-group-settings').onclick = () => {
         if (state.currentGroupDetail) switchView('view-group-setup');
@@ -157,9 +162,16 @@ function renderPet(g) {
     document.getElementById('group-pet-img').classList.toggle('is-illustrated-pet', Boolean(g.pet_character_id));
     if (!hasPet) return;
 
+    document.getElementById('btn-mini-pet-person').hidden = g.creator_uid !== state.currentUser?.uid;
+    const mini = document.getElementById('group-mini-companion');
+    mini.innerHTML = miniCompanionMarkup(g,{interactive:true});
+    bindMiniCompanion(mini,{onEnter:()=>{
+        state.tamagotchiGroupId = g.group_id;
+        switchView('view-pet-tamagotchi');
+    }});
     document.getElementById('group-pet-name').textContent = g.pet_name || t('群組寵物');
     const img = document.getElementById('group-pet-img');
-    if (g.pet_face_url) { img.src = g.pet_face_url; img.style.display = ''; }
+    if (g.pet_face_url) { img.src = g.pet_face_url; img.style.display = 'none'; }
     else { img.style.display = 'none'; }
 
     // HP 愛心（滿 5 顆）
@@ -179,4 +191,33 @@ function renderPet(g) {
 
 function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+
+function openMiniPerson() {
+    const group=state.currentGroupDetail;
+    if(!group || group.creator_uid!==state.currentUser?.uid)return;
+    const select=document.getElementById('mini-person-select');select.replaceChildren();
+    const base=new Option(t('使用原本角色'), '');select.add(base);
+    for(const member of group.members || [])select.add(new Option(member.nickname || member.uid,member.uid));
+    select.value=group.pet_target_uid || '';
+    document.getElementById('mini-person-error').textContent='';
+    document.getElementById('mini-person-dialog').showModal();
+}
+async function saveMiniPerson(event) {
+    event.preventDefault();const group=state.currentGroupDetail;
+    const button=document.getElementById('mini-person-save');if(button.disabled || !group)return;
+    const target=document.getElementById('mini-person-select').value;
+    button.disabled=true;
+    try {
+        const {res,data}=await apiFetch(`/api/groups/${encodeURIComponent(group.group_id)}/pet`,{method:'PATCH',body:JSON.stringify({pet_target_uid:target})});
+        if(!res.ok)throw new Error(typeof data?.detail==='string'?data.detail:t('儲存失敗，請再試一次'));
+        if(state.currentGroupDetail?.group_id!==group.group_id)return;
+        const member=group.members?.find(m=>m.uid===target);
+        const updated={...group,pet_target_uid:target || null,pet_mini_profile:member || null};
+        state.currentGroupDetail=updated;
+        state.myGroups=state.myGroups.map(g=>g.group_id===group.group_id?{...g,...updated}:g);
+        renderPet(updated);document.getElementById('mini-person-dialog').close();
+    }catch(error){document.getElementById('mini-person-error').textContent=error.message;}
+    finally{button.disabled=false;}
 }

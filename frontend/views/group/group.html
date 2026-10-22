@@ -32,6 +32,7 @@
         <div class="grp-pet-section" id="group-pet-section">
             <div class="grp-pet-header">
                 <p class="grp-section-title" style="margin-bottom:0;">群組寵物</p>
+                <button id="btn-mini-pet-person" class="btn secondary" type="button" hidden>小寵物頭像</button>
             </div>
 
             <!-- 無寵物狀態 -->
@@ -46,7 +47,8 @@
             <div class="grp-pet-has" id="group-pet-has" style="display:none;">
                 <div class="grp-pet-card">
                     <div class="grp-pet-card-img-wrap">
-                        <img id="group-pet-img" src="" class="grp-pet-card-img" alt="群組寵物">
+                        <div id="group-mini-companion"></div>
+                        <img hidden id="group-pet-img" src="" class="grp-pet-card-img" alt="群組寵物">
                     </div>
                     <div class="grp-pet-card-info">
                         <p class="grp-pet-card-name" id="group-pet-name">寵物</p>
@@ -84,4 +86,14 @@
         </div>
 
     </div>
+    <dialog id="mini-person-dialog" class="pet-care-dialog" aria-labelledby="mini-person-title">
+        <form id="mini-person-form" class="pet-rename-box">
+            <h3 id="mini-person-title">誰來當小寵物？</h3>
+            <p class="hint">小寵物使用這位成員的 Profile 頭像，完整養成角色維持原本外觀。</p>
+            <label for="mini-person-select">群組成員</label>
+            <select id="mini-person-select" class="text-input"></select>
+            <p id="mini-person-error" role="alert"></p>
+            <div class="pet-adopt-buttons"><button type="button" id="mini-person-cancel" class="btn secondary">取消</button><button type="submit" id="mini-person-save" class="btn primary">儲存</button></div>
+        </form>
+    </dialog>
 </section>
