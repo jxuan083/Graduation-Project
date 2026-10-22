@@ -235,3 +235,11 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 - 舊 android/ 為既有 untracked 目錄，未更動。詳細規則與驗證入口見 docs/pet-system.md。
 
 - 最終本機驗證：134 後端／43 前端／4 瀏覽器全通過；AWS 資源未寫入。Playwright 的 DynamoDB API 行為由 moto 與記憶體相容層驗證，非正式 DynamoDB 實測。
+
+
+## 2026-10-22 寵物版面修正
+
+- 右下寵物 Lucide 圖示原為 10.5px，其他主導覽為 22px；統一直接 SVG 為 22px、非中央按鈕約 48px 高。
+- 名字下方放金幣／抽取／背包，再接舞台與照顧按鈕。狀態、成長、說明放其後；空 feedback 與 sync status 不留高度。
+- 320／390／768px、中英文實測無橫向溢出；43 項前端測試、照顧 API／Rive 完成事件、重試與靜態回退的瀏覽器回歸通過。未部署。
+- 使用者詢問 code 檢查 command：本機 Claude Code 已安裝 codex plugin 1.0.6，command 是 /codex:review；另有 /codex:adversarial-review。此次只查詢名稱，沒有執行該 command。
