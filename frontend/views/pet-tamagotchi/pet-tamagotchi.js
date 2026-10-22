@@ -1176,6 +1176,7 @@ async function drawCareItem(kind) {
     try { sessionStorage.setItem(`pet_draw_pending:${key}`,JSON.stringify(request)); } catch { /* Keep in-memory request. */ }
     _drawBusy = true;
     const status = document.getElementById('pet-draw-status'); status.textContent = t('正在打開小包…');
+    _careCollection.beginDraw(kind);
     syncCareCollection();
     try {
         const {res,data} = await petRequest(`/api/groups/${encodeURIComponent(groupId)}/pet/draw`, {method:'POST',body:JSON.stringify(request)});
@@ -1190,9 +1191,11 @@ async function drawCareItem(kind) {
         }
         const message = data.duplicate ? t('已收藏的玩具，返還 {n} 金幣', {n:data.refund})
             : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，可重複使用');
-        _careCollection.result(data.care_item,message);
+        await _careCollection.finishDraw(data.care_item,message);
+        if (!sameScreen(seq,groupId)) return;
         status.textContent = t(data.replayed ? '已確認上次的抽取結果，沒有再次扣款。' : '打開背包就能使用。');
     } catch(error) {
+        _careCollection.cancelReveal();
         if (sameScreen(seq,groupId)) status.textContent = _pendingDraw.has(key) ? t('尚未確認結果，請按原抽取按鈕重試，不會再次扣款。') : error.message;
     } finally {
         _drawBusy = false;

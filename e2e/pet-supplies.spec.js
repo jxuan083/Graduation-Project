@@ -155,3 +155,48 @@ test('main care retry keeps the selected item without reopening the picker',asyn
     expect(actions[0].item_id).toBe('star_plush');
     await expect(page.locator('#pet-care-shop')).not.toBeVisible();
 });
+
+async function openDraw(page) {
+    await page.locator('#btn-bottom-pets').click();await page.locator('.btn-care-pet').first().click();
+    await page.locator('#btn-pet-draw').click();
+}
+
+test('draw animation can skip while waiting but reveals only confirmed results',async({page})=>{
+    let release;const gate=new Promise(resolve=>{release=resolve;});let calls=0;
+    await page.route('**/api/groups/browser-group/pet/draw',async r=>{
+        calls++;const response=await r.fetch({url:r.request().url().replace(':8080',':8093')});
+        await gate;await r.fulfill({response});
+    });
+    await openDraw(page);await page.locator('.care-draw-card').first().click();
+    await expect(page.locator('[data-draw-reveal]')).toBeVisible();
+    await page.screenshot({path:'test-results/draw-sealed-package.png'});
+    await page.locator('.draw-reveal-skip').click();
+    await expect(page.locator('[data-shop-result]')).not.toBeVisible();
+    await expect(page.locator('[data-draw-reveal]')).toHaveAttribute('data-phase','waiting');
+    release();
+    await expect(page.locator('[data-shop-result]')).toBeVisible();
+    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
+    await expect(page.locator('[data-shop-coins]')).toHaveText('174');
+    expect(calls).toBe(1);
+});
+
+test('closing an opening animation keeps the confirmed item without another draw',async({page})=>{
+    let calls=0;page.on('request',r=>{if(r.url().endsWith('/pet/draw')&&r.method()==='POST')calls++;});
+    await openDraw(page);await page.locator('.care-draw-card').first().click();
+    await expect(page.locator('[data-draw-reveal]')).toHaveAttribute('data-phase','opening');
+    await page.locator('[data-shop-close]').click();
+    await page.locator('#btn-pet-bag').click();
+    await expect(page.locator('[data-shop-coins]')).toHaveText('174');
+    await expect(page.locator('.care-bag-item').filter({hasText:'3 份'})).toHaveCount(1);
+    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
+    expect(calls).toBe(1);
+});
+
+test('reduced motion reveals draws without moving the package',async({page})=>{
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await openDraw(page);await page.locator('.care-draw-card').first().click();
+    await expect(page.locator('[data-shop-result]')).toBeVisible();
+    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
+    expect(await page.locator('#pet-care-shop').evaluate(d=>d.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+    await page.screenshot({path:'test-results/draw-revealed-item.png'});
+});

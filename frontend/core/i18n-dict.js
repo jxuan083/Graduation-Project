@@ -3,6 +3,11 @@
 // 含變數者以 {name} 佔位（供 i18n.js 的 t() 使用）。
 export const dict = {
   en: {
+    '正在準備小包，確認抽取結果…': 'Preparing your package and confirming the draw…',
+    '直接看結果': 'Skip animation',
+    '小包準備好了，打開看看。': 'Your package is ready. Let’s open it.',
+    '確認結果後立即顯示。': 'The result will appear once confirmed.',
+
     '關閉選擇': 'Close selection',
     '選擇食物': 'Choose food',
     '選擇玩具': 'Choose a toy',

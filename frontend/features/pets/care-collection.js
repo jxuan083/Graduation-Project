@@ -1,3 +1,4 @@
+import { DrawReveal } from './draw-reveal.js';
 import { t } from '../../core/i18n.js';
 
 const ART = {
@@ -31,6 +32,8 @@ export class CareCollection {
     constructor(dialog, {onDraw,onUse,availability}) {
         this.dialog = dialog; this.onDraw = onDraw; this.onUse = onUse; this.availability = availability;
         this.tab = 'draw'; this.kind = 'food';
+        this.reveal = new DrawReveal(dialog.querySelector('[data-draw-reveal]'));
+        dialog.addEventListener('close',()=>this.cancelReveal());
         dialog.querySelector('[data-shop-close]').onclick = () => dialog.close();
         dialog.querySelectorAll('[data-shop-tab]').forEach(button => button.onclick = () => { this.tab = button.dataset.shopTab; this.render(); });
         dialog.querySelectorAll('[data-shop-kind]').forEach(button => button.onclick = () => { this.kind = button.dataset.shopKind; this.render(); });
@@ -49,8 +52,22 @@ export class CareCollection {
         this.dialog.querySelector('#pet-draw-status').textContent = '';
         this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
     }
+    beginDraw(kind) {
+        this.result(null,'');this.dialog.classList.add('is-opening-draw');
+        this.reveal.begin(kind);this.dialog.scrollTop=0;
+    }
+    async finishDraw(item,message) {
+        const completed = await this.reveal.finish(item);
+        this.dialog.classList.remove('is-opening-draw');
+        if(!completed)return;
+        this.result(item,message);
+        this.reveal.present(this.dialog.querySelector('[data-shop-result]'));
+    }
+    cancelReveal() { this.reveal.cancel();this.dialog.classList.remove('is-opening-draw'); }
     result(item, message) {
-        renderCareResult(this.dialog.querySelector('[data-shop-result]'), item, message);
+        const result=this.dialog.querySelector('[data-shop-result]');
+        result.classList.toggle('is-treasured-draw',item?.rarity==='treasure');
+        renderCareResult(result, item, message);
     }
     render() {
         if (!this.pet || !this.catalog) return;
