@@ -41,29 +41,10 @@
             <button id="btn-pet-delete" aria-label="刪除群組寵物" title="刪除群組寵物" style="display:none;"><i data-lucide="trash-2"></i></button>
         </div>
 
-        <div class="pet-growth-panel" aria-label="寵物成長進度">
-            <div class="pet-level-mark">
-                <span>LV</span>
-                <strong id="pet-level">1</strong>
-            </div>
-            <div class="pet-growth-main">
-                <div class="pet-growth-meta">
-                    <span id="pet-stage-label">幼年期</span>
-                    <span id="pet-xp-label">0 / 100 XP</span>
-                </div>
-                <div class="pet-xp-track" role="progressbar" aria-label="升級進度" aria-valuemin="0" aria-valuemax="100">
-                    <div id="pet-xp-fill" class="pet-xp-fill"></div>
-                </div>
-                <div class="pet-growth-foot">
-                    <span><i data-lucide="calendar-check"></i><b id="pet-meeting-count">0</b> 次共同聚會</span>
-                    <span id="pet-last-reward" style="display:none;"></span>
-                </div>
-            </div>
-        </div>
-
-        <div id="pet-unlocks" class="pet-unlocks" style="display:none;" aria-label="已解鎖收藏">
-            <span class="pet-unlocks-label">共同回憶</span>
-            <div id="pet-unlock-items" class="pet-unlock-items"></div>
+        <div class="pet-supplies-bar">
+            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>群組金幣</small></span>
+            <button id="btn-pet-draw" type="button">抽物品</button>
+            <button id="btn-pet-bag" type="button">背包</button>
         </div>
 
         <!-- 舞台 -->
@@ -100,7 +81,6 @@
         </div>
 
         <!-- 背景選擇面板 -->
-        <p class="pet-companion-note">摸摸牠，陪牠一下。一起聚會，慢慢長大。</p>
         <div id="pet-bg-picker" class="pet-bg-picker" style="display:none;" aria-label="選擇寵物生活場景">
             <div class="pet-bg-picker-head">
                 <div>
@@ -154,11 +134,6 @@
                 <small id="pet-play-state">可互動</small>
             </button>
         </div>
-        <div class="pet-supplies-bar">
-            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>群組金幣</small></span>
-            <button id="btn-pet-draw" type="button">抽物品</button>
-            <button id="btn-pet-bag" type="button">背包</button>
-        </div>
         <div id="pet-care-result" class="care-item-result" role="status" hidden></div>
         <div id="pet-action-feedback" class="pet-action-feedback" role="status" aria-live="polite"></div>
         <p id="pet-sync-status" class="pet-sync-status" role="status"></p>
@@ -197,6 +172,33 @@
                 <span class="stat-val" id="val-group-clean">0</span>
             </div>
         </div>
+
+        <div class="pet-growth-panel" aria-label="寵物成長進度">
+            <div class="pet-level-mark">
+                <span>LV</span>
+                <strong id="pet-level">1</strong>
+            </div>
+            <div class="pet-growth-main">
+                <div class="pet-growth-meta">
+                    <span id="pet-stage-label">幼年期</span>
+                    <span id="pet-xp-label">0 / 100 XP</span>
+                </div>
+                <div class="pet-xp-track" role="progressbar" aria-label="升級進度" aria-valuemin="0" aria-valuemax="100">
+                    <div id="pet-xp-fill" class="pet-xp-fill"></div>
+                </div>
+                <div class="pet-growth-foot">
+                    <span><i data-lucide="calendar-check"></i><b id="pet-meeting-count">0</b> 次共同聚會</span>
+                    <span id="pet-last-reward" style="display:none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="pet-unlocks" class="pet-unlocks" style="display:none;" aria-label="已解鎖收藏">
+            <span class="pet-unlocks-label">共同回憶</span>
+            <div id="pet-unlock-items" class="pet-unlock-items"></div>
+        </div>
+
+        <p class="pet-companion-note">摸摸牠，陪牠一下。一起聚會，慢慢長大。</p>
 
         <button id="btn-pet-tama-back" class="btn secondary" style="width:100%; margin-top:4px;">返回</button>
     </div>

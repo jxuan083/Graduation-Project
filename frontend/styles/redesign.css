@@ -2531,3 +2531,35 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-more .more-blank {
   flex: 1; width: 100%;
 }
+
+
+/* Pet room: supplies, character and care stay together; growth follows care. */
+#view-pet-tamagotchi .pet-game-wrap { gap:12px; }
+#view-pet-tamagotchi .pet-name-row { margin:0; }
+#view-pet-tamagotchi .pet-group-badge { margin:0; }
+#view-pet-tamagotchi .pet-supplies-bar { padding:0 0 10px; border-bottom:1px solid var(--brown-10); gap:8px; }
+#view-pet-tamagotchi .pet-supplies-bar > span { gap:5px; }
+#view-pet-tamagotchi .pet-supplies-bar small { font-size:10px; }
+#view-pet-tamagotchi .pet-supplies-bar button { min-height:40px; padding:8px 14px; font-size:12px; }
+#view-pet-tamagotchi .pet-stage { margin:0; }
+#view-pet-tamagotchi .pet-actions { margin:0; gap:8px; }
+#view-pet-tamagotchi .pet-action-btn { min-height:76px; gap:5px; padding:11px 8px; border-radius:16px; }
+#view-pet-tamagotchi .pet-action-btn > svg { width:22px; height:22px; flex-shrink:0; }
+#view-pet-tamagotchi .pet-action-btn small { font-size:11px; line-height:1.35; }
+#view-pet-tamagotchi .pet-action-feedback:not(.is-visible),
+#view-pet-tamagotchi .pet-sync-status:empty { display:none; }
+#view-pet-tamagotchi .care-item-result { margin:0; }
+#view-pet-tamagotchi .pet-stats { margin:0; padding:14px 16px; gap:10px; }
+#view-pet-tamagotchi .pet-hp-row,
+#view-pet-tamagotchi .stat-row { margin:0; }
+#view-pet-tamagotchi .pet-growth-panel { padding:12px; gap:10px; box-shadow:none; border:1px solid var(--brown-10); background:#fff9f0; }
+#view-pet-tamagotchi .pet-level-mark { width:44px; height:44px; border-radius:10px; }
+#view-pet-tamagotchi .pet-growth-foot { margin-top:6px; flex-wrap:wrap; }
+#view-pet-tamagotchi .pet-companion-note { font-size:11px; line-height:1.6; }
+#view-pet-tamagotchi .pet-supplies-bar button:hover { border-color:#a6b18d; background:#f5f4e7; }
+#view-pet-tamagotchi .pet-supplies-bar button:active { transform:translateY(1px); }
+@media(max-width:360px) {
+  #view-pet-tamagotchi .pet-supplies-bar { gap:6px; }
+  #view-pet-tamagotchi .pet-supplies-bar button { padding-inline:10px; }
+  #view-pet-tamagotchi .pet-supplies-bar small { font-size:9px; }
+}
