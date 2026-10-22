@@ -8,7 +8,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-os.environ.setdefault("FIRESTORE_EMULATOR_HOST", "127.0.0.1:1")
+os.environ.setdefault("DOCSTORE", "memory")
+os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
 try:
     import main
     from fastapi import HTTPException
