@@ -1,14 +1,19 @@
 #!/bin/bash
-# 在 EC2 上更新並重啟後端。用法：sudo bash deploy/deploy.sh [branch]
+# 在 EC2 上更新並重啟後端。用法：sudo bash deploy/deploy.sh [branch] [verified-commit]
 # GitHub Actions 透過 SSM Run Command 呼叫；第一次開機由 ec2-user-data.sh 呼叫。
 set -euo pipefail
 REGION=ap-northeast-1
 APP_DIR=/opt/phubbing/app
-BRANCH="${1:-$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)}"
+BRANCH="${1:-main}"
+REVISION="${2:-}"
 
 cd "$APP_DIR"
 git fetch origin "$BRANCH"
-git checkout -f -B "$BRANCH" "origin/$BRANCH"
+REVISION="${REVISION:-$(git rev-parse "origin/$BRANCH")}"
+[[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo "Invalid commit" >&2; exit 1; }
+git merge-base --is-ancestor "$REVISION" "origin/$BRANCH"
+git diff --quiet && git diff --cached --quiet || { echo "Tracked deployment files are dirty" >&2; exit 1; }
+git checkout --detach "$REVISION"
 
 # SSM 參數沒設就不寫那一行（空字串會蓋掉程式裡的預設值）
 param() {
@@ -18,6 +23,7 @@ param() {
 }
 {
   echo "AWS_REGION=$REGION"
+  echo "APP_COMMIT=$REVISION"
   param VAPID_PRIVATE_KEY
   param DASHSCOPE_API_KEY
   param ALLOWED_ORIGINS

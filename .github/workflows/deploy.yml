@@ -21,7 +21,10 @@ on:
 # 依事件分組：手動部署不會把同一分支 push 觸發的 CI 取消掉（2026-10 發生過，顯示成紅叉）。
 concurrency:
   group: ci-deploy-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+permissions:
+  contents: read
 
 env:
   AWS_REGION: ap-northeast-1
@@ -33,6 +36,12 @@ env:
 jobs:
   # ── CI gate: push、PR、手動部署都必須先通過 ──
   verify:
+    timeout-minutes: 20
+    env:
+      DOCSTORE: memory
+      AWS_EC2_METADATA_DISABLED: 'true'
+      AWS_ACCESS_KEY_ID: testing
+      AWS_SECRET_ACCESS_KEY: testing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,25 +53,48 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements-core.txt
+            backend/requirements-test.txt
+
+      - name: Install test dependencies
+        run: |
+          npm ci
+          python -m pip install -r backend/requirements-test.txt
+          npx playwright install --with-deps chromium
 
       - name: Run frontend unit tests
         run: npm test
 
       - name: Check JavaScript syntax
-        run: find frontend tests -name '*.js' -print0 | xargs -0 -n1 node --check
+        run: find frontend tests e2e -name '*.js' -print0 | xargs -0 -n1 node --check
 
       - name: Check Python syntax
         run: python -m py_compile backend/*.py
 
       - name: Run backend unit tests
-        run: python -m unittest discover -s backend/tests -v
+        run: python scripts/test_backend.py
+
+      - name: Browser navigation and pet inventory
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure
+          path: test-results/
+          retention-days: 7
 
   # ── Frontend: Amplify Hosting ──
   deploy-frontend:
-    needs: verify
+    timeout-minutes: 12
+    needs: [verify, deploy-backend]
     if: >-
-      github.event_name == 'workflow_dispatch' &&
-      (inputs.deploy_target == 'frontend' || inputs.deploy_target == 'all')
+      always() && !cancelled() && needs.verify.result == 'success' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      (inputs.deploy_target == 'frontend' ||
+      (inputs.deploy_target == 'all' && needs.deploy-backend.result == 'success'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -99,15 +131,18 @@ jobs:
   # 只能有一台：WebSocket 房間狀態是 process-local，所以是在固定那台 EC2 上
   # git pull + docker compose 重建，不做多台 / auto scaling。
   deploy-backend:
+    timeout-minutes: 40
     needs: verify
     if: >-
-      github.event_name == 'workflow_dispatch' &&
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
       inputs.deploy_target == 'all'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE }}
@@ -118,9 +153,18 @@ jobs:
           INSTANCE=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=$EC2_NAME_TAG" Name=instance-state-name,Values=running \
             --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          [ -n "$INSTANCE" ] && [ "$INSTANCE" != None ] || { echo "Backend instance not found"; exit 1; }
+          python3 - <<'PYTHON'
+          import json, os, re
+          sha = os.environ['GITHUB_SHA']
+          if not re.fullmatch(r'[0-9a-f]{40}', sha):
+              raise SystemExit('Invalid revision')
+          command = f'cd /opt/phubbing/app && git fetch origin main && git checkout --detach {sha} && bash deploy/deploy.sh main {sha}'
+          with open('/tmp/ssm-deploy.json','w') as handle:
+              json.dump({'commands':[command],'executionTimeout':['1800']},handle)
+          PYTHON
           CMD=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
-            --comment "deploy ${GITHUB_SHA::7}" \
-            --parameters "commands=[\"cd /opt/phubbing/app && git fetch origin ${GITHUB_REF_NAME} && git checkout -f -B ${GITHUB_REF_NAME} origin/${GITHUB_REF_NAME} && bash deploy/deploy.sh ${GITHUB_REF_NAME}\"],executionTimeout=[\"1800\"]" \
+            --comment "deploy ${GITHUB_SHA::7}" --parameters file:///tmp/ssm-deploy.json \
             --query Command.CommandId --output text)
           for i in $(seq 1 120); do
             STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$INSTANCE" \
@@ -138,4 +182,12 @@ jobs:
           [ "$STATUS" = Success ] || exit 1
 
       - name: Health check
-        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors https://35-73-255-236.sslip.io/api/health
+        run: |
+          curl -fsS --retry 10 --retry-delay 6 --retry-all-errors https://35-73-255-236.sslip.io/api/health > /tmp/health.json
+          python3 - <<'PYTHON'
+          import json, os
+          with open('/tmp/health.json') as handle:
+              health = json.load(handle)
+          assert health['status'] == 'ok', health
+          assert health['commit'] == os.environ['GITHUB_SHA'], 'Backend revision differs from verified commit'
+          PYTHON
