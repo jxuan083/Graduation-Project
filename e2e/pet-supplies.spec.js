@@ -112,3 +112,46 @@ test('small pet uses the designated member while full care keeps its character',
     await expect(page.locator('#pet-tama-name')).toHaveText('奶糖');
     expect(await page.locator('#pet-stage .mini-person-head').count()).toBe(0);
 });
+
+test('main care buttons let users choose before any food or toy is used',async({page})=>{
+    const actions=[];page.on('request',r=>{if(r.url().endsWith('/pet/action')&&r.method()==='POST')actions.push(r.postDataJSON());});
+    await page.locator('#btn-bottom-pets').click();await page.locator('.btn-care-pet').first().click();
+    await expect(page.locator('#pet-stage')).toHaveClass(/illustrated-ready/,{timeout:20000});
+    await page.locator('#btn-pet-feed').click();
+    await expect(page.locator('#pet-shop-title')).toHaveText('選擇食物');
+    await expect(page.locator('.care-shop-wallet')).not.toBeVisible();
+    await expect(page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'手作愛心餅'})}).getByRole('button')).toBeDisabled();
+    expect(actions).toHaveLength(0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#btn-pet-feed')).toBeFocused();
+    expect(actions).toHaveLength(0);
+    await page.locator('#btn-pet-feed').click();
+    await page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'燕麥小餅'})}).getByRole('button').click();
+    await expect(page.locator('#pet-stage')).toHaveAttribute('data-care-phase','feedComplete');
+    expect(actions[0].item_id).toBe('oat_biscuit');
+    await page.locator('#btn-pet-play').click();
+    await expect(page.locator('#pet-shop-title')).toHaveText('選擇玩具');
+    expect(actions).toHaveLength(1);
+    await page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'星星布偶'})}).getByRole('button').click();
+    await expect(page.locator('#pet-stage')).toHaveAttribute('data-care-phase','playComplete');
+    expect(actions[1].item_id).toBe('star_plush');
+});
+
+test('main care retry keeps the selected item without reopening the picker',async({page})=>{
+    const actions=[];let lost=true;
+    await page.route('**/api/groups/browser-group/pet/action',async r=>{
+        actions.push(r.request().postDataJSON());
+        const response=await r.fetch({url:r.request().url().replace(':8080',':8093')});
+        if(lost){lost=false;await r.abort();}else await r.fulfill({response});
+    });
+    await page.locator('#btn-bottom-pets').click();await page.locator('.btn-care-pet').first().click();
+    await page.locator('#btn-pet-play').click();
+    await page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'星星布偶'})}).getByRole('button').click();
+    await expect(page.locator('#pet-play-state')).toHaveText('重試確認結果');
+    await page.locator('#btn-pet-play').click();
+    await expect(page.locator('#pet-sync-status')).toHaveText('已同步群組狀態');
+    expect(actions).toHaveLength(2);
+    expect(actions[1]).toEqual(actions[0]);
+    expect(actions[0].item_id).toBe('star_plush');
+    await expect(page.locator('#pet-care-shop')).not.toBeVisible();
+});

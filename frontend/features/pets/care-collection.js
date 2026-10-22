@@ -40,7 +40,14 @@ export class CareCollection {
         if (this.dialog.open) this.render();
     }
     open(tab = 'draw') {
-        this.tab = tab; this.render(); this.dialog.showModal();
+        this.selectKind = null;
+        this.tab = tab; this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
+    }
+    choose(kind) {
+        this.selectKind = kind; this.kind = kind; this.tab = 'bag';
+        this.result(null,'');
+        this.dialog.querySelector('#pet-draw-status').textContent = '';
+        this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
     }
     result(item, message) {
         renderCareResult(this.dialog.querySelector('[data-shop-result]'), item, message);
@@ -48,6 +55,11 @@ export class CareCollection {
     render() {
         if (!this.pet || !this.catalog) return;
         const {pet,catalog,dialog} = this;
+        const choosing = Boolean(this.selectKind);
+        dialog.querySelector('[data-shop-close]').setAttribute('aria-label',t(choosing ? '關閉選擇' : '關閉補給小舖'));
+        dialog.querySelector('#pet-shop-title').textContent = t(choosing ? this.kind === 'food' ? '選擇食物' : '選擇玩具' : '補給小舖');
+        dialog.querySelector('.care-shop-heading p').textContent = t(choosing ? this.kind === 'food' ? '選一份牠今天想吃的' : '今天想怎麼一起玩？' : '一起聚會，替牠添點新東西');
+        for (const selector of ['.care-shop-wallet', ':scope > .care-shop-rules', '.care-shop-tabs', '.care-shop-kinds']) dialog.querySelector(selector).hidden = choosing;
         dialog.querySelector('[data-shop-coins]').textContent = Number(pet.pet_coins || 0);
         dialog.querySelectorAll('[data-shop-tab]').forEach(b => { const active = b.dataset.shopTab === this.tab; b.setAttribute('aria-pressed', String(active)); });
         dialog.querySelectorAll('[data-shop-kind]').forEach(b => { b.hidden = this.tab !== 'bag'; b.setAttribute('aria-pressed', String(b.dataset.shopKind === this.kind)); });
@@ -70,7 +82,7 @@ export class CareCollection {
             rules.textContent = t('先抽等級，再於同等級內等機率抽取。免費基本款不在抽取池。重複玩具返還 20 金幣。');
             content.append(rules);
         } else {
-            const items = catalog.items.filter(i => i.kind === this.kind);
+            const items = catalog.items.filter(i => i.kind === this.kind).sort((a,b) => Number(this.owned(b)) - Number(this.owned(a)));
             const grid = document.createElement('div'); grid.className = 'care-bag-grid';
             const unlocked = items.filter(i => this.owned(i)).length;
             const note = document.createElement('p'); note.className = 'care-shop-rules';

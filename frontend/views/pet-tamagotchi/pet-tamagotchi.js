@@ -240,9 +240,9 @@ export function init() {
     });
     document.getElementById('btn-pet-draw').onclick = () => { syncCareCollection(); _careCollection.open('draw'); };
     document.getElementById('btn-pet-bag').onclick = () => { syncCareCollection(); _careCollection.open('bag'); };
-    document.getElementById('btn-pet-feed').onclick  = () => doAction('feed');
+    document.getElementById('btn-pet-feed').onclick  = () => chooseCareItem('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
-    document.getElementById('btn-pet-play').onclick  = () => doAction('play');
+    document.getElementById('btn-pet-play').onclick  = () => chooseCareItem('play');
     document.getElementById('btn-pet-tama-back-nopet').onclick = () => {
         if (_entryMode === 'direct') back();
         else showScreen('list');
@@ -519,6 +519,20 @@ async function loadGroupPet() {
         console.error('load group pet error', e);
         showLoadError(e.message);
     }
+}
+
+function chooseCareItem(action) {
+    const pending = _pendingCare.get(careKey());
+    // An uncertain result must retry its original item, never open a new choice.
+    if (pending?.action === action) { doAction(action); return; }
+    const available = careAvailability(_groupPet, action, {busy:_actionLock || _petViewer?.busy,pending:pending?.action});
+    if (available.disabled) return;
+    if (!_careCatalog) {
+        showActionFeedback('物品清單尚未載入，請重新整理寵物狀態。','warn');
+        return;
+    }
+    syncCareCollection();
+    _careCollection.choose(action === 'feed' ? 'food' : 'toy');
 }
 
 async function doAction(action, itemId) {
@@ -1041,7 +1055,8 @@ function renderActionButtons() {
         button.disabled = availability.disabled;
         button.classList.toggle('is-cooling', Boolean(availability.remaining));
         button.setAttribute('aria-busy', String(_actionLock && (pending === action)));
-        document.getElementById(`pet-${action}-state`).textContent = availability.remaining ? formatCooldown(availability.remaining) : availability.label;
+        const choiceLabel = !availability.disabled && !pending && {feed:'選擇食物',play:'選擇玩具'}[action];
+        document.getElementById(`pet-${action}-state`).textContent = availability.remaining ? formatCooldown(availability.remaining) : t(choiceLabel || availability.label);
     }
     document.getElementById('btn-pet-touch').disabled = busy || Boolean(_groupPet?.pet_is_caged);
     document.getElementById('btn-pet-character').disabled = busy;
