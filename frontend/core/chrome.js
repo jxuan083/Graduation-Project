@@ -171,11 +171,15 @@ function renderAuthBar() {
     if (state.currentUser) {
         loggedOut.style.display = 'none';
         loggedIn.style.display = 'flex';
-        const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
-        document.getElementById('auth-avatar').src =
-            state.currentProfile?.photoURL || state.currentUser.photoURL || PLACEHOLDER;
-        document.getElementById('auth-nickname').innerText =
-            state.currentProfile?.nickname || state.currentUser.displayName || '使用者';
+        const name = state.currentProfile?.nickname || state.currentUser.displayName || t('使用者');
+        const photo = state.currentProfile?.photoURL || state.currentUser.photoURL || '';
+        const avatar = document.getElementById('auth-avatar');
+        const fallback = document.getElementById('auth-avatar-fallback');
+        fallback.textContent = name.slice(0,1);
+        avatar.hidden = !photo; fallback.hidden = Boolean(photo);
+        avatar.onerror = () => { avatar.hidden = true; fallback.hidden = false; };
+        if (photo && avatar.getAttribute('src') !== photo) avatar.src = photo;
+        document.getElementById('auth-nickname').innerText = name;
     } else {
         loggedOut.style.display = 'flex';
         loggedIn.style.display = 'none';

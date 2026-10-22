@@ -1448,3 +1448,6 @@
   opacity: 1;
   font-weight: 700;
 }
+
+.auth-avatar[hidden] { display:none!important; }
+.auth-avatar-fallback { display:inline-grid; place-items:center; color:#765b38; background:#efe4cd; font-size:14px; font-weight:650; }
