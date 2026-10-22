@@ -132,3 +132,5 @@ PYTHON=python npx playwright test
 設計參考： [PicPet 官方介紹](https://play.google.com/store/apps/details?id=com.o3o.android.picpet&hl=en_US) 的共同飼養與日常分享，以及 [My Talking Tom 2 官方頁](https://talkingtomandfriends.com/apps/my-talking-tom-2) 的餵食、清潔與遊玩。小／大兩層是本專案依使用者要求採用的安排，不是宣稱兩款產品有相同架構。
 
 2026-10-22 本輪驗證：後端 134/134（零略過）、前端 43/43、完整瀏覽器 4/4。瀏覽器包含指定頭像與完整角色分離、斷線後重新整理重試、食物扣份數、永久玩具，以及全部 7 款玩具的原生完成事件與前腳固定檢查。8-bit 畫素比較容許 4/255 的渲染捨入差異。Workflow YAML 與每個 shell 區塊均完成語法檢查；未觸發遠端 GitHub Actions 或正式部署。
+
+2026-10-22 選擇流程：主畫面的餵食與玩耍先開啟對應的物品選擇器，已擁有者排前；按「餵一份／陪牠玩」才送出含 item_id 的照顧操作。取消不產生 API 或消耗。只有結果待確認的重試會直接沿用原操作，避免重選與重複消耗。
