@@ -1,0 +1,19 @@
+# EC2 上的後端：FastAPI + Caddy（自動申請 HTTPS 憑證，WebSocket 直接轉發）。
+# 只能跑一台、一個 process：WebSocket 房間狀態存在記憶體。
+# 啟動：DOMAIN=<eip>.sslip.io docker compose up -d --build（ec2-user-data.sh 會做）
+services:
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: /opt/phubbing/backend.env
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+volumes:
+  caddy_data: {}

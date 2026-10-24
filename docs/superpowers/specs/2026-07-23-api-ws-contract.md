@@ -18,6 +18,7 @@
 | GET | `/api/users/by_handle/{handle}` |
 | GET | `/api/users/{target_uid}/card` |
 | POST | `/api/push_token` |
+| POST | `/api/uploads/presign` |
 | GET | `/api/users/{target_uid}/relationship` |
 | POST | `/api/friend_requests` |
 | GET | `/api/friend_requests` |

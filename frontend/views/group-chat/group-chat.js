@@ -3,7 +3,7 @@
 // 支援：文字 / 圖片（含拍照）/ 語音訊息、跨日日期分隔線（類 IG）。
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { storage } from '../../core/firebase.js?v=78';
+import { uploadMedia } from '../../core/upload.js?v=78';
 import { apiFetch } from '../../core/api.js';
 import { t, getLang } from '../../core/i18n.js';
 import { showToast } from '../../utils/toast.js';
@@ -265,9 +265,7 @@ async function onImagePicked(e) {
     setUploading(true);
     try {
         const blob = await compressImage(file);
-        const path = `group-chat/${g.group_id}/${state.currentUser.uid}/${Date.now()}.jpg`;
-        const snap = await storage.ref().child(path).put(blob, { contentType: 'image/jpeg' });
-        const url = await snap.ref.getDownloadURL();
+        const url = await uploadMedia('group-chat', blob, { groupId: g.group_id, contentType: 'image/jpeg' });
         await postMediaMessage({ type: 'image', media_url: url });
     } catch (err) {
         showToast(t('上傳失敗：') + (err.message || err), 'error');
@@ -381,10 +379,7 @@ async function sendVoiceBlob() {
     if (recDurationSec < 1) { showToast(t('錄音太短'), 'info'); return; }
     setUploading(true);
     try {
-        const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
-        const path = `group-chat/${g.group_id}/${state.currentUser.uid}/${Date.now()}.${ext}`;
-        const snap = await storage.ref().child(path).put(blob, { contentType: blob.type || 'audio/webm' });
-        const url = await snap.ref.getDownloadURL();
+        const url = await uploadMedia('group-chat', blob, { groupId: g.group_id, contentType: blob.type || 'audio/webm' });
         await postMediaMessage({ type: 'audio', media_url: url, duration_sec: recDurationSec });
     } catch (err) {
         showToast(t('上傳失敗：') + (err.message || err), 'error');

@@ -2,11 +2,11 @@
 
 // 本機開發判定。除了 localhost，也認私有網段 IP，這樣同一個 WiFi 下的手機
 // 連 http://<mac-ip>:5002 時仍然走本地 emulator + 本地 backend，
-// 而不是誤連正式 Cloud Run（目前 billing 關閉，會 503）。
+// 而不是誤連正式後端（AWS EC2）。
 const HOSTNAME = window.location.hostname;
 const PRIVATE_IP_RE = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const NATIVE_DEV_HOST_KEY = 'phubbing_native_dev_host';
-const PRODUCTION_BACKEND_HOST = 'phubbing-backend-798458690617.asia-east1.run.app';
+const PRODUCTION_BACKEND_HOST = '35-73-255-236.sslip.io';
 const nativeRuntimeConfig = window.PHUBBING_NATIVE_CONFIG || {};
 const isNativeApp = Boolean(
     window.Capacitor?.isNativePlatform?.()
@@ -64,33 +64,22 @@ export const WS_PROTOCOL = isSecure ? 'wss://' : 'ws://';
 // 邀請連結／QR Code 要指向「別人的裝置打得開」的前端網址。
 // 瀏覽器：就是目前這個網站。原生 App：頁面是從 App 內部的 http://localhost 載入的，
 // 那個網址只有自己看得到，所以改指向網頁版（本機開發 → 開發機的 Hosting；正式 → 正式站）。
-const PRODUCTION_FRONTEND_ORIGIN = 'https://graduation-6ae65.web.app';
+const PRODUCTION_FRONTEND_ORIGIN = 'https://main.dm3mlaqpivp0d.amplifyapp.com';
 const LOCAL_HOSTING_PORT = 5002;
 export const INVITE_BASE_URL = !isNativeApp
     ? window.location.origin
     : (isLocalFrontend ? `http://${nativeDevHost}:${LOCAL_HOSTING_PORT}` : PRODUCTION_FRONTEND_ORIGIN);
 
-export const FIREBASE_EMULATORS = {
-    enabled: isLocalFrontend,
-    authHost: `http://${runtimeHost}:9099`,
-    storageHost: runtimeHost,
-    storagePort: 9199,
+// Amazon Cognito（公開的 client 設定，非機密）。對應 config/aws.env。
+export const COGNITO = {
+    region: 'ap-northeast-1',
+    userPoolId: 'ap-northeast-1_ZZeqcm0E2',
+    clientId: '1sdrgh39bdgcoquopsn58lbv81',
+    domain: 'phubbing-anchor.auth.ap-northeast-1.amazoncognito.com',
 };
 
-export const firebaseConfig = {
-    apiKey: "AIzaSyBD_Q2H2H7HalmKV2A4TT1I2J9md9Mtq3k",
-    authDomain: "graduation-6ae65.firebaseapp.com",
-    projectId: "graduation-6ae65",
-    storageBucket: "graduation-6ae65.firebasestorage.app",
-    messagingSenderId: "798458690617",
-    appId: "1:798458690617:web:bda0f994b531be1f4461e8",
-    measurementId: "G-8STMGY1K1C"
-};
-
-// FCM Web Push 用的 VAPID public key。
-// 去 Firebase Console → 專案設定 → Cloud Messaging → Web Push 憑證 → 產生金鑰組，貼在這裡。
-// 沒填之前 getToken() 會直接失敗（push.js 有擋，不會炸整個 app）。
-export const FCM_VAPID_KEY = "";
+// Web Push 的 VAPID public key（私鑰只在後端 VAPID_PRIVATE_KEY）。
+export const VAPID_PUBLIC_KEY = "BGcdHVLrHCO1uVuYo3Y6SKVcOfjzjPCqel3NLO0K_A8t7L2wSrwWagw-EvSAyDhrXBPJpvKP8FaXB7-81N7FaCI";
 
 // 9 種聚會情境設定 (與後端 CONTEXT_DEFAULTS 對應)
 export const CONTEXT_CONFIGS = {

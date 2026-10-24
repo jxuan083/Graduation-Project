@@ -4,8 +4,7 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId, isChromeHiddenViewId } from './router.js';
-import { doSignOut } from './firebase.js?v=78';
-import { FIREBASE_EMULATORS } from './config.js';
+import { doSignOut } from './auth.js?v=78';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
@@ -23,11 +22,6 @@ import { t } from './i18n.js';
 export function initChrome() {
     // ===== Auth bar =====
     document.getElementById('btn-google-login').onclick = openLoginMethodSheet;
-    const devLoginButton = document.getElementById('btn-dev-login');
-    if (devLoginButton) {
-        devLoginButton.style.display = FIREBASE_EMULATORS.enabled ? 'inline-flex' : 'none';
-        devLoginButton.onclick = openLoginMethodSheet;
-    }
 
     const userMenuToggle = document.getElementById('btn-user-menu-toggle');
     const userMenuDropdown = document.getElementById('user-menu-dropdown');
@@ -169,7 +163,7 @@ function renderAuthBar() {
     const loggedOut = document.getElementById('auth-logged-out');
     const loggedIn = document.getElementById('auth-logged-in');
     const authButton = document.getElementById('btn-google-login');
-    // 只要 Firebase 已登入就視為登入狀態（暱稱/頭貼可 fallback 用 Google 帳號），
+    // 只要 Cognito 已登入就視為登入狀態（暱稱/頭貼可 fallback 用 Google 帳號），
     // 避免後端/profile 尚未載入時登入鈕還留著。
     if (state.currentUser) {
         loggedOut.style.display = 'none';

@@ -38,12 +38,12 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 |---|---|
 | 後端 | FastAPI + WebSocket，`backend/main.py` 4,366 行，同步 Firestore I/O |
 | 前端 | vanilla JS 多 view，`frontend/main.js` 264 行，一次載入 36 個 view |
-| 部署 | Firebase Hosting 正常；Cloud Run backend **503**（GCP Billing disabled） |
+| 部署 | **2026-10-22 起全部在 AWS**（ap-northeast-1）：Amplify 網站、EC2 t3.small 後端（Docker + Caddy）、DynamoDB、S3、Cognito。資源 ID 見 `config/aws.env` |
 | CI/CD | CI 自動（push main / PR）；CD 只接受 `workflow_dispatch` |
-| WebSocket state | process-local，Cloud Run 必須 `--max-instances 1`（有 invariant test 鎖住） |
+| WebSocket state | process-local，後端只能一台 EC2、一個 process（有 invariant test 鎖住） |
 | 快取 | 全域 cache-bust 版本號，現為 `v40` |
 
-**本機缺**：`.venv`、Python 依賴、`backend/serviceAccountKey.json`、ADC。Firebase CLI auth 已過期。
+本機開發：`aws login --region ap-northeast-1` 後跑 `./scripts/dev.sh`；密鑰在 `backend/.env`（不進 git）與 SSM `/phubbing/*`。
 
 ---
 
@@ -63,8 +63,9 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 
 - 改任何 JS/CSS 必須**全域**升 cache-bust 版本號，只升部分檔案會產生 module double-instance／cache mismatch。
 - i18n 有 MutationObserver，曾發生語言切換自我回饋無限迴圈（`05bbc8b` 修過）；新增動態 DOM 要確認不會再觸發。
-- GCP Billing disabled，不要嘗試 Cloud Run / Artifact Registry 部署。
-- Cloud Run 503 **不等於** Firestore 資料被刪，資料仍在。
+- 舊的 GCP / Firebase 已停用，不要再部署到那邊；AWS 上是全新資料庫（舊資料沒有搬）。
+- **訪客 id 一定是 `guest-` 開頭**：Cognito uid 本身就是 uuid，用 uuid 格式或有沒有 `-` 猜訪客會把登入使用者當訪客（2026-10 踩過）。
+- `backend/docstore.py` 是 Firestore 寫法的相容層，查詢是整個 collection 讀回來再過濾；資料量大了要改。
 - 寵物本體的 emoji 是舊產品資料與使用者選項，不可機械式清除；新 UI 一律 Lucide/SVG。
 - **要在手機上測之前，第一件事永遠是 `ipconfig getifaddr en0` 對一下 IP 有沒有變。**
   `devHost` 是 build 當下的快照、`dev.sh` 的 CORS 白名單是啟動當下的快照，Mac 一換網路兩者同時失效，
@@ -205,6 +206,7 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 
 ## 變更紀錄
 
+- 2026-10-22：v16.0 全面搬到 AWS（DynamoDB / S3 / Cognito / EC2 / Amplify / Web Push），舊資料不搬、從零開始；GitHub Actions 改 OIDC；新增 `backend/tests/test_api_e2e.py`。AI 報紙之後要改接 OpenAI，目前 LLM 部分不動。
 - 2026-08-06：原生化 6 個 commit fast-forward 併入 `main` 並推上 origin；修好原生 app 連不到本機後端（根因為手機 WiFi 未開 + Mac IP 漂移 + CORS 缺原生 Origin 三者疊加），**首次登入成功**。
 - 2026-08-05（下午）：Capacitor 原生化，實機跑起來；修動態島安全區、bottom bar fixed bug、導航堆疊與右滑返回；發現原生殼登入失效（`signInWithPopup`）。全部未 commit。
 - 2026-08-05：建立本檔；新增 UX 升級計畫；確認 repo 雙 clone 問題。

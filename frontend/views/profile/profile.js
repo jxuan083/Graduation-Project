@@ -1,7 +1,7 @@
 // views/profile/profile.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { storage } from '../../core/firebase.js?v=78';
+import { uploadMedia } from '../../core/upload.js?v=78';
 import { apiFetch } from '../../core/api.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
@@ -106,9 +106,7 @@ export function openProfileView() {
 
 async function uploadAvatar(file) {
     if (!state.currentUser) throw new Error('未登入');
-    const ref = storage.ref().child(`avatars/${state.currentUser.uid}/${Date.now()}_${file.name}`);
-    const snap = await ref.put(file);
-    return await snap.ref.getDownloadURL();
+    return await uploadMedia('avatar', file);
 }
 
 async function saveProfile() {

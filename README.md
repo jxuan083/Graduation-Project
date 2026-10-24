@@ -3,7 +3,7 @@
 > 手機可以留在手上，注意力留在彼此身上。
 > 一個把手機從干擾變成共同互動媒介，讓小群體更了解彼此、記錄當下的 Web App。
 
-[![Live Demo](https://img.shields.io/badge/demo-graduation--6ae65.web.app-4285F4?logo=firebase&logoColor=white)](https://graduation-6ae65.web.app)
+[![Live Demo](https://img.shields.io/badge/demo-amplifyapp.com-FF9900?logo=amazonaws&logoColor=white)](https://main.dm3mlaqpivp0d.amplifyapp.com)
 [![Backend](https://img.shields.io/badge/backend-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)](https://phubbing-backend-798458690617.asia-east1.run.app/api/version)
 [![Branch](https://img.shields.io/badge/branch-we1n-orange)](#)
 [![Version](https://img.shields.io/badge/version-v15.4-green)](#-版本歷程)
@@ -13,35 +13,26 @@
 ## 🚀 快速開始
 
 ```bash
-# 在本機跑，不需要 gcloud auth，也不會連正式 Firestore
 git clone <this-repo>
 cd Graduation-Project
 
-# 啟動 Firebase emulators + FastAPI + Hosting
-./scripts/dev.sh
-```
+# 用 AWS 帳號登入一次（本機後端會直接讀寫 AWS 上的 DynamoDB / S3 / Cognito）
+aws login --region ap-northeast-1
 
-首次冷啟流程：
-
-```bash
-# 1. 啟動本機 Firebase emulators + backend
+# 啟動 FastAPI（:8080）+ 前端靜態伺服器（:5002）
 ./scripts/dev.sh
 
-# 2. 另開一個 terminal，只在第一次建立本機資料時 seed 公共題庫
-FIRESTORE_EMULATOR_HOST=127.0.0.1:8081 FIREBASE_PROJECT_ID=graduation-6ae65 .venv/bin/python backend/seed_public_questions.py
-
-# 3. 驗證 backend 健康狀態
-curl http://127.0.0.1:8080/api/health
+# 不想連 AWS、只看畫面：資料只存在記憶體（登入功能不能用）
+DOCSTORE=memory ./scripts/dev.sh
 ```
 
-本機 emulator 資料會存放在 `.emulator-data/`，`./scripts/dev.sh` 結束時會自動 export，下次啟動會自動 import；公共題庫 seed 通常只需要跑一次。
+AWS 資源 ID 都在 `config/aws.env`。公共題庫已經 seed 過；資料表清空時再跑一次 `python backend/seed_public_questions.py`。
 
 本機預設入口：
 
 - Frontend: `http://127.0.0.1:5002`
 - Backend: `http://127.0.0.1:8080`
 - Health: `http://127.0.0.1:8080/api/health`
-- Emulator UI: `http://127.0.0.1:4000`
 
 ### 用手機連本機環境
 
@@ -51,7 +42,7 @@ curl http://127.0.0.1:8080/api/health
 http://<你的電腦 LAN IP>:5002
 ```
 
-emulator 已設定 `host: 0.0.0.0` 對外開放，`dev.sh` 也會自動把 LAN IP 加進 CORS 白名單，`frontend/core/config.js` 會把私有網段 IP 視為本機（所以手機不會誤連正式 Cloud Run）。
+`dev.sh` 會監聽 `0.0.0.0` 並自動把 LAN IP 加進 CORS 白名單，`frontend/core/config.js` 會把私有網段 IP 視為本機（所以手機不會誤連正式後端）。
 
 兩台裝置各開一次就能測多人定錨；這是目前唯一還沒做過真實驗證的核心流程。
 
@@ -69,7 +60,7 @@ emulator 已設定 `host: 0.0.0.0` 對外開放，`dev.sh` 也會自動把 LAN I
 # 安裝 JS/Capacitor dependencies
 npm install
 
-# 啟動本機 Firebase emulators + FastAPI + Hosting
+# 啟動本機 FastAPI + 前端
 ./scripts/dev.sh
 ```
 
@@ -79,7 +70,7 @@ npm install
 // 方式一：暫時修改 frontend/native-runtime-config.js，sync 後跑實機
 window.PHUBBING_NATIVE_CONFIG = {
     devHost: '你的 Mac LAN IP',
-    backendHost: 'phubbing-backend-798458690617.asia-east1.run.app',
+    backendHost: '35-73-255-236.sslip.io',
 };
 
 // 方式二：用 Safari / Chrome Web Inspector 寫入，之後 app 會記住
@@ -98,9 +89,9 @@ iOS 實機：用 Xcode 開啟 `ios/App/App.xcodeproj`，在 Signing & Capabiliti
 
 Android 實機：用 Android Studio 開啟 `android/`，等待 Gradle sync，開啟 USB debugging 後選實機 Run。
 
-本機原生開發會使用 `http://<devHost>:8080`、`ws://<devHost>:8080`、Firebase Auth emulator `http://<devHost>:9099`、Storage emulator `<devHost>:9199`。沒設定 dev host 時，原生殼會走 production backend host；正式上架前應移除 iOS/Android 的開發用 cleartext HTTP 例外，讓 production 全部走 HTTPS。
+本機原生開發會使用 `http://<devHost>:8080`、`ws://<devHost>:8080`；登入一律走 AWS Cognito。沒設定 dev host 時，原生殼會走 production backend host；正式上架前應移除 iOS/Android 的開發用 cleartext HTTP 例外，讓 production 全部走 HTTPS。原生 App 目前不支援 Google 登入（Email 可以）。
 
-Production 或直接連雲端 Firebase 時才需要 `serviceAccountKey.json` 或明確憑證。一般本機開發不要跑 `gcloud auth`，也不要 commit 任何金鑰。
+不要 commit 任何金鑰：`backend/.env`（VAPID 私鑰）已被 gitignore，正式環境的密鑰放在 AWS SSM Parameter Store `/phubbing/*`。
 
 ---
 
@@ -172,15 +163,15 @@ Production 或直接連雲端 Firebase 時才需要 `serviceAccountKey.json` 或
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Frontend ─ Firebase Hosting                                │
-│    Vanilla JS ES Modules · Firebase Auth (Google Sign-In)   │
+│  Frontend ─ AWS Amplify Hosting                             │
+│    Vanilla JS ES Modules · Amazon Cognito (Email / Google)  │
 │    ▼                                                        │
-│  Backend ─ Google Cloud Run (asia-east1)                    │
-│    FastAPI · Firebase Admin SDK · WebSocket                 │
+│  Backend ─ AWS EC2 t3.small (ap-northeast-1) · Docker+Caddy │
+│    FastAPI · WebSocket · docstore（Firestore 相容層）        │
 │    ▼                                                        │
-│  Storage ─ Firebase                                         │
-│    Firestore (rooms, meetings, users, questions)            │
-│    Cloud Storage (avatars, meeting-photos)                  │
+│  Storage ─ AWS                                              │
+│    DynamoDB (rooms, meetings, users, questions)             │
+│    S3 (avatars, group-chat, meeting-photos)                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -188,15 +179,15 @@ Production 或直接連雲端 Firebase 時才需要 `serviceAccountKey.json` 或
 
 ```
 frontend/
-├── main.js              ← 入口：載入所有 view → 啟 Firebase → 接 router
+├── main.js              ← 入口：載入所有 view → 啟 Cognito 登入 → 接 router
 ├── index.html           ← 單頁殼（#app 容器）
 │
 ├── core/                ← 基礎層（無業務邏輯）
-│   ├── api.js               ← fetch 封裝，自動帶 Firebase ID Token
+│   ├── api.js               ← fetch 封裝，自動帶 Cognito ID Token
 │   ├── chrome.js            ← auth-bar / 浮動鈕 / 邀請橫幅 全域 UI
 │   ├── config.js            ← 環境常數
 │   ├── events.js            ← 全域事件匯流排
-│   ├── firebase.js          ← Firebase 初始化 + auth 監聽
+│   ├── auth.js              ← Cognito 登入（Email / Google）+ auth 監聽
 │   ├── router.js            ← SPA 路由
 │   ├── session.js           ← 聚會 session 狀態機
 │   ├── state.js             ← 全域 reactive state
@@ -233,7 +224,7 @@ frontend/
 | Method | Path | 說明 |
 |--------|------|------|
 | GET | `/api/version` | 後端版本 + 建置日期 |
-| GET | `/api/health` | App、Firestore、Storage 與 optional capability 狀態 |
+| GET | `/api/health` | App、DynamoDB、S3 與 optional capability 狀態 |
 | GET | `/api/me` | 取得自己的完整 profile |
 | POST | `/api/profile` | 更新自己的 profile |
 | GET | `/api/users/{uid}/public` | 取得他人公開資料 |
@@ -323,7 +314,7 @@ frontend/
 
 ```
 client → server   open
-client → server   {action:"AUTH", token: "<firebase_id_token_or_null>", nickname}
+client → server   {action:"AUTH", token: "<cognito_id_token_or_null>", nickname}
 server → client   {type:"AUTH_OK"}        # 通過
                   ｜or close 4401/4403/4400  # 失敗
 client ↔ server   正常 message loop
@@ -336,13 +327,11 @@ client ↔ server   正常 message loop
 
 ## 🔐 安全規則摘要
 
-`firestore.rules` v15.2 + `storage.rules` 重點：
+前端完全不直接碰資料庫，所有讀寫都經過後端驗證 Cognito ID token：
 
-- **`users/{uid}`** — 只有本人可讀（其他人公開欄位走後端 `/api/users/{uid}/public`）
-- **`users/{uid}/{friends,friend_requests,meetings}`** — 只有本人可讀，寫入全走後端
-- **`rooms/{id}`** — 房主與成員可讀，寫入全走後端
-- **`meetings/{id}`** — 只有 `participants` 陣列內的人可讀
-- **Storage `meeting-photos/...`** — 登入者可讀，寫入只能後端 Admin SDK
+- **DynamoDB** — 只有 EC2 的 IAM 角色能存取；其他人的公開欄位走後端 `/api/users/{uid}/public`
+- **S3 `avatars/`、`group-chat/`、`group-pet-faces/`** — 公開可讀；上傳要先跟後端拿 presigned POST（`/api/uploads/presign`，檢查本人資料夾、群組成員、檔案類型與大小）
+- **S3 `meeting-photos/`** — 私有，只能經過後端參與者檢查後取圖
 
 ---
 
@@ -350,6 +339,7 @@ client ↔ server   正常 message loop
 
 | 版本 | 日期 | 主要內容 |
 |:---:|:---:|---|
+| **v16.0** | 2026-10-22 | ☁️ 全面從 GCP / Firebase 搬到 AWS：DynamoDB（資料庫）、S3（照片／頭像／語音）、Cognito（Email + Google 登入）、EC2（後端）、Amplify（網站）、標準 Web Push（推播）；GitHub Actions 改用 OIDC 部署；新增全站 API 端對端測試；修正搬家後訪客判斷、群組聊天媒體、S3 上傳的問題 |
 | **v15.4** | 2026-06-24 | 🐾 群組系統（邀請碼加入）+ 共同寵物（投票選寵物人、emoji 造型、合成寵物臉頭像、餵養互動）；🌐 中英雙語 i18n（DOM 翻譯引擎 + 語言切換） |
 | **v15.3** | 2026-04-28 | 🔒 WS 改 first-message handshake；LOG_DEVIATION 加 phase + rate-limit；SUBMIT_ANSWER 嚴格驗證；SVG 上傳擋掉；avatar 改 placeholder |
 | **v15.2** | 2026-04-26 | 🔒 收緊 Firestore 讀取規則（其他人 email 不再可被任意登入者讀）；好友系統 + 排行榜 API |
@@ -371,12 +361,8 @@ client ↔ server   正常 message loop
 
 ```bash
 cd backend
-pip install -r requirements-core.txt
-
-# 設定 service account key（不要 commit）
-# Windows: set GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json
-# Unix:    export GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json
-
+pip install -r requirements-core.txt "botocore[crt]"   # crt 是 aws login 憑證需要的
+aws login --region ap-northeast-1
 uvicorn main:app --reload --port 8080
 ```
 
@@ -389,18 +375,7 @@ pip install -r requirements-media.txt
 ### 前端
 
 ```bash
-firebase emulators:start --only hosting
-# 或
-npx serve frontend
-```
-
-### 補分數腳本（一次性）
-
-> 用途：把舊的 meetings 文件補上 `base_score` / `host_score`，並建立 `users/{uid}/meetings/{mid}` 排行榜鏡像。**Idempotent，重複執行安全**。
-
-```bash
-cd backend
-GOOGLE_APPLICATION_CREDENTIALS=serviceAccountKey.json python backfill_scores.py
+python -m http.server 5002 --directory frontend
 ```
 
 ---
@@ -412,26 +387,27 @@ GitHub Actions 採「CI 自動、CD 手動」：
 - push 到 `main` 或對 `main` 開 PR：只執行前後端測試與語法檢查，不會部署。
 - 手動執行 **CI and Manual Deploy** workflow：
   - `verify-only`：只驗證。
-  - `frontend`：驗證通過後部署 Firebase Hosting 與安全規則。
-  - `all`：驗證通過後部署前端與 Cloud Run 後端。
+  - `frontend`：驗證通過後把 `frontend/` 部署到 Amplify Hosting。
+  - `all`：驗證通過後部署前端，並透過 SSM 讓 EC2 拉新程式、重建 Docker。
 
-> Cloud Run 與 Artifact Registry 需要專案已啟用 GCP Billing；Billing 停用時請使用 `verify-only` 或在本機開發。
+GitHub Actions 用 OIDC assume `phubbing-github-deploy` 角色，不需要在 GitHub 存任何 AWS 金鑰。
 
-### 前端（Firebase Hosting）
+- 前端：https://main.dm3mlaqpivp0d.amplifyapp.com
+- 後端：https://35-73-255-236.sslip.io（Elastic IP + sslip.io，Caddy 自動申請 HTTPS 憑證）
+
+### 後端（EC2，只能一台）
+
+WebSocket 房間狀態存在記憶體，所以後端固定只跑一台 EC2、一個 process。手動更新：
 
 ```bash
-firebase deploy --only hosting
+aws ssm send-command --instance-ids <EC2_INSTANCE_ID> --document-name AWS-RunShellScript \
+  --parameters 'commands=["bash /opt/phubbing/app/deploy/deploy.sh main"]'
 ```
 
-### 後端（Cloud Run）
-
-在 GitHub Actions 手動選擇 `all`，或使用 gcloud 手動部署：
+主機第一次開機的設定在 `deploy/ec2-user-data.sh`；Qwen 金鑰等密鑰放 SSM：
 
 ```bash
-gcloud run deploy phubbing-backend \
-  --source backend \
-  --region asia-east1 \
-  --allow-unauthenticated
+aws ssm put-parameter --name /phubbing/DASHSCOPE_API_KEY --type SecureString --value <key>
 ```
 
 ### ⚠️ v15.3 部署相依性
@@ -450,16 +426,6 @@ WS handshake 從 URL query 改成 first-message frame，**前後端必須一起�
 
 ## ⚠️ 已知議題 / 後續改進
 
-<details>
-<summary><b>🔸 collection_group leaderboard 第一次部署需要建索引</b></summary>
-
-排行榜 `/api/leaderboard/global` 用 `collection_group("meetings")` query，需在 Firebase Console 建立索引：
-
-- Collection group: `meetings`
-- Field: `ended_at` (Ascending)
-
-未建索引時 API 會回空陣列且印 console warning。
-</details>
 
 <details>
 <summary><b>🔸 local-first 開發環境尚未完成</b></summary>
@@ -470,7 +436,7 @@ WS handshake 從 URL query 改成 first-message frame，**前後端必須一起�
 <details>
 <summary><b>🔸 後端仍是單檔大型入口</b></summary>
 
-`backend/main.py` 同時包含 Firebase 初始化、REST routes、WebSocket protocol、Firestore query、media/STT 與 business rules。重構計畫採 strangler pattern，先補 local-first 與 characterization tests，再從 questions vertical slice 驗證 router/service/repository 邊界；不要在 shared-anchor E2E 前先大拆 WebSocket。
+`backend/main.py` 同時包含 AWS 初始化、REST routes、WebSocket protocol、資料庫 query、media/STT 與 business rules。重構計畫採 strangler pattern，先補 local-first 與 characterization tests，再從 questions vertical slice 驗證 router/service/repository 邊界；不要在 shared-anchor E2E 前先大拆 WebSocket。
 </details>
 
 <details>
@@ -480,7 +446,7 @@ WS handshake 從 URL query 改成 first-message frame，**前後端必須一起�
 - `/api/leaderboard/global` 全表掃描，使用者多會慢
 - nickname 長度上限不一致：profile 30 字、ws 20 字
 - 題庫選項沒去重檢查
-- WebSocket state 仍是 process-local，Cloud Run 必須維持 single instance
+- WebSocket state 仍是 process-local，後端必須維持單一 EC2、單一 process
 </details>
 
 ---
@@ -491,7 +457,7 @@ WS handshake 從 URL query 改成 first-message frame，**前後端必須一起�
 |-----|--------------|
 | 加新 view | `frontend/views/<name>/{name}.html, name.js}`、`frontend/main.js` 註冊 |
 | 加新 WS 訊息 | `backend/main.py` WS endpoint、`frontend/core/wsHandlers.js` |
-| 加新 API | `backend/main.py`、（可選）對應 `firestore.rules` |
+| 加新 API | `backend/main.py`、`tests/backend-contracts.test.js` 的路由清單 |
 | 改外觀 | `frontend/styles/{base,components,social,taboo}.css` |
 | 加遊戲 / 模式 | 新 view + 新 WS action + 後端 ALLOWED_MODES 白名單 |
 | 加群組功能 | `backend/main.py` groups API、`frontend/features/groups/controller.js`、`views/groups`·`group-setup` |
@@ -514,7 +480,7 @@ Bug 2 — ...
 ### 安全注意
 
 - ❌ **絕對不要 commit** `serviceAccountKey.json`、`.env`
-- ❌ 不要直接從 client 寫 Firestore（rules 都設 `allow write: if false`，全走後端）
+- ❌ 不要從 client 直接存取 DynamoDB / S3 寫入（全走後端，上傳用 presigned POST）
 - ✅ 所有跨使用者操作走後端 Admin SDK（雙邊 friends/friend_requests 維護）
 - ✅ WS 訊息要假設 client 可能傳惡意值（已對 `LOG_DEVIATION`、`SUBMIT_ANSWER`、`CHANGE_MODE`、`START_QA`、`END_*` 做 host/phase/whitelist 驗證）
 

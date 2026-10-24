@@ -1076,12 +1076,12 @@ function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// 把瀏覽器 SpeechRecognition 確認的文字同步存進 Firestore，
+// 把瀏覽器 SpeechRecognition 確認的文字同步存進資料庫，
 // 確保即使 Whisper 無法辨識音訊，聚會紀錄仍有逐字稿。
 async function _saveSpeechPreviewText(text) {
     if (!text || !state.roomId) return;
-    const uid = state.currentUser?.uid || state.userId;
-    if (!uid || uid.includes('-')) return; // 訪客不儲存
+    if (!state.currentUser) return; // 訪客不儲存（訪客 id 是 guest- 開頭；Cognito uid 也有 "-"，不能用來判斷）
+    const uid = state.currentUser.uid;
     const name = state.currentProfile?.nickname || state.myNickname
         || state.currentUser?.displayName || '我';
     try {

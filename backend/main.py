@@ -13,8 +13,11 @@ import random
 import secrets
 import string
 import tempfile
-import firebase_admin
-from firebase_admin import credentials, firestore, auth as fb_auth, messaging as fb_messaging
+import boto3
+import botocore.config
+import jwt
+import docstore as firestore
+from pywebpush import webpush, WebPushException
 from typing import Dict, Set, List, Optional
 from urllib.parse import quote
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException, Header, UploadFile, File, Form, BackgroundTasks
@@ -42,20 +45,15 @@ except Exception as _llm_err:  # noqa: BLE001
     llm = None
     print(f"[main] llm 模組載入失敗，newspaper 將只用規則版：{_llm_err}")
 
-# ===== Firebase Storage 設定 =====
-# 預設指向這個專案的 bucket；可以透過環境變數覆寫
-FIREBASE_PROJECT_ID = (
-    os.environ.get("FIREBASE_PROJECT_ID")
-    or os.environ.get("GOOGLE_CLOUD_PROJECT")
-    or "graduation-6ae65"
-)
-STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "graduation-6ae65.firebasestorage.app")
-USING_FIREBASE_EMULATORS = bool(
-    os.environ.get("FIRESTORE_EMULATOR_HOST")
-    or os.environ.get("FIREBASE_AUTH_EMULATOR_HOST")
-    or os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST")
-    or os.environ.get("STORAGE_EMULATOR_HOST")
-)
+# ===== AWS 設定（資源 ID 見 config/aws.env）=====
+AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
+STORAGE_BUCKET = os.environ.get("S3_BUCKET", "phubbing-media-746364933094")
+COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "ap-northeast-1_ZZeqcm0E2")
+COGNITO_CLIENT_ID = os.environ.get("COGNITO_CLIENT_ID", "1sdrgh39bdgcoquopsn58lbv81")
+COGNITO_ISSUER = f"https://cognito-idp.{AWS_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+# Web Push（取代 FCM）。私鑰只放伺服器環境變數，不進 git。
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:phubbing-anchor@example.com")
 
 # ===== Speech-to-text 設定 =====
 # STT_ENGINE=openai-whisper 適合先做本機測試；STT_ENGINE=whisperx 可搭配 pyannote 做說話者分離。
@@ -73,56 +71,23 @@ ALLOWED_AUDIO_TYPES = {
 ALLOWED_AUDIO_EXTS = {".mp3", ".m4a", ".mp4", ".wav", ".webm", ".ogg"}
 _STT_MODEL_CACHE: Dict[str, object] = {}
 
-# 檢查是否已經有初始化的 Firebase App
-if not firebase_admin._apps:
-    local_key_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-    if USING_FIREBASE_EMULATORS:
-        try:
-            firebase_admin.initialize_app(options={
-                "projectId": FIREBASE_PROJECT_ID,
-                "storageBucket": STORAGE_BUCKET,
-            })
-            print(f"Firebase initialized for local emulators. Project: {FIREBASE_PROJECT_ID}")
-        except Exception as e:
-            print(f"Critical Error: Could not initialize Firebase emulator app: {e}")
-    elif os.path.exists(local_key_path):
-        try:
-            cred = credentials.Certificate(local_key_path)
-            firebase_admin.initialize_app(cred, options={"storageBucket": STORAGE_BUCKET})
-            print(f"Firebase initialized with local service account. Bucket: {STORAGE_BUCKET}")
-        except Exception as e:
-            print(f"Critical Error: Could not initialize Firebase with local JSON: {e}")
-    else:
-        try:
-            # 在 Cloud Run 環境中，不需要 serviceAccountKey.json，它會自動抓取環境權限
-            firebase_admin.initialize_app(options={"storageBucket": STORAGE_BUCKET})
-            print(f"Firebase initialized with default credentials. Bucket: {STORAGE_BUCKET}")
-        except Exception as e:
-            print(f"Critical Error: Could not initialize Firebase with default credentials: {e}")
-
-def _create_firestore_client():
-    if USING_FIREBASE_EMULATORS:
-        from google.auth.credentials import AnonymousCredentials
-        from google.cloud import firestore as gc_firestore
-        return gc_firestore.Client(
-            project=FIREBASE_PROJECT_ID,
-            credentials=AnonymousCredentials(),
-        )
-    return firestore.client()
-
-
-# 取得 Firestore 實例
-db = _create_firestore_client()
+# DynamoDB（經 docstore 相容層，寫法同 Firestore）；DOCSTORE=memory 可離線開發
+db = firestore.client()
+# 用東京區域端點：全球端點對新 bucket 可能回 307 轉址，瀏覽器直傳（presigned POST）會因此失敗
+s3 = boto3.client(
+    "s3", region_name=AWS_REGION, endpoint_url=f"https://s3.{AWS_REGION}.amazonaws.com",
+    config=botocore.config.Config(s3={"addressing_style": "virtual"}),
+)
 
 app = FastAPI()
 
 # ===== CORS FOR FRONTEND SEPARATION =====
 # 正式環境只允許本專案 Hosting；本機開發 origin 明確列舉，不開 wildcard。
 DEFAULT_FRONTEND_ORIGINS = [
-    "https://graduation-6ae65.web.app",
-    "https://graduation-6ae65.firebaseapp.com",
+    "https://main.dm3mlaqpivp0d.amplifyapp.com",
     "http://localhost:3000",
     "http://localhost:5000",
+    "http://localhost:5002",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5000",
@@ -149,16 +114,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BACKEND_VERSION = "v15.4-group-pet-avatar"
-BACKEND_BUILD_DATE = "2026-06-02"  # 每次部署手動更新
+BACKEND_VERSION = "v16.0-aws"
+BACKEND_BUILD_DATE = "2026-10-22"  # 每次部署手動更新
+
+
+GUEST_ID_PREFIX = "guest-"
 
 
 def _is_guest_user_id(user_id: str) -> bool:
-    """Guest ids are generated as uuid4; Firebase UIDs must not be inferred by punctuation."""
+    """訪客 id 是 "guest-" + uuid4（前端 core/state.js 產生）。
+    一定要有前綴：Cognito 的 uid (sub) 本身也是 uuid4，只看 uuid 格式會把登入使用者當成訪客。"""
+    user_id = str(user_id or "")
+    if not user_id.startswith(GUEST_ID_PREFIX):
+        return False
     try:
-        uuid.UUID(str(user_id), version=4)
+        uuid.UUID(user_id[len(GUEST_ID_PREFIX):], version=4)
         return True
-    except (ValueError, TypeError, AttributeError):
+    except ValueError:
         return False
 
 
@@ -175,16 +147,12 @@ async def get_health():
         "status": "ok",
         "version": BACKEND_VERSION,
         "build_date": BACKEND_BUILD_DATE,
-        "firebase": {
-            "initialized": bool(firebase_admin._apps),
-            "project_id": FIREBASE_PROJECT_ID,
+        "aws": {
+            "region": AWS_REGION,
+            "dynamodb_table": firestore.DYNAMODB_TABLE,
             "storage_bucket": STORAGE_BUCKET,
-            "using_emulators": USING_FIREBASE_EMULATORS,
-            "emulators": {
-                "auth": os.environ.get("FIREBASE_AUTH_EMULATOR_HOST", ""),
-                "firestore": os.environ.get("FIRESTORE_EMULATOR_HOST", ""),
-                "storage": os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST") or os.environ.get("STORAGE_EMULATOR_HOST", ""),
-            },
+            "cognito_user_pool": COGNITO_USER_POOL_ID,
+            "web_push": bool(VAPID_PRIVATE_KEY),
         },
         "capabilities": {
             "llm_newspaper": llm is not None,
@@ -231,30 +199,53 @@ def make_qr_base64(data: str) -> str:
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
+class _S3Blob:
+    """S3 物件，提供原本 GCS blob 用到的那幾個方法。"""
+
+    def __init__(self, name: str):
+        self.name = name
+        self.content_type = None
+
+    def upload_from_string(self, content: bytes, content_type: str = "application/octet-stream"):
+        s3.put_object(Bucket=STORAGE_BUCKET, Key=self.name, Body=content, ContentType=content_type)
+
+    def download_as_bytes(self) -> bytes:
+        obj = s3.get_object(Bucket=STORAGE_BUCKET, Key=self.name)
+        self.content_type = obj.get("ContentType")
+        return obj["Body"].read()
+
+    def exists(self) -> bool:
+        try:
+            s3.head_object(Bucket=STORAGE_BUCKET, Key=self.name)
+            return True
+        except s3.exceptions.ClientError:
+            return False
+
+    def delete(self):
+        s3.delete_object(Bucket=STORAGE_BUCKET, Key=self.name)
+
+    def make_public(self):
+        pass  # 公開與否由 bucket policy 依路徑前綴決定（見 PUBLIC_MEDIA_PREFIXES）
+
+    def make_private(self):
+        pass
+
+
+class _S3Bucket:
+    def blob(self, name: str) -> _S3Blob:
+        return _S3Blob(name)
+
+
 def _storage_bucket():
-    if USING_FIREBASE_EMULATORS:
-        from google.auth.credentials import AnonymousCredentials
-        from google.cloud import storage as gc_storage
-        client = gc_storage.Client(
-            project=FIREBASE_PROJECT_ID,
-            credentials=AnonymousCredentials(),
-        )
-        return client.bucket(STORAGE_BUCKET)
-    from firebase_admin import storage as fb_storage
-    return fb_storage.bucket()
+    return _S3Bucket()
+
+
+# 這些前綴在 bucket policy 設成公開可讀；meeting-photos/ 保持私有，走後端驗證後取圖。
+PUBLIC_MEDIA_PREFIXES = ("avatars/", "group-chat/", "group-pet-faces/")
 
 
 def _storage_media_url(blob_name: str) -> str:
-    if USING_FIREBASE_EMULATORS:
-        host = (
-            os.environ.get("FIREBASE_STORAGE_EMULATOR_HOST")
-            or os.environ.get("STORAGE_EMULATOR_HOST")
-            or "127.0.0.1:9199"
-        )
-        if not host.startswith(("http://", "https://")):
-            host = f"http://{host}"
-        return f"{host}/v0/b/{STORAGE_BUCKET}/o/{quote(blob_name, safe='')}?alt=media"
-    return f"https://storage.googleapis.com/{STORAGE_BUCKET}/{quote(blob_name)}"
+    return f"https://{STORAGE_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{quote(blob_name)}"
 
 
 @app.get("/api/qrcode")
@@ -265,10 +256,23 @@ async def get_qrcode(url: str):
     return {"status": "success", "qr_base64": make_qr_base64(url)}
 
 
-# ===== Firebase Auth ID Token 驗證 =====
+# ===== Cognito ID Token 驗證 =====
+_cognito_jwks = jwt.PyJWKClient(f"{COGNITO_ISSUER}/.well-known/jwks.json", cache_keys=True)
+
+
+def _verify_id_token(id_token: str) -> dict:
+    """驗證 Cognito ID token，回傳 claims；sub 另存成 uid，沿用原本 Firebase 的欄位名。"""
+    key = _cognito_jwks.get_signing_key_from_jwt(id_token).key
+    claims = jwt.decode(id_token, key, algorithms=["RS256"], audience=COGNITO_CLIENT_ID, issuer=COGNITO_ISSUER)
+    if claims.get("token_use") != "id":
+        raise ValueError("不是 ID token")
+    claims["uid"] = claims["sub"]
+    return claims
+
+
 def verify_token(authorization: Optional[str] = Header(None)) -> dict:
     """
-    從 Authorization: Bearer <ID_TOKEN> 解析並驗證 Firebase ID Token。
+    從 Authorization: Bearer <ID_TOKEN> 解析並驗證 Cognito ID Token。
     驗證成功回傳 decoded token (含 uid, email, name, picture 等 claims)。
     """
     if not authorization or not authorization.startswith("Bearer "):
@@ -277,7 +281,7 @@ def verify_token(authorization: Optional[str] = Header(None)) -> dict:
     id_token = authorization.split(" ", 1)[1].strip()
 
     try:
-        decoded = fb_auth.verify_id_token(id_token)
+        decoded = _verify_id_token(id_token)
         return decoded
     except Exception as e:
         print(f"Token verification failed: {e}")
@@ -539,57 +543,110 @@ class PushTokenPayload(BaseModel):
 
 @app.post("/api/push_token")
 async def register_push_token(payload: PushTokenPayload, decoded: dict = Depends(verify_token)):
-    """前端拿到 FCM token 後上傳，存進 users/{uid}.fcm_tokens（陣列，同一人多裝置都留著）。"""
+    """前端拿到 Web Push subscription（JSON 字串）後上傳，存進 users/{uid}.push_subscriptions（同一人多裝置都留著）。"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     token = (payload.token or "").strip()
-    if not token:
-        raise HTTPException(status_code=400, detail="token 不可為空")
+    try:
+        endpoint = json.loads(token).get("endpoint", "")
+    except (ValueError, AttributeError):
+        endpoint = ""
+    if not endpoint.startswith("https://"):
+        raise HTTPException(status_code=400, detail="無效的推播訂閱")
 
     _ensure_user_doc(decoded)
     try:
         user_ref = db.collection("users").document(uid)
         snap = user_ref.get()
-        current = list((snap.to_dict() or {}).get("fcm_tokens") or [])
-        # 防止無限累加過期 token 撐爆 Firestore document。
+        current = list((snap.to_dict() or {}).get("push_subscriptions") or [])
+        # 防止無限累加過期訂閱撐爆文件。
         tokens = [t for t in current if t != token][-9:] + [token]
-        user_ref.update({"fcm_tokens": tokens})
+        user_ref.update({"push_subscriptions": tokens})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"儲存 token 失敗: {e}")
     return {"status": "success"}
 
 
 def send_push(uid: str, title: str, body: str, url: str = "/") -> None:
-    """對某使用者名下所有已註冊裝置推播；過期/失效的 token 會被清掉。
+    """對某使用者名下所有已註冊裝置推播；過期/失效的訂閱會被清掉。
     推播是錦上添花的通知，不應該讓主要業務流程（加好友、邀請）因為推播失敗而報錯，故一律吞例外。
     """
+    if not VAPID_PRIVATE_KEY:
+        return
     try:
         snap = db.collection("users").document(uid).get()
         if not snap.exists:
             return
-        tokens = (snap.to_dict() or {}).get("fcm_tokens") or []
-        if not tokens:
-            return
-
-        message = fb_messaging.MulticastMessage(
-            notification=fb_messaging.Notification(title=title, body=body),
-            data={"url": url},
-            tokens=tokens,
-        )
-        response = fb_messaging.send_each_for_multicast(message)
-
-        if response.failure_count:
-            dead_tokens = [
-                tokens[i] for i, r in enumerate(response.responses)
-                if not r.success and isinstance(r.exception, fb_messaging.UnregisteredError)
-            ]
-            if dead_tokens:
-                db.collection("users").document(uid).update({
-                    "fcm_tokens": firestore.ArrayRemove(dead_tokens),
-                })
+        tokens = (snap.to_dict() or {}).get("push_subscriptions") or []
+        dead_tokens = []
+        for token in tokens:
+            try:
+                webpush(
+                    subscription_info=json.loads(token),
+                    data=json.dumps({"title": title, "body": body, "url": url}, ensure_ascii=False),
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": VAPID_SUBJECT},
+                )
+            except WebPushException as e:
+                if e.response is not None and e.response.status_code in (404, 410):
+                    dead_tokens.append(token)
+                else:
+                    print(f"[push] send to {uid} failed: {e}")
+        if dead_tokens:
+            db.collection("users").document(uid).update({
+                "push_subscriptions": firestore.ArrayRemove(dead_tokens),
+            })
     except Exception as e:
         print(f"[push] send_push({uid}) failed: {e}")
+
+
+# ===== 前端直傳 S3（取代 Firebase Storage client 上傳）=====
+class UploadPresignPayload(BaseModel):
+    kind: str  # "avatar" | "group-chat"
+    content_type: str
+    group_id: Optional[str] = None
+
+
+_UPLOAD_EXT = {
+    "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
+    "audio/webm": "webm", "audio/mp4": "m4a", "audio/ogg": "ogg", "audio/mpeg": "mp3",
+}
+
+
+@app.post("/api/uploads/presign")
+async def presign_upload(payload: UploadPresignPayload, decoded: dict = Depends(verify_token)):
+    """回傳 S3 presigned POST；路徑、型別、大小限制沿用原本 storage.rules。"""
+    uid = decoded.get("uid")
+    content_type = payload.content_type.split(";")[0].strip().lower()
+    ext = _UPLOAD_EXT.get(content_type)
+    is_image = content_type.startswith("image/")
+    if not ext:
+        raise HTTPException(status_code=400, detail="不支援的檔案類型")
+
+    stamp = f"{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+    if payload.kind == "avatar":
+        if not is_image:
+            raise HTTPException(status_code=400, detail="頭像只接受圖片")
+        key, max_bytes = f"avatars/{uid}/{stamp}.{ext}", 5 * 1024 * 1024
+    elif payload.kind == "group-chat":
+        group_id = (payload.group_id or "").strip()
+        group = db.collection("groups").document(group_id).get() if group_id else None
+        if not group or not group.exists or uid not in ((group.to_dict() or {}).get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+        max_bytes = 5 * 1024 * 1024 if is_image else 2 * 1024 * 1024
+        key = f"group-chat/{group_id}/{uid}/{stamp}.{ext}"
+    else:
+        raise HTTPException(status_code=400, detail="未知的上傳類型")
+
+    post = s3.generate_presigned_post(
+        Bucket=STORAGE_BUCKET,
+        Key=key,
+        Fields={"Content-Type": content_type},
+        Conditions=[{"Content-Type": content_type}, ["content-length-range", 1, max_bytes]],
+        ExpiresIn=300,
+    )
+    return {"status": "success", "url": post["url"], "fields": post["fields"], "public_url": _storage_media_url(key)}
 
 
 # ===== 好友系統 =====
@@ -1023,8 +1080,7 @@ async def get_leaderboard_global(
             entry["meetings_count"] += 1
     except Exception as e:
         print(f"[leaderboard global] query failed: {e}")
-        # collection_group 需要 index，一開始可能還沒有；回傳空清單
-        return {"status": "success", "period": period, "period_start": start_utc.isoformat(), "entries": [], "note": "尚未建立索引，請到 Firebase Console 建立 collection_group index for 'meetings' on 'ended_at' asc"}
+        return {"status": "success", "period": period, "period_start": start_utc.isoformat(), "entries": [], "note": "排行榜暫時無法讀取"}
 
     # 把 uid 補上 nickname/avatar
     entries = []
@@ -1593,7 +1649,7 @@ def _resolve_photo_upload_uid(authorization: Optional[str], guest_uid: Optional[
     if authorization and authorization.startswith("Bearer "):
         id_token = authorization.split(" ", 1)[1].strip()
         try:
-            decoded = fb_auth.verify_id_token(id_token)
+            decoded = _verify_id_token(id_token)
         except Exception as e:
             print(f"Photo upload token verification failed: {e}")
             raise HTTPException(status_code=401, detail=f"Token 驗證失敗: {e}")
@@ -1630,7 +1686,7 @@ async def upload_meeting_photo(
         raise HTTPException(status_code=400, detail=f"每場聚會最多 {MAX_PHOTOS_PER_MEETING} 張照片")
 
     # 🔒 [Bug 4 修正 v15.3] content_type 白名單,排除 SVG (含可執行 script,
-    #     若使用者直接點 storage URL 會在 storage.googleapis.com 域下執行 JS)
+    #     若使用者直接點 storage URL 會在 S3 網域下執行 JS)
     ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
     if not file.content_type or file.content_type not in ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="只接受 JPEG / PNG / WebP / HEIC 圖片")
@@ -2748,11 +2804,6 @@ class GroupMessagePayload(BaseModel):
     duration_sec: Optional[float] = None  # audio 長度（秒）
 
 
-# 只接受本專案 Firebase Storage 的下載 URL，避免訊息掛任意外部連結
-ALLOWED_MEDIA_PREFIXES = (
-    "https://firebasestorage.googleapis.com/",
-    "https://storage.googleapis.com/",
-)
 
 
 def _require_group_member(group_id: str, uid: str) -> dict:
@@ -2817,7 +2868,8 @@ async def send_group_message(group_id: str, payload: GroupMessagePayload, decode
             raise HTTPException(status_code=400, detail="訊息不能為空")
         media_url = ""
     else:
-        if not media_url.startswith(ALLOWED_MEDIA_PREFIXES):
+        # 只接受本專案 S3 上、這個群組資料夾裡的檔案（/api/uploads/presign 產生的），避免掛任意外部連結
+        if not media_url.startswith(_storage_media_url(f"group-chat/{group_id}/")):
             raise HTTPException(status_code=400, detail="無效的媒體網址")
 
     me = _ensure_user_doc(decoded)
@@ -3064,8 +3116,6 @@ async def set_group_pet_face(
         bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
-        if not USING_FIREBASE_EMULATORS:
-            blob.make_public()
         public_url = _storage_media_url(blob_name)
 
         old_path = data.get("pet_face_path")
@@ -4155,7 +4205,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             await websocket.close(code=4401, reason="Missing auth token")
             return
         try:
-            decoded = fb_auth.verify_id_token(token)
+            decoded = _verify_id_token(token)
             verified_uid = decoded.get("uid") or decoded.get("user_id")
         except Exception as e:
             print(f"[ws-auth] reject: token verify failed for path uid {user_id!r}: {e}")

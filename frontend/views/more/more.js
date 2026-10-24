@@ -10,7 +10,6 @@ import {
     IS_NATIVE_APP,
     BACKEND_HOST,
     HTTP_PROTOCOL,
-    FIREBASE_EMULATORS,
     NATIVE_DEV_HOST_STORAGE_KEY,
 } from '../../core/config.js';
 
@@ -38,9 +37,6 @@ function renderEnv() {
         ['location', window.location.href],
         ['devHost', resolvedDevHost()],
         ['BACKEND_HOST', BACKEND_BASE],
-        ['emulators.enabled', String(FIREBASE_EMULATORS.enabled)],
-        ['auth emulator', FIREBASE_EMULATORS.authHost],
-        ['storage emulator', `http://${FIREBASE_EMULATORS.storageHost}:${FIREBASE_EMULATORS.storagePort}`],
     ];
     dl.innerHTML = '';
     for (const [label, value] of rows) {
@@ -90,9 +86,6 @@ async function runTests() {
     const targets = [
         () => probe('/api/health', `${BACKEND_BASE}/api/health`, true),
     ];
-    if (FIREBASE_EMULATORS.enabled) {
-        targets.push(() => probe('auth emulator', `${FIREBASE_EMULATORS.authHost}/`, false));
-    }
 
     const lines = [];
     for (const run of targets) {
