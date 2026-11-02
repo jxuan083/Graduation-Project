@@ -1,0 +1,3 @@
+-r requirements-core.txt
+httpx>=0.28,<1
+moto[dynamodb]==5.2.4

@@ -9,7 +9,7 @@
         <div id="pet-list-empty" class="pet-no-pet-card" style="display:none;">
             <div class="pet-empty-icon"><i data-lucide="paw-print"></i></div>
             <h2>還沒有群組寵物</h2>
-            <p>請先加入群組，並在群組設定中建立寵物。</p>
+            <p>先加入或建立群組，就能一起領養、照顧寵物。</p>
         </div>
         <div id="pet-list-cards" class="pet-list-cards"></div>
     </div>
@@ -18,7 +18,9 @@
     <div id="pet-no-pet" class="pet-no-pet-card" style="display:none;">
         <div class="pet-empty-icon"><i data-lucide="paw-print"></i></div>
         <h2 id="pet-no-pet-title">還沒有寵物</h2>
-        <p id="pet-no-pet-desc">請先在群組設定頁生成並設定寵物臉！</p>
+        <p id="pet-no-pet-desc">領養一位小夥伴，一起照顧牠、累積共同回憶。</p>
+        <img class="pet-adopt-preview" src="./assets/pets/illustrated/puppy-poster-v1.png" alt="穿綠背心的奶糖狗狗">
+        <button id="btn-pet-adopt" class="btn primary" type="button">領養狗狗</button>
         <button id="btn-pet-tama-back-nopet" class="btn secondary" style="width:100%;">返回</button>
     </div>
 
@@ -34,33 +36,15 @@
         <!-- 名稱列 -->
         <div class="pet-name-row">
             <h2 id="pet-tama-name">群組寵物</h2>
+            <button id="btn-pet-character" type="button" style="display:none;">角色</button>
             <button id="btn-pet-rename" style="display:none;"><i data-lucide="pencil"></i> 改名</button>
-            <button id="btn-pet-delete" style="display:none;"><i data-lucide="trash-2"></i></button>
+            <button id="btn-pet-delete" aria-label="刪除群組寵物" title="刪除群組寵物" style="display:none;"><i data-lucide="trash-2"></i></button>
         </div>
 
-        <div class="pet-growth-panel" aria-label="寵物成長進度">
-            <div class="pet-level-mark">
-                <span>LV</span>
-                <strong id="pet-level">1</strong>
-            </div>
-            <div class="pet-growth-main">
-                <div class="pet-growth-meta">
-                    <span id="pet-stage-label">幼年期</span>
-                    <span id="pet-xp-label">0 / 100 XP</span>
-                </div>
-                <div class="pet-xp-track" role="progressbar" aria-label="升級進度" aria-valuemin="0" aria-valuemax="100">
-                    <div id="pet-xp-fill" class="pet-xp-fill"></div>
-                </div>
-                <div class="pet-growth-foot">
-                    <span><i data-lucide="calendar-check"></i><b id="pet-meeting-count">0</b> 次共同聚會</span>
-                    <span id="pet-last-reward" style="display:none;"></span>
-                </div>
-            </div>
-        </div>
-
-        <div id="pet-unlocks" class="pet-unlocks" style="display:none;" aria-label="已解鎖收藏">
-            <span class="pet-unlocks-label">共同回憶</span>
-            <div id="pet-unlock-items" class="pet-unlock-items"></div>
+        <div class="pet-supplies-bar">
+            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>群組金幣</small></span>
+            <button id="btn-pet-draw" type="button">抽物品</button>
+            <button id="btn-pet-bag" type="button">背包</button>
         </div>
 
         <!-- 舞台 -->
@@ -77,6 +61,10 @@
             </div>
             <div id="pet-speech" class="pet-speech">汪汪！</div>
             <div class="pet-ground-shadow" aria-hidden="true"></div>
+            <div id="pet-3d-stage" class="pet-3d-stage" aria-hidden="true"></div>
+            <button id="btn-pet-touch" class="pet-touch-target" type="button" aria-label="摸摸寵物的頭" hidden></button>
+            <p id="pet-viewer-status" class="pet-viewer-status" role="status" hidden></p>
+            <button id="btn-pet-animation-retry" class="pet-animation-retry" type="button" hidden>重新載入動畫</button>
             <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
                 <img id="pet-avatar-img" src="" alt="寵物" />
             </div>
@@ -128,6 +116,29 @@
             <span>拖曳舞台可調整背景位置</span>
         </div>
 
+        <!-- 動作按鈕 -->
+        <div class="pet-actions">
+            <button id="btn-pet-feed" class="pet-action-btn feed-btn">
+                <i data-lucide="utensils"></i>
+                <span class="pet-action-label">餵食</span>
+                <small id="pet-feed-state">可互動</small>
+            </button>
+            <button id="btn-pet-wipe" class="pet-action-btn wipe-btn">
+                <i data-lucide="wind"></i>
+                <span class="pet-action-label">清潔</span>
+                <small id="pet-wipe-state">可互動</small>
+            </button>
+            <button id="btn-pet-play" class="pet-action-btn play-btn">
+                <i data-lucide="gamepad-2"></i>
+                <span class="pet-action-label">玩耍</span>
+                <small id="pet-play-state">可互動</small>
+            </button>
+        </div>
+        <div id="pet-care-result" class="care-item-result" role="status" hidden></div>
+        <div id="pet-action-feedback" class="pet-action-feedback" role="status" aria-live="polite"></div>
+        <p id="pet-sync-status" class="pet-sync-status" role="status"></p>
+
+
         <div id="pet-group-stats" class="pet-stats">
             <div class="pet-hp-row">
                 <div class="stat-label" style="width:auto; margin-right:6px;">
@@ -162,28 +173,60 @@
             </div>
         </div>
 
-        <!-- 動作按鈕 -->
-        <div class="pet-actions">
-            <button id="btn-pet-feed" class="pet-action-btn feed-btn">
-                <i data-lucide="utensils"></i>
-                <span class="pet-action-label">餵食</span>
-                <small id="pet-feed-state">可互動</small>
-            </button>
-            <button id="btn-pet-wipe" class="pet-action-btn wipe-btn">
-                <i data-lucide="wind"></i>
-                <span class="pet-action-label">清潔</span>
-                <small id="pet-wipe-state">可互動</small>
-            </button>
-            <button id="btn-pet-play" class="pet-action-btn play-btn">
-                <i data-lucide="gamepad-2"></i>
-                <span class="pet-action-label">玩耍</span>
-                <small id="pet-play-state">可互動</small>
-            </button>
+        <div class="pet-growth-panel" aria-label="寵物成長進度">
+            <div class="pet-level-mark">
+                <span>LV</span>
+                <strong id="pet-level">1</strong>
+            </div>
+            <div class="pet-growth-main">
+                <div class="pet-growth-meta">
+                    <span id="pet-stage-label">幼年期</span>
+                    <span id="pet-xp-label">0 / 100 XP</span>
+                </div>
+                <div class="pet-xp-track" role="progressbar" aria-label="升級進度" aria-valuemin="0" aria-valuemax="100">
+                    <div id="pet-xp-fill" class="pet-xp-fill"></div>
+                </div>
+                <div class="pet-growth-foot">
+                    <span><i data-lucide="calendar-check"></i><b id="pet-meeting-count">0</b> 次共同聚會</span>
+                    <span id="pet-last-reward" style="display:none;"></span>
+                </div>
+            </div>
         </div>
-        <div id="pet-action-feedback" class="pet-action-feedback" role="status" aria-live="polite"></div>
+
+        <div id="pet-unlocks" class="pet-unlocks" style="display:none;" aria-label="已解鎖收藏">
+            <span class="pet-unlocks-label">共同回憶</span>
+            <div id="pet-unlock-items" class="pet-unlock-items"></div>
+        </div>
+
+        <p class="pet-companion-note">摸摸牠，陪牠一下。一起聚會，慢慢長大。</p>
 
         <button id="btn-pet-tama-back" class="btn secondary" style="width:100%; margin-top:4px;">返回</button>
     </div>
+
+    <dialog id="pet-care-shop" class="pet-care-shop" aria-labelledby="pet-shop-title">
+        <div class="care-shop-heading"><div><p>一起聚會，替牠添點新東西</p><h2 id="pet-shop-title">補給小舖</h2></div><button data-shop-close type="button" aria-label="關閉補給小舖">×</button></div>
+        <div class="care-shop-wallet"><span>群組共用金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
+        <p class="care-shop-rules">至少兩位群組成員參與、滿 10 分鐘的聚會可獲得金幣。時長與專注表現會影響獎勵。</p>
+        <div class="care-shop-tabs"><button data-shop-tab="draw" type="button" aria-pressed="true">抽物品</button><button data-shop-tab="bag" type="button" aria-pressed="false">群組背包</button></div>
+        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button></div>
+        <div data-draw-reveal class="draw-reveal" hidden></div>
+        <div data-shop-result class="care-item-result" role="status" aria-live="polite" hidden></div>
+        <p id="pet-draw-status" class="care-draw-status" role="status" aria-live="polite"></p>
+        <div data-shop-content></div>
+    </dialog>
+
+    <dialog id="pet-adopt-dialog" class="pet-adopt-dialog" aria-labelledby="pet-adopt-title">
+        <form id="pet-adopt-form">
+            <p class="pet-adopt-eyebrow">一起照顧的小夥伴</p>
+            <h2 id="pet-adopt-title">讓牠加入你們</h2>
+            <img class="pet-adopt-preview" src="./assets/pets/illustrated/puppy-poster-v1.png" alt="奶糖狗狗">
+            <label for="pet-adopt-name">牠的名字</label>
+            <input id="pet-adopt-name" name="name" maxlength="20" placeholder="奶糖" autocomplete="off">
+            <p id="pet-adopt-note">不用上傳照片，領養後就能開始照顧牠。</p>
+            <p id="pet-adopt-error" role="alert"></p>
+            <div class="pet-adopt-buttons"><button id="btn-pet-adopt-cancel" type="button" class="btn secondary">再想一下</button><button id="btn-pet-adopt-confirm" type="submit" class="btn primary">一起照顧牠</button></div>
+        </form>
+    </dialog>
 
     <!-- 載入中：骨架尺寸對齊實際畫面，避免版面跳動 -->
     <div id="pet-tama-loading" class="pet-loading-skeleton" aria-label="載入寵物中">
@@ -201,19 +244,19 @@
     </div>
 
     <!-- 改名 Overlay（群組建立者） -->
-    <div id="pet-rename-overlay" class="pet-rename-overlay" style="display:none;">
+    <dialog id="pet-rename-overlay" class="pet-care-dialog" aria-labelledby="pet-rename-title">
         <div class="pet-rename-box">
-            <h3>幫寵物改名</h3>
+            <h3 id="pet-rename-title">幫寵物改名</h3>
             <input id="pet-rename-input" type="text" maxlength="20" placeholder="輸入名字（最多 20 字）" />
             <div style="display:flex; gap:8px;">
                 <button id="btn-rename-confirm" class="btn primary" style="flex:1;">確認</button>
                 <button id="btn-rename-cancel"  class="btn secondary" style="flex:1;">取消</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- 刪除確認 Overlay（群組寵物，建立者限定） -->
-    <div id="pet-delete-overlay" class="pet-rename-overlay" style="display:none;">
+    <dialog id="pet-delete-overlay" class="pet-care-dialog" aria-labelledby="pet-delete-title">
         <div class="pet-rename-box">
             <h3 id="pet-delete-title">確定要刪除群組寵物？</h3>
             <p class="hint" style="margin:4px 0 12px;">刪除後所有養成數值都會消失，無法復原。只有重新設定才能再養。</p>
@@ -222,6 +265,6 @@
                 <button id="btn-delete-cancel"  class="btn secondary" style="flex:1;">取消</button>
             </div>
         </div>
-    </div>
+    </dialog>
 
 </section>

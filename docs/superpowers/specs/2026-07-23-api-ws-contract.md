@@ -60,8 +60,10 @@
 | DELETE | `/api/groups/{group_id}/members/{target_uid}` |
 | PATCH | `/api/groups/{group_id}/pet` |
 | GET | `/api/groups/{group_id}/pet` |
+| POST | `/api/groups/{group_id}/pet/adopt` |
 | POST | `/api/groups/{group_id}/pet-face` |
 | POST | `/api/groups/{group_id}/pet/action` |
+| POST | `/api/groups/{group_id}/pet/draw` |
 | GET | `/api/group-pets` |
 | DELETE | `/api/groups/{group_id}/pet` |
 | GET | `/api/group_invite/{code}` |

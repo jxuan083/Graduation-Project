@@ -192,7 +192,8 @@ function renderPetPreview(g) {
     const section = document.getElementById('pet-preview-section');
     const previewEl = document.getElementById('pet-preview');
     const statsEl = document.getElementById('pet-hp-energy');
-    if (!g.pet_target_uid) {
+    document.getElementById('pet-body-section').style.display = g.pet_character_id || !g.pet_face_url ? 'none' : '';
+    if (!g.pet_face_url) {
         if (section) section.style.display = 'none';
         return;
     }
@@ -200,13 +201,13 @@ function renderPetPreview(g) {
     const body = g.pet_body_emoji || '🐾';
     const petName = g.pet_name || '寵物';
     const headHtml = g.pet_face_url
-        ? `<img class="pet-head-img" src="${escHtml(g.pet_face_url)}" alt="寵物臉" />`
+        ? `<img class="pet-head-img${g.pet_character_id ? ' is-illustrated-pet' : ''}" src="${escHtml(g.pet_face_url)}" alt="寵物臉" />`
         : `<div class="pet-head-placeholder"><i data-lucide="user"></i></div>`;
     if (previewEl) {
         previewEl.innerHTML = `
             <div class="pet-display">
                 ${headHtml}
-                <div class="pet-body-emoji">${body}</div>
+                ${g.pet_character_id ? '' : `<div class="pet-body-emoji">${body}</div>`}
                 <div class="pet-name">${escHtml(petName)}</div>
             </div>
         `;

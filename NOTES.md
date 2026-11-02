@@ -39,7 +39,7 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 | 後端 | FastAPI + WebSocket，`backend/main.py` 4,366 行，同步 Firestore I/O |
 | 前端 | vanilla JS 多 view，`frontend/main.js` 264 行，一次載入 36 個 view |
 | 部署 | **2026-10-22 起全部在 AWS**（ap-northeast-1）：Amplify 網站、EC2 t3.small 後端（Docker + Caddy）、DynamoDB、S3、Cognito。資源 ID 見 `config/aws.env` |
-| CI/CD | CI 自動（push main / PR）；CD 只接受 `workflow_dispatch` |
+| CI/CD | PR 只跑 CI；push main 通過 CI 後自動部署 EC2 後端＋Amplify 前端；`workflow_dispatch` 可手動選 verify-only / frontend / all |
 | WebSocket state | process-local，後端只能一台 EC2、一個 process（有 invariant test 鎖住） |
 | 快取 | 全域 cache-bust 版本號，現為 `v40` |
 
@@ -212,3 +212,48 @@ xcrun devicectl device install app --device 9D800519-30D5-5107-A80B-28888A35B894
 - 2026-08-05：建立本檔；新增 UX 升級計畫；確認 repo 雙 clone 問題。
 - 2026-07-24：local-first CI、後端 sync 強化、shared anchor UI、requirements 拆分、scheduled gatherings 併入 start flow（`36e44ee`..`57ed2fc`）。
 - 2026-07-23：產品重新定位、CI/CD 分流、codebase 優化計畫成文。
+
+## 2026-10-20 寵物系統整合
+
+- 原生手繪狗狗接入正式群組養成頁，直接領養、取名，不需要人臉；舊照片角色保留靜態顯示及換角入口。
+- 使用者明確要求手不動：前腳、身體及外層 CSS 均固定；餵食／清潔／玩球／摸頭使用表情、頭部與獨立道具回應。Rive 從約 4.2 MB 降為 1.76 MB。
+- 領養保留原養成與聚會進度。照顧 API 新增同筆重試回執，操作等後端確認，斷線不假成功；改名／刪除／領養使用原生 dialog。
+- 群組入口、未領養群組列表、狀態一致性、冷卻原因、手機操作、動畫失敗回退、離頁清理與中英文字串一起更新。
+- 完整流程見 docs/pet-system.md；素材與重建見 scripts/pets/illustrated-puppy/README.md。
+- 本輪以單元測試、正式頁面瀏覽器測試，以及完整 App + 真 FastAPI + 隔離 Firebase Emulator 驗證。正式部署與原生裝置驗收尚未執行；既有 android/ 未追蹤目錄不動。
+- 最終檢查：前端 42/42、後端 109/109、全 JS/Python 語法及原生 Rive verify 通過。瀏覽器涵蓋 API 拒絕、回應遺失重試、靜態回退／恢復、減少動態和原生動作完成。
+- 本機驗收服務：前端 5178、後端 8080、Auth 9099、獨立 Firestore 8281；原有 8081 未改動。臨時啟動設定在 /tmp/pet-care-review，試玩帳號與群組只存在隔離 Emulator，不是正式群組。
+
+
+## 2026-10-22 寵物補給／AWS／導覽
+
+- 使用者決定：聚會獎勵給共用金幣，到小舖抽食物與玩具，再進共用背包使用；非照顧當下直接隨機。
+- 30 金幣抽食物 3 份、60 金幣抽永久玩具；重複玩具返 20；70/25/5 三級。
+- 已合併 origin/main v16 AWS。DynamoDB transaction 補條件式原子提交，回執防重扣與重複聚會獎勵。
+- 使用者決定：小區塊用群組指定成員的 Profile 頭像，小寵物只作陪伴；大插畫角色點進完整養成才顯示。沒有重新加入人臉到大 Rive。
+- 更多移到右上角 Profile／個人資料；右下角新增寵物。CI 安裝完整測試依賴、零略過 gate、瀏覽器測試；部署固定 SHA、後端先於前端。未部署、未 push。
+- 舊 android/ 為既有 untracked 目錄，未更動。詳細規則與驗證入口見 docs/pet-system.md。
+
+- 最終本機驗證：134 後端／43 前端／4 瀏覽器全通過；AWS 資源未寫入。Playwright 的 DynamoDB API 行為由 moto 與記憶體相容層驗證，非正式 DynamoDB 實測。
+
+
+## 2026-10-22 寵物版面修正
+
+- 右下寵物 Lucide 圖示原為 10.5px，其他主導覽為 22px；統一直接 SVG 為 22px、非中央按鈕約 48px 高。
+- 名字下方放金幣／抽取／背包，再接舞台與照顧按鈕。狀態、成長、說明放其後；空 feedback 與 sync status 不留高度。
+- 320／390／768px、中英文實測無橫向溢出；43 項前端測試、照顧 API／Rive 完成事件、重試與靜態回退的瀏覽器回歸通過。未部署。
+- 使用者詢問 code 檢查 command：本機 Claude Code 已安裝 codex plugin 1.0.6，command 是 /codex:review；另有 /codex:adversarial-review。此次只查詢名稱，沒有執行該 command。
+
+
+## 2026-10-22 主照顧入口先選物品
+
+- 使用者要求餵食／玩耍先選擇，不應直接使用預設基本款。主按鈕現在直接開對應食物／玩具選擇器，已擁有的物品排前，顯示份數、擁有狀態與效果。
+- 選擇器不顯示抽取／錢包資訊；按物品的「餵一份／陪牠玩」才送 API，取消零消耗。結果不明的重試仍沿用原 item_id/request_id。
+- 43 項前端測試通過；3 項相關瀏覽器測試通過，涵蓋主入口選擇、取消、指定物品動作、斷線重試，以及抽取背包原流程。未部署。
+
+## 2026-10-22 補給抽取動畫研究與實作
+
+- 使用者要求研究抽獎動畫。參考 Pokémon 官方拆包設計訪談與 Apple Motion 指南，來源與採用範圍記錄於 docs/pet-system.md。
+- 已實作食物紙袋／玩具禮盒：包裝入場、確認伺服器結果、開封、結果卡。單段動態 180–240ms；稀有度只影響配色與支援裝置的觸覺，不影響機率。
+- 可直接看結果、支援減少動態；關閉不取消已完成抽取。未確認時不顯示虛構結果，沿用原本永久回執與 request_id 防重扣。
+- 前端 43/43、相關瀏覽器 4/4 通過，並檢查實際截圖。程式 commit 6ec5308；未 push、未部署，既有 android/ 不動。

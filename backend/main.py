@@ -24,6 +24,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, H
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from pet_care import (care_catalog, apply_item_effects, discovered_items, item_by_id,
+                      economy_payload, session_coins, draw_inventory_item, apply_inventory_draw,
+                      use_inventory_item, DRAW_PRICES)
 from pet_logic import (
     GROUP_PET_ACTION_COOLDOWN_SECONDS,
     GROUP_PET_STAT_DEFAULTS,
@@ -145,6 +148,7 @@ async def get_health():
     """本機與部署前檢查用；不丟 500，讓 caller 能看到是哪個 capability 失效。"""
     health = {
         "status": "ok",
+        "commit": os.environ.get("APP_COMMIT", "local"),
         "version": BACKEND_VERSION,
         "build_date": BACKEND_BUILD_DATE,
         "aws": {
@@ -2667,15 +2671,43 @@ class UpdatePetPayload(BaseModel):
     pet_target_uid: Optional[str] = None
 
 
+PET_CHARACTERS = {
+    "puppy-v1": {
+        "name": "奶糖",
+        "avatar": "/assets/pets/illustrated/puppy-poster-v1.png",
+        "body": "🐶",
+    },
+}
+
+
+class AdoptPetPayload(BaseModel):
+    character_id: str = "puppy-v1"
+    name: str = Field(default="", max_length=20)
+
+
 def _generate_invite_code() -> str:
     chars = string.ascii_uppercase + string.digits
     return ''.join(secrets.choice(chars) for _ in range(8))
 
 
+def _mini_pet_profile(data: dict):
+    target = data.get('pet_target_uid')
+    if not target or target not in (data.get('member_uids') or []):
+        return None
+    snap = db.collection('users').document(target).get()
+    if not snap.exists:
+        return {'uid':target,'nickname':'','photoURL':''}
+    profile = snap.to_dict() or {}
+    return {'uid':target,'nickname':profile.get('nickname',''),'photoURL':profile.get('photoURL','')}
+
+
 def _serialize_group(data: dict, doc_id: str) -> dict:
     out = dict(data)
+    if data.get("pet_face_url"):
+        out.update(_group_pet_display(data))
     out["group_id"] = doc_id
-    for internal_field in ("pet_action_cooldowns", "pet_rewarded_room_ids", "pet_face_path"):
+    out["pet_mini_profile"] = _mini_pet_profile(data)
+    for internal_field in ("pet_action_cooldowns", "pet_action_receipts", "pet_rewarded_room_ids", "pet_face_path", "pet_portrait_path"):
         out.pop(internal_field, None)
     for f in ("created_at", "pet_last_fed_at", "pet_face_updated_at", "pet_last_session_at"):
         if out.get(f) and hasattr(out[f], "isoformat"):
@@ -3021,9 +3053,9 @@ async def update_pet(group_id: str, payload: UpdatePetPayload, decoded: dict = D
     if payload.pet_name is not None:
         updates["pet_name"] = payload.pet_name.strip()[:20]
     if payload.pet_target_uid is not None:
-        if payload.pet_target_uid not in (data.get("member_uids") or []):
+        if payload.pet_target_uid and payload.pet_target_uid not in (data.get("member_uids") or []):
             raise HTTPException(status_code=400, detail="寵物人必須是群組成員")
-        updates["pet_target_uid"] = payload.pet_target_uid
+        updates["pet_target_uid"] = payload.pet_target_uid or None
 
     if not updates:
         raise HTTPException(status_code=400, detail="沒有要更新的欄位")
@@ -3063,10 +3095,57 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
     return {
         "status": "success",
         "pet": pet_fields,
+        "care_catalog": care_catalog(),
         "pet_person": pet_person_profile,
         "pet_body_options": PET_BODY_OPTIONS,
         "member_count": len(data.get("member_uids", [])),
     }
+
+
+@app.post("/api/groups/{group_id}/pet/adopt")
+async def adopt_group_pet(group_id: str, payload: AdoptPetPayload, decoded: dict = Depends(verify_token)):
+    """領養插畫角色或更換外觀；既有養成、冷卻與聚會紀錄保持不變。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    character = PET_CHARACTERS.get(payload.character_id)
+    if not character:
+        raise HTTPException(status_code=400, detail="目前沒有這個角色")
+    ref = db.collection("groups").document(group_id)
+
+    @firestore.transactional
+    def adopt(tx):
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = snap.to_dict() or {}
+        if uid not in (data.get("member_uids") or []) or uid != data.get("creator_uid"):
+            raise HTTPException(status_code=403, detail="只有群組建立者可以領養或更換角色")
+        updates = {
+            "pet_character_id": payload.character_id,
+            # Retain this avatar field for existing room/list clients.
+            "pet_face_url": character["avatar"],
+            "pet_portrait_url": None,
+            "pet_body_emoji": character["body"],
+            "pet_name": payload.name.strip() or data.get("pet_name") or character["name"],
+        }
+        if not data.get("pet_face_url"):
+            updates.update({
+                **GROUP_PET_STAT_DEFAULTS,
+                "pet_last_updated": datetime.datetime.now(datetime.timezone.utc),
+                "pet_face_updated_at": datetime.datetime.now(datetime.timezone.utc),
+            })
+        for key, value in {
+            "pet_accumulated_score": 0, "pet_meetings_completed": 0,
+            "pet_action_cooldowns": {}, "pet_rewarded_room_ids": [],
+        }.items():
+            if data.get(key) is None:
+                updates[key] = value
+        tx.update(ref, updates)
+        return _group_pet_public_payload({**data, **updates}, uid)
+
+    pet = adopt(db.transaction())
+    return {"status": "success", "pet": pet}
 
 
 @app.post("/api/groups/{group_id}/pet-face")
@@ -3076,6 +3155,7 @@ async def set_group_pet_face(
     target_uid: Optional[str] = Form(default=None),
     pet_name: Optional[str] = Form(default=None),
     pet_body_emoji: Optional[str] = Form(default=None),
+    portrait: Optional[UploadFile] = File(default=None),
     decoded: dict = Depends(verify_token),
 ):
     """把已生成的寵物臉設為群組頭像（同時是寵物的臉）。只有群組建立者可設定。"""
@@ -3108,20 +3188,43 @@ async def set_group_pet_face(
     if len(content) > PHOTO_MAX_BYTES:
         raise HTTPException(status_code=400, detail="檔案太大 (>10MB)")
 
+    portrait_content = None
+    if portrait is not None:
+        if portrait.content_type != "image/png":
+            raise HTTPException(status_code=400, detail="原照片臉部請使用透明 PNG")
+        portrait_content = await portrait.read()
+        if not portrait_content or len(portrait_content) > PHOTO_MAX_BYTES:
+            raise HTTPException(status_code=400, detail="臉部圖片為空或超過 10MB")
+        if not portrait_content.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise HTTPException(status_code=400, detail="臉部圖片不是有效 PNG")
+
     ext_by_ct = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
     ext = ext_by_ct[file.content_type]
     blob_name = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}.{ext}"
+    uploaded_paths = []
+    metadata_saved = False
 
     try:
         bucket = _storage_bucket()
         blob = bucket.blob(blob_name)
         blob.upload_from_string(content, content_type=file.content_type)
+        uploaded_paths.append(blob_name)
         public_url = _storage_media_url(blob_name)
 
-        old_path = data.get("pet_face_path")
+        portrait_url, portrait_path = None, None
+        if portrait_content is not None:
+            portrait_path = f"group-pet-faces/{group_id}/{uuid.uuid4().hex}-portrait.png"
+            portrait_blob = bucket.blob(portrait_path)
+            portrait_blob.upload_from_string(portrait_content, content_type="image/png")
+            uploaded_paths.append(portrait_path)
+            portrait_url = _storage_media_url(portrait_path)
+
         face_updates = {
+            "pet_character_id": None,
             "pet_face_url": public_url,
             "pet_face_path": blob_name,
+            "pet_portrait_url": portrait_url,
+            "pet_portrait_path": portrait_path,
             "pet_face_updated_at": firestore.SERVER_TIMESTAMP,
             "pet_face_target_uid": target_uid or None,
             "pet_name": clean_name,
@@ -3144,9 +3247,12 @@ async def set_group_pet_face(
             if data.get(_f) is None:
                 face_updates[_f] = _default
         doc_ref.update(face_updates)
+        metadata_saved = True
 
         # 換圖成功後刪舊 blob（失敗不阻斷，避免殘留指向不存在檔案的 metadata）
-        if old_path and old_path != blob_name:
+        for old_path in (data.get("pet_face_path"), data.get("pet_portrait_path")):
+            if not old_path or old_path in uploaded_paths:
+                continue
             try:
                 old_blob = bucket.blob(old_path)
                 if old_blob.exists():
@@ -3154,10 +3260,16 @@ async def set_group_pet_face(
             except Exception as e:
                 print(f"Warning: failed to delete old pet face blob: {e}")
 
-        return {"status": "success", "pet_face_url": public_url}
+        return {"status": "success", "pet_face_url": public_url, "pet_portrait_url": portrait_url}
     except HTTPException:
         raise
     except Exception as e:
+        if not metadata_saved:
+            for uploaded_path in uploaded_paths:
+                try:
+                    bucket.blob(uploaded_path).delete()
+                except Exception:
+                    pass
         print(f"Error setting group pet face: {e}")
         raise HTTPException(status_code=500, detail=f"設定頭像失敗: {e}")
 
@@ -3167,8 +3279,58 @@ async def set_group_pet_face(
 # 關鍵：衰減 anchor（pet_last_updated）只在「有動作」時更新，GET 只讀出來顯示、
 # GET 只計算顯示值、不回寫 timestamp，避免輪詢重設衰減 anchor。
 
+class PetDrawPayload(BaseModel):
+    kind: str = Field(pattern=r"^(food|toy)$")
+    request_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+@app.post("/api/groups/{group_id}/pet/draw")
+async def draw_group_pet_item(group_id: str, payload: PetDrawPayload, decoded: dict = Depends(verify_token)):
+    """扣群組金幣與入背包在同一 transaction；重送回傳原抽取結果。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    ref = db.collection('groups').document(group_id)
+    receipt_ref = ref.collection('pet_draw_receipts').document(f'{uid}_{payload.request_id}')
+
+    @firestore.transactional
+    def draw(tx):
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = snap.to_dict() or {}
+        if uid not in (data.get('member_uids') or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+        receipt = receipt_ref.get(transaction=tx)
+        if receipt.exists:
+            saved = receipt.to_dict()
+            if saved['kind'] != payload.kind:
+                raise HTTPException(status_code=409, detail="這次操作編號已用於其他抽取")
+            return {**saved['result'], **economy_payload(data),
+                    'pet_discovered_items': discovered_items(data), 'replayed': True}
+        if not data.get('pet_face_url'):
+            raise HTTPException(status_code=409, detail="先領養一位寵物，再幫牠準備物品")
+        if economy_payload(data)['pet_coins'] < DRAW_PRICES[payload.kind]:
+            raise HTTPException(status_code=409, detail="金幣不足，一起完成聚會來累積金幣")
+        item = draw_inventory_item(payload.kind)
+        try:
+            economy, outcome = apply_inventory_draw(data, item)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail="這項食物已經放滿背包，先使用一些再抽") from error
+        discoveries = sorted(set(discovered_items(data)) | {item['id']})
+        result = {'status': 'success', 'care_item': item, **outcome, **economy,
+                  'pet_discovered_items': discoveries}
+        tx.update(ref, {**economy, 'pet_discovered_items': discoveries})
+        tx.set(receipt_ref, {'kind': payload.kind, 'result': result, 'at': firestore.SERVER_TIMESTAMP})
+        return result
+
+    return draw(db.transaction())
+
+
 class GroupPetActionPayload(BaseModel):
+    item_id: Optional[str] = Field(default=None, max_length=40)
     action: str  # "feed" | "play" | "wipe"
+    request_id: Optional[str] = Field(default=None, min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 def _group_pet_cooldowns(data: dict, uid: str) -> dict:
@@ -3185,12 +3347,20 @@ def _group_pet_public_payload(data: dict, uid: str) -> dict:
         return {}
     payload = {
         "pet_face_url": data.get("pet_face_url", ""),
+        "pet_portrait_url": data.get("pet_portrait_url"),
         "pet_name": data.get("pet_name", ""),
+        "pet_character_id": data.get("pet_character_id"),
         "pet_body_emoji": data.get("pet_body_emoji"),
         "pet_target_uid": data.get("pet_target_uid"),
+        "pet_mini_profile": _mini_pet_profile(data),
         "pet_cooldowns": _group_pet_cooldowns(data, uid),
+        "pet_discovered_items": discovered_items(data),
+        "pet_last_reward_coins": max(0, int(data.get("pet_last_reward_coins", 0) or 0)),
+        "pet_last_care": item_by_id(data.get("pet_last_care_id")),
+        "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
     }
     payload.update(_group_pet_display(data))
+    payload.update(economy_payload(data))
     return payload
 
 
@@ -3217,6 +3387,22 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             raise HTTPException(status_code=403, detail="你不是群組成員")
         if not data.get("pet_face_url"):
             raise HTTPException(status_code=400, detail="群組還沒有設定寵物臉")
+        receipts = dict(data.get("pet_action_receipts") or {})
+        user_receipts = list(receipts.get(uid) or [])
+        if payload.request_id:
+            for receipt in user_receipts:
+                if receipt.get("request_id") != payload.request_id:
+                    continue
+                if receipt.get("action") != action or receipt.get("item_id") != payload.item_id:
+                    raise HTTPException(status_code=409, detail="這次操作編號已用於其他動作")
+                return {
+                    **receipt["result"], **_group_pet_display(data),
+                    "pet_cooldowns": _group_pet_cooldowns(data, uid), "replayed": True,
+                    "pet_discovered_items": discovered_items(data),
+                    "pet_last_care": item_by_id(data.get("pet_last_care_id")),
+                    "pet_last_toy": item_by_id(data.get("pet_last_toy_id")),
+                    **economy_payload(data),
+                }
         if _group_pet_meeting_state(data).get("pet_is_caged"):
             raise HTTPException(
                 status_code=423,
@@ -3244,25 +3430,34 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
         if action == "wipe" and stats["pet_cleanliness"] >= 95:
             raise HTTPException(status_code=409, detail="寵物現在很乾淨，不需要再清潔")
 
-        next_stats = _apply_group_pet_action(stats, action)
+        try:
+            care_item, economy = use_inventory_item(data, action, payload.item_id)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail="背包裡沒有這個物品，請重新選擇") from error
+        next_stats = apply_item_effects(stats, care_item) if care_item else _apply_group_pet_action(stats, action)
         energy = next_stats["pet_energy"]
         happiness = next_stats["pet_happiness"]
         cleanliness = next_stats["pet_cleanliness"]
 
         new_status = _group_pet_status(energy, happiness, cleanliness)
         updates = {
+            **economy,
             "pet_energy": energy,
             "pet_happiness": happiness,
             "pet_cleanliness": cleanliness,
             "pet_status": new_status,
             "pet_last_updated": firestore.SERVER_TIMESTAMP,
         }
+        if care_item:
+            updates["pet_discovered_items"] = sorted(set(discovered_items(data)) | {care_item["id"]})
+            updates["pet_last_care_id"] = care_item["id"]
+            if action == "play":
+                updates["pet_last_toy_id"] = care_item["id"]
         user_cooldowns[action] = firestore.SERVER_TIMESTAMP
         cooldowns[uid] = user_cooldowns
         updates["pet_action_cooldowns"] = cooldowns
         if action == "feed":
             updates["pet_last_fed_at"] = firestore.SERVER_TIMESTAMP
-        tx.update(doc_ref, updates)
         changes = {
             key: round(next_stats[key] - stats[key])
             for key in ("pet_energy", "pet_happiness", "pet_cleanliness")
@@ -3273,28 +3468,35 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             for key in ("feed", "play", "wipe")
         }
         response_cooldowns[action] = GROUP_PET_ACTION_COOLDOWN_SECONDS
-        return energy, happiness, cleanliness, new_status, changes, response_cooldowns
+        result = {
+            "status": "success", "action": action,
+            "pet_energy": round(energy), "pet_happiness": round(happiness),
+            "pet_cleanliness": round(cleanliness), "pet_status": new_status,
+            "pet_hp": _group_pet_hp(next_stats), "changes": changes,
+            "pet_cooldowns": response_cooldowns,
+            "care_item": care_item,
+            **economy,
+            "pet_discovered_items": discovered_items({**data, **updates}),
+            "pet_last_care": item_by_id(updates.get("pet_last_care_id", data.get("pet_last_care_id"))),
+            "pet_last_toy": item_by_id(updates.get("pet_last_toy_id", data.get("pet_last_toy_id"))),
+        }
+        if payload.request_id:
+            receipts[uid] = (user_receipts + [{
+                "request_id": payload.request_id, "action": action, "item_id": payload.item_id, "result": result,
+            }])[-8:]
+            updates["pet_action_receipts"] = receipts
+        tx.update(doc_ref, updates)
+        return result
 
     try:
-        energy, happiness, cleanliness, new_status, changes, response_cooldowns = apply_action(transaction)
+        result = apply_action(transaction)
     except HTTPException:
         raise
     except Exception as e:
         print(f"[group_pet_action] transaction failed: {e}")
         raise HTTPException(status_code=500, detail="寵物狀態更新失敗")
 
-    hp = _group_pet_hp({"pet_energy": energy, "pet_happiness": happiness, "pet_cleanliness": cleanliness})
-    return {
-        "status": "success",
-        "pet_energy": round(energy),
-        "pet_happiness": round(happiness),
-        "pet_cleanliness": round(cleanliness),
-        "pet_status": new_status,
-        "pet_hp": hp,
-        "action": action,
-        "changes": changes,
-        "pet_cooldowns": response_cooldowns,
-    }
+    return result
 
 
 @app.get("/api/group-pets")
@@ -3309,8 +3511,6 @@ async def get_group_pets(decoded: dict = Depends(verify_token)):
         docs = list(db.collection("groups").where("member_uids", "array_contains", uid).stream())
         for doc in docs:
             data = doc.to_dict() or {}
-            if not data.get("pet_face_url"):
-                continue
             pet_fields = _group_pet_public_payload(data, uid)
             pets.append({
                 "group_id":   doc.id,
@@ -3344,8 +3544,9 @@ async def delete_group_pet(group_id: str, decoded: dict = Depends(verify_token))
     clear = {f: firestore.DELETE_FIELD for f in pet_fields}
     try:
         doc_ref.update(clear)
-        old_path = data.get("pet_face_path")
-        if old_path:
+        for old_path in (data.get("pet_face_path"), data.get("pet_portrait_path")):
+            if not old_path:
+                continue
             try:
                 _storage_bucket().blob(old_path).delete()
             except Exception:
@@ -3700,7 +3901,7 @@ async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str) -> Option
 
 
 def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_by_uid: dict,
-                            avg_score: int, duration_minutes: int) -> None:
+                            avg_score: int, duration_minutes: int) -> Optional[dict]:
     # === 若房間屬於某個群組，根據評分更新群組寵物狀態 ===
     # score_by_uid 為空 = 沒有任何參與者留下紀錄，此時 avg_score=0 並非「表現差」，
     # 不可拿來扣寵物能量，直接跳過。
@@ -3715,8 +3916,17 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                 if not g_snap.exists:
                     return None
                 g_data = g_snap.to_dict() or {}
-                if not g_data.get("pet_face_url"):
+                ledger_ref = g_ref.collection('pet_reward_ledger').document(room_id)
+                if ledger_ref.get(transaction=tx).exists:
                     return None
+                member_count = len(set(score_by_uid) & set(g_data.get('member_uids') or []))
+                coin_gain = session_coins(avg_score, duration_minutes, member_count)
+                coin_updates = {'pet_coins': economy_payload(g_data)['pet_coins'] + coin_gain,
+                                'pet_last_reward_coins': coin_gain}
+                if not g_data.get("pet_face_url"):
+                    tx.update(g_ref, coin_updates)
+                    tx.set(ledger_ref, {'coins': coin_gain, 'at': firestore.SERVER_TIMESTAMP})
+                    return {'coins': coin_gain, 'xp': 0}
                 rewarded_room_ids = list(g_data.get("pet_rewarded_room_ids") or [])
                 if room_id in rewarded_room_ids:
                     return None
@@ -3742,6 +3952,7 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_meetings_completed": int(g_data.get("pet_meetings_completed", 0) or 0) + 1,
                 })
                 tx.update(g_ref, {
+                    **coin_updates,
                     "pet_energy":       pet_energy,
                     "pet_happiness":    pet_happiness,
                     "pet_cleanliness":  pet_cleanliness,
@@ -3756,12 +3967,13 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_last_session_at": firestore.SERVER_TIMESTAMP,
                     "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
                 })
-                return pet_energy, pet_happiness, new_status, xp_gain, growth["pet_level"]
+                tx.set(ledger_ref, {"coins": coin_gain, "xp": xp_gain, "at": firestore.SERVER_TIMESTAMP})
+                return {"coins": coin_gain, "xp": xp_gain, "level": growth["pet_level"]}
 
             pet_result = apply_session_reward(pet_transaction)
             if pet_result:
-                pet_energy, pet_happiness, new_status, xp_gain, pet_level = pet_result
-                print(f"[END_SESSION] group pet updated: group={group_id_local} energy={round(pet_energy)} happy={round(pet_happiness)} status={new_status} xp=+{xp_gain} level={pet_level}")
+                print(f"[END_SESSION] group rewards committed: group={group_id_local} coins=+{pet_result['coins']} xp=+{pet_result['xp']}")
+            return pet_result
         except Exception as pet_err:
             print(f"[END_SESSION] group pet update failed: {pet_err}")
 
@@ -3790,11 +4002,10 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
     score_ranking, score_by_uid, perf_by_uid, avg_score = _build_score_ranking(
         all_ever, host_uid_local, duration_minutes, context_local, difficulty_local
     )
-    pet_xp_gain = (
-        _group_pet_session_xp(avg_score, duration_minutes)
-        if group_id_local and room_data.get("group_pet_face_url") and score_by_uid
-        else 0
-    )
+    # Confirm the atomic reward before showing a coin balance on the summary.
+    pet_reward = _apply_group_pet_reward(room_id, group_id_local, score_by_uid, avg_score, duration_minutes)
+    pet_xp_gain = (pet_reward or {}).get('xp', 0)
+    pet_coin_gain = (pet_reward or {}).get('coins', 0)
     room_data["pet_xp_gain"] = pet_xp_gain
 
     summary = {
@@ -3809,12 +4020,13 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
         "group_pet_name": room_data.get("group_pet_name", ""),
         "group_pet_level": room_data.get("group_pet_level", 1),
         "pet_xp_gain": pet_xp_gain,
+        "pet_coin_gain": pet_coin_gain,
         "score_ranking": score_ranking,
         "deviation_ranking": score_ranking,   # 舊前端相容
     }
     room_data["final_result"] = summary
 
-    # 先廣播，讓所有人立刻切換到結算畫面，不被 Firestore 寫入延誤
+    # 獎勵確認後廣播，再寫聚會紀錄與個人鏡像。
     print(f"[END_SESSION] room={room_id} reason={reason}")
     await manager.broadcast_to_room(room_id, summary)
 
@@ -3823,6 +4035,7 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
         db.collection("rooms").document(room_id).update({
             "status": "ENDED",
             "pet_xp_gain": pet_xp_gain,
+        "pet_coin_gain": pet_coin_gain,
             "all_participants": room_data.get("all_participants") or {},
         })
     except Exception as e:
@@ -3925,7 +4138,6 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
     except Exception as e:
         print(f"Error saving meeting record: {e}")
 
-    _apply_group_pet_reward(room_id, group_id_local, score_by_uid, avg_score, duration_minutes)
     return summary
 
 

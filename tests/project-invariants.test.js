@@ -18,7 +18,7 @@ test('backend stays single-instance while WebSocket state is process-local', () 
     const compose = read('deploy/docker-compose.yml');
     // 部署是對「那一台」EC2 下指令重建，不是開新機器；compose 也不能開多個 backend。
     assert.match(workflow, /aws ssm send-command --instance-ids "\$INSTANCE"/);
-    assert.match(workflow, /deploy-backend:\s*\n\s+needs: verify/);
+    assert.match(workflow, /deploy-backend:[\s\S]*?needs: verify/);
     assert.doesNotMatch(compose, /replicas|scale/);
 });
 

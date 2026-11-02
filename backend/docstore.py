@@ -20,6 +20,9 @@ import os
 import random
 import string
 import threading
+import functools
+import time
+import uuid
 
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "phubbing")
 
@@ -167,10 +170,44 @@ class _DynamoBackend:
         self._key = Key
         region = os.environ.get("AWS_REGION", "ap-northeast-1")  # boto3 只認 AWS_DEFAULT_REGION，要明確指定
         self._table = boto3.resource("dynamodb", region_name=region).Table(table_name)
+        self._tx_client = boto3.client("dynamodb", region_name=region)
 
     def get(self, pk, sk):
-        item = self._table.get_item(Key={"pk": pk, "sk": sk}).get("Item")
-        return _loads(item["data"]) if item else None
+        return self.snapshot(pk, sk)[0]
+
+    def snapshot(self, pk, sk):
+        item = self._table.get_item(Key={"pk": pk, "sk": sk}, ConsistentRead=True).get("Item")
+        raw = item['data'] if item else None
+        return (_loads(raw) if raw is not None else None), raw
+
+    def atomic_commit(self, reads, writes):
+        operations = []
+        for (pk, sk), raw in reads.items():
+            condition = {'TableName': self._table.name,
+                         'ConditionExpression': 'attribute_not_exists(pk)' if raw is None else '#data = :before'}
+            if raw is not None:
+                condition.update(ExpressionAttributeNames={'#data':'data'}, ExpressionAttributeValues={':before':{'S':raw}})
+            key = {'pk':{'S':pk}, 'sk':{'S':sk}}
+            if (pk,sk) in writes:
+                data = writes[(pk,sk)]
+                if data is None:
+                    operations.append({'Delete': {**condition, 'Key':key}})
+                else:
+                    item = {**key,'coll':{'S':pk.rsplit('/',1)[-1]},'data':{'S':_dumps(data)}}
+                    operations.append({'Put': {**condition,'Item':item}})
+            else:
+                operations.append({'ConditionCheck':{**condition,'Key':key}})
+        if not writes:
+            return
+        if len(operations) > 100:
+            raise ValueError('DynamoDB transaction exceeds 100 documents')
+        try:
+            self._tx_client.transact_write_items(TransactItems=operations, ClientRequestToken=str(uuid.uuid4()))
+        except self._tx_client.exceptions.TransactionCanceledException as error:
+            reasons = error.response.get('CancellationReasons', [])
+            if reasons and any(reason.get('Code') in ('ConditionalCheckFailed','TransactionConflict') for reason in reasons):
+                raise TransactionConflict() from error
+            raise
 
     def put(self, pk, sk, data):
         coll = pk.rsplit("/", 1)[-1]
@@ -202,8 +239,24 @@ class _MemoryBackend:
         self._items = {}
 
     def get(self, pk, sk):
+        return self.snapshot(pk, sk)[0]
+
+    def snapshot(self, pk, sk):
         raw = self._items.get((pk, sk))
-        return _loads(raw) if raw else None
+        return (_loads(raw) if raw is not None else None), raw
+
+    def atomic_commit(self, reads, writes):
+        with _TX_LOCK:
+            if any(self._items.get(key) != before for key,before in reads.items()):
+                raise TransactionConflict()
+            # Encode everything before replacing the backing map: failures never partially commit.
+            next_items = dict(self._items)
+            for key,data in writes.items():
+                if data is None:
+                    next_items.pop(key,None)
+                else:
+                    next_items[key] = _dumps(data)
+            self._items = next_items
 
     def put(self, pk, sk, data):
         self._items[(pk, sk)] = _dumps(data)
@@ -259,24 +312,24 @@ class DocumentReference:
         return CollectionReference(self._client, f"{self.path}/{name}")
 
     def get(self, transaction=None, **_):
+        if transaction is not None:
+            return transaction.get(self)
         return DocumentSnapshot(self, self._client._backend.get(self._pk, self.id))
 
     def set(self, data, merge=False):
         backend = self._client._backend
-        base = (backend.get(self._pk, self.id) or {}) if merge else {}
-        backend.put(self._pk, self.id, _merge(base, data))
+        if merge:
+            transactional(lambda tx: tx.set(self,data,merge=True))(self._client.transaction())
+        else:
+            backend.put(self._pk,self.id,_merge({},data))
 
     def update(self, data):
-        backend = self._client._backend
-        current = backend.get(self._pk, self.id)
-        if current is None:
-            raise NotFound(f"文件不存在：{self.path}")
-        backend.put(self._pk, self.id, _apply_update(current, data))
+        # Use the same conditional path as multi-document transactions, so a
+        # concurrent ordinary group update cannot overwrite a committed wallet.
+        transactional(lambda tx: tx.update(self,data))(self._client.transaction())
 
     def create(self, data):
-        if self._client._backend.get(self._pk, self.id) is not None:
-            raise ValueError(f"文件已存在：{self.path}")
-        self.set(data)
+        transactional(lambda tx: tx.create(self,data))(self._client.transaction())
 
     def delete(self):
         self._client._backend.delete(self._pk, self.id)
@@ -391,21 +444,73 @@ class WriteBatch:
             op()
 
 
-class Transaction(WriteBatch):
+class TransactionConflict(Exception):
     pass
 
 
-# ponytail: 全域鎖，後端只跑一個 process（WebSocket 房間狀態本來就是 process-local）；
-# 要多台機器時改成 DynamoDB 條件寫入（version 欄位）
+class Transaction:
+    """Materialize writes, then conditionally commit every document together."""
+    def __init__(self, client):
+        self._client = client
+        self.reset()
+
+    def reset(self):
+        self._reads = {}
+        self._snapshots = {}
+        self._writes = {}
+
+    def get(self, ref):
+        if ref._client is not self._client:
+            raise ValueError('Transaction cannot span clients')
+        key = (ref._pk,ref.id)
+        if key not in self._reads:
+            data, token = self._client._backend.snapshot(*key)
+            self._reads[key], self._snapshots[key] = token, data
+        data = self._writes.get(key,self._snapshots[key])
+        return DocumentSnapshot(ref,copy.deepcopy(data))
+
+    def set(self, ref, data, merge=False):
+        base = self.get(ref).to_dict()
+        self._writes[(ref._pk,ref.id)] = _merge((base or {}) if merge else {},data)
+
+    def update(self, ref, data):
+        base = self.get(ref).to_dict()
+        if base is None:
+            raise NotFound(f'文件不存在：{ref.path}')
+        self._writes[(ref._pk,ref.id)] = _apply_update(base,data)
+
+    def create(self, ref, data):
+        if self.get(ref).exists:
+            raise ValueError(f'文件已存在：{ref.path}')
+        self.set(ref,data)
+
+    def delete(self, ref):
+        self.get(ref)
+        self._writes[(ref._pk,ref.id)] = None
+
+    def commit(self):
+        self._client._backend.atomic_commit(self._reads,self._writes)
+
+
+# A process lock keeps local room mutations ordered. DynamoDB conditions also
+# protect transactions from other processes and nontransactional document writes.
 _TX_LOCK = threading.RLock()
 
 
 def transactional(fn):
+    @functools.wraps(fn)
     def wrapper(transaction, *args, **kwargs):
-        with _TX_LOCK:
-            result = fn(transaction, *args, **kwargs)
-            transaction.commit()
-            return result
+        for attempt in range(5):
+            transaction.reset()
+            try:
+                with _TX_LOCK:
+                    result = fn(transaction,*args,**kwargs)
+                    transaction.commit()
+                return result
+            except TransactionConflict:
+                if attempt == 4:
+                    raise
+                time.sleep(.01 * 2 ** attempt + random.uniform(0,.01))
     return wrapper
 
 
@@ -423,7 +528,7 @@ class Client:
         return WriteBatch()
 
     def transaction(self):
-        return Transaction()
+        return Transaction(self)
 
 
 def client():

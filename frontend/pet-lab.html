@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>寵物試衣間 · 動畫比較</title>
+<link rel="stylesheet" href="./features/pets/mvp/lab.css">
+<script src="./vendor/rive/rive.js" defer></script>
+<script type="module" src="./features/pets/mvp/lab.js"></script>
+</head>
+<body>
+<main>
+<header><a class="wordmark" href="./index.html">一起養 <span>／ 角色實驗室</span></a><span class="edition">MVP 01 & 02</span></header>
+<div class="intro"><div><p class="eyebrow">找一個，想每天見面的牠。</p><h1>先試著一起生活。</h1><p class="description">同一張臉、同一套衣服。餵餵牠、摸摸牠，再選你喜歡的動畫感。</p></div><label class="upload" for="portrait">放上你的照片 <span>↗</span><input type="file" id="portrait" accept="image/*"></label></div>
+<p id="photo-status" class="photo-status" role="status">目前顯示示範表情。選擇照片後，兩邊會套用同一張原圖；照片只留在這個頁面。</p>
+<details id="crop-panel"><summary>調整照片位置</summary><div class="crop-controls"><label>放大 <input id="zoom" type="range" min="1" max="3" step=".02" value="1"></label><label>左右 <input id="photo-x" type="range" min="-80" max="80" value="0"></label><label>上下 <input id="photo-y" type="range" min="-80" max="80" value="0"></label><button id="clear-photo">移除照片</button></div></details>
+<section class="comparison" aria-label="兩種動畫 MVP">
+<article class="pet-card" data-engine="rive"><div class="card-heading"><span class="number">01</span><div><h2>插畫動起來</h2><p>Rive · 分層互動動畫</p></div><span class="engine-status" role="status">載入中</span></div><div class="stage"><div class="speech" role="status">嗨，今天想一起做什麼？</div><div class="art"><canvas aria-label="Rive 寵物動畫"></canvas><div class="portrait-slot" hidden><img alt="你的原照片"></div><button class="touch-zone" aria-label="摸摸 Rive 寵物"></button><div class="effects" aria-hidden="true"></div></div><div class="stage-floor"></div><div class="shelf"><button class="snack" aria-label="拖餅乾到嘴邊，也可點一下餵食"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="7" width="30" height="34" rx="12" fill="#ce9657"/><path d="M14 15h20M14 33h20" stroke="#e8bb82" stroke-width="3"/><g fill="#8f6238"><circle cx="19" cy="22" r="2"/><circle cx="29" cy="26" r="2"/><circle cx="20" cy="31" r="2"/></g></svg></button><span>拖餅乾到嘴邊</span><button class="toy" aria-label="和 Rive 寵物玩玩具"></button></div></div><div class="actions"><button data-action="feed">餵食</button><button data-action="pet">摸摸</button><button data-action="play">玩玩具</button></div><button class="choose" data-choice="rive" aria-pressed="false">我喜歡這個感覺 <span>↗</span></button></article>
+<article class="pet-card" data-engine="frames"><div class="card-heading"><span class="number">02</span><div><h2>立體小布偶</h2><p>Blender · 預先渲染動畫</p></div><span class="engine-status" role="status">載入中</span></div><div class="stage"><div class="speech" role="status">嗨，今天想一起做什麼？</div><div class="art"><canvas aria-label="預先渲染寵物動畫"></canvas><div class="portrait-slot" hidden><img alt="你的原照片"></div><button class="touch-zone" aria-label="摸摸立體寵物"></button><div class="effects" aria-hidden="true"></div></div><div class="stage-floor"></div><div class="shelf"><button class="snack" aria-label="拖餅乾到嘴邊，也可點一下餵食"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="9" y="7" width="30" height="34" rx="12" fill="#ce9657"/><path d="M14 15h20M14 33h20" stroke="#e8bb82" stroke-width="3"/><g fill="#8f6238"><circle cx="19" cy="22" r="2"/><circle cx="29" cy="26" r="2"/><circle cx="20" cy="31" r="2"/></g></svg></button><span>拖餅乾到嘴邊</span><button class="toy" aria-label="和立體寵物玩玩具"></button></div></div><div class="actions"><button data-action="feed">餵食</button><button data-action="pet">摸摸</button><button data-action="play">玩玩具</button></div><button class="choose" data-choice="frames" aria-pressed="false">我喜歡這個感覺 <span>↗</span></button></article>
+</section>
+<section class="wardrobe" aria-label="角色衣服玩具選擇"><div class="wardrobe-title"><h2>牠的小衣櫥</h2><p>先試穿。未來可接上抽角色、衣服與玩具。</p></div><div class="equipment"><fieldset><legend>角色</legend><button data-kind="character" data-item="dog" aria-pressed="true">垂耳狗</button><button data-kind="character" data-item="cat" aria-pressed="false">尖耳貓</button></fieldset><fieldset><legend>衣服</legend><button data-kind="outfit" data-item="sage" aria-pressed="true"><i style="background:#708b77"></i>鼠尾草綠</button><button data-kind="outfit" data-item="rose" aria-pressed="false"><i style="background:#b77464"></i>陶土粉</button></fieldset><fieldset><legend>玩具</legend><button data-kind="toy" data-item="ball" aria-pressed="true">條紋球</button><button data-kind="toy" data-item="bone" aria-pressed="false">布骨頭</button></fieldset></div></section>
+<p id="selection-status" role="status" class="selection-status">選擇只記在這台裝置，還沒更換正式寵物。</p>
+<footer><span>照片保持原樣，身體負責演出。</span><span>本機比較版 · 所有物品皆可試用</span></footer>
+</main>
+</body></html>

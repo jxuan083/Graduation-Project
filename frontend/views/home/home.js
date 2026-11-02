@@ -1,4 +1,5 @@
 // views/home/home.js — 首頁（front-preview 設計：群組九宮格 + 4 顆功能列）
+import { miniCompanionMarkup } from '../../features/pets/mini-companion.js';
 import { register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
@@ -212,7 +213,7 @@ function paintGroups(groups) {
     grid.innerHTML = groups.map(g => {
         const name = escapeHtml(g.name || t('未命名群組'));
         const img = g.pet_face_url
-            ? `<img src="${escapeAttr(g.pet_face_url)}" alt="">`
+            ? miniCompanionMarkup(g)
             : '<i data-lucide="paw-print" aria-hidden="true"></i>';
         return `<button class="group-card" data-group-id="${escapeAttr(g.group_id)}" data-group-name="${escapeAttr(g.name || '')}">
             <div class="group-img-area">${img}</div>
