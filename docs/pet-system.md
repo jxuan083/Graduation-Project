@@ -127,7 +127,7 @@ PYTHON=python npx playwright test
 
 後端 CI 不能略過測試；缺依賴會失敗。瀏覽器測試使用專用的 `scripts/browser_review_server.py`，只在 localhost 與記憶體資料庫跑，Cognito 身分使用測試替身；正式啟動仍為 `backend/main.py`，不包含測試伺服器入口。
 
-部署仍需手動從 main 觸發。完整部署會先更新 EC2 後端、檢查 `/api/health` 的 commit，再上傳前端到 Amplify；兩者使用同一個已驗證的 GitHub SHA，不以部署當下移動中的分支 HEAD 取代。手動部署不取消正在執行的部署。尚未執行本輪正式部署。
+2026-11-02 起 push 到 main 通過 CI 後自動部署，也可手動觸發。完整部署會先更新 EC2 後端、檢查 `/api/health` 的 commit，再上傳前端到 Amplify；兩者使用同一個已驗證的 GitHub SHA，不以部署當下移動中的分支 HEAD 取代。手動部署不取消正在執行的部署。尚未執行本輪正式部署。
 
 設計參考： [PicPet 官方介紹](https://play.google.com/store/apps/details?id=com.o3o.android.picpet&hl=en_US) 的共同飼養與日常分享，以及 [My Talking Tom 2 官方頁](https://talkingtomandfriends.com/apps/my-talking-tom-2) 的餵食、清潔與遊玩。小／大兩層是本專案依使用者要求採用的安排，不是宣稱兩款產品有相同架構。
 

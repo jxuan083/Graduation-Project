@@ -39,7 +39,7 @@ Landing 文案主張：「手機可以留在手上，注意力留在彼此身上
 | 後端 | FastAPI + WebSocket，`backend/main.py` 4,366 行，同步 Firestore I/O |
 | 前端 | vanilla JS 多 view，`frontend/main.js` 264 行，一次載入 36 個 view |
 | 部署 | **2026-10-22 起全部在 AWS**（ap-northeast-1）：Amplify 網站、EC2 t3.small 後端（Docker + Caddy）、DynamoDB、S3、Cognito。資源 ID 見 `config/aws.env` |
-| CI/CD | CI 自動（push main / PR）；CD 只接受 `workflow_dispatch` |
+| CI/CD | PR 只跑 CI；push main 通過 CI 後自動部署 EC2 後端＋Amplify 前端；`workflow_dispatch` 可手動選 verify-only / frontend / all |
 | WebSocket state | process-local，後端只能一台 EC2、一個 process（有 invariant test 鎖住） |
 | 快取 | 全域 cache-bust 版本號，現為 `v40` |
 
