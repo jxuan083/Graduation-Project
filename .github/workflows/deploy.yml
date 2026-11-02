@@ -17,11 +17,13 @@ on:
           - frontend
           - all
 
-# push / PR 自動跑 CI；部署只允許從 GitHub Actions 手動觸發。
+# PR 只跑 CI；push 到 main 通過 CI 後自動部署後端＋前端（CD）；
+# 手動觸發可選 verify-only / frontend / all。
+# 只有 PR 會取消舊的 run，main 上的部署排隊執行，避免部署被中途砍掉。
 # 依事件分組：手動部署不會把同一分支 push 觸發的 CI 取消掉（2026-10 發生過，顯示成紅叉）。
 concurrency:
   group: ci-deploy-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -92,9 +94,11 @@ jobs:
     needs: [verify, deploy-backend]
     if: >-
       always() && !cancelled() && needs.verify.result == 'success' &&
-      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' && needs.deploy-backend.result == 'success') ||
+      (github.event_name == 'workflow_dispatch' &&
       (inputs.deploy_target == 'frontend' ||
-      (inputs.deploy_target == 'all' && needs.deploy-backend.result == 'success'))
+      (inputs.deploy_target == 'all' && needs.deploy-backend.result == 'success'))))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -134,8 +138,9 @@ jobs:
     timeout-minutes: 40
     needs: verify
     if: >-
-      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
-      inputs.deploy_target == 'all'
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'all'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
