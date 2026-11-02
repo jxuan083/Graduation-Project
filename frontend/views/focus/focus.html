@@ -158,43 +158,6 @@
                 <rect x="54" y="126" width="40" height="6" rx="1" fill="#4a6ea8"/>
                 <rect x="57" y="120" width="34" height="6" rx="1" fill="#b0704a"/>
             </svg>
-            <!-- 情境場景：自訂（艾爾登法環風・金色黃昏花海）。只有 context=custom 時顯示（.scene-custom） -->
-            <svg class="pa-custom-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <defs>
-                    <linearGradient id="cy-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f7290"/><stop offset="1" stop-color="#c0b2a6"/></linearGradient>
-                    <linearGradient id="cy-road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5c5c62"/><stop offset="1" stop-color="#38383e"/></linearGradient>
-                </defs>
-                <rect width="400" height="180" fill="url(#cy-sky)"/>
-                <rect x="0" y="92" width="400" height="88" fill="#44444a"/>
-                <!-- 中央遠處高樓(消失點) -->
-                <rect x="166" y="26" width="26" height="66" fill="#3f4a5c"/><rect x="196" y="16" width="22" height="76" fill="#4a5568"/><rect x="220" y="34" width="18" height="58" fill="#38414f"/>
-                <rect x="169" y="42" width="20" height="15" fill="#e0b024"/><rect x="198" y="28" width="18" height="13" fill="#d0396a"/><rect x="199" y="46" width="16" height="12" fill="#2ab0c0"/>
-                <!-- 左大樓 + 霓虹看板 -->
-                <polygon points="0,4 94,48 94,150 0,150" fill="#2c2e36"/><polygon points="94,48 110,56 110,150 94,150 Z" fill="#23252c"/>
-                <rect x="8" y="34" width="36" height="24" fill="#c0392b"/><rect x="8" y="64" width="40" height="20" fill="#2a6ec0"/><rect x="8" y="90" width="42" height="20" fill="#e0a020"/>
-                <rect x="54" y="54" width="30" height="34" fill="#7a3f9a"/><rect x="56" y="94" width="28" height="24" fill="#2ab08a"/>
-                <!-- 右大樓 + 霓虹看板 -->
-                <polygon points="400,4 306,48 306,150 400,150" fill="#2c2e36"/><polygon points="306,48 290,56 290,150 306,150 Z" fill="#23252c"/>
-                <rect x="356" y="34" width="36" height="26" fill="#d0296a"/><rect x="356" y="66" width="36" height="22" fill="#2ab0a0"/><rect x="356" y="94" width="36" height="18" fill="#e0c020"/>
-                <rect x="316" y="54" width="30" height="30" fill="#c0392b"/><rect x="318" y="90" width="28" height="24" fill="#3a6ec0"/>
-                <!-- 街道(往消失點收) + 車道虛線 -->
-                <polygon points="40,180 360,180 214,92 186,92" fill="url(#cy-road)"/>
-                <g fill="#e8d060"><polygon points="197,176 203,176 202,158 198,158"/><polygon points="198,150 202,150 201.5,136 198.5,136"/><polygon points="199,128 201,128 200.5,117 199.5,117"/></g>
-                <!-- 計程車:遠 + 中景兩台 -->
-                <g><rect x="189" y="98" width="14" height="8" rx="2" fill="#f2c018"/><rect x="191" y="99" width="10" height="3" fill="#cfe0ea"/></g>
-                <g><rect x="118" y="128" width="32" height="16" rx="3" fill="#f2c018"/><rect x="122" y="123" width="24" height="8" rx="2" fill="#f2c018"/><rect x="124" y="124" width="20" height="6" fill="#cfe0ea"/><circle cx="127" cy="145" r="4" fill="#1c1c1c"/><circle cx="144" cy="145" r="4" fill="#1c1c1c"/></g>
-                <g><rect x="248" y="132" width="34" height="17" rx="3" fill="#f2c018"/><rect x="252" y="127" width="26" height="8" rx="2" fill="#f2c018"/><rect x="254" y="128" width="22" height="6" fill="#cfe0ea"/><circle cx="257" cy="150" r="4.2" fill="#1c1c1c"/><circle cx="275" cy="150" r="4.2" fill="#1c1c1c"/></g>
-                <!-- 少量遠行人(人行道) -->
-                <g fill="#2a2a32"><ellipse cx="70" cy="126" rx="4" ry="9"/><circle cx="70" cy="115" r="3"/><ellipse cx="330" cy="128" rx="4" ry="9"/><circle cx="330" cy="117" r="3"/><ellipse cx="88" cy="138" rx="4.5" ry="10"/><circle cx="88" cy="126" r="3.2"/></g>
-            </svg>
-            <svg class="pa-custom-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <!-- 近景行人剪影(少量，框住兩側，讓中央寵物突出) -->
-                <g fill="#20202a">
-                    <ellipse cx="42" cy="154" rx="9" ry="22"/><circle cx="42" cy="136" r="7"/>
-                    <ellipse cx="360" cy="152" rx="9" ry="22"/><circle cx="360" cy="134" r="7"/>
-                    <ellipse cx="86" cy="168" rx="8" ry="16"/><circle cx="86" cy="155" r="6"/>
-                </g>
-            </svg>
             <!-- 情境場景：吃飯聚餐（暖色餐廳・紅燈籠・圓桌一桌菜）。只有 context=meal 時顯示（.scene-meal） -->
             <svg class="pa-meal-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                 <defs>
@@ -380,7 +343,7 @@
                 <g fill="rgba(200,220,235,.5)" stroke="#cfe0ea" stroke-width="1"><rect x="160" y="120" width="7" height="10" rx="1"/><rect x="234" y="120" width="7" height="10" rx="1"/><rect x="110" y="134" width="7" height="10" rx="1"/></g>
                 <rect x="204" y="116" width="5" height="8" rx="1.5" fill="#e6ded0"/><rect x="212" y="116" width="5" height="8" rx="1.5" fill="#c9a86e"/>
             </svg>
-            <!-- 情境場景：交流（高級餐酒館・聚焦吧台・寵物坐側位）。只有 context=social 時顯示（.scene-social） -->
+            <!-- 情境場景：認識新朋友（高級餐酒館・聚焦吧台・寵物坐側位）。只有 context=social 時顯示（.scene-social） -->
             <svg class="pa-social-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                 <defs>
                     <linearGradient id="sc-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdc2ac"/><stop offset="1" stop-color="#bbad93"/></linearGradient>
@@ -460,7 +423,7 @@
                 <g><ellipse cx="210" cy="140" rx="15" ry="4.5" fill="#e0a850"/><rect x="196" y="134" width="28" height="5" fill="#b6522e"/><path d="M196 134 q14 -8 28 0 Z" fill="#e8be6e"/><ellipse cx="210" cy="134" rx="14" ry="2" fill="#f0d59a"/></g>
                 <g><path d="M232 144 l3 -18 h12 l3 18 Z" fill="#e6e2d8"/><path d="M232 144 l3 -18 h6 l0 18 Z" fill="#d0442e"/><line x1="244" y1="126" x2="248" y2="112" stroke="#d0442e" stroke-width="2" stroke-linecap="round"/></g>
             </svg>
-            <!-- 情境場景：戶外活動（夕陽河畔露營・帳篷・露營椅）。只有 context=outdoor 時顯示（.scene-outdoor） -->
+            <!-- 情境場景：旅行（夕陽河畔露營・帳篷・露營椅）。只有 context=outdoor 時顯示（.scene-outdoor） -->
             <svg class="pa-outdoor-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                 <defs>
                     <linearGradient id="od-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fa2b2"/><stop offset="0.3" stop-color="#cf9f6a"/><stop offset="0.56" stop-color="#f0bf6e"/><stop offset="0.8" stop-color="#f6d585"/><stop offset="1" stop-color="#e6b866"/></linearGradient>
@@ -502,44 +465,6 @@
                 <g stroke="#4a7a2c" stroke-width="2" stroke-linecap="round" fill="none"><path d="M18 180 Q16 164 22 156"/><path d="M40 180 Q44 162 38 152"/><path d="M210 180 Q206 162 214 154"/><path d="M240 180 Q244 160 236 150"/><path d="M300 180 Q296 162 304 154"/><path d="M340 180 Q344 160 336 152"/><path d="M370 180 Q366 164 374 156"/><path d="M270 180 Q272 164 266 156"/></g>
                 <g stroke="#6fa03e" stroke-width="2" stroke-linecap="round" fill="none"><path d="M28 180 Q30 166 24 158"/><path d="M225 180 Q222 166 228 158"/><path d="M320 180 Q322 166 316 158"/><path d="M355 180 Q352 166 358 158"/></g>
             </svg>
-            <!-- 情境場景：團隊聚會（辦公室大合照・一群人・寵物在正中間）。只有 context=team 時顯示（.scene-team） -->
-            <svg class="pa-team-bg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <defs><linearGradient id="tm-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ece7dc"/><stop offset="1" stop-color="#ddd6c8"/></linearGradient></defs>
-                <rect width="400" height="180" fill="url(#tm-wall)"/>
-                <!-- 天花線燈 -->
-                <rect x="40" y="8" width="130" height="4" rx="2" fill="#fbf6e8"/><rect x="230" y="8" width="130" height="4" rx="2" fill="#fbf6e8"/>
-                <!-- 後方電視簡報 -->
-                <rect x="150" y="30" width="100" height="46" rx="2" fill="#20262e"/><g stroke="#8fa0ae" stroke-width="2" stroke-linecap="round"><line x1="162" y1="44" x2="238" y2="44"/><line x1="162" y1="54" x2="228" y2="54"/><line x1="162" y1="64" x2="214" y2="64"/></g>
-                <!-- 左沙發 + 右高桌 -->
-                <rect x="0" y="92" width="46" height="34" rx="4" fill="#d8d2c4"/><rect x="0" y="86" width="46" height="10" rx="4" fill="#cbc4b4"/>
-                <path d="M356 96 L392 96 L392 100 L356 100 Z" fill="#6a4a2e"/><rect x="372" y="100" width="4" height="80" fill="#2a2a2a"/><g fill="rgba(200,220,235,.5)" stroke="#cfe0ea" stroke-width="1"><rect x="360" y="90" width="6" height="8" rx="1"/><rect x="380" y="90" width="6" height="8" rx="1"/></g>
-                <!-- 地毯地板 -->
-                <rect x="0" y="138" width="400" height="42" fill="#8f8c88"/><g fill="#807d78"><rect x="0" y="138" width="40" height="42"/><rect x="80" y="138" width="40" height="42"/><rect x="160" y="138" width="40" height="42"/><rect x="240" y="138" width="40" height="42"/><rect x="320" y="138" width="40" height="42"/></g>
-                <!-- 後排人群(留中央給寵物) -->
-                <g>
-                    <rect x="44" y="101" width="22" height="38" rx="9" fill="#c0392b"/><circle cx="55" cy="96" r="6.5" fill="#e8b98f"/><path d="M48.5 95 A6.5 6.5 0 0 1 61.5 95" fill="#c9a24a"/>
-                    <rect x="81" y="101" width="22" height="38" rx="9" fill="#3a6ea5"/><circle cx="92" cy="96" r="6.5" fill="#c98a5a"/><path d="M85.5 95 A6.5 6.5 0 0 1 98.5 95" fill="#1a1a1a"/>
-                    <rect x="117" y="101" width="22" height="38" rx="9" fill="#4a4a4a"/><circle cx="128" cy="96" r="6.5" fill="#e8b98f"/><path d="M121.5 95 A6.5 6.5 0 0 1 134.5 95" fill="#9a9a9a"/>
-                    <rect x="264" y="101" width="22" height="38" rx="9" fill="#5a8a3a"/><circle cx="275" cy="96" r="6.5" fill="#e8b98f"/><path d="M268.5 95 A6.5 6.5 0 0 1 281.5 95" fill="#4a3526"/>
-                    <rect x="301" y="101" width="22" height="38" rx="9" fill="#dcdcdc"/><circle cx="312" cy="96" r="6.5" fill="#9a6535"/><path d="M305.5 95 A6.5 6.5 0 0 1 318.5 95" fill="#1a1a1a"/>
-                    <rect x="337" y="101" width="22" height="38" rx="9" fill="#7a5a8a"/><circle cx="348" cy="96" r="6.5" fill="#e8b98f"/><path d="M341.5 95 A6.5 6.5 0 0 1 354.5 95" fill="#b0503a"/>
-                </g>
-                <!-- 舉書歡呼 -->
-                <g><rect x="168" y="90" width="20" height="36" rx="8" fill="#2a2a2a"/><circle cx="178" cy="86" r="6" fill="#c98a5a"/><path d="M172 85 A6 6 0 0 1 184 85" fill="#1a1a1a"/><line x1="186" y1="98" x2="176" y2="70" stroke="#c98a5a" stroke-width="3" stroke-linecap="round"/><rect x="164" y="60" width="14" height="12" rx="1" fill="#d8c3a0" transform="rotate(-10 171 66)"/></g>
-                <g><rect x="222" y="90" width="20" height="36" rx="8" fill="#c98a52"/><circle cx="232" cy="86" r="6" fill="#e8b98f"/><path d="M226 85 A6 6 0 0 1 238 85" fill="#4a3526"/><line x1="224" y1="98" x2="236" y2="70" stroke="#e8b98f" stroke-width="3" stroke-linecap="round"/><rect x="232" y="60" width="14" height="12" rx="1" fill="#d8c3a0" transform="rotate(10 239 66)"/></g>
-            </svg>
-            <svg class="pa-team-fg" viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <!-- 前排人群(較大，兩側包住中央寵物) -->
-                <g>
-                    <rect x="30" y="118" width="26" height="44" rx="11" fill="#e0552e"/><circle cx="43" cy="112" r="7.5" fill="#e8b98f"/><path d="M35.5 111 A7.5 7.5 0 0 1 50.5 111" fill="#c9a24a"/>
-                    <rect x="68" y="118" width="26" height="44" rx="11" fill="#3a3a3a"/><circle cx="81" cy="112" r="7.5" fill="#c98a5a"/><path d="M73.5 111 A7.5 7.5 0 0 1 88.5 111" fill="#1a1a1a"/>
-                    <rect x="106" y="118" width="26" height="44" rx="11" fill="#8ab4d8"/><circle cx="119" cy="112" r="7.5" fill="#e8b98f"/><path d="M111.5 111 A7.5 7.5 0 0 1 126.5 111" fill="#4a3526"/>
-                    <rect x="144" y="120" width="26" height="42" rx="11" fill="#5a8a3a"/><circle cx="157" cy="114" r="7.5" fill="#9a6535"/><path d="M149.5 113 A7.5 7.5 0 0 1 164.5 113" fill="#1a1a1a"/>
-                    <rect x="244" y="120" width="26" height="42" rx="11" fill="#dcdcdc"/><circle cx="257" cy="114" r="7.5" fill="#e8b98f"/><path d="M249.5 113 A7.5 7.5 0 0 1 264.5 113" fill="#b0503a"/>
-                    <rect x="282" y="118" width="26" height="44" rx="11" fill="#2a4a6a"/><circle cx="295" cy="112" r="7.5" fill="#c98a5a"/><path d="M287.5 111 A7.5 7.5 0 0 1 302.5 111" fill="#9a9a9a"/>
-                    <rect x="320" y="118" width="26" height="44" rx="11" fill="#b03a3a"/><circle cx="333" cy="112" r="7.5" fill="#e8b98f"/><path d="M325.5 111 A7.5 7.5 0 0 1 340.5 111" fill="#4a3526"/>
-                </g>
-            </svg>
             <!-- 燈光：越多人分心越暗（隨 weather class 改變不透明度） -->
             <div class="pa-scene-dim" aria-hidden="true"></div>
             <!-- 寵物失落對話框（陰天/雨天才顯示） -->
@@ -578,6 +503,12 @@
             <span class="pa-distraction-label">我的分心次數</span>
             <span class="pa-distraction-count" id="deviation-count">0</span>
         </div>
+
+        <!-- 掃碼點餐（一般聚會／家庭聚會／吃飯聚餐、原生 App 才有）：點餐網頁開在 App 裡，不算分心 -->
+        <button class="pa-intent-btn pa-order-btn" id="btn-order" type="button" style="display:none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>
+            <span id="order-btn-label">掃碼點餐</span>
+        </button>
 
         <!-- 需要用手機時：宣告意圖，換一段不算分心的暫離窗口（回到 App 專心即結束） -->
         <button class="pa-intent-btn" id="btn-declare-intent" type="button">
@@ -714,6 +645,19 @@
     </div>
 
     <!-- 意圖宣告：先寫下要做什麼（只有自己看得到），再換一段不算分心的暫離窗口 -->
+    <!-- 掃碼點餐：用 App 的相機掃桌上的點餐 QR Code（樣式同暫離彈窗） -->
+    <div id="order-scan-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="order-scan-title">
+        <div class="invite-card intent-card order-scan-card">
+            <button id="btn-order-scan-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+            <h3 id="order-scan-title">掃描點餐 QR Code</h3>
+            <p class="hint" id="order-scan-hint">對準桌上的點餐 QR Code。點餐網頁會開在 App 裡，不算分心。</p>
+            <div id="order-scan-reader" class="order-scan-reader"></div>
+            <div class="intent-modal-actions">
+                <button id="btn-order-scan-cancel" class="btn secondary" type="button">取消</button>
+            </div>
+        </div>
+    </div>
+
     <div id="intent-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="intent-modal-title">
         <div class="invite-card intent-card">
             <button id="btn-intent-modal-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>

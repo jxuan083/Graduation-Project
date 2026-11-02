@@ -2,7 +2,8 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-/// 社交定錨的即時動態擴充功能：暫離倒數／跳出 App 的寬限倒數，顯示在靈動島與鎖定畫面。
+/// 社交定錨的即時動態擴充功能：暫離倒數／跳出 App 的寬限倒數／帶出 App 點餐，顯示在靈動島與鎖定畫面。
+/// 點餐（kind == "order"）刻意不顯示時間，避免造成壓力；10 分鐘後若系統重畫，換成「還在點餐嗎？」。
 /// 資料格式見 App/AnchorCountdownAttributes.swift；開始、更新、結束都由 App 端的 LockStatePlugin 控制。
 ///
 /// App 在背景時沒辦法更新畫面，所以「時間到」的變化盡量不靠重畫：
@@ -26,7 +27,14 @@ private enum Palette {
 }
 
 private extension AnchorCountdownAttributes.ContentState {
-    var symbol: String { kind == "break" ? "iphone" : "exclamationmark" }
+    var isOrder: Bool { kind == "order" }
+    var symbol: String {
+        switch kind {
+        case "break": return "iphone"
+        case "order": return "fork.knife"
+        default: return "exclamationmark"
+        }
+    }
     /// 進度範圍（開始時間晚於結束時間時保護一下，避免 ClosedRange 崩潰）
     var span: ClosedRange<Date> { min(startedAt, endsAt)...endsAt }
 }
@@ -65,6 +73,20 @@ private struct CountdownRing: View {
     }
 }
 
+/// 點餐用的圖示方塊（點餐不顯示時間，所以用圖示代替進度環）。
+private struct OrderBadge: View {
+    let accent: Color
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: "fork.knife")
+            .font(.system(size: size * 0.45, weight: .semibold))
+            .foregroundStyle(accent)
+            .frame(width: size, height: size)
+            .background(accent.opacity(0.14), in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+    }
+}
+
 /// App 的圖示（跟主畫面上的 App 圖示同一張）。
 private struct AppLogo: View {
     let size: CGFloat
@@ -93,7 +115,11 @@ struct AnchorCountdownLiveActivity: Widget {
                         .foregroundStyle(Palette.brown.opacity(0.55))
                 }
                 HStack(spacing: 14) {
-                    CountdownRing(state: state, accent: accent, size: 40)
+                    if state.isOrder {
+                        OrderBadge(accent: accent, size: 40)
+                    } else {
+                        CountdownRing(state: state, accent: accent, size: 40)
+                    }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(isOver ? state.overTitle : state.title)
                             .font(.system(size: 16, weight: .bold))
@@ -104,15 +130,19 @@ struct AnchorCountdownLiveActivity: Widget {
                             .lineLimit(2)
                     }
                     Spacer(minLength: 8)
-                    CountdownText(state: state, isOver: isOver)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 100, alignment: .trailing)
+                    if !state.isOrder {
+                        CountdownText(state: state, isOver: isOver)
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .foregroundStyle(accent)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100, alignment: .trailing)
+                    }
                 }
-                ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
-                    .progressViewStyle(.linear)
-                    .tint(accent)
+                if !state.isOrder {
+                    ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
+                        .progressViewStyle(.linear)
+                        .tint(accent)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.top, 14)
@@ -136,12 +166,19 @@ struct AnchorCountdownLiveActivity: Widget {
                     .padding(.leading, 6)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    CountdownText(state: state, isOver: isOver)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 96, alignment: .trailing)
-                        .padding(.trailing, 6)
+                    if state.isOrder {
+                        Image(systemName: "fork.knife")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(accent)
+                            .padding(.trailing, 10)
+                    } else {
+                        CountdownText(state: state, isOver: isOver)
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .foregroundStyle(accent)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 96, alignment: .trailing)
+                            .padding(.trailing, 6)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -149,9 +186,11 @@ struct AnchorCountdownLiveActivity: Widget {
                             .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.7))
                             .lineLimit(2)
-                        ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
-                            .progressViewStyle(.linear)
-                            .tint(accent)
+                        if !state.isOrder {
+                            ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
+                                .progressViewStyle(.linear)
+                                .tint(accent)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 6)
@@ -159,16 +198,28 @@ struct AnchorCountdownLiveActivity: Widget {
             } compactLeading: {
                 AppLogo(size: 22)
             } compactTrailing: {
-                HStack(spacing: 5) {
-                    CountdownRing(state: state, accent: accent, size: 16, showsSymbol: false)
-                    CountdownText(state: state, isOver: isOver)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                if state.isOrder {
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(accent)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 48, alignment: .trailing)
+                } else {
+                    HStack(spacing: 5) {
+                        CountdownRing(state: state, accent: accent, size: 16, showsSymbol: false)
+                        CountdownText(state: state, isOver: isOver)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(accent)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 48, alignment: .trailing)
+                    }
                 }
             } minimal: {
-                CountdownRing(state: state, accent: accent, size: 22)
+                if state.isOrder {
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(accent)
+                } else {
+                    CountdownRing(state: state, accent: accent, size: 22)
+                }
             }
             .keylineTint(accent)
         }

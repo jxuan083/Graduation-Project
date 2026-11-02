@@ -12,7 +12,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=77';
+import { vibrate } from '../../core/haptics.js?v=78';
 import { getLockState } from '../../core/lockstate.js';
 import { setGraceCountdown } from '../../core/liveActivity.js';
 
@@ -69,7 +69,8 @@ function syncGraceCountdown() {
     if (document.visibilityState !== 'visible') return;
     const armed = state.currentPhase === 'ACTIVE'
         && !state.photoModeActive
-        && !(state.exemptUntil > Date.now());   // 暫離中跳出去不算分心，顯示的是暫離倒數
+        && !(state.exemptUntil > Date.now())      // 暫離中跳出去不算分心，顯示的是暫離倒數
+        && !(state.orderTripUntil > Date.now());  // 帶出 App 點餐中，顯示的是「點餐中」
     setGraceCountdown(armed, getGraceMs());
 }
 
@@ -80,10 +81,10 @@ function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         const hiddenAt = state.hiddenAt;
         state.hiddenAt = null;
-        const backWithinExemption = state.exemptUntil > Date.now();
-        state.exemptUntil = 0;   // 回到 App 專心 → 這次暫離結束（後端也是這樣算）
-
-        // 暫離窗口內就回來：不算分心、不跳警告，直接回聚會畫面。
+        // 暫離窗口或帶出 App 點餐的時間內回來：不算分心、不跳警告，直接回聚會畫面。
+        const backWithinExemption = Math.max(state.exemptUntil || 0, state.orderTripUntil || 0) > Date.now();
+        state.exemptUntil = 0;      // 回到 App 專心 → 這次暫離結束（後端也是這樣算）
+        state.orderTripUntil = 0;   // 帶出點餐也一樣，回來就結束
         if (backWithinExemption) {
             endCognitiveBuffer(true);
             reportVisible();
@@ -103,7 +104,7 @@ function handleVisibilityChange() {
         // 這樣超時回來只會補算「超過窗口」的部分，不會把整段暫離都算成分心。
         state.hiddenAt = Date.now();
         if (!state.deviationDeadline) {
-            state.deviationDeadline = Math.max(Date.now(), state.exemptUntil || 0) + getGraceMs();
+            state.deviationDeadline = Math.max(Date.now(), state.exemptUntil || 0, state.orderTripUntil || 0) + getGraceMs();
         }
         // 停掉前景倒數（背景不依賴計時器，回來時再補算）
         clearInterval(state.bufferTimerObj);

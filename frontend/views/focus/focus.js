@@ -6,18 +6,19 @@ import { apiFetch } from '../../core/api.js';
 import { events } from '../../core/events.js';
 import { openQaSourcePicker } from '../qa-source/qa-source.js';
 import { hostStartTabooGame } from '../../features/taboo/controller.js';
-import { startPhotoMode, endPhotoMode, uploadMeetingPhoto } from '../../features/photos/controller.js';
+import { startPhotoMode, endPhotoMode, uploadMeetingPhoto, autoSaveCapturedPhoto } from '../../features/photos/controller.js';
 import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
 import { isImeComposing } from '../../utils/ime.js';
 import { reconnectSilent } from '../../core/session.js';
-import { startBreakCountdown, extendBreakCountdown, endCountdown } from '../../core/liveActivity.js';
+import { startBreakCountdown, extendBreakCountdown, endCountdown, startOrderActivity } from '../../core/liveActivity.js';
+import { orderingPlugin, orderingAvailable, orderTripsLeft, orderingLabels, requestOrderTrip } from '../../core/ordering.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
-import { EXEMPT_BUDGET_BY_CONTEXT } from '../../core/config.js';
-import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions } from '../../core/localNotify.js';
+import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT } from '../../core/config.js';
+import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders } from '../../core/localNotify.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=77';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=78';
 
 export function init() {
     register('view-focus', {
@@ -99,6 +100,9 @@ export function init() {
     const btnFocusInvite = document.getElementById('btn-focus-invite');
     if (btnFocusInvite) btnFocusInvite.onclick = openInviteModal;
 
+    // 掃碼點餐
+    initOrdering();
+
     // 需要用手機：宣告意圖
     const btnIntent = document.getElementById('btn-declare-intent');
     if (btnIntent) btnIntent.onclick = handleDeclareIntent;
@@ -119,6 +123,7 @@ export function init() {
     });
     // 回到 App 專心時，豁免已由後端結束 → 按鈕還原，並提示這次暫離結束了
     document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') cancelOrderReminders();   // 回到 App：帶出點餐結束
         if (document.visibilityState === 'visible' && _intentEndMs > Date.now()) {
             endIntentCountdown();
             showToast(t('暫離結束，回到專心'), 'info');
@@ -299,7 +304,7 @@ export function refreshFocusMascot() {
     // 依情境切換場景外觀（約會=燭光晚餐、自習=圖書館…；其餘=預設戶外舞台）
     const sceneCard = document.querySelector('#view-focus .pa-scene-card');
     if (sceneCard) {
-        const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study', custom: 'scene-custom', meal: 'scene-meal', meeting: 'scene-meeting', class: 'scene-class', family: 'scene-family', social: 'scene-social', general: 'scene-general', outdoor: 'scene-outdoor', team: 'scene-team' };
+        const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study', meal: 'scene-meal', meeting: 'scene-meeting', class: 'scene-class', family: 'scene-family', social: 'scene-social', general: 'scene-general', outdoor: 'scene-outdoor' };
         // 先清掉所有情境場景 class（否則切換情境時舊場景會殘留、疊在新場景上）
         Object.values(SCENE_BY_CONTEXT).forEach(c => sceneCard.classList.remove(c));
         const sc = SCENE_BY_CONTEXT[state.currentContext];
@@ -312,6 +317,7 @@ export function refreshFocusMascot() {
     const growthHint = document.getElementById('focus-pet-growth-hint');
     const defaultText = document.getElementById('focus-default-mascot-text');
     updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
+    updateOrderButton();         // 依情境決定點餐按鈕顯示/隱藏
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (sceneCard) sceneCard.classList.toggle('has-pet', !!face);  // 有真寵物 → 藏掉預設球
@@ -354,6 +360,139 @@ async function extendIntentFromNotification() {
         scheduleIntentEnd(sec, { allowExtend: false });   // 已延長過，下一則通知只剩「提前離開」
     } catch (err) {
         showToast(err.message || t('延長暫離失敗'), 'warn');
+    }
+}
+
+// ── 掃碼點餐 ──
+// 點餐網頁開在 App 內建的瀏覽器（原生），只能在那家的點餐網站裡走動，人沒離開 App 所以不算分心。
+// 第一次按：開相機掃 QR Code；之後按：直接回到同一個點餐網頁（吃到飽一直加點不用重掃）。
+// 點餐網站要把人帶出 App（外部網頁、LINE、付款 App）時，原生先問使用者，同意後由這裡
+// 向後端登記一次「帶出」（每場 2 次、每次 15 分鐘），成功才真的打開，並顯示靈動島「點餐中」。
+let _orderScanner = null;
+
+function initOrdering() {
+    const btn = document.getElementById('btn-order');
+    if (btn) btn.onclick = handleOrderButton;
+    const close = () => closeOrderScan();
+    const x = document.getElementById('btn-order-scan-close');
+    const cancel = document.getElementById('btn-order-scan-cancel');
+    if (x) x.onclick = close;
+    if (cancel) cancel.onclick = close;
+
+    const p = orderingPlugin();
+    if (!p || typeof p.addListener !== 'function') return;
+    p.addListener('orderingExternal', ({ url }) => goOutToOrder(url));
+    p.addListener('orderingClosed', () => updateOrderButton());
+
+    events.on('session:joined', () => {
+        // 新的一場：丟掉上一場的點餐網頁
+        state.orderingOpen = false;
+        try { p.resetOrdering(); } catch (_) {}
+        cancelOrderReminders();
+        updateOrderButton();
+    });
+    events.on('session:cleanup', () => {
+        state.orderingOpen = false;
+        state.orderTripUntil = 0;
+        try { p.resetOrdering(); } catch (_) {}
+        cancelOrderReminders();
+    });
+}
+
+function updateOrderButton() {
+    const btn = document.getElementById('btn-order');
+    const label = document.getElementById('order-btn-label');
+    if (!btn) return;
+    if (!orderingAvailable()) { btn.style.display = 'none'; return; }
+    btn.style.display = '';
+    if (label) label.textContent = state.orderingOpen ? t('繼續點餐') : t('掃碼點餐');
+}
+
+async function handleOrderButton() {
+    const p = orderingPlugin();
+    if (!p) return;
+    if (state.orderingOpen) {
+        try {
+            await p.openOrdering({ ...orderingLabels(), tripsLeft: orderTripsLeft() });
+            return;
+        } catch (_) {
+            state.orderingOpen = false;   // 原生那邊已經沒有了（例如 App 重開過），改成重新掃
+        }
+    }
+    openOrderScan();
+}
+
+function openOrderScan() {
+    const modal = document.getElementById('order-scan-modal');
+    const hint = document.getElementById('order-scan-hint');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+    if (typeof Html5Qrcode === 'undefined') {
+        if (hint) hint.textContent = t('掃描函式庫載入失敗，請重新整理頁面');
+        return;
+    }
+    if (hint) hint.textContent = t('對準桌上的點餐 QR Code。點餐網頁會開在 App 裡，不算分心。');
+    _orderScanner = new Html5Qrcode('order-scan-reader');
+    _orderScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (text) => {
+            const url = String(text || '').trim();
+            if (!/^https?:\/\//i.test(url)) {
+                if (hint) hint.textContent = t('這個 QR Code 不是點餐網址，再試一次。');
+                return;
+            }
+            closeOrderScan();
+            startOrdering(url);
+        },
+        () => { /* 每一格沒掃到，略過 */ }
+    ).catch(() => {
+        if (hint) hint.textContent = t('沒辦法打開相機，請到設定允許相機權限。');
+    });
+}
+
+function closeOrderScan() {
+    const modal = document.getElementById('order-scan-modal');
+    if (modal) modal.classList.add('hidden');
+    if (_orderScanner) {
+        const s = _orderScanner;
+        _orderScanner = null;
+        try { s.stop().catch(() => {}).finally(() => { try { s.clear(); } catch (_) {} }); } catch (_) {}
+    }
+}
+
+async function startOrdering(url) {
+    const p = orderingPlugin();
+    if (!p) return;
+    try {
+        await p.openOrdering({ url, ...orderingLabels(), tripsLeft: orderTripsLeft() });
+        state.orderingOpen = true;
+        updateOrderButton();
+    } catch (err) {
+        showToast(err?.message || t('打不開這個點餐網址'), 'warn');
+    }
+}
+
+// 原生問過使用者、同意離開 App 之後：先跟後端登記帶出，成功才真的打開外部頁面或 App。
+async function goOutToOrder(url) {
+    const p = orderingPlugin();
+    if (!p) return;
+    try {
+        const data = await requestOrderTrip();
+        const windowSec = Math.max(1, Number(data.window_sec) || 900);
+        const remindSec = Math.max(0, Number(data.remind_sec) || 600);
+        state.orderTripUntil = Date.now() + windowSec * 1000;
+        const me = state.roomMembers?.[state.userId];
+        if (me) me.order_trips_used = Math.max(0, ORDER_TRIP_LIMIT - (Number(data.trips_left) || 0));
+        try { await p.setOrderingTripsLeft({ n: Number(data.trips_left) || 0 }); } catch (_) {}
+        await startOrderActivity(remindSec);        // 先開「點餐中」，離開前景時就不會另開寬限倒數
+        scheduleOrderReminders(remindSec, windowSec);
+        await p.openExternal({ url });
+    } catch (err) {
+        try {
+            await p.showOrderingMessage({ title: t('現在無法離開 App 點餐'), message: err?.message || '', ok: t('好') });
+        } catch (_) {}
     }
 }
 
@@ -811,7 +950,9 @@ async function handleMeetingPhotoChange(e) {
     const file = e.target.files && e.target.files[0];
     endPhotoMode();
     if (!file) return;
-    await uploadCapturedPhoto(file);
+    const fromCamera = e.target.id === 'meeting-camera-input';
+    const saved = fromCamera ? (await autoSaveCapturedPhoto(file)) === 'saved' : false;
+    await uploadCapturedPhoto(file, { saved });
 }
 
 // ── 相機：手機用原生相機(input capture)，電腦用網頁鏡頭(getUserMedia) ──
@@ -866,14 +1007,15 @@ async function captureMeetingPhoto() {
     await uploadCapturedPhoto(new File([blob], `meeting-${Date.now()}.jpg`, { type: 'image/jpeg' }));
 }
 
-async function uploadCapturedPhoto(file) {
+async function uploadCapturedPhoto(file, { saved = false } = {}) {
     try {
         showToast(t('照片上傳中…'), 'info');
         await uploadMeetingPhoto(state.roomId, file);
-        showToast(t('照片已上傳'), 'success');
+        showToast(saved ? t('照片已上傳，也存到手機了') : t('照片已上傳'), 'success');
     } catch (err) {
         console.error('upload photo failed:', err);
-        showToast(t('照片上傳失敗:') + (err.message || err), 'error');
+        if (saved) showToast(t('上傳到聚會相簿失敗，但照片已經存到手機了'), 'error');
+        else showToast(t('照片上傳失敗:') + (err.message || err), 'error');
     }
 }
 

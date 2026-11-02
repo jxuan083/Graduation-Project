@@ -5,6 +5,7 @@ import { connectRoom } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { resetSessionCounters } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
+import { hidePickupCard } from '../../features/pickup/sessionPickups.js';
 
 export function init() {
     // 右上角帳號 chip 在這頁不顯示，由 core/chrome.js 的 refreshAuthBarVisibility 統一處理
@@ -34,6 +35,7 @@ async function rejoinLeftSession() {
 }
 
 export function renderPartySummaryFromMeeting(meeting, newspaper = null) {
+    hidePickupCard();
     const members = meeting?.members_snapshot || state.currentMeetingMembers || [];
     const ranking = normalizeRanking(meeting, members);
     const myUid = state.currentUser?.uid || state.userId;
