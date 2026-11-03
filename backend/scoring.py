@@ -115,6 +115,20 @@ def compute_perf_points(quality_score: int, difficulty: str = "M", context: str 
     return int(round(max(0, int(quality_score)) * d_mult * c_mult))
 
 
+def final_score(info: Optional[dict], base_score: int, minutes: int, duration_minutes: int,
+                context: str = "general") -> int:
+    """在品質分之上套兩條守則：
+      - 跑出 App（不是在 App 內關螢幕）到聚會結束都沒回來 → 0 分（attendance 標記 abandoned；只有 iOS App 判斷得出）。
+      - 專心上課：乘上出席比例（自己在場的時間 ÷ 整堂課），差 1 分鐘以內算全勤，
+        避免提前離開或晚到反而比整堂都在、分心一兩次的人分數高。
+    """
+    if (info or {}).get("abandoned"):
+        return 0
+    if context == "class" and duration_minutes > 0 and duration_minutes - minutes > 1:
+        return int(round(base_score * max(0.0, min(1.0, minutes / float(duration_minutes)))))
+    return base_score
+
+
 def participant_minutes(info: Optional[dict], duration_minutes: int) -> int:
     """這個人計分用的分鐘數：有個人在場分鐘（提前離開／中途加入）就用它，否則用整場時長。"""
     attended = (info or {}).get("attended_minutes")
@@ -144,6 +158,7 @@ def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minute
             minutes, deviations, is_host=(uid == host_uid),
             difficulty=difficulty, context=context, metrics=metrics,
         )
+        score = final_score(info, score, minutes, duration_minutes, context)
         perf = compute_perf_points(score, difficulty, context)
         score_by_uid[uid] = score
         perf_by_uid[uid] = perf
@@ -155,6 +170,7 @@ def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minute
             "perf_points": perf,
             "attended_minutes": minutes,
             "left_early": (info or {}).get("presence") == "left",
+            "abandoned": bool((info or {}).get("abandoned")),
         })
 
     rows.sort(key=lambda x: (-x["score"], x["deviations"]))
@@ -169,8 +185,10 @@ def score_for_uid(uid: str, score_by_uid: dict, all_ever: dict, host_uid: Option
     if score is None:
         info = all_ever.get(uid) or {}
         deviations = int(info.get("deviations", 0) or 0)
+        minutes = participant_minutes(info, duration_minutes)
         score = compute_meeting_score(
-            participant_minutes(info, duration_minutes), deviations, is_host=(uid == host_uid),
+            minutes, deviations, is_host=(uid == host_uid),
             difficulty=difficulty, context=context, metrics=info.get("quality_metrics"),
         )
+        score = final_score(info, score, minutes, duration_minutes, context)
     return score

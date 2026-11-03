@@ -11,15 +11,15 @@ import { noteDistraction } from './meetingWeather.js';
 import { endCountdown } from './liveActivity.js';
 import { startSessionPickupRecording, renderSessionPickupCard } from '../features/pickup/sessionPickups.js';
 import { orderingPlugin } from './ordering.js';
-import { cancelOrderReminders } from './localNotify.js';
+import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected } from '../views/focus/focus.js?v=78';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway } from '../views/focus/focus.js?v=79';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=78';
+} from '../views/sync-ritual/sync-ritual.js?v=79';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -28,8 +28,10 @@ export function registerAllWsHandlers() {
     registerHandler('SESSION_ENDED', handleSessionEnded);
     registerHandler('ANCHOR_ESTABLISHED', handleAnchorEstablished);
     registerHandler('PROGRESS_UPDATE', handleProgressUpdate);
-    registerHandler('USER_WOKE_SCREEN', () => {});
-    registerHandler('USER_HID_SCREEN', () => {});
+    // 誰在 App 外：主持人開放結束後，老師畫面要列出還沒回來的人
+    registerHandler('USER_WOKE_SCREEN', (msg) => setMemberScreen(msg.user_id, 'visible'));
+    registerHandler('USER_HID_SCREEN', (msg) => setMemberScreen(msg.user_id, 'hidden'));
+    registerHandler('PHONE_OPEN_OVERAGE', (msg) => applyPhoneOpenOverage(msg.count, msg.ended_ms));
     registerHandler('DEVIATION_RECORDED', handleDeviationRecorded);
     registerHandler('INTENT_GRANTED', (msg) => applyIntentGranted(msg.window_sec, msg.remaining));
     registerHandler('INTENT_REJECTED', (msg) => applyIntentRejected(msg.reason));
@@ -47,6 +49,13 @@ export function registerAllWsHandlers() {
     registerHandler('ACTION_REJECTED', (msg) => toast(msg.reason || t('操作沒有成功'), 'warn'));
     // 自己按了「離開聚會」（focus view 送出 HTTP 成功後）→ 顯示個人結算
     events.on('session:left', showLeftSummary);
+}
+
+function setMemberScreen(uid, screenState) {
+    const m = state.roomMembers?.[uid];
+    if (!m) return;
+    m.state = screenState;
+    renderPhoneOpenAway();
 }
 
 function toast(message, kind) {
@@ -68,6 +77,7 @@ function handleRoomUpdate(msg) {
     state.meetingGroupPetName = rs.group_pet_name || '';
     state.meetingGroupPetLevel = Number(rs.group_pet_level || 1);
     state.roomMembers = rs.members || {};
+    applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）
     refreshFocusMascot();
     renderMemberList(state.roomMembers);
     if (state.currentPhase === 'SYNC') renderSyncMembers(state.roomMembers);
@@ -116,6 +126,8 @@ function enterSummaryView({ final = true } = {}) {
     // 掃碼點餐：提醒取消；聚會結束時把點餐網頁丟掉（自己先離開則留著，加回後還能繼續點）
     state.orderTripUntil = 0;
     cancelOrderReminders();
+    state.phoneOpen = null;
+    cancelPhoneOpenNotifications();
     if (final) {
         state.orderingOpen = false;
         try { orderingPlugin()?.resetOrdering(); } catch (_) {}
@@ -164,6 +176,7 @@ function showLeftSummary(result) {
     const canRejoin = !result.session_ended && Number(result.rejoins_left || 0) > 0;
     if (canRejoin) state.leftRoomId = roomId;
     let hintText = t('你已先離開，分數算到離開為止');
+    if (result.score_pending) hintText = t('你已先離開，分數要等老師結束這堂課才會算出來（依你在場的時間比例）');
     if (result.session_ended) hintText = t('所有人都離開了，聚會已結束');
     else if (result.leave_reason === 'exempt_timeout') hintText = t('暫離超時未回來，已自動離開，分數算到暫離到期為止');
     setLeftSummaryExtras(hintText, canRejoin, Number(result.rejoins_left || 0));
@@ -251,6 +264,11 @@ function handleSessionEnded(msg) {
         else if (!state.amIHost) hint.innerText = '房主已結束聚會';
         else hint.innerText = '';
         hint.style.display = 'none';   // 這句只在「提前離開」的個人結算才顯示
+        if (myRow?.abandoned) {
+            // 跑出 App 到聚會結束都沒回來（只有 iOS App 判斷得出）→ 這場 0 分，說清楚原因
+            hint.innerText = t('你在聚會結束前跑出 App 沒有回來，這場以 0 分計算');
+            hint.style.display = '';
+        }
     }
 
     renderScoreRanking(ranking);

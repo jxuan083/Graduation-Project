@@ -1043,6 +1043,7 @@ from intent import (  # noqa: E402
 # 個人離開／加回、主持人交棒、暫離超時的規則在 backend/attendance.py（純函式，可單元測試）。
 import attendance as _att  # noqa: E402
 import ordering as _ordering  # noqa: E402
+import phone_open as _phone  # noqa: E402
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -3695,8 +3696,13 @@ class EndRoomRequest(BaseModel):
     duration_minutes: Optional[int] = 0
 
 
+class LeftAppRequest(BaseModel):
+    left_at_ms: Optional[int] = 0   # 跑出 App 的時間（iOS App 在背景確認不是關螢幕後才送）
+
+
 class LeaveRoomRequest(BaseModel):
     from_timeout: Optional[bool] = False   # 從「暫離超時」通知按的提前離開
+    successor_uid: Optional[str] = None    # 開會：主持人先離開時指定的接手人
 
 
 ROOM_SWEEP_INTERVAL_SEC = 20
@@ -3709,7 +3715,7 @@ def _now_ms() -> int:
 
 
 def _room_window_sec(room_data: dict) -> int:
-    return _intent_window_sec(room_data.get("difficulty", "M"))
+    return _intent_window_sec(room_data.get("difficulty", "M"), room_data.get("context", "general"))
 
 
 def _load_room(room_id: str) -> Optional[dict]:
@@ -3865,10 +3871,34 @@ async def _set_acting_host(room_id: str, new_uid: str, reason: str) -> None:
     await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": room_data})
 
 
-async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str) -> Optional[dict]:
+async def _record_deviations(room_id: str, uid: str, count: int, now_ms: int) -> None:
+    """後端自己補記分心（例：主持人開放結束時人還在 App 外，回來才補算），寫法同 LOG_DEVIATION。"""
+    room_data = rooms.get(room_id)
+    if not room_data or count <= 0 or uid not in (room_data.get("members") or {}):
+        return
+    user_deviations, _ = _att.record_deviation(room_data, uid, count, now_ms)
+    try:
+        db.collection("rooms").document(room_id).update({
+            "deviations": firestore.Increment(count),
+            f"members.{uid}.deviations": firestore.Increment(count),
+            f"all_participants.{uid}.deviations": firestore.Increment(count),
+        })
+    except Exception as e:
+        print(f"Error logging deviation in Firestore: {e}")
+    await manager.broadcast_to_room(room_id, {
+        "type": "DEVIATION_RECORDED",
+        "user_id": uid,
+        "user_deviations": user_deviations,
+        "total_deviations": room_data["deviations"],
+    })
+
+
+async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str,
+                      successor_uid: Optional[str] = None) -> Optional[dict]:
     """成員離開進行中的聚會（其他人繼續）。回傳個人結算；不符合離開條件回 None。
 
-    主持人離開時自動交棒給目前連續專注最久的人；已經沒有其他在場成員就直接結束整場。
+    主持人離開時交棒：有指定接手人（開會）就給他，否則自動給目前連續專注最久的人；
+    已經沒有其他在場成員就直接結束整場。上課老師不能先離開，在呼叫端（leave_room_http）擋。
     """
     room_data = rooms.get(room_id)
     if not room_data:
@@ -3891,7 +3921,10 @@ async def _leave_room(room_id: str, uid: str, at_ms: int, reason: str) -> Option
     await manager.broadcast_to_room(room_id, {
         "type": "MEMBER_LEFT", "user_id": uid, "nickname": nickname, "reason": reason,
     })
-    new_host = _att.pick_successor(room_data, uid, at_ms) if was_host else None
+    new_host = None
+    if was_host:
+        new_host = successor_uid if successor_uid in _att.present_uids(room_data) else \
+            _att.pick_successor(room_data, uid, at_ms)
     if new_host:
         await _set_acting_host(room_id, new_host, "host_left")
     else:
@@ -4299,12 +4332,33 @@ async def leave_room_http(room_id: str, body: LeaveRoomRequest, decoded: dict = 
         raise HTTPException(status_code=409, detail="聚會已經結束")
 
     now_ms = _now_ms()
+    ok, why, successor = _att.host_leave_rule(room_data, uid, body.successor_uid, bool(body.from_timeout))
+    if not ok:
+        raise HTTPException(status_code=409, detail=why)
     at_ms = _att.leave_time(room_data, uid, now_ms, bool(body.from_timeout))
     reason = "exempt_timeout" if at_ms != now_ms else "left_early"
-    result = await _leave_room(room_id, uid, at_ms, reason)
+    result = await _leave_room(room_id, uid, at_ms, reason, successor)
     if result is None:
         raise HTTPException(status_code=409, detail="你不在這場進行中的聚會裡")
+    if room_data.get("context") == "class" and not result.get("session_ended"):
+        # 上課的分數要乘出席比例，整堂課多長要等老師結束才知道 → 先不顯示分數
+        result = {**result, "score": None, "perf_points": None, "score_pending": True}
     return {"status": "success", "room_id": room_id, **result}
+
+
+@app.post("/api/rooms/{room_id}/left-app")
+async def left_app_http(room_id: str, body: LeftAppRequest, decoded: dict = Depends(verify_token_or_guest)):
+    """iOS App 跑出去後（在背景確認不是在 App 內關螢幕）回報。聚會結束時還沒回來 → 這場 0 分。
+    用 HTTP：App 已在背景，WebSocket 多半已斷。網頁版分不出關螢幕，不會送。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+    room_data = rooms.get(room_id)
+    if room_data is None:
+        raise HTTPException(status_code=404, detail="找不到房間")
+    recorded = _att.note_left_app(room_data, uid, int(body.left_at_ms or 0), _now_ms())
+    print(f"[LEFT_APP] room={room_id} user={uid} recorded={recorded}")
+    return {"status": "success", "recorded": recorded}
 
 
 @app.post("/api/rooms/{room_id}/order-trip")
@@ -4796,11 +4850,21 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                                 and not _im.get("exempt_active_since_ms"):
                             _im["exempt_active_since_ms"] = _im_now
                         _ordering.note_hidden(_im, _im_now)
+                        _phone.note_hidden(rooms[room_id], _im, _im_now)
                     else:
                         # 回到 App 專心 → 豁免結束（含延長的那一截）；帶出點餐也一併結束
                         _att.settle_exemption(
                             rooms[room_id], user_id, _im_now, _room_window_sec(rooms[room_id]))
                         _ordering.end_order_trip(_im)
+                        _att.clear_left_app(_im)   # 回到 App：「跑出去沒回來」的紀錄結束
+                        # 主持人「開放到結束」在他離開期間結束了：前端不知道結束時間，由這裡補算
+                        _po_over = _phone.overage_on_return(rooms[room_id], _im, _im_now)
+                        if _po_over > 0:
+                            await _record_deviations(room_id, user_id, _po_over, _im_now)
+                            await websocket.send_text(json.dumps({
+                                "type": "PHONE_OPEN_OVERAGE", "count": _po_over,
+                                "ended_ms": _phone.ended_at(rooms[room_id], _im_now),
+                            }))
 
                 if rooms[room_id]["status"] == "ACTIVE" and rooms[room_id].get("mode") != "QA_GAME":
                     # 同步更新資料庫中的使用者狀態
@@ -4839,6 +4903,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # 帶出 App 點餐（付款、LINE 點餐）的時間內不算分心
                 if _ordering.within_order_trip(_exempt_member, _exempt_now_ms):
                     print(f"[LOG_DEVIATION] exempted by ordering trip user={user_id} room={room_id}")
+                    continue
+                # 主持人開放使用手機中：全場都不算分心
+                if _phone.is_open(rooms[room_id], _exempt_now_ms):
+                    print(f"[LOG_DEVIATION] exempted by phone open user={user_id} room={room_id}")
                     continue
 
                 # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定
@@ -4882,12 +4950,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _di_ctx = rooms[room_id].get("context", "general")
                 _di_diff = rooms[room_id].get("difficulty", "M")
                 _di_budget = _intent_budget(_di_ctx)
-                _di_window = _intent_window_sec(_di_diff)
+                _di_window = _intent_window_sec(_di_diff, _di_ctx)
                 _di_now = _now_ms()
                 _di_member = rooms[room_id]["members"].get(user_id) or {}
                 _di_used = int(_di_member.get("exempt_count_used", 0) or 0)
                 _di_last = int(_di_member.get("exempt_last_declared_ms", 0) or 0)
                 _di_ok, _di_reason = _intent_can_declare(_di_used, _di_last, _di_now, _di_budget)
+                if _di_ok and _phone.is_open(rooms[room_id], _di_now):
+                    _di_ok, _di_reason = False, "主持人開放使用手機中，現在不用暫離"
                 if not _di_ok:
                     await websocket.send_text(json.dumps({
                         "type": "INTENT_REJECTED", "reason": _di_reason,
@@ -4903,6 +4973,38 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     "window_sec": _di_window,
                     "remaining": max(0, _di_budget - (_di_used + 1)),
                 }))
+
+            # 6.6 主持人開放使用手機（開會、上課）：全場這段時間離開 App 都不算分心
+            elif action in ("OPEN_PHONES", "CLOSE_PHONES"):
+                if rooms[room_id].get("status") != "ACTIVE":
+                    continue
+                _po_room = rooms[room_id]
+                _po_now = _now_ms()
+                _po_host = _att.acting_host(_po_room)
+                if action == "OPEN_PHONES":
+                    _po_minutes = data.get("minutes") or 0
+                    try:
+                        _po_minutes = int(_po_minutes)
+                    except (TypeError, ValueError):
+                        _po_minutes = -1
+                    _po_ok, _po_reason = _phone.can_open(_po_room, user_id, _po_host, _po_minutes, _po_now)
+                elif action == "CLOSE_PHONES":
+                    _po_ok, _po_reason = _phone.can_close(_po_room, user_id, _po_host, _po_now)
+                if not _po_ok:
+                    await websocket.send_text(json.dumps({"type": "ACTION_REJECTED", "reason": _po_reason}))
+                    continue
+                if action == "OPEN_PHONES":
+                    # 上一次「開放到結束」結束後一直沒回來的人：先補算兩次開放之間的那段
+                    for _gap_uid, _gap_n in _phone.open_phones(_po_room, user_id, _po_minutes, _po_now).items():
+                        await _record_deviations(room_id, _gap_uid, _gap_n, _po_now)
+                else:
+                    _phone.close_phones(_po_room, _po_now)
+                print(f"[{action}] room={room_id} by={user_id} state={_po_room.get('phone_open')}")
+                try:
+                    db.collection("rooms").document(room_id).update({"phone_open": _po_room.get("phone_open")})
+                except Exception as e:
+                    print(f"Error saving phone_open in Firestore: {e}")
+                await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _po_room})
 
             # 7. 房主發起關鍵字遊戲 (Taboo Game)
             elif action == "START_TABOO_GAME":

@@ -37,8 +37,11 @@ async function postRoom(path, body, fallbackError) {
 
 // 離開進行中的聚會（其他人繼續）。回傳後端算到離開為止的個人結算：
 // { duration_minutes, deviations, score, rejoins_left, session_ended? }
-export function requestLeaveSession({ fromTimeout = false } = {}) {
-    return postRoom('/leave', { from_timeout: fromTimeout }, '離開聚會失敗');
+// successorUid：開會主持人先離開時指定的接手人（上課老師不能先離開，後端會擋）
+export function requestLeaveSession({ fromTimeout = false, successorUid = null } = {}) {
+    const body = { from_timeout: fromTimeout };
+    if (successorUid) body.successor_uid = successorUid;
+    return postRoom('/leave', body, '離開聚會失敗');
 }
 
 // 暫離延長一次。回傳 { window_sec, remaining_sec }

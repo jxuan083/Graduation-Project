@@ -12,7 +12,9 @@
      一次暫離次數（沒有次數就不能延長），延長的時間一律算「在場不專注」。
   5. 建立者（host_uid）不變；主持人（acting_host_uid）只在一種情況換人：主持人自己
      按「離開聚會」。這時自動交給「目前連續專注最久」的在場成員，一樣久就隨機挑。
-     沒有手動指派，也不因斷線換人（鎖螢幕專心時 WebSocket 本來就會斷）。
+     不因斷線換人（鎖螢幕專心時 WebSocket 本來就會斷）。依情境有兩個例外（見 host_leave_rule）：
+       - 專心上課：老師不能先離開（只能結束整場），否則主持權會交到學生手上。
+       - 開會：主持人先離開時自己指定接手的人；暫離超時被自動請出時來不及選，照舊自動交棒。
 
 成員即時狀態放 room["members"][uid]；跨重連要保留的累計資料放
 room["all_participants"][uid]。main.py 只負責把 WS／HTTP 訊號接到這些純函式並做 I/O。
@@ -20,8 +22,9 @@ room["all_participants"][uid]。main.py 只負責把 WS／HTTP 訊號接到這�
 import random
 from typing import List, Optional, Tuple
 
-from intent import charge_on_return, overage_deviations
+from intent import charge_on_return, overage_deviations, within_exemption
 import ordering
+import phone_open
 
 REJOIN_LIMIT = 2                # 每場最多加回幾次
 AUTO_LEAVE_AFTER_SEC = 300      # 暫離窗口到期後多久沒回 App → 自動視為離開
@@ -236,6 +239,9 @@ def leave(room: dict, uid: str, at_ms: int, reason: str, window_sec: int) -> boo
         return False
     settle_exemption(room, uid, at_ms, window_sec)
     ordering.end_order_trip(m)
+    phone_open.close_if_host_left(room, uid, at_ms)   # 主持人在「直到結束」的開放中離開 → 開放結束
+    phone_open.forget_member(m)
+    clear_left_app(m)
     ap = room.setdefault("all_participants", {}).setdefault(
         uid, {"nickname": m.get("nickname", ""), "deviations": int(m.get("deviations", 0) or 0)})
     _close_segment(ap, at_ms)
@@ -268,7 +274,7 @@ def apply_exempt_timeouts(room: dict, now_ms: int, window_sec: int) -> List[str]
 
 
 def apply_intent_overage(room: dict, now_ms: int) -> None:
-    """結算時補算：宣告暫離（或帶出 App 點餐）後還沒回來、時間已過的超時 → 補記分心。
+    """結算時補算：宣告暫離（或帶出 App 點餐、主持人開放結束）後還沒回來、時間已過的超時 → 補記分心。
     暫離滿自動離開門檻的人在這之前已被處理成離開，這裡只會碰到未滿門檻的。"""
     params = room.get("session_params", {}) or {}
     per_dev_sec = int(params.get("deviation_rate_limit_sec", 25) or 25)
@@ -277,6 +283,7 @@ def apply_intent_overage(room: dict, now_ms: int) -> None:
         if not is_present(m):
             continue
         add = ordering.overage_deviations(m, now_ms, per_dev_sec)
+        add += phone_open.overage_at_settle(room, m, now_ms, per_dev_sec)
         if m.get("exempt_active_since_ms"):
             add += overage_deviations(int(m.get("exempt_window_until_ms", 0) or 0), now_ms, per_dev_sec)
         if add <= 0:
@@ -294,6 +301,62 @@ def current_focus_ms(room: dict, uid: str, now_ms: int) -> int:
     start = int(ap.get("focus_last_ts_ms") or ap.get("seg_start_ms")
                 or room.get("active_started_ms") or now_ms)
     return max(0, now_ms - start)
+
+
+def host_leave_rule(room: dict, uid: str, successor_uid: Optional[str],
+                    from_timeout: bool = False) -> Tuple[bool, str, Optional[str]]:
+    """主持人要先離開（其他人繼續）時依情境檢查。回傳 (可不可以, 不行的原因, 指定的接手人或 None=自動挑)。
+    不是主持人、或已經沒有其他在場的人（離開＝結束整場）時一律可以。"""
+    if acting_host(room) != uid:
+        return True, "", None
+    others = [u for u in present_uids(room) if u != uid]
+    if not others:
+        return True, "", None
+    context = room.get("context", "general")
+    if context == "class":
+        return False, "上課中老師不能先離開，要離開請選「結束整場」", None
+    if context == "meeting":
+        if successor_uid and successor_uid in others:
+            return True, "", successor_uid
+        if from_timeout:
+            return True, "", None
+        return False, "請選一位接手主持的人", None
+    return True, "", None
+
+
+def note_left_app(room: dict, uid: str, left_at_ms: int, now_ms: int) -> bool:
+    """iOS App 在背景確認「這次是跑去別的 App，不是在 App 內關螢幕」後回報（只有原生 App 會送）。
+    暫離、帶出點餐、主持人開放中離開的不記（那些有自己的超時規則）。回傳有沒有記下。"""
+    m = (room.get("members") or {}).get(uid)
+    if room.get("status") != "ACTIVE" or not is_present(m):
+        return False
+    at = min(int(left_at_ms or now_ms), now_ms)
+    if within_exemption(int(m.get("exempt_window_until_ms", 0) or 0), at) \
+            or ordering.within_order_trip(m, at) or phone_open.is_open(room, at):
+        return False
+    if not m.get("away_left_ms"):
+        m["away_left_ms"] = at
+    return True
+
+
+def clear_left_app(member: Optional[dict]) -> None:
+    """回到 App（或離開聚會）：跑出去的紀錄結束。"""
+    if member is not None:
+        member["away_left_ms"] = 0
+
+
+def apply_abandoned(room: dict, end_ms: int) -> List[str]:
+    """聚會結束時還在 App 外（跑出去超過寬限秒數、一直沒回來）的人 → 標記 abandoned，這場 0 分。"""
+    grace_ms = phone_open.grace_sec(room.get("difficulty", "M")) * 1000
+    all_part = room.setdefault("all_participants", {})
+    out = []
+    for uid, m in (room.get("members") or {}).items():
+        left_at = int((m or {}).get("away_left_ms", 0) or 0)
+        if not is_present(m) or not left_at or end_ms - left_at <= grace_ms:
+            continue
+        all_part.setdefault(uid, {"nickname": m.get("nickname", ""), "deviations": 0})["abandoned"] = True
+        out.append(uid)
+    return out
 
 
 def pick_successor(room: dict, exclude_uid: Optional[str], now_ms: int, rng=random) -> Optional[str]:
@@ -336,6 +399,7 @@ def settle_room(room: dict, end_ms: int, window_sec: int, fallback_minutes: int 
     """
     apply_exempt_timeouts(room, end_ms, window_sec)
     apply_intent_overage(room, end_ms)
+    apply_abandoned(room, end_ms)
     all_part = room.get("all_participants") or {}
     started = int(room.get("active_started_ms") or 0)
     if not started:

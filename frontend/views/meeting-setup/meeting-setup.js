@@ -3,13 +3,13 @@ import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import {
     CONTEXT_CONFIGS, DIFFICULTY_LABELS, EXEMPT_BUDGET_BY_CONTEXT,
-    EXEMPT_WINDOW_SEC, CONTEXT_NOTES, INVITE_BASE_URL,
-} from '../../core/config.js?v=78';
-import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/auth.js?v=78';
+    exemptWindowSec, CONTEXT_NOTES, INVITE_BASE_URL,
+} from '../../core/config.js?v=79';
+import { getDisplayNickname, getAuthHeaders, doSignOut } from '../../core/auth.js?v=79';
 import { apiBase } from '../../core/api.js';
 import { joinRoom } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
-import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=78';
+import { setButtonError, setButtonPending, setButtonSuccess } from '../../core/feedback.js?v=79';
 import { showToast } from '../../utils/toast.js';
 
 export function init() {
@@ -213,13 +213,13 @@ function renderStrengthHint() {
     el.textContent = text;
 }
 
-// 暫離次數/時長：次數依情境、每次時長依（可被覆蓋的）難度。
+// 暫離次數/時長：次數依情境、每次時長依（可被覆蓋的）難度；開會固定 5 分鐘。
 function renderExemptLabel() {
     const exemptEl = document.getElementById('context-exempt-label');
     if (!exemptEl) return;
     const budget = EXEMPT_BUDGET_BY_CONTEXT[state.currentContext] ?? 0;
     if (budget > 0) {
-        const mins = Math.round((EXEMPT_WINDOW_SEC[state.currentDifficulty] || 120) / 60);
+        const mins = Math.round(exemptWindowSec(state.currentContext, state.currentDifficulty) / 60);
         exemptEl.textContent = t('可暫離 {n} 次（每次最多 {m} 分鐘）', { n: budget, m: mins });
     } else {
         exemptEl.textContent = t('不開放暫離');
@@ -254,7 +254,7 @@ async function onSetupShow() {
     // 動態 import controller，避免靜態 import 失敗影響 view 載入
     if (state.currentUser) {
         try {
-            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=78');
+            const { fetchMyGroups } = await import('../../features/groups/controller.js?v=79');
             const groups = await fetchMyGroups();
             populateGroupDropdown(groups);
         } catch (_) { /* 群組載入失敗不阻擋 */ }

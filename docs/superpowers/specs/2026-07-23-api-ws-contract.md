@@ -74,6 +74,7 @@
 | POST | `/api/rooms/{room_id}/end` |
 | POST | `/api/rooms/{room_id}/leave` |
 | POST | `/api/rooms/{room_id}/order-trip` |
+| POST | `/api/rooms/{room_id}/left-app` |
 | POST | `/api/rooms/{room_id}/intent/extend` |
 
 ## WebSocket endpoint
@@ -97,6 +98,8 @@
 | `VISIBILITY_CHANGE` | Updates member visible/hidden state; in active non-QA mode broadcasts wake/hide events. |
 | `LOG_DEVIATION` | Records deviation count and broadcasts deviation event. |
 | `DECLARE_INTENT` | Grants a difficulty-scaled exemption window (phone use not counted as deviation); enforces per-context budget and cooldown. Replies `INTENT_GRANTED`/`INTENT_REJECTED`. |
+| `OPEN_PHONES` | Acting host only, meeting/class only. Opens phone use for everyone (leaving the app is not a deviation). `{minutes}` = timed (class only, 1–180, cannot be ended early); no minutes = until the host closes. Broadcasts `ROOM_UPDATE` with `phone_open`; rejects with `ACTION_REJECTED`. |
+| `CLOSE_PHONES` | Acting host only; ends an until-end opening. Members still away are charged from end + grace when they report `visible` (`PHONE_OPEN_OVERAGE`) or at settlement. |
 | `START_TABOO_GAME` | Starts Taboo game broadcast. |
 | `END_TABOO_GAME` | Ends Taboo game broadcast. |
 
@@ -128,6 +131,7 @@
 | `MEMBER_LEFT` |
 | `MEMBER_REJOINED` |
 | `HOST_CHANGED` |
+| `PHONE_OPEN_OVERAGE` |
 
 ## Phase 1/2 test upgrade target
 

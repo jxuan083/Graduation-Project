@@ -34,6 +34,8 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "updateCountdown", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "endCountdown", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setGraceCountdown", returnType: CAPPluginReturnPromise),
+        // 跑出 App 沒回來（不是在 App 內關螢幕）→ 在背景回報後端；聚會結束時還沒回來 = 0 分
+        CAPPluginMethod(name: "setAwayReport", returnType: CAPPluginReturnPromise),
         // --- 掃碼點餐：App 內建、只能在點餐網站裡走動的瀏覽器 ---
         CAPPluginMethod(name: "openOrdering", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "hasOrdering", returnType: CAPPluginReturnPromise),
@@ -59,10 +61,21 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
     private var graceArmed = false
     private var graceSeconds: Double = 20
     private var graceLabels: [String: String] = [:]
+    private var graceKind = "grace"           // 主持人開放使用手機中改成 "open"（不計時）或 "open_timed"（倒數到結束）
+    private var graceEndsAt: Date?            // 有值 = 倒數到這個時間（開放結束），沒有 = 寬限秒數
     private var graceStartedOnResign = false
+    private var resignStartedKind = "grace"
     private var graceStartedAt: Date? = nil
     private var wentToBackground = false
     private var overtimeTask: UIBackgroundTaskIdentifier = .invalid
+    // 跑出 App 回報：前端在聚會中（不在暫離／點餐／開放）時預備網址與登入資訊
+    private var awayArmed = false
+    private var awayURL: URL?
+    private var awayHeaders: [String: String] = [:]
+    private var awayResignAt: Date?
+    private var awayLockedAt: Date?
+    private var awayTask: UIBackgroundTaskIdentifier = .invalid
+    private var awayCheck: DispatchWorkItem?
 
     // 掃碼點餐的瀏覽器：整場聚會留著同一個（購物車不會不見），聚會結束才丟掉
     private var orderingController: OrderingBrowserController?
@@ -92,6 +105,7 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc private func deviceDidLock() {
+        if awayResignAt != nil { awayLockedAt = Date() }
         locked = true
         lastLockedAt = Date().timeIntervalSince1970 * 1000
         notifyListeners("lockStateChange", data: stateData())
@@ -331,20 +345,28 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc private func appWillResignActive() {
         wentToBackground = false
         graceStartedOnResign = false
+        if awayArmed && awayURL != nil {
+            awayResignAt = Date()
+            awayLockedAt = nil
+        }
         guard graceArmed, #available(iOS 16.2, *) else { return }
         guard Activity<AnchorCountdownAttributes>.activities.isEmpty else { return }  // 暫離倒數進行中就不另開
-        graceStartedOnResign = startActivity(kind: "grace",
-                                             endsAt: Date().addingTimeInterval(graceSeconds),
+        resignStartedKind = graceKind
+        graceStartedOnResign = startActivity(kind: graceKind,
+                                             endsAt: graceEndsAt ?? Date().addingTimeInterval(graceSeconds),
                                              labels: graceLabels)
-        graceStartedAt = graceStartedOnResign ? Date() : nil
+        // 鎖定時收掉寬限倒數用；開放中的倒數不收（在 App 內鎖螢幕本來就不算，開放中也不算）
+        graceStartedAt = graceStartedOnResign && graceKind == "grace" ? Date() : nil
     }
 
     @objc private func appDidEnterBackground() {
         wentToBackground = true
+        scheduleAwayCheck()
         if #available(iOS 16.2, *) { scheduleOvertimeFlip() }
     }
 
     @objc private func appWillEnterForeground() {
+        cancelAwayCheck()   // 回來了：不用回報
         graceStartedAt = nil
         endOvertimeTask()
         if #available(iOS 16.2, *) { endCountdowns(kind: nil) }
@@ -379,10 +401,85 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         overtimeTask = .invalid
     }
 
+    // MARK: - 跑出 App 回報（0 分規則）
+    //
+    // 跑出 App 那一刻分不出是「切去別的 App」還是「在 App 內按鎖定鍵」；鎖定訊號約 10 秒後才到。
+    // 所以進背景後利用背景時間等 12.5 秒：期間鎖定 → 是關螢幕，不回報；回到 App → 不回報；
+    // 都沒有 → 真的跑出去了，回報後端離開的時間。聚會結束時還沒回到 App 的人，後端給這場 0 分。
+    // （跟前端的判斷一致：離開後 12 秒內鎖定都當成在 App 內關螢幕。）
+
+    private func scheduleAwayCheck() {
+        guard let resignAt = awayResignAt, awayURL != nil else { return }
+        cancelAwayTimerOnly()
+        awayTask = UIApplication.shared.beginBackgroundTask(withName: "AnchorAwayReport") { [weak self] in
+            self?.cancelAwayCheck()
+        }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            let lockedInTime = self.awayLockedAt.map { $0.timeIntervalSince(resignAt) <= 12 } ?? false
+            if lockedInTime || UIApplication.shared.applicationState == .active || self.awayResignAt == nil {
+                self.cancelAwayCheck()
+                return
+            }
+            self.postAway(leftAt: resignAt)
+        }
+        awayCheck = item
+        let wait = max(0.5, 12.5 - Date().timeIntervalSince(resignAt))
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: item)
+    }
+
+    private func postAway(leftAt: Date) {
+        guard let url = awayURL else { cancelAwayCheck(); return }
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.httpMethod = "POST"
+        for (key, value) in awayHeaders { request.setValue(value, forHTTPHeaderField: key) }
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["left_at_ms": Int64(leftAt.timeIntervalSince1970 * 1000)]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { [weak self] _, _, error in
+            if let error = error { print("[LockState] away report failed: \(error)") }
+            DispatchQueue.main.async { self?.cancelAwayCheck() }
+        }.resume()
+    }
+
+    private func cancelAwayTimerOnly() {
+        awayCheck?.cancel()
+        awayCheck = nil
+    }
+
+    private func cancelAwayCheck() {
+        cancelAwayTimerOnly()
+        awayResignAt = nil
+        awayLockedAt = nil
+        if awayTask != .invalid {
+            UIApplication.shared.endBackgroundTask(awayTask)
+            awayTask = .invalid
+        }
+    }
+
+    /// 預備（armed=true）或取消跑出 App 回報。url = 後端 /api/rooms/{id}/left-app；headers = 登入資訊。
+    @objc func setAwayReport(_ call: CAPPluginCall) {
+        let armed = call.getBool("armed") ?? false
+        let url = URL(string: call.getString("url") ?? "")
+        var headers: [String: String] = [:]
+        if let obj = call.getObject("headers") {
+            for (key, value) in obj { if let v = value as? String { headers[key] = v } }
+        }
+        DispatchQueue.main.async {
+            self.awayArmed = armed && url != nil
+            if self.awayArmed {
+                self.awayURL = url
+                self.awayHeaders = headers
+            }
+            call.resolve()
+        }
+    }
+
     @objc private func appDidBecomeActive() {
+        if !wentToBackground { cancelAwayCheck() }   // 只是拉下通知中心又放開：沒有跑出去
         // 只是拉下通知中心／控制中心又放開（沒有真的進背景）→ 剛開的寬限倒數收掉
         if graceStartedOnResign && !wentToBackground, #available(iOS 16.2, *) {
-            endCountdowns(kind: "grace")
+            endCountdowns(kind: resignStartedKind)
         }
         graceStartedOnResign = false
     }
@@ -459,15 +556,22 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    /// 預備（armed=true）或取消跳出 App 時的寬限倒數。
+    /// 預備（armed=true）或取消跳出 App 時的倒數。一般是寬限倒數（kind 不帶）；
+    /// 主持人開放使用手機中帶 kind = "open"／"open_timed" 與 endsAt（開放結束時間），跳出時改顯示開放狀態。
     @objc func setGraceCountdown(_ call: CAPPluginCall) {
         let armed = call.getBool("armed") ?? false
         let seconds = max(1, call.getDouble("graceSec") ?? 20)
         let labels = Self.labels(from: call)
+        let kind = call.getString("kind") ?? "grace"
+        let endsAtMs = call.getDouble("endsAt") ?? 0
         DispatchQueue.main.async {
             self.graceArmed = armed
             self.graceSeconds = seconds
-            if armed { self.graceLabels = labels }
+            if armed {
+                self.graceLabels = labels
+                self.graceKind = kind
+                self.graceEndsAt = endsAtMs > 0 ? Date(timeIntervalSince1970: endsAtMs / 1000) : nil
+            }
             call.resolve()
         }
     }

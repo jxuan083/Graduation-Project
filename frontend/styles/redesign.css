@@ -2539,3 +2539,21 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* 照片放大：按鈕最多四顆（關閉／存到手機／設為封面／刪除），一排平分不換行 */
 #view-photo-lightbox .lightbox-controls { width: 100%; flex-wrap: nowrap; }
 #view-photo-lightbox .lightbox-controls .btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+
+/* 主持人開放使用手機：沿用暫離按鈕；開放中的狀態（成員看到、或限時中的主持人）不要淡掉 */
+#view-focus .pa-open-btn.is-active:disabled { opacity: 1; }
+/* 老師限時開放結束後：還沒回到 App 的名單 */
+#view-focus .pa-open-away { margin-top: 10px; padding: 10px 14px; border-radius: var(--r-md); background: rgba(255,255,255,.72); box-shadow: inset 0 0 0 1px var(--brown-10); display: flex; flex-direction: column; gap: 3px; }
+#view-focus .pa-open-away-title { font-size: 12px; font-weight: 700; color: var(--accent-fire); }
+#view-focus .pa-open-away-names { font-size: 14px; color: var(--brown); line-height: 1.45; overflow-wrap: anywhere; }
+/* 開放時間輸入（只有上課） */
+.phone-open-minutes { display: flex; align-items: center; gap: 10px; }
+.phone-open-minutes .intent-reason-input { flex: 1; }
+.phone-open-unit { font-size: 15px; font-weight: 600; color: var(--brown-60); }
+
+/* 開會：選接手主持的人（沿用底部選單的項目樣式） */
+#view-focus .successor-list { display: flex; flex-direction: column; max-height: 50vh; overflow-y: auto; }
+#view-focus .successor-avatar { background: rgba(224,120,48,0.12); color: var(--accent-fire); font-size: 17px; font-weight: 700; }
+
+/* 總結頁的說明（提前離開、0 分原因）：在標點處換行，不要把一句話從中間切開 */
+#view-summary #summary-host-hint { word-break: keep-all; overflow-wrap: anywhere; }

@@ -174,5 +174,15 @@ class TestPetCouplingThresholds(unittest.TestCase):
         self.assertLess(avg, 40)
 
 
+class TestFinalScoreRules(unittest.TestCase):
+    def test_abandoned_is_zero_and_class_scales_with_attendance(self):
+        from scoring import final_score
+        self.assertEqual(final_score({"abandoned": True}, 95, 50, 50, "general"), 0)
+        self.assertEqual(final_score({}, 98, 5, 50, "class"), 10)
+        self.assertEqual(final_score({}, 98, 49, 50, "class"), 98)     # 差 1 分鐘以內算全勤
+        self.assertEqual(final_score({}, 98, 5, 50, "meeting"), 98)    # 其他情境照舊
+
+
 if __name__ == "__main__":
     unittest.main()
+

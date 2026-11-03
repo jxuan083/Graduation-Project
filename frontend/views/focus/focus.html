@@ -510,6 +510,17 @@
             <span id="order-btn-label">掃碼點餐</span>
         </button>
 
+        <!-- 主持人開放使用手機（開會、專心上課）：主持人可按；其他人只在開放中看到狀態 -->
+        <button class="pa-intent-btn pa-open-btn" id="btn-phone-open" type="button" style="display:none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="phone-open-label">開放大家使用手機</span>
+        </button>
+        <!-- 老師限時開放結束後：列出還沒回到 App 的學生（只有老師看得到） -->
+        <div class="pa-open-away" id="phone-open-away" style="display:none;">
+            <span class="pa-open-away-title">還沒回到 App</span>
+            <span class="pa-open-away-names" id="phone-open-away-names"></span>
+        </div>
+
         <!-- 需要用手機時：宣告意圖，換一段不算分心的暫離窗口（回到 App 專心即結束） -->
         <button class="pa-intent-btn" id="btn-declare-intent" type="button">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
@@ -581,7 +592,8 @@
     </div>
 
     <!-- 離開／結束：底部彈出選單（樣式同遊戲區／拍照選單）。
-         主持人：結束整場，或自己先離開（主持自動交給目前最專心的人）；其他人：只離開自己，其他人繼續 -->
+         主持人：結束整場，或自己先離開（一般交給目前最專心的人；開會自己選接手的人；上課老師不能先離開）；
+         其他人：只離開自己，其他人繼續 -->
     <div id="leave-sheet" class="pa-sheet hidden" role="dialog" aria-modal="true" aria-label="離開聚會">
         <div class="pa-sheet-panel">
             <div class="pa-sheet-grip"></div>
@@ -599,6 +611,16 @@
                 <span class="pa-sheet-item-text"><strong id="leave-self-title">離開聚會</strong><small id="leave-self-note">分數算到現在，其他人繼續</small></span>
             </button>
             <button class="pa-sheet-cancel" id="btn-leave-sheet-cancel" type="button">取消</button>
+        </div>
+    </div>
+
+    <!-- 開會：主持人先離開時，選一位接手主持的人（名單由 focus.js 依在場成員產生） -->
+    <div id="successor-sheet" class="pa-sheet hidden" role="dialog" aria-modal="true" aria-label="交給誰主持">
+        <div class="pa-sheet-panel">
+            <div class="pa-sheet-grip"></div>
+            <p class="pa-sheet-title">交給誰主持？</p>
+            <div id="successor-list" class="successor-list"></div>
+            <button class="pa-sheet-cancel" id="btn-successor-sheet-cancel" type="button">取消</button>
         </div>
     </div>
 
@@ -654,6 +676,23 @@
             <div id="order-scan-reader" class="order-scan-reader"></div>
             <div class="intent-modal-actions">
                 <button id="btn-order-scan-cancel" class="btn secondary" type="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主持人開放使用手機（樣式同暫離彈窗）：上課可輸入分鐘數或「直到我結束」；開會只有「直到我結束」 -->
+    <div id="phone-open-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="phone-open-title">
+        <div class="invite-card intent-card">
+            <button id="btn-phone-open-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+            <h3 id="phone-open-title">開放大家使用手機</h3>
+            <p class="hint" id="phone-open-hint">直到你按「結束開放」為止，大家離開 App 都不算分心。</p>
+            <div class="phone-open-minutes" id="phone-open-minutes-row" style="display:none;">
+                <input id="phone-open-minutes" class="text-input intent-reason-input" type="number" inputmode="numeric" min="1" max="180" step="1" value="10" />
+                <span class="phone-open-unit">分鐘</span>
+            </div>
+            <div class="intent-modal-actions">
+                <button id="btn-phone-open-secondary" class="btn secondary" type="button">取消</button>
+                <button id="btn-phone-open-confirm" class="btn primary orange" type="button">開放</button>
             </div>
         </div>
     </div>

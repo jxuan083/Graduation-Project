@@ -11,6 +11,8 @@ const INTENT_END_ID = 8801;    // 到期通知
 const INTENT_WARN_ID = 8802;   // 到期前提醒
 const ORDER_REMIND_ID = 8811;  // 帶出點餐：還在點餐嗎？
 const ORDER_END_ID = 8812;     // 帶出點餐：時間到，開始算分心
+const OPEN_WARN_ID = 8821;     // 老師限時開放：剩 1 分鐘
+const OPEN_END_ID = 8822;      // 老師限時開放：時間到
 const WARN_LEAD_SEC = 20;      // 到期前幾秒先提醒
 
 // 通知按鈕組：一般到期通知可延長或離開；已延長過的只剩離開
@@ -152,5 +154,46 @@ export async function cancelOrderReminders() {
     if (!plugin) return;
     try {
         await plugin.cancel({ notifications: [{ id: ORDER_REMIND_ID }, { id: ORDER_END_ID }] });
+    } catch (_) { /* noop */ }
+}
+
+// 老師限時開放使用手機：結束前 1 分鐘提醒、結束時通知（結束時間事先知道，手機自己排）。
+// 同一次開放只排一次；開放結束、聚會結束時取消。
+let _openScheduledFor = 0;
+export async function schedulePhoneOpenEnd(untilMs, isClass) {
+    const plugin = getPlugin();
+    if (!plugin || !(untilMs > Date.now()) || _openScheduledFor === untilMs) return false;
+    const granted = await ensureNotifyPermission();
+    if (!granted) return false;
+    _openScheduledFor = untilMs;
+    const notifications = [{
+        id: OPEN_END_ID,
+        title: t('開放時間結束'),
+        body: isClass ? t('回到課堂吧，現在離開 App 會開始算分心。') : t('回到聚會吧，現在離開 App 會開始算分心。'),
+        schedule: { at: new Date(untilMs) },
+    }];
+    if (untilMs - Date.now() > 2 * 60 * 1000) {
+        notifications.push({
+            id: OPEN_WARN_ID,
+            title: t('開放時間剩 1 分鐘'),
+            body: t('時間到之前回到 App 就好。'),
+            schedule: { at: new Date(untilMs - 60 * 1000) },
+        });
+    }
+    try {
+        await plugin.schedule({ notifications });
+        return true;
+    } catch (_) {
+        _openScheduledFor = 0;
+        return false;
+    }
+}
+
+export async function cancelPhoneOpenNotifications() {
+    _openScheduledFor = 0;
+    const plugin = getPlugin();
+    if (!plugin) return;
+    try {
+        await plugin.cancel({ notifications: [{ id: OPEN_WARN_ID }, { id: OPEN_END_ID }] });
     } catch (_) { /* noop */ }
 }

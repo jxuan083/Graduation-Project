@@ -85,6 +85,7 @@ test('REST route surface stays compatible with the Phase 0 contract', () => {
     'POST /api/create_room',
     'POST /api/rooms/{room_id}/end',
     'POST /api/rooms/{room_id}/leave',
+    'POST /api/rooms/{room_id}/left-app',
     'POST /api/rooms/{room_id}/order-trip',
     'POST /api/rooms/{room_id}/intent/extend',
   ];
@@ -120,6 +121,8 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'VISIBILITY_CHANGE',
     'LOG_DEVIATION',
     'DECLARE_INTENT',
+    'OPEN_PHONES',
+    'CLOSE_PHONES',
     'START_TABOO_GAME',
     'END_TABOO_GAME',
   ];
@@ -148,6 +151,7 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'MEMBER_LEFT',
     'MEMBER_REJOINED',
     'HOST_CHANGED',
+    'PHONE_OPEN_OVERAGE',
   ];
 
   assert.deepEqual([...inbound].sort(), expectedInbound.sort());

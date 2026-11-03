@@ -55,17 +55,52 @@ export function endCountdown() {
 // 只在狀態真的改變時才通知原生（呼叫端每秒同步一次）
 let _graceKey = '';
 
-export function setGraceCountdown(armed, graceMs) {
-    const key = armed ? `on:${graceMs}:${state.lang}` : 'off';
+// open：主持人開放使用手機中 → 跳出 App 時改顯示開放狀態（見 phoneOpenActivity），不是寬限倒數。
+export function setGraceCountdown(armed, graceMs, open = null) {
+    const key = armed ? `on:${graceMs}:${state.lang}:${open ? `${open.kind}:${open.endsAt}` : 'grace'}` : 'off';
     if (key === _graceKey) return;
     _graceKey = key;
-    invoke('setGraceCountdown', {
-        armed,
-        graceSec: Math.round(graceMs / 1000),
+    const labels = open ? open.labels : {
         title: t('快回到聚會'),
         hint: t('倒數結束前回到 App 就不算分心'),
         overTitle: t('分心中'),
         overHint: t('回到 App 就停止計算'),
+    };
+    invoke('setGraceCountdown', {
+        armed,
+        graceSec: Math.round(graceMs / 1000),
+        ...(open ? { kind: open.kind, endsAt: open.endsAt } : {}),
+        ...labels,
         appName: t('社交定錨'),
     });
+}
+
+// 主持人開放使用手機時，跳出 App 要顯示的即時動態。
+//   限時（上課）：倒數到結束，時間到換成「開放時間結束」並往上計，跟暫離一樣。
+//   直到結束：不顯示時間（結束時間不知道；主持人結束時在外面的人也收不到更新）。
+export function phoneOpenActivity(po, context) {
+    const isClass = context === 'class';
+    const until = Number(po?.until_ms || 0);
+    if (until > 0) {
+        return {
+            kind: 'open_timed',
+            endsAt: until,
+            labels: {
+                title: isClass ? t('老師開放使用手機中') : t('主持人開放使用手機中'),
+                hint: t('時間到之前回到 App 就好'),
+                overTitle: t('開放時間結束'),
+                overHint: t('回到 App，不然會開始算分心'),
+            },
+        };
+    }
+    return {
+        kind: 'open',
+        endsAt: Number(po?.since_ms || 0) + 12 * 3600 * 1000,   // 不顯示時間；給一個固定的遠時間，避免每秒重設
+        labels: {
+            title: isClass ? t('老師開放使用手機中') : t('主持人開放使用手機中'),
+            hint: isClass ? t('老師說結束時回到 App 就好') : t('主持人說結束時回到 App 就好'),
+            overTitle: isClass ? t('老師開放使用手機中') : t('主持人開放使用手機中'),
+            overHint: isClass ? t('老師說結束時回到 App 就好') : t('主持人說結束時回到 App 就好'),
+        },
+    };
 }

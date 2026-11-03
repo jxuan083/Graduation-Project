@@ -22,9 +22,16 @@ class TestWindowAndBudget(unittest.TestCase):
         self.assertEqual(exempt_window_sec("M"), 120)
         self.assertEqual(exempt_window_sec("H"), 60)
 
-    def test_strict_contexts_have_zero_budget(self):
-        self.assertEqual(exempt_budget("meeting"), 0)
+    def test_class_has_no_budget_meeting_allows_calls(self):
         self.assertEqual(exempt_budget("class"), 0)
+        self.assertEqual(exempt_budget("meeting"), 2)
+        self.assertEqual(exempt_budget("outdoor"), 1)
+
+    def test_meeting_window_is_five_minutes_regardless_of_difficulty(self):
+        for d in ("L", "M", "H"):
+            self.assertEqual(exempt_window_sec(d, "meeting"), 300)
+        self.assertEqual(exempt_window_sec("H", "general"), 60)
+        self.assertEqual(exemption_info("meeting", "H")["window_sec"], 300)
 
     def test_lenient_contexts_have_more_budget(self):
         self.assertGreater(exempt_budget("meal"), exempt_budget("date"))

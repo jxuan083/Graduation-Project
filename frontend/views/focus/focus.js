@@ -15,10 +15,11 @@ import { reconnectSilent } from '../../core/session.js';
 import { startBreakCountdown, extendBreakCountdown, endCountdown, startOrderActivity } from '../../core/liveActivity.js';
 import { orderingPlugin, orderingAvailable, orderTripsLeft, orderingLabels, requestOrderTrip } from '../../core/ordering.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
-import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT } from '../../core/config.js';
-import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders } from '../../core/localNotify.js';
+import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES } from '../../core/config.js';
+import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications } from '../../core/localNotify.js';
+import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=78';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=79';
 
 export function init() {
     register('view-focus', {
@@ -103,6 +104,9 @@ export function init() {
     // 掃碼點餐
     initOrdering();
 
+    // 主持人開放使用手機（開會、上課）
+    initPhoneOpen();
+
     // 需要用手機：宣告意圖
     const btnIntent = document.getElementById('btn-declare-intent');
     if (btnIntent) btnIntent.onclick = handleDeclareIntent;
@@ -133,8 +137,13 @@ export function init() {
     // 結束／離開聚會：主持人可結束整場或自己先離開；其他人只離開自己（其他人繼續）
     document.getElementById('btn-end-session').onclick = openLeaveSheet;
     bindSheet('leave-sheet', 'btn-leave-sheet-cancel');
+    bindSheet('successor-sheet', 'btn-successor-sheet-cancel');
     document.getElementById('btn-leave-end-all').onclick = () => { closeSheets(); handleEndSession(); };
-    document.getElementById('btn-leave-self').onclick = () => leaveSelf();
+    document.getElementById('btn-leave-self').onclick = () => {
+        // 開會：主持人先離開要自己選接手的人
+        if (state.amIHost && state.currentContext === 'meeting') { openSuccessorSheet(); return; }
+        leaveSelf();
+    };
 
     // 「暫離時間到」通知上的兩個按鈕：延長一次／提前離開
     initIntentActions({
@@ -226,7 +235,11 @@ function renderIntentButton() {
     const label = document.getElementById('intent-btn-label');
     if (!btn || !label) return;
     btn.classList.remove('is-active');
-    if (_intentRemaining !== null && _intentRemaining <= 0) {
+    if (phoneOpenActive()) {
+        // 主持人開放使用手機中：大家都可以用，不用另外暫離（後端也會拒絕）
+        btn.disabled = true;
+        label.textContent = t('開放使用手機中，不用暫離');
+    } else if (_intentRemaining !== null && _intentRemaining <= 0) {
         btn.disabled = true;
         label.textContent = t('暫離次數已用完');
     } else {
@@ -299,6 +312,227 @@ function endIntentCountdown() {
     renderIntentButton();  // 顯示可用或（用完）禁用
 }
 
+// ── 主持人開放使用手機（開會、專心上課）──
+// 主持人按下後，全場這段時間離開 App 都不算分心、算專心。上課可限時（不能提前結束）或「直到我結束」，
+// 開會只有「直到我結束」。限時的結束時間事先知道 → 每個人的手機自己排通知與靈動島倒數；
+// 「直到我結束」結束時還在外面的人收不到即時通知，回到 App 時由後端補算（PHONE_OPEN_OVERAGE）。
+let _phoneOpenTimer = null;
+let _phoneOpenEndNoticed = 0;   // 已經處理過「結束」的那次開放（since_ms），避免重複提示
+
+const isClassContext = () => state.currentContext === 'class';
+const hostWord = () => (isClassContext() ? t('老師') : t('主持人'));
+
+function initPhoneOpen() {
+    const btn = document.getElementById('btn-phone-open');
+    if (btn) btn.onclick = handlePhoneOpenButton;
+    const modal = document.getElementById('phone-open-modal');
+    document.getElementById('btn-phone-open-close')?.addEventListener('click', closePhoneOpenModal);
+    document.getElementById('btn-phone-open-confirm')?.addEventListener('click', () => confirmPhoneOpen('primary'));
+    document.getElementById('btn-phone-open-secondary')?.addEventListener('click', () => confirmPhoneOpen('secondary'));
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closePhoneOpenModal(); });
+    document.getElementById('phone-open-minutes')?.addEventListener('input', renderPhoneOpenModalButtons);
+    const reset = () => {
+        clearInterval(_phoneOpenTimer);
+        _phoneOpenTimer = null;
+        _phoneOpenEndNoticed = 0;
+        state.phoneOpen = null;
+        cancelPhoneOpenNotifications();
+        closePhoneOpenModal();
+        renderPhoneOpenButton();
+        renderPhoneOpenAway();
+    };
+    events.on('session:joined', reset);
+    events.on('session:cleanup', reset);
+}
+
+function handlePhoneOpenButton() {
+    if (!state.amIHost || !phoneOpenModes().length) return;
+    if (phoneOpenActive()) {
+        if (phoneOpenTimed()) return;   // 限時開放不能提前結束
+        if (!sendAction('CLOSE_PHONES')) { reconnectSilent(); showToast(t('連線中斷，請再按一次'), 'warn'); return; }
+        showToast(t('已結束開放，記得提醒大家回到 App'), 'info');
+        return;
+    }
+    openPhoneOpenModal();
+}
+
+function openPhoneOpenModal() {
+    const modal = document.getElementById('phone-open-modal');
+    if (!modal) return;
+    const timedAllowed = phoneOpenModes().includes('timed');
+    document.getElementById('phone-open-title').textContent = isClassContext() ? t('開放學生使用手機') : t('開放大家使用手機');
+    document.getElementById('phone-open-hint').textContent = timedAllowed
+        ? t('這段時間大家離開 App 都不算分心。限時開放不能提前結束；選「直到我結束」，結束時還在外面的人收不到通知，請口頭提醒。')
+        : t('直到你按「結束開放」為止，大家離開 App 都不算分心。結束時還在外面的人收不到通知，請口頭提醒大家。');
+    document.getElementById('phone-open-minutes-row').style.display = timedAllowed ? '' : 'none';
+    renderPhoneOpenModalButtons();
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function closePhoneOpenModal() {
+    document.getElementById('phone-open-modal')?.classList.add('hidden');
+}
+
+function readOpenMinutes() {
+    const n = Math.round(Number(document.getElementById('phone-open-minutes')?.value));
+    return Number.isFinite(n) && n >= 1 && n <= PHONE_OPEN_MAX_MINUTES ? n : 0;
+}
+
+// 上課：主按鈕「開放 N 分鐘」、次按鈕「直到我結束」；開會：主按鈕「開放」、次按鈕「取消」
+function renderPhoneOpenModalButtons() {
+    const primary = document.getElementById('btn-phone-open-confirm');
+    const secondary = document.getElementById('btn-phone-open-secondary');
+    if (!primary || !secondary) return;
+    if (phoneOpenModes().includes('timed')) {
+        const n = readOpenMinutes();
+        primary.textContent = n ? t('開放 {n} 分鐘', { n }) : t('請輸入 1～{max} 分鐘', { max: PHONE_OPEN_MAX_MINUTES });
+        primary.disabled = !n;
+        secondary.textContent = t('直到我結束');
+    } else {
+        primary.textContent = t('開放');
+        primary.disabled = false;
+        secondary.textContent = t('取消');
+    }
+}
+
+function confirmPhoneOpen(which) {
+    const timedAllowed = phoneOpenModes().includes('timed');
+    let minutes = 0;
+    if (which === 'primary' && timedAllowed) {
+        minutes = readOpenMinutes();
+        if (!minutes) return;
+    } else if (which === 'secondary' && !timedAllowed) {
+        closePhoneOpenModal();   // 開會的次按鈕是「取消」
+        return;
+    }
+    closePhoneOpenModal();
+    if (!sendAction('OPEN_PHONES', minutes ? { minutes } : {})) {
+        reconnectSilent();
+        showToast(t('連線中斷，請再按一次'), 'warn');
+    }
+}
+
+// 收到後端最新的開放狀態（ROOM_UPDATE）：提示開始／結束，排或取消限時的通知，更新畫面
+export function applyPhoneOpen(po) {
+    const prev = state.phoneOpen;
+    state.phoneOpen = po;
+    const sameOpen = prev && po && prev.since_ms === po.since_ms;
+    if (po && phoneOpenActive() && !sameOpen && state.currentPhase === 'ACTIVE') {
+        if (state.amIHost) {
+            showToast(t('已開放使用手機'), 'success');
+        } else if (phoneOpenTimed()) {
+            const mins = Math.round((Number(po.until_ms) - Number(po.since_ms)) / 60000);
+            showToast(t('{who}開放使用手機 {n} 分鐘，這段時間不算分心', { who: hostWord(), n: mins }), 'info');
+        } else {
+            showToast(t('{who}開放使用手機了，這段時間不算分心', { who: hostWord() }), 'info');
+        }
+    }
+    if (po && phoneOpenTimed() && phoneOpenActive()) {
+        schedulePhoneOpenEnd(Number(po.until_ms), isClassContext());
+    }
+    if (prev && !phoneOpenActive() && sameOpen && prev.since_ms !== _phoneOpenEndNoticed) {
+        notePhoneOpenEnded();
+    }
+    if (!po || !phoneOpenActive()) cancelPhoneOpenNotifications();
+    syncPhoneOpenTimer();
+    renderPhoneOpenButton();
+    renderPhoneOpenAway();
+    if (_intentEndMs <= Date.now()) renderIntentButton();
+}
+
+// 開放結束（主持人按結束，或限時到了）：人在 App 裡才看得到這個提示
+function notePhoneOpenEnded() {
+    _phoneOpenEndNoticed = Number(state.phoneOpen?.since_ms || 0);
+    if (state.currentPhase !== 'ACTIVE' || state.amIHost) return;
+    showToast(t('開放時間結束，現在離開 App 會開始算分心'), 'info');
+}
+
+// 回到 App 時後端補算：「直到結束」的開放在他離開期間就結束了
+export function applyPhoneOpenOverage(count, endedMs) {
+    const n = Number(count) || 0;
+    if (n <= 0) return;
+    const mins = Math.max(1, Math.round((Date.now() - Number(endedMs || Date.now())) / 60000));
+    showToast(t('{who}在 {m} 分鐘前就結束開放了，補記分心 {n} 次', { who: hostWord(), m: mins, n }), 'warn');
+}
+
+function syncPhoneOpenTimer() {
+    const shouldTick = phoneOpenActive() || (phoneOpenEndedMs() && state.amIHost && isClassContext());
+    if (shouldTick && !_phoneOpenTimer) {
+        _phoneOpenTimer = setInterval(tickPhoneOpen, 1000);
+    } else if (!shouldTick && _phoneOpenTimer) {
+        clearInterval(_phoneOpenTimer);
+        _phoneOpenTimer = null;
+    }
+}
+
+function tickPhoneOpen() {
+    // 限時開放到點：後端不會另外廣播，前端自己切換
+    const po = state.phoneOpen;
+    if (po && !phoneOpenActive() && po.since_ms !== _phoneOpenEndNoticed) {
+        notePhoneOpenEnded();
+        cancelPhoneOpenNotifications();
+        if (_intentEndMs <= Date.now()) renderIntentButton();
+    }
+    renderPhoneOpenButton();
+    renderPhoneOpenAway();
+    syncPhoneOpenTimer();
+}
+
+const fmtMmss = (ms) => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+// 主持人：可按（開放／結束開放；限時中顯示剩餘時間、不能按）；其他人：開放中才顯示狀態
+export function renderPhoneOpenButton() {
+    const btn = document.getElementById('btn-phone-open');
+    const label = document.getElementById('phone-open-label');
+    if (!btn || !label) return;
+    const modes = phoneOpenModes();
+    const active = phoneOpenActive();
+    if (!modes.length || state.currentPhase !== 'ACTIVE' || (!state.amIHost && !active)) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = '';
+    btn.classList.toggle('is-active', active);
+    const left = active && phoneOpenTimed() ? fmtMmss(Number(state.phoneOpen.until_ms) - Date.now()) : '';
+    if (state.amIHost) {
+        if (!active) {
+            btn.disabled = false;
+            label.textContent = isClassContext() ? t('開放學生使用手機') : t('開放大家使用手機');
+        } else if (left) {
+            btn.disabled = true;
+            label.textContent = t('開放使用手機中 · 剩 {time}', { time: left });
+        } else {
+            btn.disabled = false;
+            label.textContent = t('結束開放使用手機');
+        }
+    } else {
+        btn.disabled = true;
+        label.textContent = left
+            ? t('{who}開放使用手機中 · 剩 {time}', { who: hostWord(), time: left })
+            : t('{who}開放使用手機中', { who: hostWord() });
+    }
+}
+
+// 老師限時開放結束後 10 分鐘內：列出還沒回到 App 的學生（在 App 內關螢幕的人也會在名單上）
+const AWAY_LIST_MS = 10 * 60 * 1000;
+export function renderPhoneOpenAway() {
+    const box = document.getElementById('phone-open-away');
+    const names = document.getElementById('phone-open-away-names');
+    if (!box || !names) return;
+    const ended = phoneOpenEndedMs();
+    const show = state.amIHost && isClassContext() && state.currentPhase === 'ACTIVE'
+        && ended && !phoneOpenActive() && Date.now() - ended < AWAY_LIST_MS;
+    const away = show ? Object.entries(state.roomMembers || {})
+        .filter(([uid, m]) => uid !== state.userId && m && (m.state === 'hidden' || m.state === 'DISCONNECTED'))
+        .map(([, m]) => m.nickname || t('成員')) : [];
+    box.style.display = away.length ? '' : 'none';
+    names.textContent = away.join('、');
+}
+
 // 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球
 export function refreshFocusMascot() {
     // 依情境切換場景外觀（約會=燭光晚餐、自習=圖書館…；其餘=預設戶外舞台）
@@ -318,6 +552,7 @@ export function refreshFocusMascot() {
     const defaultText = document.getElementById('focus-default-mascot-text');
     updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
     updateOrderButton();         // 依情境決定點餐按鈕顯示/隱藏
+    renderPhoneOpenButton();     // 開會、上課：主持人開放使用手機
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (sceneCard) sceneCard.classList.toggle('has-pet', !!face);  // 有真寵物 → 藏掉預設球
@@ -511,14 +746,18 @@ function openLeaveSheet() {
         if (el) el.textContent = text;
     };
 
-    setText('leave-sheet-title', isHost ? t('結束或離開') : t('離開聚會'));
+    const isClass = state.currentContext === 'class';
+    setText('leave-sheet-title', isHost ? (isClass ? t('結束這堂課') : t('結束或離開')) : t('離開聚會'));
     show('btn-leave-end-all', isHost);
-    // 主持人是最後一個在場的人時，離開就等於結束，只留「結束整場」一個選項
-    show('btn-leave-self', !isHost || othersPresent);
+    // 主持人是最後一個在場的人時，離開就等於結束，只留「結束整場」一個選項；
+    // 上課老師也只能結束整場（不然主持權會交到學生手上）
+    show('btn-leave-self', !isHost || (othersPresent && !isClass));
 
     if (isHost) {
         setText('leave-self-title', t('我先離開'));
-        setText('leave-self-note', t('聚會繼續，主持交給最專心的人'));
+        setText('leave-self-note', state.currentContext === 'meeting'
+            ? t('會議繼續，選一位接手主持的人')
+            : t('聚會繼續，主持交給最專心的人'));
     } else {
         const left = myRejoinsLeft();
         setText('leave-self-title', t('離開聚會'));
@@ -530,14 +769,43 @@ function openLeaveSheet() {
     openSheet('leave-sheet');
 }
 
+// 開會：列出在場的其他人，點一位就交給他主持並離開
+function openSuccessorSheet() {
+    const list = document.getElementById('successor-list');
+    if (!list) { leaveSelf(); return; }
+    list.innerHTML = '';
+    const others = presentMemberEntries().filter(([uid]) => uid !== state.userId);
+    if (!others.length) { leaveSelf(); return; }   // 只剩自己 → 離開就是結束
+    for (const [uid, m] of others) {
+        const name = (m && m.nickname) || t('成員');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pa-sheet-item successor-item';
+        const avatar = document.createElement('span');
+        avatar.className = 'pa-sheet-item-icon successor-avatar';
+        avatar.textContent = name.trim().charAt(0).toUpperCase() || '?';
+        const text = document.createElement('span');
+        text.className = 'pa-sheet-item-text';
+        const strong = document.createElement('strong');
+        strong.textContent = name;
+        const small = document.createElement('small');
+        small.textContent = t('交給 {name} 主持，我先離開', { name });
+        text.append(strong, small);
+        btn.append(avatar, text);
+        btn.onclick = () => leaveSelf({ successorUid: uid });
+        list.appendChild(btn);
+    }
+    openSheet('successor-sheet');
+}
+
 let _leaving = false;
 
-async function leaveSelf({ fromTimeout = false } = {}) {
+async function leaveSelf({ fromTimeout = false, successorUid = null } = {}) {
     closeSheets();
     if (_leaving || !state.roomId) return;
     _leaving = true;
     try {
-        const result = await requestLeaveSession({ fromTimeout });
+        const result = await requestLeaveSession({ fromTimeout, successorUid });
         if (state.liveTranscript.active) stopLiveTranscript('已離開聚會，已停止即時轉文字');
         endIntentCountdown();
         state.exemptUntil = 0;

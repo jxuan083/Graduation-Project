@@ -295,12 +295,20 @@ test('leave / rejoin: frontend mirrors backend limits and only the acting host e
   }
   assert.match(summaryHtml, /id="btn-summary-rejoin"/);
   assert.doesNotMatch(focusJs, /member_ended/);
-  assert.match(focusJs, /requestLeaveSession\(\{ fromTimeout \}\)/);
-  // 主持權只在主持人離開時由後端自動轉移：沒有手動指派，也沒有趁主持人斷線接手
+  assert.match(focusJs, /requestLeaveSession\(\{ fromTimeout, successorUid \}\)/);
+  // 主持權只在主持人離開時轉移：沒有「人還在就把主持交出去」，也沒有趁主持人斷線接手
   for (const source of [backend, focusJs, focusHtml, handlers, read('frontend/features/members/render.js')]) {
     assert.doesNotMatch(source, /TRANSFER_HOST|CLAIM_HOST/);
   }
-  assert.match(backend, /new_host = _att\.pick_successor\(room_data, uid, at_ms\) if was_host else None/);
+  // 依情境：上課老師不能先離開；開會主持人先離開要指定接手的人；其他情境自動交給最專心的人
+  assert.match(py, /if context == "class":\s*\n\s*return False/);
+  assert.match(py, /if context == "meeting":/);
+  assert.match(backend, /_att\.host_leave_rule\(room_data, uid, body\.successor_uid/);
+  assert.match(backend, /successor_uid if successor_uid in _att\.present_uids\(room_data\) else/);
+  assert.match(backend, /_att\.pick_successor\(room_data, uid, at_ms\)/);
+  for (const id of ['successor-sheet', 'successor-list', 'btn-successor-sheet-cancel']) {
+    assert.match(focusHtml, new RegExp(`id="${id}"`), `focus.html 缺少 #${id}`);
+  }
   for (const type of ['MEMBER_LEFT', 'MEMBER_REJOINED', 'HOST_CHANGED', 'JOIN_REJECTED', 'ACTION_REJECTED']) {
     assert.match(handlers, new RegExp(`registerHandler\\('${type}'`), `wsHandlers 沒處理 ${type}`);
   }
@@ -333,4 +341,27 @@ test('js and css are served no-cache so a stale import cannot break the module g
     assert.ok(block, `amplify-headers.yml 缺少 ${pattern} 的 Cache-Control 設定`);
     assert.match(block, /key: Cache-Control\s+value: no-cache/, `${pattern} 必須是 no-cache`);
   }
+});
+
+test('phone opening: frontend mirrors backend modes, limits and grace; meeting breaks are 5 minutes', () => {
+  const py = read('backend/phone_open.py');
+  const intentPy = read('backend/intent.py');
+  const config = read('frontend/core/config.js');
+  const buffer = read('frontend/views/buffer/buffer.js');
+  const pyModes = Object.fromEntries([...py.match(/OPEN_MODES_BY_CONTEXT = \{([\s\S]*?)\n\}/)[1]
+    .matchAll(/"(\w+)": \(([^)]*)\)/g)].map(([, k, v]) => [k, v.match(/"(\w+)"/g).map(s => s.replace(/"/g, ''))]));
+  const jsModes = Object.fromEntries([...config.match(/PHONE_OPEN_MODES = \{([^}]*)\}/)[1]
+    .matchAll(/(\w+): \[([^\]]*)\]/g)].map(([, k, v]) => [k, v.match(/'(\w+)'/g).map(s => s.replace(/'/g, ''))]));
+  assert.deepEqual(jsModes, pyModes, 'PHONE_OPEN_MODES 前後端不一致');
+  assert.equal(config.match(/PHONE_OPEN_MAX_MINUTES = (\d+)/)[1], py.match(/MAX_OPEN_MINUTES = (\d+)/)[1]);
+  // 後端補算用的寬限秒數要跟前端 buffer.js 一致
+  const pyGrace = py.match(/GRACE_SEC_BY_DIFFICULTY = \{([^}]*)\}/)[1];
+  for (const [, d, sec] of pyGrace.matchAll(/"(\w)": (\d+)/g)) {
+    assert.match(buffer, new RegExp(`${d}: ${Number(sec) * 1000}`), `寬限秒數 ${d} 前後端不一致`);
+  }
+  assert.equal(config.match(/EXEMPT_WINDOW_SEC_BY_CONTEXT = \{ meeting: (\d+) \}/)?.[1],
+    intentPy.match(/EXEMPT_WINDOW_SEC_BY_CONTEXT = \{"meeting": (\d+)\}/)?.[1]);
+  // 開放按鈕在暫離按鈕上方
+  const focus = read('frontend/views/focus/focus.html');
+  assert.ok(focus.indexOf('id="btn-phone-open"') < focus.indexOf('id="btn-declare-intent"'));
 });

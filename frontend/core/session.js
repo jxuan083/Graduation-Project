@@ -17,6 +17,7 @@ export function cleanupSession() {
     state.exemptUntil = 0;
     state.orderTripUntil = 0;
     state.orderingOpen = false;
+    state.phoneOpen = null;
     state.myNickname = '';
     state.myProgress = 0;
     state.isReady = false;
@@ -40,6 +41,7 @@ export function resetSessionCounters() {
     state.exemptUntil = 0;
     state.orderTripUntil = 0;
     state.orderingOpen = false;
+    state.phoneOpen = null;
     state.roomMembers = {};
     state.roomAllParticipants = {};
 }

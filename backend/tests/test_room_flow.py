@@ -152,6 +152,17 @@ class RoomFlowTest(unittest.TestCase):
     def mirror(self, room_id, uid):
         return self.db.writes.get(f"users/{uid}/meetings/{room_id}")
 
+    def final_mirror(self, room_id, uid, timeout=2.0):
+        """結算時先廣播 SESSION_ENDED 再寫個人紀錄：等最終的那份寫好（有 total_room_deviations）再讀。"""
+        import time
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            m = self.mirror(room_id, uid)
+            if m and "total_room_deviations" in m:
+                return m
+            time.sleep(0.02)
+        return self.mirror(room_id, uid)
+
     # ── tests ──
     def test_reconnect_keeps_deviations_and_exemption_budget(self):
         room_id, socks = self.start("a")
@@ -406,6 +417,131 @@ class RoomFlowTest(unittest.TestCase):
         room["members"]["a"]["order_window_until_ms"] = 0
         third = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))
         self.assertEqual(third.status_code, 409)
+
+    def test_meeting_host_opens_phones_until_ending_and_late_returners_are_charged(self):
+        room_id, socks = self.start("a", context="meeting", difficulty="M")   # 寬限 20 秒
+        room = main.rooms[room_id]
+
+        # 只有主持人能開放；開會不能限時
+        socks["a"].send_json({"action": "OPEN_PHONES"})
+        self.assertIn("主持人", self.until(socks["a"], "ACTION_REJECTED")["reason"])
+        socks["host"].send_json({"action": "OPEN_PHONES", "minutes": 10})
+        self.until(socks["host"], "ACTION_REJECTED")
+
+        self.clock.now = T0 + 5 * MIN
+        socks["host"].send_json({"action": "OPEN_PHONES"})
+        self.assertEqual(self.until(socks["a"], "ROOM_UPDATE")["room_state"]["phone_open"]["until_ms"], 0)
+
+        # 開放中離開 App 不算分心，也不需要暫離
+        socks["a"].send_json({"action": "VISIBILITY_CHANGE", "state": "hidden"})
+        self.until(socks["host"], "USER_HID_SCREEN")
+        self.clock.now = T0 + 15 * MIN
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 5})
+        socks["a"].send_json({"action": "DECLARE_INTENT"})
+        self.assertIn("開放", self.until(socks["a"], "INTENT_REJECTED")["reason"])
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 0)
+
+        # 主持人結束；a 在外面沒收到，70 秒後才回來 → 從「結束＋20 秒」起算補 3 次
+        self.clock.now = T0 + 20 * MIN
+        socks["host"].send_json({"action": "CLOSE_PHONES"})
+        self.until(socks["host"], "ROOM_UPDATE")
+        self.clock.now = T0 + 20 * MIN + 70_000
+        socks["a"].send_json({"action": "VISIBILITY_CHANGE", "state": "visible"})
+        over = self.until(socks["a"], "PHONE_OPEN_OVERAGE")
+        self.assertEqual(over["count"], 3)
+        self.assertEqual(over["ended_ms"], T0 + 20 * MIN)
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 3)
+
+        # 開會可以自己暫離 2 次，每次 5 分鐘
+        self.clock.now = T0 + 30 * MIN
+        socks["a"].send_json({"action": "DECLARE_INTENT"})
+        granted = self.until(socks["a"], "INTENT_GRANTED")
+        self.assertEqual((granted["window_sec"], granted["remaining"]), (300, 1))
+
+    def test_class_timed_open_cannot_be_ended_early(self):
+        room_id, socks = self.start("a", context="class", difficulty="H")
+        socks["host"].send_json({"action": "OPEN_PHONES", "minutes": 15})
+        po = self.until(socks["a"], "ROOM_UPDATE")["room_state"]["phone_open"]
+        self.assertEqual(po["until_ms"] - po["since_ms"], 15 * MIN)
+        socks["host"].send_json({"action": "CLOSE_PHONES"})
+        self.assertIn("不能提前", self.until(socks["host"], "ACTION_REJECTED")["reason"])
+        socks["a"].send_json({"action": "DECLARE_INTENT"})
+        self.until(socks["a"], "INTENT_REJECTED")   # 上課學生不能自己暫離
+
+    def test_host_leaving_ends_an_until_end_open(self):
+        room_id, socks = self.start("a", "b", context="meeting")
+        socks["host"].send_json({"action": "OPEN_PHONES"})
+        self.until(socks["host"], "ROOM_UPDATE")
+        self.clock.now = T0 + 8 * MIN
+        self.assertEqual(self.leave(room_id, "host", successor_uid="a").status_code, 200)
+        self.assertEqual(main.rooms[room_id]["phone_open"]["ended_ms"], T0 + 8 * MIN)
+
+    def test_class_teacher_cannot_leave_early_meeting_host_picks_a_successor(self):
+        room_id, socks = self.start("a", "b", context="class")
+        res = self.leave(room_id, "host")
+        self.assertEqual(res.status_code, 409)
+        self.assertIn("結束整場", res.json()["detail"])
+        self.assertEqual(self.leave(room_id, "a").status_code, 200)   # 學生可以先走
+
+        room_id, socks = self.start("a", "b", context="meeting")
+        self.assertEqual(self.leave(room_id, "host").status_code, 409)   # 沒指定接手人
+        self.assertEqual(self.leave(room_id, "host", successor_uid="nobody").status_code, 409)
+        self.assertEqual(self.leave(room_id, "host", successor_uid="b").status_code, 200)
+        self.assertEqual(main.rooms[room_id]["acting_host_uid"], "b")
+
+        room_id, socks = self.start("a", context="general")   # 其他情境照舊自動交棒
+        self.assertEqual(self.leave(room_id, "host").status_code, 200)
+        self.assertEqual(main.rooms[room_id]["acting_host_uid"], "a")
+
+    def test_leaving_the_app_until_the_end_scores_zero_but_screen_lock_does_not(self):
+        room_id, socks = self.start("a", "b", "c", context="general", difficulty="M")   # 寬限 20 秒
+        # a：跑去別的 App（iOS 在背景確認不是關螢幕後回報），到結束都沒回來
+        self.clock.now = T0 + 10 * MIN
+        res = self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("a"), json={"left_at_ms": T0 + 10 * MIN})
+        self.assertTrue(res.json()["recorded"])
+        # b：跑出去但中途回來 → 紀錄清掉
+        self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("b"), json={"left_at_ms": T0 + 10 * MIN})
+        self.clock.now = T0 + 12 * MIN
+        socks["b"].send_json({"action": "VISIBILITY_CHANGE", "state": "visible"})
+        self.until(socks["host"], "USER_WOKE_SCREEN")
+        # c：在 App 內關螢幕 → 手機不會回報，什麼都不記
+        self.clock.now = T0 + 30 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        rows = {r["uid"]: r for r in self.until(socks["host"], "SESSION_ENDED")["score_ranking"]}
+        self.assertEqual(rows["a"]["score"], 0)
+        self.assertTrue(rows["a"]["abandoned"])
+        self.assertGreater(rows["b"]["score"], 0)
+        self.assertGreater(rows["c"]["score"], 0)
+        self.assertEqual(self.final_mirror(room_id, "a")["score"], 0)
+
+    def test_left_app_report_ignored_during_break_and_within_grace_at_the_end(self):
+        room_id, socks = self.start("a", "b", context="general", difficulty="M")
+        self.clock.now = T0 + 5 * MIN
+        socks["a"].send_json({"action": "DECLARE_INTENT"})
+        self.until(socks["a"], "INTENT_GRANTED")
+        res = self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("a"), json={"left_at_ms": T0 + 5 * MIN})
+        self.assertFalse(res.json()["recorded"])   # 暫離中跑出去有自己的超時規則
+        # b 在結束前 10 秒才跑出去（還在 20 秒寬限內）→ 不算
+        self.clock.now = T0 + 30 * MIN
+        self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("b"), json={"left_at_ms": T0 + 30 * MIN - 10_000})
+        socks["host"].send_json({"action": "END_SESSION"})
+        rows = {r["uid"]: r for r in self.until(socks["host"], "SESSION_ENDED")["score_ranking"]}
+        self.assertFalse(rows["b"]["abandoned"])
+        self.assertGreater(rows["b"]["score"], 0)
+
+    def test_class_scores_scale_with_attendance(self):
+        room_id, socks = self.start("a", "b", context="class", difficulty="H")
+        self.clock.now = T0 + 5 * MIN
+        res = self.leave(room_id, "a")                      # 第 5 分鐘先走
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json()["score"])            # 分數等老師結束才算
+        self.assertTrue(res.json()["score_pending"])
+        self.clock.now = T0 + 50 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        rows = {r["uid"]: r for r in self.until(socks["host"], "SESSION_ENDED")["score_ranking"]}
+        self.assertLessEqual(rows["a"]["score"], 10)       # 只上了 1/10 的課
+        self.assertGreaterEqual(rows["b"]["score"], 90)    # 整堂都在、沒分心
+        self.assertEqual(self.final_mirror(room_id, "a")["score"], rows["a"]["score"])   # 先離開時存的暫時分數被蓋掉
 
     def test_ordering_is_not_available_in_formal_settings(self):
         room_id, socks = self.start("a", context="meeting")

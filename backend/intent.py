@@ -2,26 +2,30 @@
 
 使用者在聚會中「宣告意圖」（之後前端一顆按鈕）→ 換到一段放寬窗口，期間離開 App
 不算分心。防濫用靠三層疊加，而不是偵測說謊（App 本來就看不到你在別的 app 做什麼）：
-  1. 次數預算：每情境限定可宣告幾次（上課/會議=0 不開放）。
+  1. 次數預算：每情境限定可宣告幾次（上課=0 不開放；開會 2 次給臨時要接的電話）。
   2. 冷卻：兩次宣告之間要等一段時間。
   3. 漸進成本：第 1 次全免；第 2 次起，實際離開的時間算「在場不專注」，等比例削 focus。
 
-窗口長度依難度（嚴格→短）；次數預算依情境（正式→少）。回到 App 專注時窗口立刻
+窗口長度依難度（嚴格→短），開會例外固定 5 分鐘（講一通電話的時間）；次數預算依情境（正式→少）。回到 App 專注時窗口立刻
 結束，只結算「實際離開」的時間（見 charge_on_return），不會預先扣滿或繼續累計。
 main.py 只負責把 WS 訊號與 member 狀態接到這些純函式。
 """
 
 # 每次宣告的窗口長度（秒），依難度：3 / 2 / 1 分
 EXEMPT_WINDOW_SEC = {"L": 180, "M": 120, "H": 60}
+# 不跟難度走、固定長度的情境（開會要接客戶電話，嚴格難度的 1 分鐘太短）
+EXEMPT_WINDOW_SEC_BY_CONTEXT = {"meeting": 300}
 # 每場可宣告次數（預算），依情境；0 = 不開放暫離
 EXEMPT_BUDGET_BY_CONTEXT = {
-    "general": 3, "meeting": 0, "family": 2, "study": 2, "class": 0,
-    "meal": 2, "date": 1, "social": 1, "outdoor": 3,
+    "general": 3, "meeting": 2, "family": 2, "study": 2, "class": 0,
+    "meal": 2, "date": 1, "social": 1, "outdoor": 1,
 }
 EXEMPT_COOLDOWN_SEC = 90
 
 
-def exempt_window_sec(difficulty: str) -> int:
+def exempt_window_sec(difficulty: str, context: str = "") -> int:
+    if context in EXEMPT_WINDOW_SEC_BY_CONTEXT:
+        return EXEMPT_WINDOW_SEC_BY_CONTEXT[context]
     return EXEMPT_WINDOW_SEC.get((difficulty or "M").upper(), 120)
 
 
@@ -34,7 +38,7 @@ def exemption_info(context: str, difficulty: str) -> dict:
     budget = exempt_budget(context)
     return {
         "budget": budget,
-        "window_sec": exempt_window_sec(difficulty),
+        "window_sec": exempt_window_sec(difficulty, context),
         "cooldown_sec": EXEMPT_COOLDOWN_SEC,
         "enabled": budget > 0,
     }

@@ -4,6 +4,7 @@ import WidgetKit
 
 /// 社交定錨的即時動態擴充功能：暫離倒數／跳出 App 的寬限倒數／帶出 App 點餐，顯示在靈動島與鎖定畫面。
 /// 點餐（kind == "order"）刻意不顯示時間，避免造成壓力；10 分鐘後若系統重畫，換成「還在點餐嗎？」。
+/// 主持人開放使用手機：「直到結束」（kind == "open"）同樣不顯示時間；老師限時開放（"open_timed"）倒數到結束。
 /// 資料格式見 App/AnchorCountdownAttributes.swift；開始、更新、結束都由 App 端的 LockStatePlugin 控制。
 ///
 /// App 在背景時沒辦法更新畫面，所以「時間到」的變化盡量不靠重畫：
@@ -27,11 +28,13 @@ private enum Palette {
 }
 
 private extension AnchorCountdownAttributes.ContentState {
-    var isOrder: Bool { kind == "order" }
+    /// 不顯示時間的狀態（點餐、主持人開放到結束）：用圖示方塊代替進度環與數字
+    var isUntimed: Bool { kind == "order" || kind == "open" }
     var symbol: String {
         switch kind {
         case "break": return "iphone"
         case "order": return "fork.knife"
+        case "open", "open_timed": return "person.2.fill"
         default: return "exclamationmark"
         }
     }
@@ -73,13 +76,14 @@ private struct CountdownRing: View {
     }
 }
 
-/// 點餐用的圖示方塊（點餐不顯示時間，所以用圖示代替進度環）。
-private struct OrderBadge: View {
+/// 不顯示時間時用的圖示方塊（點餐、主持人開放到結束），代替進度環。
+private struct UntimedBadge: View {
+    let symbol: String
     let accent: Color
     let size: CGFloat
 
     var body: some View {
-        Image(systemName: "fork.knife")
+        Image(systemName: symbol)
             .font(.system(size: size * 0.45, weight: .semibold))
             .foregroundStyle(accent)
             .frame(width: size, height: size)
@@ -115,8 +119,8 @@ struct AnchorCountdownLiveActivity: Widget {
                         .foregroundStyle(Palette.brown.opacity(0.55))
                 }
                 HStack(spacing: 14) {
-                    if state.isOrder {
-                        OrderBadge(accent: accent, size: 40)
+                    if state.isUntimed {
+                        UntimedBadge(symbol: state.symbol, accent: accent, size: 40)
                     } else {
                         CountdownRing(state: state, accent: accent, size: 40)
                     }
@@ -130,7 +134,7 @@ struct AnchorCountdownLiveActivity: Widget {
                             .lineLimit(2)
                     }
                     Spacer(minLength: 8)
-                    if !state.isOrder {
+                    if !state.isUntimed {
                         CountdownText(state: state, isOver: isOver)
                             .font(.system(size: 30, weight: .bold, design: .rounded))
                             .foregroundStyle(accent)
@@ -138,7 +142,7 @@ struct AnchorCountdownLiveActivity: Widget {
                             .frame(width: 100, alignment: .trailing)
                     }
                 }
-                if !state.isOrder {
+                if !state.isUntimed {
                     ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
                         .progressViewStyle(.linear)
                         .tint(accent)
@@ -166,8 +170,8 @@ struct AnchorCountdownLiveActivity: Widget {
                     .padding(.leading, 6)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if state.isOrder {
-                        Image(systemName: "fork.knife")
+                    if state.isUntimed {
+                        Image(systemName: state.symbol)
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundStyle(accent)
                             .padding(.trailing, 10)
@@ -186,7 +190,7 @@ struct AnchorCountdownLiveActivity: Widget {
                             .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.7))
                             .lineLimit(2)
-                        if !state.isOrder {
+                        if !state.isUntimed {
                             ProgressView(timerInterval: state.span, countsDown: true, label: { EmptyView() }, currentValueLabel: { EmptyView() })
                                 .progressViewStyle(.linear)
                                 .tint(accent)
@@ -198,8 +202,8 @@ struct AnchorCountdownLiveActivity: Widget {
             } compactLeading: {
                 AppLogo(size: 22)
             } compactTrailing: {
-                if state.isOrder {
-                    Image(systemName: "fork.knife")
+                if state.isUntimed {
+                    Image(systemName: state.symbol)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(accent)
                 } else {
@@ -213,8 +217,8 @@ struct AnchorCountdownLiveActivity: Widget {
                     }
                 }
             } minimal: {
-                if state.isOrder {
-                    Image(systemName: "fork.knife")
+                if state.isUntimed {
+                    Image(systemName: state.symbol)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(accent)
                 } else {

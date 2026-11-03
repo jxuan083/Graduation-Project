@@ -103,10 +103,20 @@ export const PET_BODY_OPTIONS = ['🐶', '🐱', '🐰', '🦊'];
 // 意圖暫離的次數/時長是顯示給使用者看的；真正的 enforcement 在後端 backend/intent.py。
 // 這裡是鏡像，且由 tests/project-invariants 讀後端比對，確保兩邊永遠一致（不會顯示錯）。
 export const EXEMPT_BUDGET_BY_CONTEXT = {
-    general: 3, meeting: 0, family: 2, study: 2, class: 0,
-    meal: 2, date: 1, social: 1, outdoor: 3,
+    general: 3, meeting: 2, family: 2, study: 2, class: 0,
+    meal: 2, date: 1, social: 1, outdoor: 1,
 };
 export const EXEMPT_WINDOW_SEC = { L: 180, M: 120, H: 60 };
+// 不跟難度走、固定長度的情境（開會要接客戶電話，嚴格難度的 1 分鐘太短）
+export const EXEMPT_WINDOW_SEC_BY_CONTEXT = { meeting: 300 };
+export function exemptWindowSec(context, difficulty) {
+    return EXEMPT_WINDOW_SEC_BY_CONTEXT[context] ?? EXEMPT_WINDOW_SEC[difficulty] ?? 120;
+}
+
+// 主持人「開放使用手機」：哪些情境有、可以用哪些方式（顯示用鏡像；真正把關在 backend/phone_open.py）
+//   timed = 老師輸入分鐘數，時間到自動結束、不能提前結束；until_end = 直到主持人按「結束開放」
+export const PHONE_OPEN_MODES = { meeting: ['until_end'], class: ['timed', 'until_end'] };
+export const PHONE_OPEN_MAX_MINUTES = 180;
 
 // 掃碼點餐：哪些情境有「點餐」按鈕、每場可以帶出 App 幾次（顯示用鏡像；真正把關在 backend/ordering.py）
 export const ORDER_CONTEXTS = ['general', 'family', 'meal'];
@@ -115,10 +125,10 @@ export const ORDER_TRIP_LIMIT = 2;
 // 每個情境選定後顯示的一句注意事項（口語、非評分細節）。
 export const CONTEXT_NOTES = {
     general:     '輕鬆聊天為主，手機偶爾看一下沒關係。',
-    meeting:     '正式場合，建議全程專注，不開放暫離。',
+    meeting:     '開會以專注為主，臨時要接電話可以暫離一下。',
     family:      '家人難得聚在一起，手機先收著，多聊幾句。',
     study:       '讀書會重視專注，查資料可以短暫暫離。',
-    class:       '最嚴格模式，任何分心都會記錄，不開放暫離。',
+    class:       '最嚴格模式，學生不能自己暫離；要查資料時由老師開放。',
     meal:        '用餐可以拍照、看菜單，手機使用比較寬容。',
     date:        '重視兩人相處，盡量別一直看手機。',
     social:      '把注意力放在眼前的人，聊開了氣氛自然就好。',

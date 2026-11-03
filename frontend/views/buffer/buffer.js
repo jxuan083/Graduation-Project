@@ -12,9 +12,11 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=78';
+import { vibrate } from '../../core/haptics.js?v=79';
 import { getLockState } from '../../core/lockstate.js';
-import { setGraceCountdown } from '../../core/liveActivity.js';
+import { setGraceCountdown, phoneOpenActivity } from '../../core/liveActivity.js';
+import { phoneOpenActive, phoneOpenUntilMs } from '../../core/phoneOpen.js';
+import { syncAwayReport } from '../../core/awayReport.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
 const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
@@ -67,11 +69,19 @@ function reportVisible() {
 
 function syncGraceCountdown() {
     if (document.visibilityState !== 'visible') return;
-    const armed = state.currentPhase === 'ACTIVE'
-        && !state.photoModeActive
+    const inSession = state.currentPhase === 'ACTIVE' && !state.photoModeActive;
+    // 主持人開放使用手機中：跳出去顯示開放狀態（限時的倒數到結束），不是寬限倒數
+    if (inSession && phoneOpenActive()) {
+        setGraceCountdown(true, getGraceMs(), phoneOpenActivity(state.phoneOpen, state.currentContext));
+        syncAwayReport(false);
+        return;
+    }
+    const armed = inSession
         && !(state.exemptUntil > Date.now())      // 暫離中跳出去不算分心，顯示的是暫離倒數
         && !(state.orderTripUntil > Date.now());  // 帶出 App 點餐中，顯示的是「點餐中」
     setGraceCountdown(armed, getGraceMs());
+    // 跑出去到聚會結束都沒回來 → 0 分（iOS 才有；暫離、點餐、開放中有各自的超時規則）
+    syncAwayReport(armed);
 }
 
 function handleVisibilityChange() {
@@ -81,8 +91,10 @@ function handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
         const hiddenAt = state.hiddenAt;
         state.hiddenAt = null;
-        // 暫離窗口或帶出 App 點餐的時間內回來：不算分心、不跳警告，直接回聚會畫面。
-        const backWithinExemption = Math.max(state.exemptUntil || 0, state.orderTripUntil || 0) > Date.now();
+        // 暫離窗口、帶出 App 點餐、主持人開放使用手機的時間內回來：不算分心、不跳警告，直接回聚會畫面。
+        // （開放中回來不會結束開放；「直到結束」的開放若在離開期間已結束，由後端在收到「回到 App」時補算。）
+        const backWithinExemption = Math.max(state.exemptUntil || 0, state.orderTripUntil || 0, phoneOpenUntilMs()) > Date.now()
+            || state.deviationDeadline === Infinity;   // 離開時在「直到結束」的開放中：補算交給後端
         state.exemptUntil = 0;      // 回到 App 專心 → 這次暫離結束（後端也是這樣算）
         state.orderTripUntil = 0;   // 帶出點餐也一樣，回來就結束
         if (backWithinExemption) {
@@ -104,7 +116,8 @@ function handleVisibilityChange() {
         // 這樣超時回來只會補算「超過窗口」的部分，不會把整段暫離都算成分心。
         state.hiddenAt = Date.now();
         if (!state.deviationDeadline) {
-            state.deviationDeadline = Math.max(Date.now(), state.exemptUntil || 0, state.orderTripUntil || 0) + getGraceMs();
+            // 主持人開放「直到結束」中離開 → 無限遠（不在前端算，回來時由後端依結束時間補算）
+            state.deviationDeadline = Math.max(Date.now(), state.exemptUntil || 0, state.orderTripUntil || 0, phoneOpenUntilMs()) + getGraceMs();
         }
         // 停掉前景倒數（背景不依賴計時器，回來時再補算）
         clearInterval(state.bufferTimerObj);
