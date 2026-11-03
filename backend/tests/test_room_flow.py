@@ -438,7 +438,7 @@ class RoomFlowTest(unittest.TestCase):
         self.clock.now = T0 + 15 * MIN
         socks["a"].send_json({"action": "LOG_DEVIATION", "count": 5})
         socks["a"].send_json({"action": "DECLARE_INTENT"})
-        self.assertIn("開放", self.until(socks["a"], "INTENT_REJECTED")["reason"])
+        self.assertIn("不用暫離", self.until(socks["a"], "INTENT_REJECTED")["reason"])
         self.assertEqual(room["all_participants"]["a"]["deviations"], 0)
 
         # 主持人結束；a 在外面沒收到，70 秒後才回來 → 從「結束＋20 秒」起算補 3 次
@@ -542,6 +542,39 @@ class RoomFlowTest(unittest.TestCase):
         self.assertLessEqual(rows["a"]["score"], 10)       # 只上了 1/10 的課
         self.assertGreaterEqual(rows["b"]["score"], 90)    # 整堂都在、沒分心
         self.assertEqual(self.final_mirror(room_id, "a")["score"], rows["a"]["score"])   # 先離開時存的暫時分數被蓋掉
+
+    def test_travel_rest_vote_and_no_zero_score_while_travelling(self):
+        room_id, socks = self.start("a", "b", context="outdoor", difficulty="L")   # 3 人 → 2 票
+        room = main.rooms[room_id]
+        socks["a"].send_json({"action": "REST_VOTE"})
+        self.assertEqual(self.until(socks["b"], "ROOM_UPDATE")["room_state"]["rest_votes"], ["a"])
+        socks["b"].send_json({"action": "REST_VOTE"})
+        po = None
+        for _ in range(5):
+            po = self.until(socks["host"], "ROOM_UPDATE")["room_state"].get("phone_open")
+            if po:
+                break
+        self.assertEqual(po["mode"], "rest")
+        self.assertEqual(po["until_ms"] - po["since_ms"], 30 * MIN)
+        # 休息中離開不算分心
+        self.clock.now = T0 + 10 * MIN
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 4})
+        socks["host"].send_json({"action": "REST_END_VOTE"})
+        socks["a"].send_json({"action": "REST_END_VOTE"})
+        ended = 0
+        for _ in range(5):
+            ended = self.until(socks["host"], "ROOM_UPDATE")["room_state"]["phone_open"]["ended_ms"]
+            if ended:
+                break
+        self.assertGreater(ended, 0)
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 0)
+        # 旅行不套用「跑出去沒回來 0 分」（可能是邊走邊導航）
+        self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("b"), json={"left_at_ms": T0 + 12 * MIN})
+        self.clock.now = T0 + 60 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        rows = {r["uid"]: r for r in self.until(socks["host"], "SESSION_ENDED")["score_ranking"]}
+        self.assertFalse(rows["b"]["abandoned"])
+        self.assertGreater(rows["b"]["score"], 0)
 
     def test_ordering_is_not_available_in_formal_settings(self):
         room_id, socks = self.start("a", context="meeting")

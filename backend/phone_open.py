@@ -9,6 +9,10 @@
     補算：從「結束時間＋寬限秒數」起算，跟前端的算法相同；一直沒回來的在聚會結算時補算。
 主持人在「直到結束」的開放中離開聚會 → 開放在那一刻結束（交棒的人不一定知道有開放）。
 
+旅行的「休息一下」也用同一套（mode = "rest"）：不是主持人開，而是大家投票——在場一半以上（含）按下就開始，
+最長 REST_MAX_MINUTES 分鐘；一半以上按「結束休息」或時間到就結束。提前結束時在 App 外的人收不到通知，
+回到 App 時一樣由後端補算（跟「直到結束」相同）。
+
 房間資料：room["phone_open"] = {"mode", "by", "since_ms", "until_ms"（0 = 直到結束）, "ended_ms"（0 = 進行中）}
 成員資料：member["open_away_since_ms"]：開放期間離開 App 的時間點（回來或結算時用來補算）。
 """
@@ -20,6 +24,9 @@ OPEN_MODES_BY_CONTEXT = {
     "class": ("timed", "until_end"),
 }
 MAX_OPEN_MINUTES = 180
+# 旅行：大家投票的「休息一下」
+REST_CONTEXTS = {"outdoor"}
+REST_MAX_MINUTES = 30
 # 離開 App 後幾秒開始算分心（與前端 buffer.js 的 GRACE_MS_BY_DIFFICULTY 一致）
 GRACE_SEC_BY_DIFFICULTY = {"L": 30, "M": 20, "H": 10}
 
@@ -93,6 +100,8 @@ def can_close(room: dict, uid: str, host_uid: Optional[str], now_ms: int) -> Tup
         return False, "只有主持人可以結束開放"
     if not is_open(room, now_ms):
         return False, "目前沒有在開放"
+    if current(room).get("mode") == "rest":
+        return False, "休息要大家投票結束"
     if int(current(room).get("until_ms", 0) or 0):
         return False, "限時開放不能提前結束"
     return True, ""
@@ -134,7 +143,7 @@ def overage_on_return(room: dict, member: dict, now_ms: int) -> int:
     away_since = int(member.get("open_away_since_ms", 0) or 0)
     member["open_away_since_ms"] = 0
     po = current(room)
-    if not away_since or not po or int(po.get("until_ms", 0) or 0):
+    if not away_since or not po or po.get("mode") == "timed":
         return 0
     end = ended_at(room, now_ms)
     if not end or end <= away_since:
@@ -161,7 +170,7 @@ def _settle_gap_before_reopen(room: dict, now_ms: int) -> dict:
     out = {}
     po = current(room)
     end = ended_at(room, now_ms) if po else 0
-    if not end or int(po.get("until_ms", 0) or 0):
+    if not end or po.get("mode") == "timed":
         return out   # 限時開放的超時由前端自己算，這裡不重複
     g = grace_sec(room.get("difficulty", "M"))
     for uid, m in (room.get("members") or {}).items():
@@ -173,6 +182,70 @@ def _settle_gap_before_reopen(room: dict, now_ms: int) -> dict:
             out[uid] = n
         m["open_away_since_ms"] = now_ms   # 還在外面，接著算進這次開放
     return out
+
+
+# ── 旅行：投票休息 ──
+
+def _present(room: dict):
+    return [uid for uid, m in (room.get("members") or {}).items() if m is not None and m.get("state") != "LEFT"]
+
+
+def rest_needed(room: dict) -> int:
+    """開始／結束休息要幾票：在場人數的一半（無條件進位），兩個人時一票就夠。"""
+    n = len(_present(room))
+    return max(1, (n + 1) // 2)
+
+
+def _toggle_vote(room: dict, key: str, uid: str) -> bool:
+    present = set(_present(room))
+    votes = [u for u in (room.get(key) or []) if u in present]
+    voted = uid not in votes
+    if voted:
+        votes.append(uid)
+    else:
+        votes.remove(uid)
+    room[key] = votes
+    return voted
+
+
+def rest_vote(room: dict, uid: str, now_ms: int) -> Tuple[bool, str, str]:
+    """按「休息一下」（再按一次取消）。回傳 (ok, 原因, 結果 voted/unvoted/started)；
+    started 時另外回傳要補算的人放在 room["_rest_gap"]（呼叫端取走）。"""
+    if room.get("context") not in REST_CONTEXTS:
+        return False, "這個情境沒有休息投票", ""
+    if uid not in _present(room):
+        return False, "你不在這場聚會裡", ""
+    if is_open(room, now_ms):
+        return False, "已經在休息了", ""
+    voted = _toggle_vote(room, "rest_votes", uid)
+    if len(room["rest_votes"]) < rest_needed(room):
+        return True, "", "voted" if voted else "unvoted"
+    room["_rest_gap"] = _settle_gap_before_reopen(room, now_ms)
+    room["phone_open"] = {
+        "mode": "rest",
+        "by": uid,
+        "since_ms": now_ms,
+        "until_ms": now_ms + REST_MAX_MINUTES * 60_000,
+        "ended_ms": 0,
+    }
+    room["rest_votes"] = []
+    room["rest_end_votes"] = []
+    return True, "", "started"
+
+
+def rest_end_vote(room: dict, uid: str, now_ms: int) -> Tuple[bool, str, str]:
+    """按「結束休息」（再按一次取消）。一半以上就結束。回傳 (ok, 原因, voted/unvoted/ended)。"""
+    po = current(room)
+    if not po or po.get("mode") != "rest" or not is_open(room, now_ms):
+        return False, "現在沒有在休息", ""
+    if uid not in _present(room):
+        return False, "你不在這場聚會裡", ""
+    voted = _toggle_vote(room, "rest_end_votes", uid)
+    if len(room["rest_end_votes"]) < rest_needed(room):
+        return True, "", "voted" if voted else "unvoted"
+    close_phones(room, now_ms)
+    room["rest_end_votes"] = []
+    return True, "", "ended"
 
 
 def forget_member(member: dict) -> None:

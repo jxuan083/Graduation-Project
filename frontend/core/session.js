@@ -18,6 +18,8 @@ export function cleanupSession() {
     state.orderTripUntil = 0;
     state.orderingOpen = false;
     state.phoneOpen = null;
+    state.restVotes = [];
+    state.restEndVotes = [];
     state.myNickname = '';
     state.myProgress = 0;
     state.isReady = false;
@@ -42,6 +44,8 @@ export function resetSessionCounters() {
     state.orderTripUntil = 0;
     state.orderingOpen = false;
     state.phoneOpen = null;
+    state.restVotes = [];
+    state.restEndVotes = [];
     state.roomMembers = {};
     state.roomAllParticipants = {};
 }

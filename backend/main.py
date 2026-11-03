@@ -4957,7 +4957,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _di_last = int(_di_member.get("exempt_last_declared_ms", 0) or 0)
                 _di_ok, _di_reason = _intent_can_declare(_di_used, _di_last, _di_now, _di_budget)
                 if _di_ok and _phone.is_open(rooms[room_id], _di_now):
-                    _di_ok, _di_reason = False, "主持人開放使用手機中，現在不用暫離"
+                    _di_ok, _di_reason = False, "現在大家都可以用手機，不用暫離"
                 if not _di_ok:
                     await websocket.send_text(json.dumps({
                         "type": "INTENT_REJECTED", "reason": _di_reason,
@@ -5005,6 +5005,32 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 except Exception as e:
                     print(f"Error saving phone_open in Firestore: {e}")
                 await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _po_room})
+
+            # 6.7 旅行：投票「休息一下」／「結束休息」（在場一半以上就成立；最長 30 分鐘）
+            elif action == "REST_VOTE" or action == "REST_END_VOTE":
+                if rooms[room_id].get("status") != "ACTIVE":
+                    continue
+                _rv_room = rooms[room_id]
+                _rv_now = _now_ms()
+                if action == "REST_VOTE":
+                    _rv_ok, _rv_reason, _rv_result = _phone.rest_vote(_rv_room, user_id, _rv_now)
+                elif action == "REST_END_VOTE":
+                    _rv_ok, _rv_reason, _rv_result = _phone.rest_end_vote(_rv_room, user_id, _rv_now)
+                if not _rv_ok:
+                    await websocket.send_text(json.dumps({"type": "ACTION_REJECTED", "reason": _rv_reason}))
+                    continue
+                for _gap_uid, _gap_n in (_rv_room.pop("_rest_gap", None) or {}).items():
+                    await _record_deviations(room_id, _gap_uid, _gap_n, _rv_now)
+                print(f"[{action}] room={room_id} user={user_id} result={_rv_result}")
+                try:
+                    db.collection("rooms").document(room_id).update({
+                        "phone_open": _rv_room.get("phone_open"),
+                        "rest_votes": _rv_room.get("rest_votes", []),
+                        "rest_end_votes": _rv_room.get("rest_end_votes", []),
+                    })
+                except Exception as e:
+                    print(f"Error saving rest vote in Firestore: {e}")
+                await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _rv_room})
 
             # 7. 房主發起關鍵字遊戲 (Taboo Game)
             elif action == "START_TABOO_GAME":

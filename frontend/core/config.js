@@ -117,6 +117,9 @@ export function exemptWindowSec(context, difficulty) {
 //   timed = 老師輸入分鐘數，時間到自動結束、不能提前結束；until_end = 直到主持人按「結束開放」
 export const PHONE_OPEN_MODES = { meeting: ['until_end'], class: ['timed', 'until_end'] };
 export const PHONE_OPEN_MAX_MINUTES = 180;
+// 旅行：大家投票「休息一下」（在場一半以上按下就開始，最長 30 分鐘；真正把關在 backend/phone_open.py）
+export const REST_CONTEXTS = ['outdoor'];
+export const REST_MAX_MINUTES = 30;
 
 // 掃碼點餐：哪些情境有「點餐」按鈕、每場可以帶出 App 幾次（顯示用鏡像；真正把關在 backend/ordering.py）
 export const ORDER_CONTEXTS = ['general', 'family', 'meal'];

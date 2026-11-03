@@ -1,4 +1,7 @@
-// core/phoneOpen.js — 主持人「開放使用手機」的狀態判斷（開會、專心上課）
+// core/phoneOpen.js — 主持人「開放使用手機」（開會、專心上課）與旅行「休息一下」的狀態判斷
+//
+// 旅行的休息（mode = "rest"）也放在 phone_open：大家投票開始／結束，最長 30 分鐘。
+// 可能被提前投票結束，所以跟「直到結束」一樣不在前端算超時（回來時由後端補算）。
 //
 // 後端 room.phone_open 隨 ROOM_UPDATE 廣播，存在 state.phoneOpen。開放中離開 App 不算分心、算專心。
 //   限時（只有上課）：until_ms 是結束時間，事先知道 → 手機自己排通知、靈動島倒數，回來時照一般方式補算。
@@ -18,11 +21,16 @@ export function phoneOpenActive(now = Date.now()) {
     return until === 0 || now < until;
 }
 
+// 老師限時開放：結束時間確定（不能提前結束），由前端照一般方式補算
 export function phoneOpenTimed() {
-    return Number(state.phoneOpen?.until_ms || 0) > 0;
+    return state.phoneOpen?.mode === 'timed';
 }
 
-// buffer.js 用：離開 App 時從何時開始算分心。直到結束的開放中 → 無限遠（回來時由後端補算）。
+export function phoneOpenIsRest() {
+    return state.phoneOpen?.mode === 'rest';
+}
+
+// buffer.js 用：離開 App 時從何時開始算分心。直到結束的開放、休息中 → 無限遠（回來時由後端補算）。
 export function phoneOpenUntilMs(now = Date.now()) {
     if (!phoneOpenActive(now)) return 0;
     return phoneOpenTimed() ? Number(state.phoneOpen.until_ms) : Infinity;

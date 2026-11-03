@@ -123,6 +123,8 @@ test('WebSocket action and message surface stays compatible with the Phase 0 con
     'DECLARE_INTENT',
     'OPEN_PHONES',
     'CLOSE_PHONES',
+    'REST_VOTE',
+    'REST_END_VOTE',
     'START_TABOO_GAME',
     'END_TABOO_GAME',
   ];

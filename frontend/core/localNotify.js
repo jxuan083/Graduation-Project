@@ -157,25 +157,27 @@ export async function cancelOrderReminders() {
     } catch (_) { /* noop */ }
 }
 
-// 老師限時開放使用手機：結束前 1 分鐘提醒、結束時通知（結束時間事先知道，手機自己排）。
-// 同一次開放只排一次；開放結束、聚會結束時取消。
+// 老師限時開放使用手機、旅行休息滿 30 分鐘：結束前 1 分鐘提醒、結束時通知（結束時間事先知道，手機自己排）。
+// variant：'class'／'meeting'／'rest'。同一次只排一次；開放結束、聚會結束時取消。
 let _openScheduledFor = 0;
-export async function schedulePhoneOpenEnd(untilMs, isClass) {
+export async function schedulePhoneOpenEnd(untilMs, variant) {
     const plugin = getPlugin();
     if (!plugin || !(untilMs > Date.now()) || _openScheduledFor === untilMs) return false;
     const granted = await ensureNotifyPermission();
     if (!granted) return false;
     _openScheduledFor = untilMs;
+    const isRest = variant === 'rest';
     const notifications = [{
         id: OPEN_END_ID,
-        title: t('開放時間結束'),
-        body: isClass ? t('回到課堂吧，現在離開 App 會開始算分心。') : t('回到聚會吧，現在離開 App 會開始算分心。'),
+        title: isRest ? t('休息時間到了') : t('開放時間結束'),
+        body: isRest ? t('已經休息 30 分鐘了，回到 App 吧，現在離開會開始算分心。')
+            : variant === 'class' ? t('回到課堂吧，現在離開 App 會開始算分心。') : t('回到聚會吧，現在離開 App 會開始算分心。'),
         schedule: { at: new Date(untilMs) },
     }];
     if (untilMs - Date.now() > 2 * 60 * 1000) {
         notifications.push({
             id: OPEN_WARN_ID,
-            title: t('開放時間剩 1 分鐘'),
+            title: isRest ? t('休息時間剩 1 分鐘') : t('開放時間剩 1 分鐘'),
             body: t('時間到之前回到 App 就好。'),
             schedule: { at: new Date(untilMs - 60 * 1000) },
         });

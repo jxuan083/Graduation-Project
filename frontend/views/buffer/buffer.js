@@ -12,9 +12,9 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=79';
+import { vibrate } from '../../core/haptics.js?v=80';
 import { getLockState } from '../../core/lockstate.js';
-import { setGraceCountdown, phoneOpenActivity } from '../../core/liveActivity.js';
+import { setGraceCountdown, phoneOpenActivity, travelGraceActivity } from '../../core/liveActivity.js';
 import { phoneOpenActive, phoneOpenUntilMs } from '../../core/phoneOpen.js';
 import { syncAwayReport } from '../../core/awayReport.js';
 
@@ -79,9 +79,11 @@ function syncGraceCountdown() {
     const armed = inSession
         && !(state.exemptUntil > Date.now())      // 暫離中跳出去不算分心，顯示的是暫離倒數
         && !(state.orderTripUntil > Date.now());  // 帶出 App 點餐中，顯示的是「點餐中」
-    setGraceCountdown(armed, getGraceMs());
-    // 跑出去到聚會結束都沒回來 → 0 分（iOS 才有；暫離、點餐、開放中有各自的超時規則）
-    syncAwayReport(armed);
+    const travelling = state.currentContext === 'outdoor';
+    setGraceCountdown(armed, getGraceMs(), travelling ? travelGraceActivity() : null);
+    // 跑出去到聚會結束都沒回來 → 0 分（iOS 才有；暫離、點餐、開放中有各自的超時規則；
+    // 旅行不適用：移動中用手機不算分心，但後端確認不了一直沒回來的人是不是在移動）
+    syncAwayReport(armed && !travelling);
 }
 
 function handleVisibilityChange() {
@@ -156,10 +158,36 @@ async function resolveVisibleReturn(hiddenAt) {
         }
     }
 
+    // 旅行：離開期間在走路、跑步、騎車、搭車的時間不算分心（iPhone 本來就在背景記錄動作），
+    // 把這段時間從起算點往後推，只算停下來的時間。網頁版或沒給「動作與健身」權限 → 照一般規則。
+    if (state.currentContext === 'outdoor' && hiddenAt) {
+        const movingMs = await movingMsBetween(hiddenAt, Date.now());
+        if (document.visibilityState !== 'visible' || !state.deviationDeadline) return;
+        if (movingMs > 0) state.deviationDeadline += movingMs;
+    }
+
     // 情境 2：切去別的 app（之後有沒有鎖螢幕都一樣）→ 補算到現在 + 顯示倒數。
     reconcileDeviations();
     startCognitiveBuffer();
     reportVisible();
+}
+
+// 一段時間裡「在移動」的毫秒數（走路、跑步、騎車、搭車）。查不到就回 0（照一般規則算）。
+async function movingMsBetween(fromMs, toMs) {
+    const p = window.Capacitor?.Plugins?.LockState;
+    if (!p || typeof p.queryMovement !== 'function' || !(toMs > fromMs)) return 0;
+    try {
+        const r = await Promise.race([
+            p.queryMovement({ fromMs, toMs }),
+            new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
+        ]);
+        if (!r) return 0;
+        const sec = ['walkingSec', 'runningSec', 'cyclingSec', 'automotiveSec']
+            .reduce((sum, k) => sum + (Number(r[k]) || 0), 0);
+        return Math.max(0, Math.min(sec * 1000, toMs - fromMs));
+    } catch (_) {
+        return 0;
+    }
 }
 
 // 依目前時間與 deviationDeadline 補算應記的分心次數，並把截止時間往後推。

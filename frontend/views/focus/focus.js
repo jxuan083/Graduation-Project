@@ -15,11 +15,11 @@ import { reconnectSilent } from '../../core/session.js';
 import { startBreakCountdown, extendBreakCountdown, endCountdown, startOrderActivity } from '../../core/liveActivity.js';
 import { orderingPlugin, orderingAvailable, orderTripsLeft, orderingLabels, requestOrderTrip } from '../../core/ordering.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
-import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES } from '../../core/config.js';
+import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES, REST_CONTEXTS, REST_MAX_MINUTES } from '../../core/config.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications } from '../../core/localNotify.js';
-import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs } from '../../core/phoneOpen.js';
+import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=79';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=80';
 
 export function init() {
     register('view-focus', {
@@ -236,9 +236,9 @@ function renderIntentButton() {
     if (!btn || !label) return;
     btn.classList.remove('is-active');
     if (phoneOpenActive()) {
-        // 主持人開放使用手機中：大家都可以用，不用另外暫離（後端也會拒絕）
+        // 主持人開放使用手機中／旅行休息中：大家都可以用，不用另外暫離（後端也會拒絕）
         btn.disabled = true;
-        label.textContent = t('開放使用手機中，不用暫離');
+        label.textContent = phoneOpenIsRest() ? t('休息中，不用暫離') : t('開放使用手機中，不用暫離');
     } else if (_intentRemaining !== null && _intentRemaining <= 0) {
         btn.disabled = true;
         label.textContent = t('暫離次數已用完');
@@ -325,6 +325,8 @@ const hostWord = () => (isClassContext() ? t('老師') : t('主持人'));
 function initPhoneOpen() {
     const btn = document.getElementById('btn-phone-open');
     if (btn) btn.onclick = handlePhoneOpenButton;
+    const restBtn = document.getElementById('btn-rest');
+    if (restBtn) restBtn.onclick = handleRestButton;
     const modal = document.getElementById('phone-open-modal');
     document.getElementById('btn-phone-open-close')?.addEventListener('click', closePhoneOpenModal);
     document.getElementById('btn-phone-open-confirm')?.addEventListener('click', () => confirmPhoneOpen('primary'));
@@ -336,9 +338,12 @@ function initPhoneOpen() {
         _phoneOpenTimer = null;
         _phoneOpenEndNoticed = 0;
         state.phoneOpen = null;
+        state.restVotes = [];
+        state.restEndVotes = [];
         cancelPhoneOpenNotifications();
         closePhoneOpenModal();
         renderPhoneOpenButton();
+        renderRestButton();
         renderPhoneOpenAway();
     };
     events.on('session:joined', reset);
@@ -419,7 +424,9 @@ export function applyPhoneOpen(po) {
     state.phoneOpen = po;
     const sameOpen = prev && po && prev.since_ms === po.since_ms;
     if (po && phoneOpenActive() && !sameOpen && state.currentPhase === 'ACTIVE') {
-        if (state.amIHost) {
+        if (phoneOpenIsRest()) {
+            showToast(t('休息時間開始，最多 {n} 分鐘，這段時間用手機不算分心', { n: REST_MAX_MINUTES }), 'info');
+        } else if (state.amIHost) {
             showToast(t('已開放使用手機'), 'success');
         } else if (phoneOpenTimed()) {
             const mins = Math.round((Number(po.until_ms) - Number(po.since_ms)) / 60000);
@@ -428,8 +435,8 @@ export function applyPhoneOpen(po) {
             showToast(t('{who}開放使用手機了，這段時間不算分心', { who: hostWord() }), 'info');
         }
     }
-    if (po && phoneOpenTimed() && phoneOpenActive()) {
-        schedulePhoneOpenEnd(Number(po.until_ms), isClassContext());
+    if (po && (phoneOpenTimed() || phoneOpenIsRest()) && phoneOpenActive()) {
+        schedulePhoneOpenEnd(Number(po.until_ms), phoneOpenIsRest() ? 'rest' : (isClassContext() ? 'class' : 'meeting'));
     }
     if (prev && !phoneOpenActive() && sameOpen && prev.since_ms !== _phoneOpenEndNoticed) {
         notePhoneOpenEnded();
@@ -437,6 +444,7 @@ export function applyPhoneOpen(po) {
     if (!po || !phoneOpenActive()) cancelPhoneOpenNotifications();
     syncPhoneOpenTimer();
     renderPhoneOpenButton();
+    renderRestButton();
     renderPhoneOpenAway();
     if (_intentEndMs <= Date.now()) renderIntentButton();
 }
@@ -444,7 +452,9 @@ export function applyPhoneOpen(po) {
 // 開放結束（主持人按結束，或限時到了）：人在 App 裡才看得到這個提示
 function notePhoneOpenEnded() {
     _phoneOpenEndNoticed = Number(state.phoneOpen?.since_ms || 0);
-    if (state.currentPhase !== 'ACTIVE' || state.amIHost) return;
+    if (state.currentPhase !== 'ACTIVE') return;
+    if (phoneOpenIsRest()) { showToast(t('休息結束了，現在離開 App 會開始算分心'), 'info'); return; }
+    if (state.amIHost) return;
     showToast(t('開放時間結束，現在離開 App 會開始算分心'), 'info');
 }
 
@@ -453,6 +463,10 @@ export function applyPhoneOpenOverage(count, endedMs) {
     const n = Number(count) || 0;
     if (n <= 0) return;
     const mins = Math.max(1, Math.round((Date.now() - Number(endedMs || Date.now())) / 60000));
+    if (phoneOpenIsRest()) {
+        showToast(t('休息在 {m} 分鐘前就結束了，補記分心 {n} 次', { m: mins, n }), 'warn');
+        return;
+    }
     showToast(t('{who}在 {m} 分鐘前就結束開放了，補記分心 {n} 次', { who: hostWord(), m: mins, n }), 'warn');
 }
 
@@ -475,6 +489,7 @@ function tickPhoneOpen() {
         if (_intentEndMs <= Date.now()) renderIntentButton();
     }
     renderPhoneOpenButton();
+    renderRestButton();
     renderPhoneOpenAway();
     syncPhoneOpenTimer();
 }
@@ -517,6 +532,69 @@ export function renderPhoneOpenButton() {
     }
 }
 
+// ── 旅行：投票休息 ──
+// 在場一半以上（無條件進位，兩個人時一票就夠）按「休息一下」就開始，最長 30 分鐘；
+// 休息中一半以上按「結束休息」就結束。再按一次可以取消自己的票。
+const restAvailable = () => REST_CONTEXTS.includes(state.currentContext);
+
+function restNeeded() {
+    return Math.max(1, Math.ceil(presentMemberEntries().length / 2));
+}
+
+function handleRestButton() {
+    if (!restAvailable() || state.currentPhase !== 'ACTIVE') return;
+    const action = phoneOpenActive() && phoneOpenIsRest() ? 'REST_END_VOTE' : 'REST_VOTE';
+    if (!sendAction(action)) {
+        reconnectSilent();
+        showToast(t('連線中斷，請再按一次'), 'warn');
+    }
+}
+
+// 收到最新的投票：有人新按了「休息一下」就提醒其他人（自己按的不提醒）
+export function applyRestVotes(votes, endVotes) {
+    const prev = new Set(state.restVotes || []);
+    state.restVotes = Array.isArray(votes) ? votes : [];
+    state.restEndVotes = Array.isArray(endVotes) ? endVotes : [];
+    if (restAvailable() && state.currentPhase === 'ACTIVE' && !phoneOpenActive()) {
+        const newcomer = state.restVotes.find(uid => !prev.has(uid) && uid !== state.userId);
+        if (newcomer && state.restVotes.length < restNeeded()) {
+            const name = state.roomMembers?.[newcomer]?.nickname || t('有成員');
+            showToast(t('{name} 想休息一下，你也想的話按「休息一下」', { name }), 'info');
+        }
+    }
+    renderRestButton();
+}
+
+export function renderRestButton() {
+    const btn = document.getElementById('btn-rest');
+    const label = document.getElementById('rest-btn-label');
+    if (!btn || !label) return;
+    if (!restAvailable() || state.currentPhase !== 'ACTIVE') {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = '';
+    btn.disabled = false;
+    const resting = phoneOpenActive() && phoneOpenIsRest();
+    btn.classList.toggle('is-active', resting);
+    const votes = resting ? (state.restEndVotes || []) : (state.restVotes || []);
+    const mine = votes.includes(state.userId);
+    const left = Math.max(0, restNeeded() - votes.length);
+    if (resting) {
+        label.textContent = mine
+            ? t('想結束休息 · 還差 {n} 人（再按取消）', { n: left })
+            : votes.length
+                ? t('休息中 · {v} 人想結束 · 按這裡結束休息', { v: votes.length })
+                : t('休息中 · 按這裡結束休息');
+    } else {
+        label.textContent = mine
+            ? t('想休息了 · 還差 {n} 人（再按取消）', { n: left })
+            : votes.length
+                ? t('{v} 人想休息 · 還差 {n} 人', { v: votes.length, n: left })
+                : t('休息一下');
+    }
+}
+
 // 老師限時開放結束後 10 分鐘內：列出還沒回到 App 的學生（在 App 內關螢幕的人也會在名單上）
 const AWAY_LIST_MS = 10 * 60 * 1000;
 export function renderPhoneOpenAway() {
@@ -553,6 +631,7 @@ export function refreshFocusMascot() {
     updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
     updateOrderButton();         // 依情境決定點餐按鈕顯示/隱藏
     renderPhoneOpenButton();     // 開會、上課：主持人開放使用手機
+    renderRestButton();          // 旅行：投票休息
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (sceneCard) sceneCard.classList.toggle('has-pet', !!face);  // 有真寵物 → 藏掉預設球

@@ -103,5 +103,41 @@ class TestReturnAfterClose(unittest.TestCase):
         self.assertTrue(po.is_open(r2, T0 + 5 * MIN))
 
 
+class TestRestVote(unittest.TestCase):
+    def test_half_of_present_members_start_and_end_a_rest(self):
+        r = room("outdoor", "L", members=("h", "a", "b", "c"))   # 4 人 → 2 票
+        self.assertEqual(po.rest_needed(r), 2)
+        self.assertEqual(po.rest_vote(r, "a", T0)[2], "voted")
+        self.assertEqual(po.rest_vote(r, "a", T0)[2], "unvoted")    # 再按一次取消
+        po.rest_vote(r, "a", T0)
+        self.assertEqual(po.rest_vote(r, "b", T0 + MIN)[2], "started")
+        self.assertTrue(po.is_open(r, T0 + 10 * MIN))
+        self.assertEqual(r["phone_open"]["mode"], "rest")
+        self.assertFalse(po.rest_vote(r, "c", T0 + 2 * MIN)[0])     # 休息中不能再開
+        po.rest_end_vote(r, "h", T0 + 10 * MIN)
+        self.assertEqual(po.rest_end_vote(r, "c", T0 + 11 * MIN)[2], "ended")
+        self.assertEqual(po.ended_at(r, T0 + 12 * MIN), T0 + 11 * MIN)
+
+    def test_rest_lasts_at_most_thirty_minutes_and_two_people_need_one_vote(self):
+        r = room("outdoor", "L", members=("h", "a"))
+        self.assertEqual(po.rest_vote(r, "a", T0)[2], "started")
+        self.assertTrue(po.is_open(r, T0 + 29 * MIN))
+        self.assertFalse(po.is_open(r, T0 + 30 * MIN))
+        self.assertFalse(po.can_close(r, "h", "h", T0 + MIN)[0])   # 休息不能由主持人單獨結束
+
+    def test_ending_a_rest_early_is_charged_on_return_like_until_end(self):
+        r = room("outdoor", "L", members=("h", "a", "b"))   # 寬限 30 秒；3 人 → 2 票
+        po.rest_vote(r, "h", T0)
+        po.rest_vote(r, "a", T0)
+        po.note_hidden(r, r["members"]["b"], T0 + MIN)
+        po.rest_end_vote(r, "h", T0 + 5 * MIN)
+        po.rest_end_vote(r, "a", T0 + 5 * MIN)
+        # 結束後 90 秒才回來：截止 = 結束 + 30 秒，過 60 秒 → 1 + 2 = 3 次
+        self.assertEqual(po.overage_on_return(r, r["members"]["b"], T0 + 5 * MIN + 90_000), 3)
+
+    def test_only_travel_has_rest_votes(self):
+        self.assertFalse(po.rest_vote(room("meeting"), "a", T0)[0])
+
+
 if __name__ == "__main__":
     unittest.main()

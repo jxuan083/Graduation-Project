@@ -6,7 +6,7 @@
 // 回到 App 時前端照常送「回到 App」，後端就清掉這筆紀錄。
 import { state } from './state.js';
 import { apiBase } from './api.js';
-import { getAuthHeaders } from './auth.js?v=79';
+import { getAuthHeaders } from './auth.js?v=80';
 
 const HEADERS_TTL_MS = 5 * 60 * 1000;   // 登入憑證定期換新（避免在背景送出時已經過期）
 let _headers = null;

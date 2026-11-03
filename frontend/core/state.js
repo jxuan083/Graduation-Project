@@ -71,7 +71,9 @@ export const state = {
     exemptUntil: 0,         // 暫離窗口到期的絕對時間戳；窗口內離開不起算分心（0 = 沒有進行中的暫離）
     orderTripUntil: 0,      // 帶出 App 點餐的到期時間戳；這段時間內離開 App 不起算分心
     orderingOpen: false,    // 這場聚會掃過點餐 QR Code、點餐網頁還留著（按鈕顯示「繼續點餐」）
-    phoneOpen: null,        // 主持人開放使用手機（後端 room.phone_open）：{ mode, by, since_ms, until_ms, ended_ms }
+    phoneOpen: null,        // 主持人開放使用手機／旅行休息（後端 room.phone_open）：{ mode, by, since_ms, until_ms, ended_ms }
+    restVotes: [],          // 旅行：想休息的人（uid）
+    restEndVotes: [],       // 旅行：休息中想結束的人（uid）
 
     // === 好友 cache ===
     friendUidSet: new Set(),

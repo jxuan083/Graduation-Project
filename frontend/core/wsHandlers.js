@@ -14,12 +14,12 @@ import { orderingPlugin } from './ordering.js';
 import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway } from '../views/focus/focus.js?v=79';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=80';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=79';
+} from '../views/sync-ritual/sync-ritual.js?v=80';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -77,7 +77,8 @@ function handleRoomUpdate(msg) {
     state.meetingGroupPetName = rs.group_pet_name || '';
     state.meetingGroupPetLevel = Number(rs.group_pet_level || 1);
     state.roomMembers = rs.members || {};
-    applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）
+    applyRestVotes(rs.rest_votes || [], rs.rest_end_votes || []);   // 旅行：投票休息
+    applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）、旅行休息
     refreshFocusMascot();
     renderMemberList(state.roomMembers);
     if (state.currentPhase === 'SYNC') renderSyncMembers(state.roomMembers);

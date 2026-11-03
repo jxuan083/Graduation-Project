@@ -75,13 +75,40 @@ export function setGraceCountdown(armed, graceMs, open = null) {
     });
 }
 
+// 旅行的寬限倒數：移動中用手機不算分心，文字不要寫「快回到聚會」嚇人
+export function travelGraceActivity() {
+    return {
+        kind: 'grace',
+        endsAt: 0,
+        labels: {
+            title: t('移動中不算分心'),
+            hint: t('停下來就回到 App，不然會開始算分心'),
+            overTitle: t('移動中不算分心'),
+            overHint: t('停下來的時間才會算分心'),
+        },
+    };
+}
+
 // 主持人開放使用手機時，跳出 App 要顯示的即時動態。
 //   限時（上課）：倒數到結束，時間到換成「開放時間結束」並往上計，跟暫離一樣。
 //   直到結束：不顯示時間（結束時間不知道；主持人結束時在外面的人也收不到更新）。
 export function phoneOpenActivity(po, context) {
     const isClass = context === 'class';
     const until = Number(po?.until_ms || 0);
-    if (until > 0) {
+    if (po?.mode === 'rest') {
+        // 旅行休息：不顯示時間（可能被大家提前結束）；最長 30 分鐘到點時另有通知
+        return {
+            kind: 'open',
+            endsAt: until,
+            labels: {
+                title: t('休息中'),
+                hint: t('大家說休息結束時回到 App 就好'),
+                overTitle: t('休息中'),
+                overHint: t('大家說休息結束時回到 App 就好'),
+            },
+        };
+    }
+    if (po?.mode === 'timed' && until > 0) {
         return {
             kind: 'open_timed',
             endsAt: until,

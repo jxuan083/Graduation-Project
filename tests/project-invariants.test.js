@@ -365,3 +365,17 @@ test('phone opening: frontend mirrors backend modes, limits and grace; meeting b
   const focus = read('frontend/views/focus/focus.html');
   assert.ok(focus.indexOf('id="btn-phone-open"') < focus.indexOf('id="btn-declare-intent"'));
 });
+
+test('travel rest vote: frontend mirrors backend contexts and the 30-minute cap; rest button sits above the break button', () => {
+  const py = read('backend/phone_open.py');
+  const config = read('frontend/core/config.js');
+  const pyCtx = py.match(/REST_CONTEXTS = \{([^}]*)\}/)[1].match(/"(\w+)"/g).map(s => s.replace(/"/g, '')).sort();
+  const jsCtx = config.match(/REST_CONTEXTS = \[([^\]]*)\]/)[1].match(/'(\w+)'/g).map(s => s.replace(/'/g, '')).sort();
+  assert.deepEqual(jsCtx, pyCtx, 'REST_CONTEXTS 前後端不一致');
+  assert.equal(config.match(/REST_MAX_MINUTES = (\d+)/)[1], py.match(/REST_MAX_MINUTES = (\d+)/)[1]);
+  const focus = read('frontend/views/focus/focus.html');
+  assert.ok(focus.indexOf('id="btn-rest"') < focus.indexOf('id="btn-declare-intent"'));
+  // 旅行不套用「跑出去沒回來 0 分」：前端不預備回報，後端也不標記
+  assert.match(read('frontend/views/buffer/buffer.js'), /syncAwayReport\(armed && !travelling\)/);
+  assert.match(read('backend/attendance.py'), /if room.get\("context"\) in phone_open.REST_CONTEXTS:\s*\n\s*return \[\]/);
+});

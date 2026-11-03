@@ -346,7 +346,10 @@ def clear_left_app(member: Optional[dict]) -> None:
 
 
 def apply_abandoned(room: dict, end_ms: int) -> List[str]:
-    """聚會結束時還在 App 外（跑出去超過寬限秒數、一直沒回來）的人 → 標記 abandoned，這場 0 分。"""
+    """聚會結束時還在 App 外（跑出去超過寬限秒數、一直沒回來）的人 → 標記 abandoned，這場 0 分。
+    旅行不套用：移動中用手機不算分心，但後端確認不了一直沒回來的人是不是在移動（例：邊走邊導航）。"""
+    if room.get("context") in phone_open.REST_CONTEXTS:
+        return []
     grace_ms = phone_open.grace_sec(room.get("difficulty", "M")) * 1000
     all_part = room.setdefault("all_participants", {})
     out = []
