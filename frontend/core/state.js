@@ -74,6 +74,7 @@ export const state = {
     phoneOpen: null,        // 主持人開放使用手機／旅行休息（後端 room.phone_open）：{ mode, by, since_ms, until_ms, ended_ms }
     restVotes: [],          // 旅行：想休息的人（uid）
     restEndVotes: [],       // 旅行：休息中想結束的人（uid）
+    serverClockOffset: 0,   // 手機時間 − 伺服器時間（ROOM_UPDATE 帶 server_now_ms）：把房間裡的時間點換算成手機時間
 
     // === 好友 cache ===
     friendUidSet: new Set(),

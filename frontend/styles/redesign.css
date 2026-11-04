@@ -2404,9 +2404,13 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-open-away { margin-top: 10px; padding: 10px 14px; border-radius: var(--r-md); background: rgba(255,255,255,.72); box-shadow: inset 0 0 0 1px var(--brown-10); display: flex; flex-direction: column; gap: 3px; }
 #view-focus .pa-open-away-title { font-size: 12px; font-weight: 700; color: var(--accent-fire); }
 #view-focus .pa-open-away-names { font-size: 14px; color: var(--brown); line-height: 1.45; overflow-wrap: anywhere; }
-/* 開放時間輸入（只有上課） */
-.phone-open-minutes { display: flex; align-items: center; gap: 10px; }
-.phone-open-minutes .intent-reason-input { flex: 1; }
+/* 開放時間（只有上課）：快速選項 + −／+ + 自訂輸入 */
+.phone-open-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.phone-open-preset { height: 40px; border: none; border-radius: var(--r-md); background: #fff; box-shadow: inset 0 0 0 1px var(--brown-10); color: var(--brown-60); font-size: 15px; font-weight: 700; cursor: pointer; }
+.phone-open-preset.is-active { background: var(--brown); color: #fff; box-shadow: none; }
+.phone-open-minutes { display: flex; align-items: center; gap: 8px; }
+.phone-open-minutes .intent-reason-input { flex: 1; min-width: 0; text-align: center; font-weight: 700; }
+.phone-open-step { flex: 0 0 44px; height: 44px; border: none; border-radius: var(--r-md); background: #fff; box-shadow: inset 0 0 0 1px var(--brown-10); color: var(--brown); font-size: 22px; font-weight: 600; line-height: 1; cursor: pointer; }
 .phone-open-unit { font-size: 15px; font-weight: 600; color: var(--brown-60); }
 
 /* 開會：選接手主持的人（沿用底部選單的項目樣式） */

@@ -1033,6 +1033,7 @@ from scoring import (  # noqa: E402
     compute_meeting_score as _compute_meeting_score,
     compute_perf_points as _compute_perf_points,
     score_for_uid as _score_for_uid,
+    is_unscored as _is_unscored,
 )
 from intent import (  # noqa: E402
     can_declare_intent as _intent_can_declare,
@@ -1306,7 +1307,7 @@ async def get_meeting(meeting_id: str, decoded: dict = Depends(verify_token)):
                 "uid": uid,
                 "nickname": "",
                 "deviations": int(md.get("deviations", 0) or 0),
-                "score": int(md.get("score", 0) or 0),
+                "score": None if md.get("unscored") else int(md.get("score", 0) or 0),
                 "perf_points": int(md.get("perf_points", 0) or 0),
             }
             data = {
@@ -3665,6 +3666,10 @@ class ConnectionManager:
             return
         # 已離開聚會的人不再收房間廣播（他的舊連線可能還沒關）
         members = _att.present_uids(rooms[room_id])
+        if message.get("type") == "ROOM_UPDATE":
+            # 附上伺服器現在的時間：前端用它把房間裡的時間點（休息、限時開放的結束時間）換算成手機時間，
+            # 手機時鐘不準也不會判斷錯
+            message = {**message, "server_now_ms": _now_ms()}
         try:
             enc_msg = json.dumps(message, default=str)  # default=str: datetime 等型別轉字串而非報錯
         except Exception as e:
@@ -3697,7 +3702,8 @@ class EndRoomRequest(BaseModel):
 
 
 class LeftAppRequest(BaseModel):
-    left_at_ms: Optional[int] = 0   # 跑出 App 的時間（iOS App 在背景確認不是關螢幕後才送）
+    left_at_ms: Optional[int] = 0   # 跑出 App 的時間（iOS App 在背景確認不是關螢幕後才送；舊版用）
+    away_ms: Optional[int] = None   # 跑出去多久了：用這個換算，不依賴手機時鐘
 
 
 class LeaveRoomRequest(BaseModel):
@@ -3710,8 +3716,10 @@ _room_sweeper_task: Optional[asyncio.Task] = None
 
 
 def _now_ms() -> int:
-    # 與房間內其他時間戳（started_at、exempt_window_until_ms…）同一種算法，才能互相比較
-    return int(datetime.datetime.utcnow().timestamp() * 1000)
+    # 房間內所有時間戳（started_at、exempt_window_until_ms、phone_open…）都用這個，才能互相比較。
+    # 一定要是真正的 Unix 毫秒：以前用 utcnow().timestamp()，在非 UTC 時區的機器（例：台灣的本機開發）
+    # 會少 8 小時，前端拿來跟手機時鐘比（休息、限時開放）就會判斷成早就結束了。
+    return int(time.time() * 1000)
 
 
 def _room_window_sec(room_data: dict) -> int:
@@ -4147,6 +4155,9 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
             my_perf = perf_by_uid.get(p_uid)
             if my_perf is None:
                 my_perf = _compute_perf_points(my_score, difficulty_local, context_local)
+            unscored = _is_unscored(p_uid, host_uid_local, context_local)
+            if unscored:   # 上課的老師：不計分，排行榜積分 0
+                my_score, my_perf = None, 0
             left_early = info.get("presence") == "left"
             mirror = {
                 "owner_uid": p_uid,
@@ -4162,6 +4173,7 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
                 "perf_points": my_perf,
                 "end_reason": info.get("leave_reason", reason) if left_early else reason,
                 "left_early": left_early,
+                "unscored": unscored,
             }
             try:
                 db.collection("users").document(p_uid).collection("meetings") \
@@ -4356,7 +4368,9 @@ async def left_app_http(room_id: str, body: LeftAppRequest, decoded: dict = Depe
     room_data = rooms.get(room_id)
     if room_data is None:
         raise HTTPException(status_code=404, detail="找不到房間")
-    recorded = _att.note_left_app(room_data, uid, int(body.left_at_ms or 0), _now_ms())
+    now_ms = _now_ms()
+    left_at = now_ms - max(0, int(body.away_ms)) if body.away_ms is not None else int(body.left_at_ms or 0)
+    recorded = _att.note_left_app(room_data, uid, left_at, now_ms)
     print(f"[LEFT_APP] room={room_id} user={uid} recorded={recorded}")
     return {"status": "success", "recorded": recorded}
 
@@ -4903,6 +4917,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 # 帶出 App 點餐（付款、LINE 點餐）的時間內不算分心
                 if _ordering.within_order_trip(_exempt_member, _exempt_now_ms):
                     print(f"[LOG_DEVIATION] exempted by ordering trip user={user_id} room={room_id}")
+                    continue
+                # 專心上課的老師：可以自由用手機，不算分心（老師不計分）
+                if _att.is_class_teacher(rooms[room_id], user_id):
+                    print(f"[LOG_DEVIATION] ignored for class teacher user={user_id} room={room_id}")
                     continue
                 # 主持人開放使用手機中：全場都不算分心
                 if _phone.is_open(rooms[room_id], _exempt_now_ms):

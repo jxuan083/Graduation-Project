@@ -14,12 +14,12 @@ import { orderingPlugin } from './ordering.js';
 import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=81';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=82';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=81';
+} from '../views/sync-ritual/sync-ritual.js?v=82';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -77,6 +77,8 @@ function handleRoomUpdate(msg) {
     state.meetingGroupPetName = rs.group_pet_name || '';
     state.meetingGroupPetLevel = Number(rs.group_pet_level || 1);
     state.roomMembers = rs.members || {};
+    // 手機與伺服器的時差：房間裡的時間點（休息、限時開放的結束時間）都要先換算成手機時間再比
+    if (Number.isFinite(msg.server_now_ms)) state.serverClockOffset = Date.now() - msg.server_now_ms;
     applyRestVotes(rs.rest_votes || [], rs.rest_end_votes || []);   // 旅行：投票休息
     applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）、旅行休息
     refreshFocusMascot();
@@ -265,6 +267,10 @@ function handleSessionEnded(msg) {
         else if (!state.amIHost) hint.innerText = '房主已結束聚會';
         else hint.innerText = '';
         hint.style.display = 'none';   // 這句只在「提前離開」的個人結算才顯示
+        if (!myRow && state.amIHost && state.currentContext === 'class') {
+            hint.innerText = t('你是這堂課的老師，不計分');
+            hint.style.display = '';
+        }
         if (myRow?.abandoned) {
             // 跑出 App 到聚會結束都沒回來（只有 iOS App 判斷得出）→ 這場 0 分，說清楚原因
             hint.innerText = t('你在聚會結束前跑出 App 沒有回來，這場以 0 分計算');

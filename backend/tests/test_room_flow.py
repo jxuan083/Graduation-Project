@@ -576,6 +576,40 @@ class RoomFlowTest(unittest.TestCase):
         self.assertFalse(rows["b"]["abandoned"])
         self.assertGreater(rows["b"]["score"], 0)
 
+    def test_class_teacher_can_use_phone_freely_and_is_not_scored(self):
+        room_id, socks = self.start("a", context="class", difficulty="H")
+        room = main.rooms[room_id]
+        self.clock.now = T0 + 5 * MIN
+        socks["host"].send_json({"action": "LOG_DEVIATION", "count": 3})      # 老師滑手機：不算
+        res = self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("host"), json={"away_ms": 60_000})
+        self.assertFalse(res.json()["recorded"])                              # 老師跑出 App 也不套用 0 分規則
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 1})         # 學生照算
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.assertEqual(room["all_participants"]["host"]["deviations"], 0)
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 1)
+        self.clock.now = T0 + 50 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        ranking = self.until(socks["host"], "SESSION_ENDED")["score_ranking"]
+        self.assertEqual([r["uid"] for r in ranking], ["a"])                  # 老師不進排行
+        teacher = self.final_mirror(room_id, "host")
+        self.assertIsNone(teacher["score"])
+        self.assertEqual(teacher["perf_points"], 0)
+        self.assertTrue(teacher["unscored"])
+
+    def test_meeting_host_is_still_scored(self):
+        room_id, socks = self.start("a", context="meeting")
+        self.clock.now = T0 + 30 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        ranking = self.until(socks["host"], "SESSION_ENDED")["score_ranking"]
+        self.assertEqual(sorted(r["uid"] for r in ranking), ["a", "host"])
+
+    def test_left_app_report_uses_elapsed_time_not_the_phone_clock(self):
+        room_id, socks = self.start("a", context="general", difficulty="M")
+        self.clock.now = T0 + 20 * MIN
+        self.client.post(f"/api/rooms/{room_id}/left-app", headers=self.auth("a"),
+                         json={"away_ms": 3 * MIN, "left_at_ms": 123})            # 手機時鐘亂掉的 left_at_ms 不採用
+        self.assertEqual(main.rooms[room_id]["members"]["a"]["away_left_ms"], T0 + 17 * MIN)
+
     def test_ordering_is_not_available_in_formal_settings(self):
         room_id, socks = self.start("a", context="meeting")
         res = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))

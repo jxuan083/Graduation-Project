@@ -17,9 +17,9 @@ import { orderingPlugin, orderingAvailable, orderTripsLeft, orderingLabels, requ
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
 import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES, REST_CONTEXTS, REST_MAX_MINUTES } from '../../core/config.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications } from '../../core/localNotify.js';
-import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest } from '../../core/phoneOpen.js';
+import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest, localizePhoneOpen, toLocalMs } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=81';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=82';
 
 export function init() {
     register('view-focus', {
@@ -317,7 +317,7 @@ function endIntentCountdown() {
 // 開會只有「直到我結束」。限時的結束時間事先知道 → 每個人的手機自己排通知與靈動島倒數；
 // 「直到我結束」結束時還在外面的人收不到即時通知，回到 App 時由後端補算（PHONE_OPEN_OVERAGE）。
 let _phoneOpenTimer = null;
-let _phoneOpenEndNoticed = 0;   // 已經處理過「結束」的那次開放（since_ms），避免重複提示
+let _phoneOpenEndNoticed = 0;   // 已經處理過「結束」的那次開放（key = 後端的開始時間），避免重複提示
 
 const isClassContext = () => state.currentContext === 'class';
 const hostWord = () => (isClassContext() ? t('老師') : t('主持人'));
@@ -333,6 +333,12 @@ function initPhoneOpen() {
     document.getElementById('btn-phone-open-secondary')?.addEventListener('click', () => confirmPhoneOpen('secondary'));
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closePhoneOpenModal(); });
     document.getElementById('phone-open-minutes')?.addEventListener('input', renderPhoneOpenModalButtons);
+    // 快速選項與 −／+（不用叫出鍵盤；也保留直接輸入自訂分鐘數）
+    document.querySelectorAll('#phone-open-minutes-row .phone-open-preset').forEach((btn) => {
+        btn.addEventListener('click', () => setOpenMinutes(Number(btn.dataset.minutes)));
+    });
+    document.getElementById('btn-phone-open-minus')?.addEventListener('click', () => setOpenMinutes((readOpenMinutes() || 10) - 5));
+    document.getElementById('btn-phone-open-plus')?.addEventListener('click', () => setOpenMinutes((readOpenMinutes() || 0) + 5));
     const reset = () => {
         clearInterval(_phoneOpenTimer);
         _phoneOpenTimer = null;
@@ -379,6 +385,13 @@ function closePhoneOpenModal() {
     document.getElementById('phone-open-modal')?.classList.add('hidden');
 }
 
+function setOpenMinutes(n) {
+    const input = document.getElementById('phone-open-minutes');
+    if (!input) return;
+    input.value = String(Math.min(PHONE_OPEN_MAX_MINUTES, Math.max(1, Math.round(n) || 1)));
+    renderPhoneOpenModalButtons();
+}
+
 function readOpenMinutes() {
     const n = Math.round(Number(document.getElementById('phone-open-minutes')?.value));
     return Number.isFinite(n) && n >= 1 && n <= PHONE_OPEN_MAX_MINUTES ? n : 0;
@@ -391,6 +404,10 @@ function renderPhoneOpenModalButtons() {
     if (!primary || !secondary) return;
     if (phoneOpenModes().includes('timed')) {
         const n = readOpenMinutes();
+        // 快速選項：目前的分鐘數剛好是其中一個就標起來
+        document.querySelectorAll('#phone-open-minutes-row .phone-open-preset').forEach((btn) => {
+            btn.classList.toggle('is-active', Number(btn.dataset.minutes) === n);
+        });
         primary.textContent = n ? t('開放 {n} 分鐘', { n }) : t('請輸入 1～{max} 分鐘', { max: PHONE_OPEN_MAX_MINUTES });
         primary.disabled = !n;
         secondary.textContent = t('直到我結束');
@@ -419,10 +436,11 @@ function confirmPhoneOpen(which) {
 }
 
 // 收到後端最新的開放狀態（ROOM_UPDATE）：提示開始／結束，排或取消限時的通知，更新畫面
-export function applyPhoneOpen(po) {
+export function applyPhoneOpen(serverPo) {
     const prev = state.phoneOpen;
+    const po = localizePhoneOpen(serverPo);   // 時間點換成手機時間（wsHandlers 已先更新時差）
     state.phoneOpen = po;
-    const sameOpen = prev && po && prev.since_ms === po.since_ms;
+    const sameOpen = prev && po && prev.key === po.key;
     if (po && phoneOpenActive() && !sameOpen && state.currentPhase === 'ACTIVE') {
         if (phoneOpenIsRest()) {
             showToast(t('休息時間開始，最多 {n} 分鐘，這段時間用手機不算分心', { n: REST_MAX_MINUTES }), 'info');
@@ -438,7 +456,7 @@ export function applyPhoneOpen(po) {
     if (po && (phoneOpenTimed() || phoneOpenIsRest()) && phoneOpenActive()) {
         schedulePhoneOpenEnd(Number(po.until_ms), phoneOpenIsRest() ? 'rest' : (isClassContext() ? 'class' : 'meeting'));
     }
-    if (prev && !phoneOpenActive() && sameOpen && prev.since_ms !== _phoneOpenEndNoticed) {
+    if (prev && !phoneOpenActive() && sameOpen && prev.key !== _phoneOpenEndNoticed) {
         notePhoneOpenEnded();
     }
     if (!po || !phoneOpenActive()) cancelPhoneOpenNotifications();
@@ -451,7 +469,7 @@ export function applyPhoneOpen(po) {
 
 // 開放結束（主持人按結束，或限時到了）：人在 App 裡才看得到這個提示
 function notePhoneOpenEnded() {
-    _phoneOpenEndNoticed = Number(state.phoneOpen?.since_ms || 0);
+    _phoneOpenEndNoticed = Number(state.phoneOpen?.key || 0);
     if (state.currentPhase !== 'ACTIVE') return;
     if (phoneOpenIsRest()) { showToast(t('休息結束了，現在離開 App 會開始算分心'), 'info'); return; }
     if (state.amIHost) return;
@@ -462,7 +480,7 @@ function notePhoneOpenEnded() {
 export function applyPhoneOpenOverage(count, endedMs) {
     const n = Number(count) || 0;
     if (n <= 0) return;
-    const mins = Math.max(1, Math.round((Date.now() - Number(endedMs || Date.now())) / 60000));
+    const mins = Math.max(1, Math.round((Date.now() - (toLocalMs(endedMs) || Date.now())) / 60000));
     if (phoneOpenIsRest()) {
         showToast(t('休息在 {m} 分鐘前就結束了，補記分心 {n} 次', { m: mins, n }), 'warn');
         return;
@@ -483,7 +501,7 @@ function syncPhoneOpenTimer() {
 function tickPhoneOpen() {
     // 限時開放到點：後端不會另外廣播，前端自己切換
     const po = state.phoneOpen;
-    if (po && !phoneOpenActive() && po.since_ms !== _phoneOpenEndNoticed) {
+    if (po && !phoneOpenActive() && po.key !== _phoneOpenEndNoticed) {
         notePhoneOpenEnded();
         cancelPhoneOpenNotifications();
         if (_intentEndMs <= Date.now()) renderIntentButton();
@@ -909,6 +927,12 @@ export function refreshSessionControls() {
     }
     const endBtn = document.getElementById('btn-end-session');
     if (endBtn) endBtn.textContent = state.amIHost ? t('結束聚會') : t('離開聚會');
+    // 專心上課的老師不計分：分心次數那一列改成說明
+    const teacher = state.currentContext === 'class' && state.amIHost;
+    const devLabel = document.querySelector('#view-focus .pa-distraction-label');
+    const devCount = document.getElementById('deviation-count');
+    if (devLabel) devLabel.textContent = teacher ? t('你是老師，這堂課不計分') : t('我的分心次數');
+    if (devCount) devCount.style.display = teacher ? 'none' : '';
 }
 
 // ── 底部彈出選單（遊戲區 / 拍照 / 離開）──

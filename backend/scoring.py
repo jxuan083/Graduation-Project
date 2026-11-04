@@ -129,6 +129,11 @@ def final_score(info: Optional[dict], base_score: int, minutes: int, duration_mi
     return base_score
 
 
+def is_unscored(uid: str, host_uid: Optional[str], context: str = "general") -> bool:
+    """專心上課的老師（建立者；上課老師不能先離開，所以不會換人）不計分。開會的主持人照舊計分。"""
+    return context == "class" and bool(uid) and uid == host_uid
+
+
 def participant_minutes(info: Optional[dict], duration_minutes: int) -> int:
     """這個人計分用的分鐘數：有個人在場分鐘（提前離開／中途加入）就用它，否則用整場時長。"""
     attended = (info or {}).get("attended_minutes")
@@ -151,6 +156,8 @@ def build_score_ranking(all_ever: dict, host_uid: Optional[str], duration_minute
     score_by_uid: Dict[str, int] = {}
     perf_by_uid: Dict[str, int] = {}
     for uid, info in (all_ever or {}).items():
+        if is_unscored(uid, host_uid, context):
+            continue   # 上課的老師不是被評分的人：不進排行、不算進全場平均（群組寵物）
         deviations = int((info or {}).get("deviations", 0) or 0)
         metrics = (info or {}).get("quality_metrics")  # 未來 client 送的被動訊號
         minutes = participant_minutes(info, duration_minutes)

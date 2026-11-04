@@ -268,9 +268,21 @@
             <button id="btn-phone-open-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
             <h3 id="phone-open-title">開放大家使用手機</h3>
             <p class="hint" id="phone-open-hint">直到你按「結束開放」為止，大家離開 App 都不算分心。</p>
-            <div class="phone-open-minutes" id="phone-open-minutes-row" style="display:none;">
-                <input id="phone-open-minutes" class="text-input intent-reason-input" type="number" inputmode="numeric" min="1" max="180" step="1" value="10" />
-                <span class="phone-open-unit">分鐘</span>
+            <div id="phone-open-minutes-row" style="display:none;">
+                <!-- 快速選項；也可以用 −／+ 或直接輸入自訂分鐘數 -->
+                <div class="phone-open-presets" role="group" aria-label="開放時間">
+                    <button type="button" class="phone-open-preset" data-minutes="5">5</button>
+                    <button type="button" class="phone-open-preset" data-minutes="10">10</button>
+                    <button type="button" class="phone-open-preset" data-minutes="15">15</button>
+                    <button type="button" class="phone-open-preset" data-minutes="20">20</button>
+                    <button type="button" class="phone-open-preset" data-minutes="30">30</button>
+                </div>
+                <div class="phone-open-minutes">
+                    <button type="button" class="phone-open-step" id="btn-phone-open-minus" aria-label="減 5 分鐘">−</button>
+                    <input id="phone-open-minutes" class="text-input intent-reason-input" type="number" inputmode="numeric" min="1" max="180" step="1" value="10" aria-label="自訂分鐘數" />
+                    <span class="phone-open-unit">分鐘</span>
+                    <button type="button" class="phone-open-step" id="btn-phone-open-plus" aria-label="加 5 分鐘">+</button>
+                </div>
             </div>
             <div class="intent-modal-actions">
                 <button id="btn-phone-open-secondary" class="btn secondary" type="button">取消</button>

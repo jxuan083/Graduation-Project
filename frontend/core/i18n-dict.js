@@ -1449,6 +1449,9 @@ export const dict = {
     "休息中 · 按這裡結束休息": "On a break · Tap to end it",
     "想休息了 · 還差 {n} 人（再按取消）": "You want a break · {n} more needed (tap to cancel)",
     "{v} 人想休息 · 還差 {n} 人": "{v} want a break · {n} more needed",
+    // 上課老師不計分
+    "你是老師，這堂課不計分": "You're the teacher, so this class isn't scored for you",
+    "你是這堂課的老師，不計分": "You're the teacher of this class, so you aren't scored",
     // 主持人開放使用手機（開會、上課）
     "老師": "The teacher",
     "主持人": "The host",

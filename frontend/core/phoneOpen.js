@@ -10,6 +10,24 @@
 import { state } from './state.js';
 import { PHONE_OPEN_MODES } from './config.js';
 
+// 後端的時間點 → 手機時間（手機時鐘跟伺服器差多少都沒關係）
+export function toLocalMs(serverMs) {
+    const ms = Number(serverMs || 0);
+    return ms ? ms + (Number(state.serverClockOffset) || 0) : 0;
+}
+
+// 後端的 phone_open 換成手機時間；key 保留原始開始時間，用來判斷是不是同一次開放
+export function localizePhoneOpen(po) {
+    if (!po) return null;
+    return {
+        ...po,
+        key: Number(po.since_ms || 0),
+        since_ms: toLocalMs(po.since_ms),
+        until_ms: toLocalMs(po.until_ms),
+        ended_ms: toLocalMs(po.ended_ms),
+    };
+}
+
 export function phoneOpenModes(context = state.currentContext) {
     return PHONE_OPEN_MODES[context] || [];
 }

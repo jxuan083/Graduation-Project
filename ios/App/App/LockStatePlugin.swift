@@ -434,7 +434,11 @@ public class LockStatePlugin: CAPPlugin, CAPBridgedPlugin {
         request.httpMethod = "POST"
         for (key, value) in awayHeaders { request.setValue(value, forHTTPHeaderField: key) }
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["left_at_ms": Int64(leftAt.timeIntervalSince1970 * 1000)]
+        // 傳「跑出去多久了」讓後端用自己的時鐘換算（手機時鐘不準也沒關係）；left_at_ms 給舊版後端
+        let body: [String: Any] = [
+            "away_ms": Int64(max(0, Date().timeIntervalSince(leftAt)) * 1000),
+            "left_at_ms": Int64(leftAt.timeIntervalSince1970 * 1000),
+        ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { [weak self] _, _, error in
             if let error = error { print("[LockState] away report failed: \(error)") }

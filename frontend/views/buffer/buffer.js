@@ -12,11 +12,12 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=81';
+import { vibrate } from '../../core/haptics.js?v=82';
 import { getLockState } from '../../core/lockstate.js';
 import { setGraceCountdown, phoneOpenActivity, travelGraceActivity } from '../../core/liveActivity.js';
 import { phoneOpenActive, phoneOpenUntilMs } from '../../core/phoneOpen.js';
 import { syncAwayReport } from '../../core/awayReport.js';
+import { movingMsFromSummary, deviationsDue } from '../../core/travel.js';
 
 const GRACE_MS_BY_DIFFICULTY = { L: 30000, M: 20000, H: 10000 };
 const getGraceMs = () => GRACE_MS_BY_DIFFICULTY[state.currentDifficulty] ?? 20000;
@@ -67,8 +68,16 @@ function reportVisible() {
     if (!sendAction('VISIBILITY_CHANGE', { state: 'visible' })) reconnectSilent();
 }
 
+// 專心上課的老師：可以自由用手機、不計分（開會的主持人照舊）
+const isClassTeacher = () => state.currentContext === 'class' && !!state.amIHost;
+
 function syncGraceCountdown() {
     if (document.visibilityState !== 'visible') return;
+    if (isClassTeacher()) {   // 老師離開 App 不倒數、不回報
+        setGraceCountdown(false, getGraceMs());
+        syncAwayReport(false);
+        return;
+    }
     const inSession = state.currentPhase === 'ACTIVE' && !state.photoModeActive;
     // 主持人開放使用手機中：跳出去顯示開放狀態（限時的倒數到結束），不是寬限倒數
     if (inSession && phoneOpenActive()) {
@@ -89,6 +98,14 @@ function syncGraceCountdown() {
 function handleVisibilityChange() {
     if (state.currentPhase !== 'ACTIVE') return;
     if (state.photoModeActive) return;
+    if (isClassTeacher()) {
+        // 老師不計分：只回報在不在 App（給學生名單等用），不起算分心
+        state.deviationDeadline = null;
+        state.hiddenAt = null;
+        if (document.visibilityState === 'visible') reportVisible();
+        else sendAction('VISIBILITY_CHANGE', { state: 'hidden' });
+        return;
+    }
 
     if (document.visibilityState === 'visible') {
         const hiddenAt = state.hiddenAt;
@@ -181,10 +198,7 @@ async function movingMsBetween(fromMs, toMs) {
             p.queryMovement({ fromMs, toMs }),
             new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
         ]);
-        if (!r) return 0;
-        const sec = ['walkingSec', 'runningSec', 'cyclingSec', 'automotiveSec']
-            .reduce((sum, k) => sum + (Number(r[k]) || 0), 0);
-        return Math.max(0, Math.min(sec * 1000, toMs - fromMs));
+        return movingMsFromSummary(r, fromMs, toMs);
     } catch (_) {
         return 0;
     }
@@ -197,8 +211,7 @@ function reconcileDeviations() {
     const now = Date.now();
     if (now < state.deviationDeadline) return 0;
 
-    const overdue = now - state.deviationDeadline;
-    const count = Math.floor(overdue / getGraceMs()) + 1;
+    const count = deviationsDue(state.deviationDeadline, now, getGraceMs());
     logDeviation(count);
     state.deviationDeadline += count * getGraceMs(); // 推進後必定 > now
     return count;

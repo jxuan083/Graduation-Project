@@ -324,11 +324,16 @@ def host_leave_rule(room: dict, uid: str, successor_uid: Optional[str],
     return True, "", None
 
 
+def is_class_teacher(room: dict, uid: str) -> bool:
+    """專心上課的老師（主持人）：可以自由用手機、不計分（老師不是被評分的人）。開會照舊計分。"""
+    return room.get("context") == "class" and bool(uid) and uid == acting_host(room)
+
+
 def note_left_app(room: dict, uid: str, left_at_ms: int, now_ms: int) -> bool:
     """iOS App 在背景確認「這次是跑去別的 App，不是在 App 內關螢幕」後回報（只有原生 App 會送）。
     暫離、帶出點餐、主持人開放中離開的不記（那些有自己的超時規則）。回傳有沒有記下。"""
     m = (room.get("members") or {}).get(uid)
-    if room.get("status") != "ACTIVE" or not is_present(m):
+    if room.get("status") != "ACTIVE" or not is_present(m) or is_class_teacher(room, uid):
         return False
     at = min(int(left_at_ms or now_ms), now_ms)
     if within_exemption(int(m.get("exempt_window_until_ms", 0) or 0), at) \
@@ -355,7 +360,7 @@ def apply_abandoned(room: dict, end_ms: int) -> List[str]:
     out = []
     for uid, m in (room.get("members") or {}).items():
         left_at = int((m or {}).get("away_left_ms", 0) or 0)
-        if not is_present(m) or not left_at or end_ms - left_at <= grace_ms:
+        if not is_present(m) or not left_at or end_ms - left_at <= grace_ms or is_class_teacher(room, uid):
             continue
         all_part.setdefault(uid, {"nickname": m.get("nickname", ""), "deviations": 0})["abandoned"] = True
         out.append(uid)
