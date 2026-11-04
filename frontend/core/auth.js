@@ -8,7 +8,7 @@ import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
-import { getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=80';
+import { getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=81';
 
 const SESSION_KEY = 'phubbing_cognito_session';
 const PKCE_KEY = 'phubbing_cognito_pkce';

@@ -14,12 +14,12 @@ import { orderingPlugin } from './ordering.js';
 import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=80';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=81';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=80';
+} from '../views/sync-ritual/sync-ritual.js?v=81';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);

@@ -1780,7 +1780,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-scroll::-webkit-scrollbar { display: none; }
 
 /* 場景卡：吉祥物舞台（沿用 Lottie 動畫作吉祥物） */
-:is(#view-focus,#view-summary) .pa-scene-card { border-radius: var(--r-lg); overflow: hidden; position: relative; height: 180px; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #c8a45a 100%); }
+:is(#view-focus,#view-summary) .pa-scene-card { border-radius: var(--r-lg); overflow: hidden; position: relative; height: 180px; flex-shrink: 0; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #c8a45a 100%); }  /* 不被壓扁：寵物座位依 180 高計算，矮螢幕改用捲動 */
 :is(#view-focus,#view-summary) .pa-sun { position: absolute; top: 14px; right: 24px; width: 36px; height: 36px; border-radius: var(--r-pill); background: #f9d05e; box-shadow: 0 0 18px #f9d05e; }
 :is(#view-focus,#view-summary) .pa-ground { position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: #8aac58; }
 :is(#view-focus,#view-summary) .pa-grass { position: absolute; bottom: 42px; }
@@ -1840,242 +1840,100 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-pet-bubble { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4; max-width: 82%; padding: 5px 11px; border-radius: 14px; background: rgba(255,255,255,.92); color: var(--brown); font-size: 11px; font-weight: 650; line-height: 1.3; text-align: center; overflow-wrap: anywhere; box-shadow: 0 2px 10px rgba(0,0,0,.14); animation: pa-bubble-in .4s cubic-bezier(.2,1.4,.4,1) both; }
 #view-focus .pa-pet-bubble::after { content: ""; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); border: 5px solid transparent; border-top-color: rgba(255,255,255,.92); border-bottom: 0; }
 
-/* ── 情境場景：約會（燭光晚餐）。只在 .pa-scene-card.scene-date 生效，inline SVG 插畫 ──
-   分兩層:背景(牆+窗) z1 在寵物後、前景(桌子+餐具+燭火) z3 在寵物前 → 寵物像坐桌子對面 */
-:is(#view-focus,#view-summary) .pa-date-bg,
-:is(#view-focus,#view-summary) .pa-date-fg,
-:is(#view-focus,#view-summary) .pa-scene-dim { display: none; }
-/* 約會情境時關掉戶外元素、顯示晚餐場景 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-rain { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-date-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-date-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-scene-dim { display: block; }
-
-/* 約會時吉祥物坐在桌子對面：z-index 夾在背景(1)與前景桌子(3)之間，下半身被桌子擋住、只露出頭 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .lottie-container { display: none; }  /* 外部 Lottie 不可靠，約會改用內建球 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-pet-face { left: 31%; bottom: 46px; width: 76px; height: 76px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 預設坐位球（沒有群組寵物時） */
-:is(#view-focus,#view-summary) .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-seat-ball {
-    display: block; position: absolute; left: 31%; bottom: 44px; width: 80px; height: 80px; z-index: 2;
-    transform: translateX(-50%);
-    animation: pa-seat-bob 3.4s ease-in-out infinite;
+/* ── 情境場景：卡通插畫 ──
+   每個情境一張 1200×540（20:9）的圖當場景卡背景（frontend/assets/scenes/，原圖在專案外的 cartoon-previews）。
+   場景卡高 180、最寬約 400，跟圖同比例；手機較窄時只會左右各少一點邊（cover、置中）。
+   寵物與預設吉祥物以「圖片中心」為基準定位（不是場景卡寬度的百分比），所以不管螢幕多寬都坐在同一個座位上。
+   每個情境的數值照 cartoon-previews 的寵物示意圖量（都是佔「場景高度」的比例，x 是佔「圖片寬度」）：
+     --pet-x 寵物水平中心、--pet-top 寵物圖框上緣、--pet-size 圖框大小、--pet-seat 座位線（腳踩的位置或桌緣）、
+     --pet-clip 坐在桌子後面的情境把圖框下方切掉多少（做出被桌子擋住的樣子，不需要另外的前景圖）。
+   群組寵物圖（例：puppy-poster-v1）的身體約在圖框 18%～92% 高；預設吉祥物（圓臉）的臉佔圖框 68%、下方留白 16%。 */
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene {
+    --scene-h: 180px;
+    --scene-w: calc(var(--scene-h) * 20 / 9);
+    --pet-clip: 0%;
+    --pet-left: calc(50% + (var(--pet-x) - 0.5) * var(--scene-w));
+    --ball-scale: 0.8;
+    --ball-size: calc(var(--pet-size) * var(--scene-h) * var(--ball-scale));
+    background-color: #e9d6bf;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
 }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-seat-ball svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date.has-pet .pa-seat-ball { display: none; }  /* 有真寵物時藏球 */
+/* 有場景圖時關掉預設的戶外舞台（太陽、草地、雲、雨）與外部 Lottie；分心變暗改用整張蓋上的遮罩 */
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-sun,
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-ground,
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-grass,
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-clouds,
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-rain,
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .lottie-container { display: none; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-pet-face {
+    left: var(--pet-left); top: calc(var(--pet-top) * var(--scene-h)); bottom: auto;
+    width: calc(var(--pet-size) * var(--scene-h)); height: calc(var(--pet-size) * var(--scene-h)); z-index: 2;
+    clip-path: inset(0 0 var(--pet-clip) 0);
+    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
+}
+/* 寵物名牌（LV／名字）：寵物都坐在畫面左邊或中間，名牌改放右下角才不會擋到寵物 */
+#view-focus .pa-scene-card.has-scene .pa-pet-identity { left: auto; right: 12px; }
+/* 坐在桌子後面：寵物圖框為了切掉下半身放得比較大，預設吉祥物跟著縮小；寵物不上下晃（切口會跟著晃，桌緣會露出空隙） */
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.pet-behind { --ball-scale: 0.58; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.pet-behind .pa-pet-face { animation: none; }
+/* 預設坐位吉祥物（沒有群組寵物時）：同一個座位，臉的下緣貼在座位線 */
+:is(#view-focus,#view-summary) .pa-seat-ball { display: none; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-seat-ball {
+    display: block; position: absolute; left: var(--pet-left);
+    bottom: calc((1 - var(--pet-seat)) * var(--scene-h) - 0.16 * var(--ball-size));
+    width: var(--ball-size); height: var(--ball-size); z-index: 2;
+    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
+}
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-seat-ball svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.has-pet .pa-seat-ball { display: none; }  /* 有真寵物時藏起預設吉祥物 */
 @keyframes pa-seat-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-3px); } }
 
-/* 燭火 + 光暈輕微閃動 */
-:is(#view-focus,#view-summary) .pa-date-fg .pa-flame { transform-box: fill-box; transform-origin: center bottom; animation: pa-flame-flicker 1.5s ease-in-out infinite; }
-:is(#view-focus,#view-summary) .pa-date-fg .pa-flame-glow { transform-box: fill-box; transform-origin: center; animation: pa-glow-flicker 1.5s ease-in-out infinite; }
-@keyframes pa-flame-flicker { 0%,100% { transform: scaleY(1) scaleX(1); } 40% { transform: scaleY(.88) scaleX(1.06); } 70% { transform: scaleY(1.07) scaleX(.95); } }
-@keyframes pa-glow-flicker { 0%,100% { opacity: 1; } 50% { opacity: .78; } }
+/* 燈光遮罩：正常（晴）全亮不遮；越多人分心越暗（顏色、深淺依情境，沿用原本調好的數值） */
+:is(#view-focus,#view-summary) .pa-scene-dim { display: none; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #0a0705; opacity: 0; transition: opacity 1.2s ease; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-scene-dim { display: block; }
 
-/* 燈光遮罩：正常(晴)全亮不遮；越多人分心越暗 */
-:is(#view-focus,#view-summary) .pa-scene-dim { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #0a0705; opacity: 0; transition: opacity 1.2s ease; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-cloudy .pa-scene-dim { opacity: .32; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-rainy .pa-scene-dim { opacity: .6; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-general { background-image: url("../assets/scenes/general.webp"); --pet-x: 0.359; --pet-top: 0.237; --pet-size: 0.537; --pet-seat: 0.732; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-scene-dim { background: #1c160d; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-cloudy .pa-scene-dim { opacity: 0.24; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-rainy .pa-scene-dim { opacity: 0.48; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-meeting { background-image: url("../assets/scenes/meeting.webp"); --pet-x: 0.25; --pet-top: 0.466; --pet-size: 0.366; --pet-seat: 0.803; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-scene-dim { background: #12151c; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-cloudy .pa-scene-dim { opacity: 0.26; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-rainy .pa-scene-dim { opacity: 0.5; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-family { background-image: url("../assets/scenes/family.webp"); --pet-x: 0.4925; --pet-top: 0.226; --pet-size: 0.53; --pet-seat: 0.61; --pet-clip: 27.6%; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-scene-dim { background: #1f1710; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-cloudy .pa-scene-dim { opacity: 0.24; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-rainy .pa-scene-dim { opacity: 0.48; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-study { background-image: url("../assets/scenes/study.webp"); --pet-x: 0.313; --pet-top: 0.185; --pet-size: 0.557; --pet-seat: 0.592; --pet-clip: 26.8%; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-scene-dim { background: #35415c; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: 0.18; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: 0.36; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-class { background-image: url("../assets/scenes/class.webp"); --pet-x: 0.49; --pet-top: 0.508; --pet-size: 0.45; --pet-seat: 0.823; --pet-clip: 30.1%; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-scene-dim { background: #171a20; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-cloudy .pa-scene-dim { opacity: 0.22; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-rainy .pa-scene-dim { opacity: 0.46; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-meal { background-image: url("../assets/scenes/meal.webp"); --pet-x: 0.2195; --pet-top: 0.352; --pet-size: 0.431; --pet-seat: 0.749; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-scene-dim { background: #1c1208; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-rainy .pa-scene-dim { opacity: 0.54; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-date { background-image: url("../assets/scenes/date.webp"); --pet-x: 0.2645; --pet-top: 0.33; --pet-size: 0.412; --pet-seat: 0.71; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-scene-dim { background: #0a0705; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-cloudy .pa-scene-dim { opacity: 0.32; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-rainy .pa-scene-dim { opacity: 0.6; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-social { background-image: url("../assets/scenes/social.webp"); --pet-x: 0.332; --pet-top: 0.309; --pet-size: 0.399; --pet-seat: 0.677; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-scene-dim { background: #1a130a; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-rainy .pa-scene-dim { opacity: 0.52; }
+:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-outdoor { background-image: url("../assets/scenes/outdoor.webp"); --pet-x: 0.281; --pet-top: 0.412; --pet-size: 0.361; --pet-seat: 0.744; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-scene-dim { background: #10131c; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-rainy .pa-scene-dim { opacity: 0.54; }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(#view-focus,#view-summary) .pa-date-fg .pa-flame, #view-focus .pa-date-fg .pa-flame-glow, #view-focus .pa-seat-ball { animation: none !important; }
+  :is(#view-focus,#view-summary) .pa-seat-ball, :is(#view-focus,#view-summary) .has-scene .pa-pet-face { animation: none !important; }
 }
-
-/* ── 情境場景：自習讀書（圖書館）。只在 .pa-scene-card.scene-study 生效 ──
-   分兩層:背景(書櫃+椅背) z1 在寵物後、前景(書桌+書) z3 在寵物前 → 寵物像坐在椅子上 */
-:is(#view-focus,#view-summary) .pa-study-bg,
-:is(#view-focus,#view-summary) .pa-study-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-study-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-study-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-scene-dim { display: block; }
-/* 寵物/球坐在左邊椅子上 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-seat-ball {
-    display: block; position: absolute; left: 29.5%; bottom: 42px; width: 76px; height: 76px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-pet-face { left: 29.5%; bottom: 44px; width: 74px; height: 74px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多：明亮圖書館轉冷、專注渙散（比約會輕、冷色薄霧） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-scene-dim { background: #35415c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: .18; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: .36; }
-
-/* ── 情境場景：吃飯聚餐（暖色餐廳・圓桌）。只在 .pa-scene-card.scene-meal 生效 ── */
-:is(#view-focus,#view-summary) .pa-meal-bg,
-:is(#view-focus,#view-summary) .pa-meal-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-meal-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-meal-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-scene-dim { display: block; }
-/* 寵物坐正中間、桌子對面 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-seat-ball {
-    display: block; position: absolute; left: 50%; bottom: 44px; width: 78px; height: 78px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-pet-face { left: 50%; bottom: 46px; width: 76px; height: 76px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 餐廳燈變暗 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-scene-dim { background: #1c1208; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-cloudy .pa-scene-dim { opacity: .28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-rainy .pa-scene-dim { opacity: .54; }
-
-/* ── 情境場景：開會（會議室）。只在 .pa-scene-card.scene-meeting 生效 ── */
-:is(#view-focus,#view-summary) .pa-meeting-bg,
-:is(#view-focus,#view-summary) .pa-meeting-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-meeting-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-meeting-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-scene-dim { display: block; }
-/* 寵物站在演講者位置（螢幕左側，較遠所以較小、較高） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-seat-ball {
-    display: block; position: absolute; left: 38%; bottom: 80px; width: 46px; height: 46px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-pet-face { left: 38%; bottom: 80px; width: 44px; height: 44px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 會議室燈變暗（偏冷） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-scene-dim { background: #12151c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-cloudy .pa-scene-dim { opacity: .26; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-rainy .pa-scene-dim { opacity: .5; }
-
-/* ── 情境場景：專心上課（階梯教室）。只在 .pa-scene-card.scene-class 生效 ── */
-:is(#view-focus,#view-summary) .pa-class-bg,
-:is(#view-focus,#view-summary) .pa-class-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-class-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-class-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-scene-dim { display: block; }
-/* 寵物當老師，站在正中央前方（貼地、被第一排課桌擋住下緣） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-seat-ball {
-    display: block; position: absolute; left: 50%; bottom: 48px; width: 56px; height: 56px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-pet-face { left: 50%; bottom: 48px; width: 54px; height: 54px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 教室燈變暗（偏冷） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-scene-dim { background: #171a20; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-cloudy .pa-scene-dim { opacity: .22; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-rainy .pa-scene-dim { opacity: .46; }
-
-/* ── 情境場景：家庭聚會（廚房餐桌）。只在 .pa-scene-card.scene-family 生效 ── */
-:is(#view-focus,#view-summary) .pa-family-bg,
-:is(#view-focus,#view-summary) .pa-family-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-family-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-family-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-scene-dim { display: block; }
-/* 寵物坐正中間的位子 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-seat-ball {
-    display: block; position: absolute; left: 50%; bottom: 42px; width: 76px; height: 76px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-pet-face { left: 50%; bottom: 44px; width: 74px; height: 74px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 燈變暖暗 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-scene-dim { background: #1f1710; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-cloudy .pa-scene-dim { opacity: .24; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-rainy .pa-scene-dim { opacity: .48; }
-
-/* ── 情境場景：認識新朋友（高級餐酒館・吧台）。只在 .pa-scene-card.scene-social 生效 ── */
-:is(#view-focus,#view-summary) .pa-social-bg,
-:is(#view-focus,#view-summary) .pa-social-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-social-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-social-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-scene-dim { display: block; }
-/* 寵物坐左側桌位（吧台仍是主角） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-seat-ball {
-    display: block; position: absolute; left: 30%; bottom: 44px; width: 76px; height: 76px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-pet-face { left: 30%; bottom: 46px; width: 74px; height: 74px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 燈變暖暗（微醺夜） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-scene-dim { background: #1a130a; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-cloudy .pa-scene-dim { opacity: .28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-rainy .pa-scene-dim { opacity: .52; }
-
-/* ── 情境場景：一般聚會（麥當勞）。只在 .pa-scene-card.scene-general 生效 ── */
-:is(#view-focus,#view-summary) .pa-general-bg,
-:is(#view-focus,#view-summary) .pa-general-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-general-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-general-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-scene-dim { display: block; }
-/* 寵物坐高腳位（左中） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-seat-ball {
-    display: block; position: absolute; left: 34%; bottom: 44px; width: 76px; height: 76px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-pet-face { left: 34%; bottom: 46px; width: 74px; height: 74px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 燈變暗 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-scene-dim { background: #1c160d; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-cloudy .pa-scene-dim { opacity: .24; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-rainy .pa-scene-dim { opacity: .48; }
-
-/* ── 情境場景：旅行（夕陽河畔露營）。只在 .pa-scene-card.scene-outdoor 生效 ── */
-:is(#view-focus,#view-summary) .pa-outdoor-bg,
-:is(#view-focus,#view-summary) .pa-outdoor-fg { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-outdoor-bg { display: block; position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-outdoor-fg { display: block; position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-scene-dim { display: block; }
-/* 寵物坐露營椅（左） */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-seat-ball {
-    display: block; position: absolute; left: 28.5%; bottom: 44px; width: 70px; height: 70px; z-index: 2;
-    transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
-}
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.has-pet .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-pet-face { left: 28.5%; bottom: 46px; width: 68px; height: 68px; z-index: 2; transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite; }
-/* 分心越多 → 入夜 */
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-scene-dim { background: #10131c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-cloudy .pa-scene-dim { opacity: .28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-rainy .pa-scene-dim { opacity: .54; }
 
 @keyframes pa-bubble-in { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
 

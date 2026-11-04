@@ -19,7 +19,7 @@ import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES, RES
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications } from '../../core/localNotify.js';
 import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=80';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=81';
 
 export function init() {
     register('view-focus', {
@@ -613,7 +613,7 @@ export function renderPhoneOpenAway() {
 
 // 聚會中吉祥物：綁定群組且該群組有寵物 → 顯示寵物臉；否則退回 Lottie 動畫球
 export function refreshFocusMascot() {
-    // 依情境切換場景外觀（約會=燭光晚餐、自習=圖書館…；其餘=預設戶外舞台）
+    // 依情境切換場景外觀（每個情境一張卡通插畫；還不知道情境時=預設戶外舞台）
     const sceneCard = document.querySelector('#view-focus .pa-scene-card');
     if (sceneCard) {
         const SCENE_BY_CONTEXT = { date: 'scene-date', study: 'scene-study', meal: 'scene-meal', meeting: 'scene-meeting', class: 'scene-class', family: 'scene-family', social: 'scene-social', general: 'scene-general', outdoor: 'scene-outdoor' };
@@ -621,6 +621,10 @@ export function refreshFocusMascot() {
         Object.values(SCENE_BY_CONTEXT).forEach(c => sceneCard.classList.remove(c));
         const sc = SCENE_BY_CONTEXT[state.currentContext];
         if (sc) sceneCard.classList.add(sc);
+        // 有對應的卡通場景圖 → 場景卡改用圖片當背景、寵物坐到圖上的座位（見 redesign.css「情境場景：卡通插畫」）
+        sceneCard.classList.toggle('has-scene', !!sc);
+        // 家庭、自習、上課：寵物坐在桌子後面（下半身被桌緣切掉，不上下晃）
+        sceneCard.classList.toggle('pet-behind', ['family', 'study', 'class'].includes(state.currentContext));
     }
 
     const orb = document.getElementById('lottie-orb');

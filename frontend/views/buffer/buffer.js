@@ -12,7 +12,7 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=80';
+import { vibrate } from '../../core/haptics.js?v=81';
 import { getLockState } from '../../core/lockstate.js';
 import { setGraceCountdown, phoneOpenActivity, travelGraceActivity } from '../../core/liveActivity.js';
 import { phoneOpenActive, phoneOpenUntilMs } from '../../core/phoneOpen.js';

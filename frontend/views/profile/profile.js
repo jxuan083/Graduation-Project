@@ -1,7 +1,7 @@
 // views/profile/profile.js
 import { back, register, switchView } from '../../core/router.js';
 import { state } from '../../core/state.js';
-import { uploadMedia } from '../../core/upload.js?v=80';
+import { uploadMedia } from '../../core/upload.js?v=81';
 import { apiFetch } from '../../core/api.js';
 import { events } from '../../core/events.js';
 import { t } from '../../core/i18n.js';
