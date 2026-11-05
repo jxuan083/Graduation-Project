@@ -15,11 +15,13 @@ import { reconnectSilent } from '../../core/session.js';
 import { startBreakCountdown, extendBreakCountdown, endCountdown, startOrderActivity } from '../../core/liveActivity.js';
 import { orderingPlugin, orderingAvailable, orderTripsLeft, orderingLabels, requestOrderTrip } from '../../core/ordering.js';
 import { startWeather, stopWeather, resetWeather } from '../../core/meetingWeather.js';
-import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES, REST_CONTEXTS, REST_MAX_MINUTES } from '../../core/config.js';
-import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications } from '../../core/localNotify.js';
+import { EXEMPT_BUDGET_BY_CONTEXT, ORDER_TRIP_LIMIT, PHONE_OPEN_MAX_MINUTES, REST_CONTEXTS, REST_RULES } from '../../core/config.js';
+import { breakWindow, upcomingBreaks, STUDY_BREAK_MIN } from '../../core/study.js';
+import { DATE_TOPICS } from '../../features/date/topics.js';
+import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications, scheduleStudyBreaks, cancelStudyBreaks } from '../../core/localNotify.js';
 import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest, localizePhoneOpen, toLocalMs } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=82';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=83';
 
 export function init() {
     register('view-focus', {
@@ -107,6 +109,9 @@ export function init() {
     // 主持人開放使用手機（開會、上課）
     initPhoneOpen();
 
+    // 讀書會（番茄鐘、問題板）、約會話題卡、認識新朋友的自我介紹卡與交換聯絡方式
+    initContextExtras();
+
     // 需要用手機：宣告意圖
     const btnIntent = document.getElementById('btn-declare-intent');
     if (btnIntent) btnIntent.onclick = handleDeclareIntent;
@@ -138,7 +143,7 @@ export function init() {
     document.getElementById('btn-end-session').onclick = openLeaveSheet;
     bindSheet('leave-sheet', 'btn-leave-sheet-cancel');
     bindSheet('successor-sheet', 'btn-successor-sheet-cancel');
-    document.getElementById('btn-leave-end-all').onclick = () => { closeSheets(); handleEndSession(); };
+    document.getElementById('btn-leave-end-all').onclick = () => { closeSheets(); handleEndSession('host_ended'); };
     document.getElementById('btn-leave-self').onclick = () => {
         // 開會：主持人先離開要自己選接手的人
         if (state.amIHost && state.currentContext === 'meeting') { openSuccessorSheet(); return; }
@@ -236,9 +241,12 @@ function renderIntentButton() {
     if (!btn || !label) return;
     btn.classList.remove('is-active');
     if (phoneOpenActive()) {
-        // 主持人開放使用手機中／旅行休息中：大家都可以用，不用另外暫離（後端也會拒絕）
+        // 主持人開放使用手機中／旅行、約會休息中：大家都可以用，不用另外暫離（後端也會拒絕）
         btn.disabled = true;
         label.textContent = phoneOpenIsRest() ? t('休息中，不用暫離') : t('開放使用手機中，不用暫離');
+    } else if (studyOnBreak()) {
+        btn.disabled = true;
+        label.textContent = t('番茄鐘休息中，不用暫離');
     } else if (_intentRemaining !== null && _intentRemaining <= 0) {
         btn.disabled = true;
         label.textContent = t('暫離次數已用完');
@@ -443,7 +451,9 @@ export function applyPhoneOpen(serverPo) {
     const sameOpen = prev && po && prev.key === po.key;
     if (po && phoneOpenActive() && !sameOpen && state.currentPhase === 'ACTIVE') {
         if (phoneOpenIsRest()) {
-            showToast(t('休息時間開始，最多 {n} 分鐘，這段時間用手機不算分心', { n: REST_MAX_MINUTES }), 'info');
+            showToast(state.currentContext === 'date'
+                ? t('一起休息 {n} 分鐘，這段時間用手機不算分心', { n: restRule().minutes })
+                : t('休息時間開始，最多 {n} 分鐘，這段時間用手機不算分心', { n: restRule().minutes }), 'info');
         } else if (state.amIHost) {
             showToast(t('已開放使用手機'), 'success');
         } else if (phoneOpenTimed()) {
@@ -454,7 +464,9 @@ export function applyPhoneOpen(serverPo) {
         }
     }
     if (po && (phoneOpenTimed() || phoneOpenIsRest()) && phoneOpenActive()) {
-        schedulePhoneOpenEnd(Number(po.until_ms), phoneOpenIsRest() ? 'rest' : (isClassContext() ? 'class' : 'meeting'));
+        schedulePhoneOpenEnd(Number(po.until_ms), phoneOpenIsRest()
+            ? (state.currentContext === 'date' ? 'rest-date' : 'rest')
+            : (isClassContext() ? 'class' : 'meeting'));
     }
     if (prev && !phoneOpenActive() && sameOpen && prev.key !== _phoneOpenEndNoticed) {
         notePhoneOpenEnded();
@@ -550,18 +562,24 @@ export function renderPhoneOpenButton() {
     }
 }
 
-// ── 旅行：投票休息 ──
-// 在場一半以上（無條件進位，兩個人時一票就夠）按「休息一下」就開始，最長 30 分鐘；
-// 休息中一半以上按「結束休息」就結束。再按一次可以取消自己的票。
+// ── 投票休息：旅行、約會 ──
+// 旅行：在場一半以上（無條件進位，兩個人時一票就夠）按「休息一下」就開始，最長 30 分鐘；
+//   休息中一半以上按「結束休息」就結束。
+// 約會：兩個人都按才開始「一起休息」，固定 5 分鐘，不能提前結束（想結束就口頭說）。
+// 再按一次可以取消自己的票。
 const restAvailable = () => REST_CONTEXTS.includes(state.currentContext);
+const restRule = () => REST_RULES[state.currentContext] || REST_RULES.outdoor;
 
 function restNeeded() {
-    return Math.max(1, Math.ceil(presentMemberEntries().length / 2));
+    const n = presentMemberEntries().length;
+    return Math.max(1, restRule().needed === 'all' ? n : Math.ceil(n / 2));
 }
 
 function handleRestButton() {
     if (!restAvailable() || state.currentPhase !== 'ACTIVE') return;
-    const action = phoneOpenActive() && phoneOpenIsRest() ? 'REST_END_VOTE' : 'REST_VOTE';
+    const resting = phoneOpenActive() && phoneOpenIsRest();
+    if (resting && !restRule().endVote) return;   // 約會：時間到就自動結束
+    const action = resting ? 'REST_END_VOTE' : 'REST_VOTE';
     if (!sendAction(action)) {
         reconnectSilent();
         showToast(t('連線中斷，請再按一次'), 'warn');
@@ -577,7 +595,9 @@ export function applyRestVotes(votes, endVotes) {
         const newcomer = state.restVotes.find(uid => !prev.has(uid) && uid !== state.userId);
         if (newcomer && state.restVotes.length < restNeeded()) {
             const name = state.roomMembers?.[newcomer]?.nickname || t('有成員');
-            showToast(t('{name} 想休息一下，你也想的話按「休息一下」', { name }), 'info');
+            showToast(state.currentContext === 'date'
+                ? t('{name} 想一起休息 5 分鐘，你也想的話按「一起休息 5 分鐘」', { name })
+                : t('{name} 想休息一下，你也想的話按「休息一下」', { name }), 'info');
         }
     }
     renderRestButton();
@@ -598,6 +618,18 @@ export function renderRestButton() {
     const votes = resting ? (state.restEndVotes || []) : (state.restVotes || []);
     const mine = votes.includes(state.userId);
     const left = Math.max(0, restNeeded() - votes.length);
+    if (state.currentContext === 'date') {
+        // 約會：兩個人都按才開始，固定 5 分鐘，休息中只顯示剩餘時間
+        if (resting) {
+            btn.disabled = true;
+            label.textContent = t('一起休息中 · 剩 {time}', { time: fmtMmss(Number(state.phoneOpen.until_ms) - Date.now()) });
+        } else {
+            label.textContent = mine
+                ? t('等對方也按 · 再按取消')
+                : votes.length ? t('對方想休息一下 · 按這裡一起休息') : t('一起休息 5 分鐘');
+        }
+        return;
+    }
     if (resting) {
         label.textContent = mine
             ? t('想結束休息 · 還差 {n} 人（再按取消）', { n: left })
@@ -611,6 +643,187 @@ export function renderRestButton() {
                 ? t('{v} 人想休息 · 還差 {n} 人', { v: votes.length, n: left })
                 : t('休息一下');
     }
+}
+
+// ── 讀書會：番茄鐘（專心 25 分鐘、休息 5 分鐘，休息時大家都可以用手機）＋問題板 ──
+let _studyTimer = null;
+let _studyWasBreak = null;
+
+const isStudy = () => state.currentContext === 'study' && state.currentPhase === 'ACTIVE';
+const studyStart = () => toLocalMs(state.activeStartedMs);   // 後端時間點 → 手機時間
+function studyOnBreak(now = Date.now()) {
+    return isStudy() && !!studyStart() && breakWindow(studyStart(), now).onBreak;
+}
+
+// ROOM_UPDATE（wsHandlers）：聚會開始時間與問題板
+export function applyStudyState(activeStartedServerMs, questions) {
+    state.activeStartedMs = activeStartedServerMs || 0;
+    state.studyQuestions = Array.isArray(questions) ? questions : [];
+    renderStudy();
+    renderQuestionsList();
+}
+
+function renderStudy() {
+    const timerEl = document.getElementById('study-pomodoro');
+    const label = document.getElementById('study-pomodoro-label');
+    const qBtn = document.getElementById('btn-study-questions');
+    const qLabel = document.getElementById('study-questions-label');
+    const on = isStudy() && !!studyStart();
+    if (timerEl) timerEl.style.display = on ? '' : 'none';
+    if (qBtn) qBtn.style.display = isStudy() ? '' : 'none';
+    if (!on) {
+        clearInterval(_studyTimer); _studyTimer = null; _studyWasBreak = null;
+        cancelStudyBreaks();
+        return;
+    }
+    const now = Date.now();
+    const w = breakWindow(studyStart(), now);
+    timerEl.classList.toggle('is-active', w.onBreak);
+    label.textContent = w.onBreak
+        ? t('番茄鐘休息中 · 剩 {time}，可以用手機', { time: fmtMmss(w.breakEnd - now) })
+        : t('專心中 · {time} 後休息 {n} 分鐘', { time: fmtMmss(w.breakStart - now), n: STUDY_BREAK_MIN });
+    if (qLabel) {
+        const qs = state.studyQuestions || [];
+        const solved = qs.filter(q => q.solved).length;
+        qLabel.textContent = qs.length ? t('問題板 · {n} 題（已解決 {s} 題）', { n: qs.length, s: solved }) : t('問題板');
+    }
+    if (_studyWasBreak !== w.onBreak) {   // 專心／休息切換：暫離按鈕跟著變、提示一下
+        if (_studyWasBreak !== null && document.visibilityState === 'visible') {
+            showToast(w.onBreak ? t('番茄鐘休息 {n} 分鐘，可以用手機了', { n: STUDY_BREAK_MIN }) : t('休息結束，繼續專心'), 'info');
+        }
+        _studyWasBreak = w.onBreak;
+        if (_intentEndMs <= Date.now()) renderIntentButton();
+    }
+    if (document.visibilityState === 'visible') scheduleStudyBreaks(upcomingBreaks(studyStart(), now, 4));
+    if (!_studyTimer) _studyTimer = setInterval(renderStudy, 1000);
+}
+
+function renderQuestionsList() {
+    const list = document.getElementById('questions-list');
+    if (!list) return;
+    const qs = state.studyQuestions || [];
+    list.innerHTML = '';
+    if (!qs.length) {
+        const li = document.createElement('li');
+        li.className = 'questions-empty';
+        li.textContent = t('還沒有問題，卡住的時候寫下來吧。');
+        list.appendChild(li);
+        return;
+    }
+    for (const q of qs) {
+        const li = document.createElement('li');
+        li.className = 'questions-item' + (q.solved ? ' is-solved' : '');
+        const check = document.createElement('button');
+        check.type = 'button';
+        check.className = 'questions-check';
+        check.setAttribute('aria-label', q.solved ? t('改回未解決') : t('標記為已解決'));
+        check.textContent = q.solved ? '✓' : '';
+        check.onclick = () => { if (!sendAction('TOGGLE_QUESTION', { id: q.id })) reconnectSilent(); };
+        const body = document.createElement('div');
+        body.className = 'questions-body';
+        const text = document.createElement('p');
+        text.className = 'questions-text';
+        text.textContent = q.text;
+        const by = document.createElement('p');
+        by.className = 'questions-by';
+        by.textContent = q.nickname || t('成員');
+        body.append(text, by);
+        li.append(check, body);
+        list.appendChild(li);
+    }
+}
+
+function submitQuestion() {
+    const input = document.getElementById('question-input');
+    const text = (input?.value || '').trim();
+    if (!text) return;
+    if (!sendAction('ADD_QUESTION', { text })) { reconnectSilent(); showToast(t('連線中斷，請再按一次'), 'warn'); return; }
+    input.value = '';
+}
+
+// ── 約會話題卡（只在自己這支手機抽，不同步） ──
+let _topicOrder = [];
+function nextDateTopic() {
+    if (!_topicOrder.length) _topicOrder = DATE_TOPICS.map((_, i) => i).sort(() => Math.random() - 0.5);
+    const topic = DATE_TOPICS[_topicOrder.pop()];
+    const el = document.getElementById('date-topic-text');
+    if (el) el.textContent = state.lang === 'en' ? topic.en : topic.zh;
+}
+
+// ── 認識新朋友：自我介紹卡（顯示自己的資料；主持人按下時同時開始錄音，之後可以生成報紙複習） ──
+function openIntroCard() {
+    const p = state.currentProfile || {};
+    const name = p.nickname || state.myNickname || t('我');
+    document.getElementById('intro-card-name').textContent = name;
+    const img = document.getElementById('intro-card-avatar');
+    const fallback = document.getElementById('intro-card-avatar-fallback');
+    if (p.photoURL) { img.src = p.photoURL; img.hidden = false; fallback.hidden = true; }
+    else { img.hidden = true; fallback.hidden = false; fallback.textContent = name.trim().charAt(0).toUpperCase() || '?'; }
+    const tags = document.getElementById('intro-card-tags');
+    tags.innerHTML = '';
+    for (const tag of (Array.isArray(p.interests) ? p.interests : [])) {
+        const chip = document.createElement('span');
+        chip.className = 'intro-card-tag';
+        chip.textContent = tag;
+        tags.appendChild(chip);
+    }
+    document.getElementById('intro-card-bio').textContent = p.bio || '';
+    document.getElementById('intro-card-hint').textContent = state.currentUser
+        ? ((p.interests || []).length || p.bio ? '' : t('到「個人資料」加上興趣標籤和自我介紹，下次就會顯示在這裡。'))
+        : t('登入後可以加上興趣標籤和自我介紹。');
+    document.getElementById('intro-card-modal').classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+    // 只有主持人按的時候開始錄音（其他人按不會錄）
+    if (state.amIHost && !state.liveTranscript.active) {
+        startLiveTranscript().then(() => {
+            if (state.liveTranscript.active) showToast(t('已開始錄音，聚會結束後可以生成報紙複習'), 'info');
+        });
+    }
+}
+
+function initContextExtras() {
+    // 讀書會問題板
+    document.getElementById('btn-study-questions')?.addEventListener('click', () => { renderQuestionsList(); openSheet('questions-sheet'); });
+    bindSheet('questions-sheet', 'btn-questions-sheet-cancel');
+    document.getElementById('btn-question-add')?.addEventListener('click', submitQuestion);
+    document.getElementById('question-input')?.addEventListener('keydown', (e) => {
+        if (isImeComposing(e)) return;
+        if (e.key === 'Enter') { e.preventDefault(); submitQuestion(); }
+    });
+    // 約會話題卡（遊戲區裡，只有約會情境顯示）
+    const topicModal = document.getElementById('date-topic-modal');
+    document.getElementById('btn-date-topics')?.addEventListener('click', () => {
+        closeSheets(); nextDateTopic(); topicModal?.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+    });
+    document.getElementById('btn-date-topic-next')?.addEventListener('click', nextDateTopic);
+    document.getElementById('btn-date-topic-close')?.addEventListener('click', () => topicModal?.classList.add('hidden'));
+    topicModal?.addEventListener('click', (e) => { if (e.target === topicModal) topicModal.classList.add('hidden'); });
+    // 認識新朋友：自我介紹卡
+    const introModal = document.getElementById('intro-card-modal');
+    document.getElementById('btn-intro-card')?.addEventListener('click', openIntroCard);
+    document.getElementById('btn-intro-card-close')?.addEventListener('click', () => introModal?.classList.add('hidden'));
+    introModal?.addEventListener('click', (e) => { if (e.target === introModal) introModal.classList.add('hidden'); });
+    // 認識新朋友：主持人收尾時先交換聯絡方式（聚會在這時結算）
+    document.getElementById('btn-leave-exchange')?.addEventListener('click', () => { closeSheets(); handleEndSession('exchange_contacts'); });
+    const reset = () => {
+        clearInterval(_studyTimer); _studyTimer = null; _studyWasBreak = null;
+        state.activeStartedMs = 0; state.studyQuestions = [];
+        cancelStudyBreaks();
+        topicModal?.classList.add('hidden');
+        introModal?.classList.add('hidden');
+        renderStudy();
+    };
+    events.on('session:joined', reset);
+    events.on('session:cleanup', reset);
+}
+
+function renderContextButtons() {
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+    const active = state.currentPhase === 'ACTIVE';
+    show('btn-intro-card', active && state.currentContext === 'social');
+    show('btn-date-topics', state.currentContext === 'date');
+    renderStudy();
 }
 
 // 老師限時開放結束後 10 分鐘內：列出還沒回到 App 的學生（在 App 內關螢幕的人也會在名單上）
@@ -641,7 +854,7 @@ export function refreshFocusMascot() {
         if (sc) sceneCard.classList.add(sc);
         // 有對應的卡通場景圖 → 場景卡改用圖片當背景、寵物坐到圖上的座位（見 redesign.css「情境場景：卡通插畫」）
         sceneCard.classList.toggle('has-scene', !!sc);
-        // 家庭、自習、上課：寵物坐在桌子後面（下半身被桌緣切掉，不上下晃）
+        // 家庭、讀書會、上課：寵物坐在桌子後面（下半身被桌緣切掉，不上下晃）
         sceneCard.classList.toggle('pet-behind', ['family', 'study', 'class'].includes(state.currentContext));
     }
 
@@ -653,7 +866,8 @@ export function refreshFocusMascot() {
     updateIntentAvailability();  // 依情境決定意圖按鈕顯示/隱藏
     updateOrderButton();         // 依情境決定點餐按鈕顯示/隱藏
     renderPhoneOpenButton();     // 開會、上課：主持人開放使用手機
-    renderRestButton();          // 旅行：投票休息
+    renderRestButton();          // 旅行、約會：投票休息
+    renderContextButtons();      // 讀書會、約會話題卡、認識新朋友
     if (!orb || !petImg) return;
     const face = state.meetingGroupPetFace || '';
     if (sceneCard) sceneCard.classList.toggle('has-pet', !!face);  // 有真寵物 → 藏掉預設球
@@ -850,6 +1064,7 @@ function openLeaveSheet() {
     const isClass = state.currentContext === 'class';
     setText('leave-sheet-title', isHost ? (isClass ? t('結束這堂課') : t('結束或離開')) : t('離開聚會'));
     show('btn-leave-end-all', isHost);
+    show('btn-leave-exchange', isHost && state.currentContext === 'social');
     // 主持人是最後一個在場的人時，離開就等於結束，只留「結束整場」一個選項；
     // 上課老師也只能結束整場（不然主持權會交到學生手上）
     show('btn-leave-self', !isHost || (othersPresent && !isClass));
@@ -1032,6 +1247,7 @@ function startLiveRecorderChunk() {
 
     live.mediaRecorder = recorder;
     live.currentChunks = [];
+    const chunkStartedAt = Date.now();   // 這段實際開始錄的時間（跟其他手機的逐字稿對齊用）
 
     recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -1050,9 +1266,9 @@ function startLiveRecorderChunk() {
         live.currentChunks = [];
 
         if (blob.size >= 1024) {
-            const offsetMs = live.nextOffsetMs;
-            live.nextOffsetMs += live.chunkMs;
-            live.queue.push({ blob, offsetMs, mimeType: blobType });
+            const offsetMs = Math.max(0, chunkStartedAt - live.startedAtMs);
+            live.nextOffsetMs = offsetMs + live.chunkMs;
+            live.queue.push({ blob, offsetMs, startedAt: chunkStartedAt, mimeType: blobType });
             processLiveTranscriptQueue();
         } else if (live.active) {
             setLiveTranscriptStatus('錄音片段太短，請持續說話幾秒');
@@ -1241,6 +1457,8 @@ async function transcribeLiveChunk(chunk) {
     const form = new FormData();
     form.append('file', chunk.blob, `live-${chunk.offsetMs}.${ext}`);
     form.append('started_at_ms_offset', String(chunk.offsetMs));
+    // 換成伺服器時間：多人同時錄音時，後端靠它把各支手機的逐字稿排在同一條時間軸上、去掉重複的句子
+    form.append('chunk_started_server_ms', String(Math.round(chunk.startedAt - (state.serverClockOffset || 0))));
     if (languageEl?.value) form.append('language', languageEl.value);
     if (speakerCount > 0) {
         form.append('min_speakers', String(speakerCount));
@@ -1395,10 +1613,9 @@ async function uploadCapturedPhoto(file, { saved = false } = {}) {
 }
 
 // 結束整場聚會（只有主持人；後端也會擋）。
-async function handleEndSession() {
+async function handleEndSession(reason = 'host_ended') {
     if (state.liveTranscript.active) stopLiveTranscript('聚會結束，已停止即時轉文字');
     const mins = state.sessionStartTime ? Math.round((Date.now() - state.sessionStartTime) / 60000) : 0;
-    const reason = 'host_ended';
     const roomId = state.roomId;
     let sentByWs = false;
 
@@ -1471,6 +1688,7 @@ async function _saveSpeechPreviewText(text) {
                     started_at_ms: state.liveTranscript?.startedAtMs
                         ? Date.now() - state.liveTranscript.startedAtMs
                         : 0,
+                    abs_ms: Math.round(Date.now() - (state.serverClockOffset || 0)),
                     duration_sec: 0,
                 }],
             }),

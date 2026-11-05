@@ -2419,3 +2419,52 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 /* 總結頁的說明（提前離開、0 分原因）：在標點處換行，不要把一句話從中間切開 */
 #view-summary #summary-host-hint { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* ── 讀書會：番茄鐘狀態列（沿用暫離按鈕的樣子，只是顯示、不能按）＋問題板 ── */
+#view-focus .pa-study-timer { cursor: default; }
+#view-focus .pa-study-timer:active { transform: none; }
+.questions-hint { font-size: 12px; color: var(--brown-50); line-height: 1.5; margin: -4px 4px 10px; }
+.questions-list { list-style: none; margin: 0 0 10px; padding: 0; max-height: 42vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.questions-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #fff; border-radius: var(--r-md); box-shadow: 0 1px 4px rgba(79,53,26,.06); }
+.questions-check { flex: 0 0 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--brown-25); background: #fff; color: #fff; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.questions-item.is-solved .questions-check { background: #4f8a62; border-color: #4f8a62; }
+.questions-body { flex: 1; min-width: 0; }
+.questions-text { margin: 0; font-size: 15px; font-weight: 600; color: var(--brown); line-height: 1.45; overflow-wrap: anywhere; }
+.questions-item.is-solved .questions-text { color: var(--brown-45); text-decoration: line-through; }
+.questions-by { margin: 2px 0 0; font-size: 11px; color: var(--brown-45); }
+.questions-empty { padding: 14px; text-align: center; font-size: 13px; color: var(--brown-45); background: rgba(255,255,255,.6); border-radius: var(--r-md); }
+.questions-add { display: flex; gap: 8px; margin-bottom: 10px; }
+.questions-add .intent-reason-input { flex: 1; min-width: 0; }
+.questions-add .btn { flex: 0 0 auto; width: auto; height: 44px; margin: 0; padding: 0 18px; font-size: 15px; font-weight: 600; }
+
+/* ── 約會話題卡 ── */
+.date-topic-text { margin: 6px 0 4px; min-height: 96px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 18px 14px; background: #fff; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--brown-10); font-size: 19px; font-weight: 700; line-height: 1.55; color: var(--brown); text-wrap: pretty; }
+
+/* ── 認識新朋友：自我介紹卡 ── */
+.intro-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding-right: 28px; }
+.intro-card-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: 0 0 64px; }
+.intro-card-avatar-fallback { display: flex; align-items: center; justify-content: center; background: rgba(224,120,48,.14); color: var(--accent-fire); font-size: 26px; font-weight: 800; }
+.intro-card-avatar-fallback[hidden] { display: none; }
+.intro-card-head h3 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+.intro-card-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.intro-card-tags:empty { display: none; }
+.intro-card-tag { padding: 6px 12px; border-radius: var(--r-pill); background: #fff; box-shadow: inset 0 0 0 1px var(--brown-10); font-size: 14px; font-weight: 600; color: var(--brown); }
+.intro-card-bio { margin: 12px 0 0; font-size: 15px; line-height: 1.6; color: var(--brown); white-space: pre-wrap; overflow-wrap: anywhere; }
+.intro-card-bio:empty, .intro-card-hint:empty { display: none; }
+.intro-card-hint { margin-top: 10px !important; }
+
+/* ── 聚會總結：情境小結、交換聯絡方式 ── */
+#view-summary .ps-context-note { margin: 12px 0 0; padding: 12px 16px; background: #fff; border-radius: var(--r-lg); font-size: 15px; font-weight: 700; color: var(--brown); text-align: center; line-height: 1.5; text-wrap: pretty; }
+#view-summary .ps-exchange-card { background: #fff; border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 14px; box-shadow: inset 0 0 0 1.5px rgba(79,138,98,.35); }
+#view-summary .ps-exchange-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#view-summary .ps-exchange-title { margin: 0; font-size: 16px; font-weight: 800; color: var(--brown); }
+#view-summary .ps-exchange-timer { padding: 4px 10px; border-radius: var(--r-pill); background: rgba(79,138,98,.14); color: #3f7a52; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#view-summary .ps-exchange-sub { margin: 6px 0 10px; font-size: 13px; color: var(--brown-55); line-height: 1.5; text-wrap: pretty; }
+#view-summary .ps-exchange-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 34vh; overflow-y: auto; }
+#view-summary .ps-exchange-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
+#view-summary .ps-exchange-row + .ps-exchange-row { border-top: 1px solid var(--brown-08); }
+#view-summary .ps-exchange-avatar { flex: 0 0 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(224,120,48,.14); color: var(--accent-fire); font-weight: 800; }
+#view-summary .ps-exchange-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--brown); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-summary .ps-exchange-add { flex: 0 0 auto; height: 34px; padding: 0 14px; border: none; border-radius: var(--r-pill); background: var(--brown); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+#view-summary .ps-exchange-add:disabled { background: var(--brown-10); color: var(--brown-55); cursor: default; }
+#view-summary .ps-exchange-empty { justify-content: center; color: var(--brown-45); font-size: 13px; }

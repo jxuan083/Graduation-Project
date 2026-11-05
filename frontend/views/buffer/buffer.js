@@ -12,10 +12,11 @@ import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { reconnectSilent } from '../../core/session.js';
-import { vibrate } from '../../core/haptics.js?v=82';
+import { vibrate } from '../../core/haptics.js?v=83';
 import { getLockState } from '../../core/lockstate.js';
-import { setGraceCountdown, phoneOpenActivity, travelGraceActivity } from '../../core/liveActivity.js';
-import { phoneOpenActive, phoneOpenUntilMs } from '../../core/phoneOpen.js';
+import { setGraceCountdown, phoneOpenActivity, travelGraceActivity, studyBreakActivity } from '../../core/liveActivity.js';
+import { phoneOpenActive, phoneOpenUntilMs, toLocalMs } from '../../core/phoneOpen.js';
+import { breakWindow, breakOverlapMs } from '../../core/study.js';
 import { syncAwayReport } from '../../core/awayReport.js';
 import { movingMsFromSummary, deviationsDue } from '../../core/travel.js';
 
@@ -46,8 +47,11 @@ export function init() {
     events.on('ws:open', () => {
         if (state.currentPhase !== 'ACTIVE') return;
         if (state.pendingDeviation > 0) {
-            sendAction('LOG_DEVIATION', { count: state.pendingDeviation });
+            const payload = { count: state.pendingDeviation };
+            if (state.pendingDeviationAt) payload.at_ms = state.pendingDeviationAt;
+            sendAction('LOG_DEVIATION', payload);
             state.pendingDeviation = 0;
+            state.pendingDeviationAt = 0;
         }
         // 從背景回來時 WS 多半已斷，當下那次「回到 App」的通知送不出去；重連後補報，
         // 否則後端會以為暫離一直沒回來（之後被當成超時、甚至自動離開）。
@@ -71,6 +75,10 @@ function reportVisible() {
 // 專心上課的老師：可以自由用手機、不計分（開會的主持人照舊）
 const isClassTeacher = () => state.currentContext === 'class' && !!state.amIHost;
 
+// 讀書會番茄鐘：聚會開始時間換成手機時間（不是讀書會或還沒開始 → 0）
+const studyStartMs = () => (state.currentContext === 'study' ? toLocalMs(state.activeStartedMs) : 0);
+const studyWindow = (now = Date.now()) => (studyStartMs() ? breakWindow(studyStartMs(), now) : null);
+
 function syncGraceCountdown() {
     if (document.visibilityState !== 'visible') return;
     if (isClassTeacher()) {   // 老師離開 App 不倒數、不回報
@@ -82,6 +90,12 @@ function syncGraceCountdown() {
     // 主持人開放使用手機中：跳出去顯示開放狀態（限時的倒數到結束），不是寬限倒數
     if (inSession && phoneOpenActive()) {
         setGraceCountdown(true, getGraceMs(), phoneOpenActivity(state.phoneOpen, state.currentContext));
+        syncAwayReport(false);
+        return;
+    }
+    const sw = inSession ? studyWindow() : null;
+    if (sw && sw.onBreak) {   // 讀書會番茄鐘休息中：跳出去倒數到休息結束，不是寬限倒數
+        setGraceCountdown(true, getGraceMs(), studyBreakActivity(sw.breakEnd));
         syncAwayReport(false);
         return;
     }
@@ -112,8 +126,10 @@ function handleVisibilityChange() {
         state.hiddenAt = null;
         // 暫離窗口、帶出 App 點餐、主持人開放使用手機的時間內回來：不算分心、不跳警告，直接回聚會畫面。
         // （開放中回來不會結束開放；「直到結束」的開放若在離開期間已結束，由後端在收到「回到 App」時補算。）
+        const sw = studyWindow();
         const backWithinExemption = Math.max(state.exemptUntil || 0, state.orderTripUntil || 0, phoneOpenUntilMs()) > Date.now()
-            || state.deviationDeadline === Infinity;   // 離開時在「直到結束」的開放中：補算交給後端
+            || state.deviationDeadline === Infinity    // 離開時在「直到結束」的開放中：補算交給後端
+            || !!(sw && sw.onBreak && hiddenAt && hiddenAt >= sw.breakStart);   // 讀書會：同一次休息裡離開又回來
         state.exemptUntil = 0;      // 回到 App 專心 → 這次暫離結束（後端也是這樣算）
         state.orderTripUntil = 0;   // 帶出點餐也一樣，回來就結束
         if (backWithinExemption) {
@@ -183,8 +199,18 @@ async function resolveVisibleReturn(hiddenAt) {
         if (movingMs > 0) state.deviationDeadline += movingMs;
     }
 
+    // 讀書會：離開期間碰到番茄鐘休息，那段不算分心（同旅行扣掉移動時間的做法）
+    const studyStart = studyStartMs();
+    if (studyStart && hiddenAt) state.deviationDeadline += breakOverlapMs(studyStart, hiddenAt, Date.now());
+
     // 情境 2：切去別的 app（之後有沒有鎖螢幕都一樣）→ 補算到現在 + 顯示倒數。
     reconcileDeviations();
+    const swNow = studyWindow();
+    if (swNow && swNow.onBreak) {   // 回來時正在休息：不用跳警告頁
+        endCognitiveBuffer(true);
+        reportVisible();
+        return;
+    }
     startCognitiveBuffer();
     reportVisible();
 }
@@ -212,16 +238,20 @@ function reconcileDeviations() {
     if (now < state.deviationDeadline) return 0;
 
     const count = deviationsDue(state.deviationDeadline, now, getGraceMs());
-    logDeviation(count);
+    // 這批分心第一次發生在截止時間那一刻（不是現在回報的時間），換成伺服器時間一起送（約會的「誰先拿起手機」）
+    logDeviation(count, state.deviationDeadline - (Number(state.serverClockOffset) || 0));
     state.deviationDeadline += count * getGraceMs(); // 推進後必定 > now
     return count;
 }
 
-function logDeviation(count) {
+function logDeviation(count, atServerMs = 0) {
     if (count <= 0) return;
-    if (!sendAction('LOG_DEVIATION', { count })) {
-        // WS 斷線：暫存，重連後補送，並嘗試自動重連
+    const payload = { count };
+    if (atServerMs > 0) payload.at_ms = Math.round(atServerMs);
+    if (!sendAction('LOG_DEVIATION', payload)) {
+        // WS 斷線：暫存，重連後補送，並嘗試自動重連（第一次發生的時間取最早的）
         state.pendingDeviation = (state.pendingDeviation || 0) + count;
+        if (payload.at_ms && (!state.pendingDeviationAt || payload.at_ms < state.pendingDeviationAt)) state.pendingDeviationAt = payload.at_ms;
         reconnectSilent();
     }
 }

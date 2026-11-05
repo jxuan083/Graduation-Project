@@ -13,6 +13,8 @@ const ORDER_REMIND_ID = 8811;  // 帶出點餐：還在點餐嗎？
 const ORDER_END_ID = 8812;     // 帶出點餐：時間到，開始算分心
 const OPEN_WARN_ID = 8821;     // 老師限時開放：剩 1 分鐘
 const OPEN_END_ID = 8822;      // 老師限時開放：時間到
+const STUDY_BASE_ID = 8840;    // 讀書會番茄鐘：接下來幾次休息的開始與結束（8840～8847）
+const STUDY_SLOTS = 4;
 const WARN_LEAD_SEC = 20;      // 到期前幾秒先提醒
 
 // 通知按鈕組：一般到期通知可延長或離開；已延長過的只剩離開
@@ -166,11 +168,12 @@ export async function schedulePhoneOpenEnd(untilMs, variant) {
     const granted = await ensureNotifyPermission();
     if (!granted) return false;
     _openScheduledFor = untilMs;
-    const isRest = variant === 'rest';
+    const isRest = variant === 'rest' || variant === 'rest-date';
     const notifications = [{
         id: OPEN_END_ID,
         title: isRest ? t('休息時間到了') : t('開放時間結束'),
-        body: isRest ? t('已經休息 30 分鐘了，回到 App 吧，現在離開會開始算分心。')
+        body: variant === 'rest-date' ? t('5 分鐘的休息結束了，回到 App 吧，現在離開會開始算分心。')
+            : isRest ? t('已經休息 30 分鐘了，回到 App 吧，現在離開會開始算分心。')
             : variant === 'class' ? t('回到課堂吧，現在離開 App 會開始算分心。') : t('回到聚會吧，現在離開 App 會開始算分心。'),
         schedule: { at: new Date(untilMs) },
     }];
@@ -198,4 +201,52 @@ export async function cancelPhoneOpenNotifications() {
     try {
         await plugin.cancel({ notifications: [{ id: OPEN_WARN_ID }, { id: OPEN_END_ID }] });
     } catch (_) { /* noop */ }
+}
+
+// 讀書會番茄鐘：先排好接下來幾次「休息開始」「休息結束」的通知（時間固定，手機自己排；回到 App 時再重排）。
+let _studyKey = '';
+export async function scheduleStudyBreaks(breaks) {
+    const plugin = getPlugin();
+    if (!plugin || !Array.isArray(breaks) || !breaks.length) return false;
+    const key = breaks.map(b => b.start).join(',') + ':' + state_lang();
+    if (key === _studyKey) return true;
+    const granted = await ensureNotifyPermission();
+    if (!granted) return false;
+    await cancelStudyBreaks();
+    _studyKey = key;
+    const now = Date.now();
+    const notifications = [];
+    breaks.slice(0, STUDY_SLOTS).forEach((b, i) => {
+        if (b.start > now) notifications.push({
+            id: STUDY_BASE_ID + i * 2,
+            title: t('番茄鐘休息時間'),
+            body: t('休息 5 分鐘，可以用手機，也可以一起看看問題板。'),
+            schedule: { at: new Date(b.start) },
+        });
+        if (b.end > now) notifications.push({
+            id: STUDY_BASE_ID + i * 2 + 1,
+            title: t('休息結束，繼續讀書'),
+            body: t('回到 App 吧，現在離開會開始算分心。'),
+            schedule: { at: new Date(b.end) },
+        });
+    });
+    try {
+        if (notifications.length) await plugin.schedule({ notifications });
+        return true;
+    } catch (_) {
+        _studyKey = '';
+        return false;
+    }
+}
+
+export async function cancelStudyBreaks() {
+    _studyKey = '';
+    const plugin = getPlugin();
+    if (!plugin) return;
+    const ids = Array.from({ length: STUDY_SLOTS * 2 }, (_, i) => ({ id: STUDY_BASE_ID + i }));
+    try { await plugin.cancel({ notifications: ids }); } catch (_) { /* noop */ }
+}
+
+function state_lang() {
+    try { return localStorage.getItem('phubbing_lang') || 'zh'; } catch (_) { return 'zh'; }
 }

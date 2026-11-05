@@ -75,6 +75,9 @@ export const state = {
     restVotes: [],          // 旅行：想休息的人（uid）
     restEndVotes: [],       // 旅行：休息中想結束的人（uid）
     serverClockOffset: 0,   // 手機時間 − 伺服器時間（ROOM_UPDATE 帶 server_now_ms）：把房間裡的時間點換算成手機時間
+    activeStartedMs: 0,     // 聚會正式開始的時間（後端時間點；讀書會番茄鐘從這裡起算）
+    studyQuestions: [],     // 讀書會問題板 [{ id, by, nickname, text, solved }]
+    pendingDeviationAt: 0,  // 暫存分心裡第一次發生的時間（後端時間點；約會的「誰先拿起手機」）
 
     // === 好友 cache ===
     friendUidSet: new Set(),

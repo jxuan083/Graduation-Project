@@ -4,7 +4,7 @@
 // 不需要接 Mac 就能自我診斷。
 import { register, back } from '../../core/router.js';
 import { updateToggleUI } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=82';
+import { vibrate } from '../../core/haptics.js?v=83';
 import { canSaveToDevice, autoSavePhotos, setAutoSavePhotos } from '../../features/photos/controller.js';
 import {
     IS_NATIVE_APP,

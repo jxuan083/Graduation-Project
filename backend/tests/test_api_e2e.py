@@ -271,6 +271,70 @@ class ApiEndToEndTest(unittest.TestCase):
         hidden = {m["id"]: m.get("is_hidden") for m in self.call("GET", "/api/meetings", b)["meetings"]}
         self.assertTrue(hidden[room_id])                              # 前端會過濾 is_hidden
 
+    # ── 多支手機同時錄音：逐字稿對齊時間、區分說話者、去掉重複的句子 ──
+    def test_multi_phone_transcripts_merge(self):
+        a, b = str(uuid.uuid4()), str(uuid.uuid4())
+        room_id = self.call("POST", "/api/create_room", a, json={"context": "social"})["room_id"]
+        socks = {uid: self.connect(room_id, uid) for uid in (a, b)}
+        socks[a].send_json({"action": "START_SYNC"})
+        for ws in socks.values():
+            ws.send_json({"action": "SYNC_PROGRESS", "progress": 100})
+        for ws in socks.values():
+            self.until(ws, "ANCHOR_ESTABLISHED")
+        t0 = main.rooms[room_id]["active_started_ms"]
+        self.now_ms = t0 + 60_000
+
+        # 假的 Whisper：照順序回傳每一段錄音辨識出的句子（start/duration 是這段錄音內的秒數）
+        chunks = []
+        saved_stt = main._transcribe_audio_file
+        def fake_stt(path, language, min_speakers, max_speakers):
+            segs = chunks.pop(0)
+            return {"engine": "fake", "language": "zh", "diarization": False, "entries": [
+                {"speaker_uid": "SPEAKER_1", "speaker_name": "Speaker 1", "text": text,
+                 "started_at_ms": int(start * 1000), "duration_sec": dur, "source": "audio"}
+                for text, start, dur in segs]}
+        main._transcribe_audio_file = fake_stt
+        self.addCleanup(setattr, main, "_transcribe_audio_file", saved_stt)
+
+        def upload(uid, segs, chunk_started=None):
+            chunks.append(segs)
+            data = {"started_at_ms_offset": "0"}
+            if chunk_started is not None:
+                data["chunk_started_server_ms"] = str(chunk_started)
+            return self.call("POST", f"/api/meetings/{room_id}/transcripts/audio", uid,
+                             files={"file": ("c.webm", b"x" * 2048, "audio/webm")}, data=data)
+
+        # A、B 兩支手機在同一桌錄到同一段對話（B 晚 0.5 秒開始錄，辨識結果略有不同）
+        res_a = upload(a, [("我們明天去爬山好不好", 2.0, 3.0), ("要帶便當嗎", 6.0, 1.2)], t0 + 40_000)
+        upload(b, [("我們明天去爬山好不好？", 1.5, 3.0), ("要帶便當嗎", 5.6, 1.0), ("我帶水就好", 7.0, 1.0)], t0 + 40_500)
+        # A 的即時預覽也存了一份（講完那一刻）
+        self.call("POST", f"/api/meetings/{room_id}/transcripts", a, json={"entries": [
+            {"speaker_uid": a, "speaker_name": "A", "text": "我們明天去爬山好不好", "abs_ms": t0 + 45_300},
+        ]})
+        # 手機時鐘壞掉送來不合理的時間：不對齊、不參與合併，但照樣保留
+        upload(b, [("時鐘壞掉的這一句", 0.0, 1.0)], 946_684_800_000)
+
+        # 上傳回應：說話者以錄音者區分、時間換成聚會開始後第幾毫秒
+        first = res_a["entries"][0]
+        self.assertEqual(first["speaker_uid"], f"{a}:SPEAKER_1")
+        self.assertEqual(first["speaker_name"], f"{a[:8]}的錄音")
+        self.assertEqual(first["started_at_ms"], 42_000)
+
+        stored = list(main.db.collection("meetings").document(room_id).collection("transcripts").stream())
+        self.assertEqual(len(stored), 7)                                  # 原始資料全部保留
+        merged = self.call("GET", f"/api/meetings/{room_id}/transcripts", b)["transcripts"]
+        # 兩支手機辨識出同一句、時間也一樣時留哪一份都可以（可能帶問號），所以比對去掉標點後的文字
+        self.assertEqual([e["text"].rstrip("？") for e in merged],
+                         ["時鐘壞掉的這一句", "我們明天去爬山好不好", "要帶便當嗎", "我帶水就好"])
+        self.assertNotIn("abs_ms", merged[0])
+        speakers = {e["speaker_uid"].split(":")[0] for e in merged[1:]}
+        self.assertTrue(speakers <= {a, b})
+
+        paper = self.call("POST", f"/api/meetings/{room_id}/newspaper/generate", a)["newspaper"]
+        self.assertEqual(paper["stats"]["transcript_entries"], 4)
+        names = {p["nickname"] for p in paper["participation"]}
+        self.assertNotIn("Speaker 1", names)                               # 不會把兩支手機的 Speaker 1 當成同一人
+
 
 if __name__ == "__main__":
     unittest.main()

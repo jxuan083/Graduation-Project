@@ -25,6 +25,7 @@ from typing import List, Optional, Tuple
 from intent import charge_on_return, overage_deviations, within_exemption
 import ordering
 import phone_open
+import study
 
 REJOIN_LIMIT = 2                # 每場最多加回幾次
 AUTO_LEAVE_AFTER_SEC = 300      # 暫離窗口到期後多久沒回 App → 自動視為離開
@@ -144,8 +145,9 @@ def note_focus_break(room: dict, uid: str, now_ms: int) -> None:
     ap["focus_last_ts_ms"] = now_ms
 
 
-def record_deviation(room: dict, uid: str, count: int, now_ms: int) -> Tuple[int, int]:
+def record_deviation(room: dict, uid: str, count: int, now_ms: int, at_ms: Optional[int] = None) -> Tuple[int, int]:
     """記 count 次分心。回傳 (這一段的分心, 全場總分心)。
+    at_ms：這批分心「第一次」發生的時間（前端回來才補報，實際發生得更早）；記下每個人最早的一次（約會的「誰先拿起手機」）。
 
     members[uid].deviations 是畫面用的「這一段」計數（加回後歸零）；
     all_participants[uid].deviations 是計分用的累計，兩者分開加。
@@ -157,6 +159,9 @@ def record_deviation(room: dict, uid: str, count: int, now_ms: int) -> Tuple[int
     ap = (room.get("all_participants") or {}).get(uid)
     if ap is not None:
         ap["deviations"] = int(ap.get("deviations", 0) or 0) + count
+        first = min(now_ms, int(at_ms)) if at_ms else now_ms
+        if not ap.get("first_dev_at_ms") or first < int(ap["first_dev_at_ms"]):
+            ap["first_dev_at_ms"] = first
     note_focus_break(room, uid, now_ms)
     return m["deviations"], room["deviations"]
 
@@ -337,7 +342,7 @@ def note_left_app(room: dict, uid: str, left_at_ms: int, now_ms: int) -> bool:
         return False
     at = min(int(left_at_ms or now_ms), now_ms)
     if within_exemption(int(m.get("exempt_window_until_ms", 0) or 0), at) \
-            or ordering.within_order_trip(m, at) or phone_open.is_open(room, at):
+            or ordering.within_order_trip(m, at) or phone_open.is_open(room, at) or study.on_break(room, at):
         return False
     if not m.get("away_left_ms"):
         m["away_left_ms"] = at
@@ -365,6 +370,16 @@ def apply_abandoned(room: dict, end_ms: int) -> List[str]:
         all_part.setdefault(uid, {"nickname": m.get("nickname", ""), "deviations": 0})["abandoned"] = True
         out.append(uid)
     return out
+
+
+def first_distracted(room: dict) -> Optional[dict]:
+    """約會：誰先拿起手機（第一次被算分心最早的人）。沒有人分心回傳 None。"""
+    best = None
+    for uid, ap in (room.get("all_participants") or {}).items():
+        at = int((ap or {}).get("first_dev_at_ms", 0) or 0)
+        if at and (best is None or at < best[1]):
+            best = (uid, at, (ap or {}).get("nickname", ""))
+    return {"uid": best[0], "nickname": best[2], "at_ms": best[1]} if best else None
 
 
 def pick_successor(room: dict, exclude_uid: Optional[str], now_ms: int, rng=random) -> Optional[str]:

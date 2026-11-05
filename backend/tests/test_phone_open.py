@@ -139,5 +139,17 @@ class TestRestVote(unittest.TestCase):
         self.assertFalse(po.rest_vote(room("meeting"), "a", T0)[0])
 
 
+class TestDateRest(unittest.TestCase):
+    def test_both_must_agree_fixed_five_minutes_no_early_end(self):
+        r = room("date", "M", members=("h", "a"))
+        self.assertEqual(po.rest_needed(r), 2)
+        self.assertEqual(po.rest_vote(r, "h", T0)[2], "voted")
+        self.assertEqual(po.rest_vote(r, "a", T0 + 1000)[2], "started")
+        self.assertEqual(r["phone_open"]["until_ms"] - r["phone_open"]["since_ms"], 5 * MIN)
+        self.assertFalse(po.rest_end_vote(r, "h", T0 + MIN)[0])
+        self.assertTrue(po.is_open(r, T0 + 4 * MIN))
+        self.assertFalse(po.is_open(r, T0 + 6 * MIN))
+
+
 if __name__ == "__main__":
     unittest.main()

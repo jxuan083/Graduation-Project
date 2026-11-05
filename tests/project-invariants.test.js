@@ -369,10 +369,20 @@ test('phone opening: frontend mirrors backend modes, limits and grace; meeting b
 test('travel rest vote: frontend mirrors backend contexts and the 30-minute cap; rest button sits above the break button', () => {
   const py = read('backend/phone_open.py');
   const config = read('frontend/core/config.js');
-  const pyCtx = py.match(/REST_CONTEXTS = \{([^}]*)\}/)[1].match(/"(\w+)"/g).map(s => s.replace(/"/g, '')).sort();
-  const jsCtx = config.match(/REST_CONTEXTS = \[([^\]]*)\]/)[1].match(/'(\w+)'/g).map(s => s.replace(/'/g, '')).sort();
-  assert.deepEqual(jsCtx, pyCtx, 'REST_CONTEXTS 前後端不一致');
-  assert.equal(config.match(/REST_MAX_MINUTES = (\d+)/)[1], py.match(/REST_MAX_MINUTES = (\d+)/)[1]);
+  // 休息規則（旅行／約會）：人數門檻、分鐘數、能不能投票提前結束，前後端要一致
+  const pyRules = Object.fromEntries([...py.match(/REST_RULES = \{([\s\S]*?)\n\}/)[1]
+    .matchAll(/"(\w+)":\s*\{"minutes":\s*(\d+),\s*"needed":\s*"(\w+)",\s*"end_vote":\s*(True|False)\}/g)]
+    .map(([, k, m, n, e]) => [k, { minutes: Number(m), needed: n, endVote: e === 'True' }]));
+  const jsRules = Object.fromEntries([...config.match(/REST_RULES = \{([\s\S]*?)\n\};/)[1]
+    .matchAll(/(\w+):\s*\{\s*minutes:\s*(\d+),\s*needed:\s*'(\w+)',\s*endVote:\s*(true|false)\s*\}/g)]
+    .map(([, k, m, n, e]) => [k, { minutes: Number(m), needed: n, endVote: e === 'true' }]));
+  assert.ok(Object.keys(pyRules).length >= 2);
+  assert.deepEqual(jsRules, pyRules, 'REST_RULES 前後端不一致');
+  // 讀書會番茄鐘時間
+  const studyPy = read('backend/study.py');
+  const studyJs = read('frontend/core/study.js');
+  assert.equal(studyJs.match(/STUDY_FOCUS_MIN = (\d+)/)[1], studyPy.match(/FOCUS_MIN = (\d+)/)[1]);
+  assert.equal(studyJs.match(/STUDY_BREAK_MIN = (\d+)/)[1], studyPy.match(/BREAK_MIN = (\d+)/)[1]);
   const focus = read('frontend/views/focus/focus.html');
   assert.ok(focus.indexOf('id="btn-rest"') < focus.indexOf('id="btn-declare-intent"'));
   // 旅行不套用「跑出去沒回來 0 分」：前端不預備回報，後端也不標記

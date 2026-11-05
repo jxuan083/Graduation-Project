@@ -20,6 +20,9 @@ export function cleanupSession() {
     state.phoneOpen = null;
     state.restVotes = [];
     state.restEndVotes = [];
+    state.activeStartedMs = 0;
+    state.studyQuestions = [];
+    state.pendingDeviationAt = 0;
     state.myNickname = '';
     state.myProgress = 0;
     state.isReady = false;
@@ -46,6 +49,9 @@ export function resetSessionCounters() {
     state.phoneOpen = null;
     state.restVotes = [];
     state.restEndVotes = [];
+    state.activeStartedMs = 0;
+    state.studyQuestions = [];
+    state.pendingDeviationAt = 0;
     state.roomMembers = {};
     state.roomAllParticipants = {};
 }

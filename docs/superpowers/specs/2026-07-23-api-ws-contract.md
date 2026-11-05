@@ -102,6 +102,8 @@
 | `CLOSE_PHONES` | Acting host only; ends an until-end opening. Members still away are charged from end + grace when they report `visible` (`PHONE_OPEN_OVERAGE`) or at settlement. |
 | `REST_VOTE` | Travel only. Toggles the sender's "take a break" vote; at least half of present members (rounded up) starts a rest (`phone_open.mode = "rest"`, max 30 min) during which leaving the app is not a deviation. Broadcasts `ROOM_UPDATE`. |
 | `REST_END_VOTE` | Travel only, during a rest. Toggles the sender's "end break" vote; at least half ends it. Members still away are charged like an until-end opening. |
+| `ADD_QUESTION` | Study group only. Adds `{text}` (max 80 chars, 50 per room) to the shared question board; broadcasts `ROOM_UPDATE` with `questions`. |
+| `TOGGLE_QUESTION` | Study group only. Marks question `{id}` solved/unsolved (anyone). Broadcasts `ROOM_UPDATE`. |
 | `START_TABOO_GAME` | Starts Taboo game broadcast. |
 | `END_TABOO_GAME` | Ends Taboo game broadcast. |
 

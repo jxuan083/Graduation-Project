@@ -24,9 +24,15 @@ OPEN_MODES_BY_CONTEXT = {
     "class": ("timed", "until_end"),
 }
 MAX_OPEN_MINUTES = 180
-# 旅行：大家投票的「休息一下」
-REST_CONTEXTS = {"outdoor"}
-REST_MAX_MINUTES = 30
+# 大家投票的「休息一下」（mode = "rest"），規則依情境：
+#   旅行：在場一半以上（無條件進位）按下就開始，最長 30 分鐘，一半以上按「結束休息」可提前結束
+#   約會：兩個人都按才開始（全員），固定 5 分鐘，不能提前結束（想結束就口頭說）
+REST_RULES = {
+    "outdoor": {"minutes": 30, "needed": "half", "end_vote": True},
+    "date":    {"minutes": 5,  "needed": "all",  "end_vote": False},
+}
+REST_CONTEXTS = set(REST_RULES)
+REST_MAX_MINUTES = REST_RULES["outdoor"]["minutes"]
 # 離開 App 後幾秒開始算分心（與前端 buffer.js 的 GRACE_MS_BY_DIFFICULTY 一致）
 GRACE_SEC_BY_DIFFICULTY = {"L": 30, "M": 20, "H": 10}
 
@@ -190,10 +196,15 @@ def _present(room: dict):
     return [uid for uid, m in (room.get("members") or {}).items() if m is not None and m.get("state") != "LEFT"]
 
 
+def rest_rule(room: dict) -> Optional[dict]:
+    return REST_RULES.get(room.get("context"))
+
+
 def rest_needed(room: dict) -> int:
-    """開始／結束休息要幾票：在場人數的一半（無條件進位），兩個人時一票就夠。"""
+    """開始／結束休息要幾票：旅行是在場人數的一半（無條件進位，兩人時一票），約會是全員。"""
     n = len(_present(room))
-    return max(1, (n + 1) // 2)
+    rule = rest_rule(room) or {}
+    return max(1, n if rule.get("needed") == "all" else (n + 1) // 2)
 
 
 def _toggle_vote(room: dict, key: str, uid: str) -> bool:
@@ -211,7 +222,8 @@ def _toggle_vote(room: dict, key: str, uid: str) -> bool:
 def rest_vote(room: dict, uid: str, now_ms: int) -> Tuple[bool, str, str]:
     """按「休息一下」（再按一次取消）。回傳 (ok, 原因, 結果 voted/unvoted/started)；
     started 時另外回傳要補算的人放在 room["_rest_gap"]（呼叫端取走）。"""
-    if room.get("context") not in REST_CONTEXTS:
+    rule = rest_rule(room)
+    if not rule:
         return False, "這個情境沒有休息投票", ""
     if uid not in _present(room):
         return False, "你不在這場聚會裡", ""
@@ -225,7 +237,7 @@ def rest_vote(room: dict, uid: str, now_ms: int) -> Tuple[bool, str, str]:
         "mode": "rest",
         "by": uid,
         "since_ms": now_ms,
-        "until_ms": now_ms + REST_MAX_MINUTES * 60_000,
+        "until_ms": now_ms + rule["minutes"] * 60_000,
         "ended_ms": 0,
     }
     room["rest_votes"] = []
@@ -238,6 +250,8 @@ def rest_end_vote(room: dict, uid: str, now_ms: int) -> Tuple[bool, str, str]:
     po = current(room)
     if not po or po.get("mode") != "rest" or not is_open(room, now_ms):
         return False, "現在沒有在休息", ""
+    if not (rest_rule(room) or {}).get("end_vote"):
+        return False, "休息時間到了就會自動結束", ""
     if uid not in _present(room):
         return False, "你不在這場聚會裡", ""
     voted = _toggle_vote(room, "rest_end_votes", uid)

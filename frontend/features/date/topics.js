@@ -1,0 +1,28 @@
+// features/date/topics.js — 約會話題卡（只有約會情境的遊戲區會出現）
+// 把手機放在中間抽一張，兩個人輪流回答；題目偏輕鬆、慢慢變深，不會太私密。
+export const DATE_TOPICS = [
+    { zh: '最近一件讓你笑出來的小事是什麼？', en: 'What small thing made you laugh recently?' },
+    { zh: '如果明天突然放假一天，你會怎麼過？', en: 'If you suddenly had tomorrow off, how would you spend it?' },
+    { zh: '你最喜歡我們一起做過的哪件事？', en: 'What is your favorite thing we have done together?' },
+    { zh: '小時候最常玩的遊戲是什麼？', en: 'What game did you play most as a kid?' },
+    { zh: '有沒有一首歌，一聽到就會想起某段時光？', en: 'Is there a song that takes you back to a certain time?' },
+    { zh: '你理想中的週末早晨長什麼樣子？', en: 'What does your ideal weekend morning look like?' },
+    { zh: '最近有沒有想學、但還沒開始的東西？', en: 'Is there something you want to learn but haven’t started?' },
+    { zh: '如果可以立刻去一個地方旅行，你會選哪裡？', en: 'If you could travel anywhere right now, where would you go?' },
+    { zh: '你覺得自己最被低估的優點是什麼？', en: 'What is your most underrated strength?' },
+    { zh: '有什麼食物是你永遠吃不膩的？', en: 'What food could you never get tired of?' },
+    { zh: '最近一次覺得很有成就感是什麼時候？', en: 'When did you last feel really proud of yourself?' },
+    { zh: '你第一次見到我時，對我的印象是什麼？', en: 'What was your first impression of me?' },
+    { zh: '有沒有哪個習慣，是被我影響才開始的？', en: 'Is there a habit you picked up because of me?' },
+    { zh: '你心情不好的時候，最希望別人怎麼陪你？', en: 'When you feel down, how do you most want to be supported?' },
+    { zh: '如果要用三個詞形容今天的自己，會是哪三個？', en: 'Which three words describe you today?' },
+    { zh: '有沒有一部電影或一本書，改變過你的想法？', en: 'Is there a movie or book that changed how you think?' },
+    { zh: '你覺得十年後的我們，會在做什麼？', en: 'What do you think we will be doing ten years from now?' },
+    { zh: '有什麼事情是你一直想跟我一起做的？', en: 'What is something you have always wanted to do with me?' },
+    { zh: '你最近最常想到的一件事是什麼？', en: 'What has been on your mind the most lately?' },
+    { zh: '小時候的你，會怎麼看現在的自己？', en: 'What would your younger self think of you now?' },
+    { zh: '有沒有一個你很珍惜、但很少提起的回憶？', en: 'Is there a memory you treasure but rarely talk about?' },
+    { zh: '你覺得一段好的關係，最重要的是什麼？', en: 'What matters most in a good relationship?' },
+    { zh: '今天約會到現在，你最喜歡哪一刻？', en: 'What has been your favorite moment of today’s date so far?' },
+    { zh: '下次約會，你想去哪裡、做什麼？', en: 'Where would you like to go and what would you like to do on our next date?' },
+];

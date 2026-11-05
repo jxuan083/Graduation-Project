@@ -5,6 +5,16 @@
         <p class="ps-pre-title">PARTY RECAP</p>
         <p class="ps-title">聚會總結</p>
 
+        <!-- 認識新朋友：主持人選「交換聯絡方式」結束 → 5 分鐘交換時間＋成員名單（可在 App 裡加好友） -->
+        <div class="ps-exchange-card" id="summary-exchange-card" style="display:none;">
+            <div class="ps-exchange-head">
+                <p class="ps-exchange-title">交換聯絡方式時間</p>
+                <span class="ps-exchange-timer" id="summary-exchange-timer">5:00</span>
+            </div>
+            <p class="ps-exchange-sub" id="summary-exchange-sub">聚會已經結算，現在想加 LINE、IG 都可以。</p>
+            <ul class="ps-exchange-list" id="summary-exchange-list"></ul>
+        </div>
+
         <!-- 吉祥物卡 -->
         <div class="ps-mascot-card">
             <!-- 場景由 renderSummaryPet() 從「聚會中」的場景卡複製進來（沿用當場情境＋當場寵物）。
@@ -43,6 +53,8 @@
             <div class="ps-stat-card"><p class="ps-stat-val" id="summary-member-count">0</p><p class="ps-stat-label">人參與</p></div>
         </div>
         <p id="summary-host-hint" style="display:none;"></p>
+        <!-- 情境的結算小結：約會「誰先拿起手機」、讀書會「一起解決了幾個問題」 -->
+        <p id="summary-context-note" class="ps-context-note" style="display:none;"></p>
 
         <!-- 拿起手機的個人回饋：只有自己看得到、不影響分數（features/pickup/sessionPickups.js 填入） -->
         <div class="ps-pickup-card" id="summary-pickup-card" style="display:none;">

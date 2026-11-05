@@ -97,6 +97,20 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
             <span id="rest-btn-label">休息一下</span>
         </button>
+        <!-- 讀書會：番茄鐘狀態（專心 25 分鐘、休息 5 分鐘，休息時大家都可以用手機）＋問題板 -->
+        <div class="pa-intent-btn pa-study-timer" id="study-pomodoro" style="display:none;" aria-live="polite">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></svg>
+            <span id="study-pomodoro-label">專心中</span>
+        </div>
+        <button class="pa-intent-btn" id="btn-study-questions" type="button" style="display:none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span id="study-questions-label">問題板</span>
+        </button>
+        <!-- 認識新朋友：自我介紹卡（顯示自己的資料，拿給大家看；主持人按下時同時開始錄音） -->
+        <button class="pa-intent-btn" id="btn-intro-card" type="button" style="display:none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4"/><line x1="14.5" y1="10" x2="18" y2="10"/><line x1="14.5" y1="13.5" x2="17" y2="13.5"/></svg>
+            <span>自我介紹卡</span>
+        </button>
         <!-- 老師限時開放結束後：列出還沒回到 App 的學生（只有老師看得到） -->
         <div class="pa-open-away" id="phone-open-away" style="display:none;">
             <span class="pa-open-away-title">還沒回到 App</span>
@@ -186,6 +200,12 @@
                 </span>
                 <span class="pa-sheet-item-text"><strong>結束整場聚會</strong><small>所有人一起結算</small></span>
             </button>
+            <button class="pa-sheet-item" id="btn-leave-exchange" type="button" style="display:none;">
+                <span class="pa-sheet-item-icon" style="background:rgba(88,150,110,0.13);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f8a62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                </span>
+                <span class="pa-sheet-item-text"><strong>交換聯絡方式</strong><small>聚會在這時結算，接著 5 分鐘大家可以加 LINE、IG</small></span>
+            </button>
             <button class="pa-sheet-item" id="btn-leave-self" type="button">
                 <span class="pa-sheet-item-icon" style="background:rgba(155,121,85,0.13);">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9b7955" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -223,6 +243,12 @@
                 </span>
                 <span class="pa-sheet-item-text"><strong>發起關鍵字遊戲</strong><small>限時猜字卡</small></span>
             </button>
+            <button class="pa-sheet-item" id="btn-date-topics" type="button" style="display:none;">
+                <span class="pa-sheet-item-icon" style="background:rgba(214,92,110,0.12);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c9566a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+                </span>
+                <span class="pa-sheet-item-text"><strong>約會話題卡</strong><small>手機放中間抽一張，兩個人輪流回答</small></span>
+            </button>
             <button class="pa-sheet-cancel" id="btn-game-sheet-cancel" type="button">取消</button>
         </div>
     </div>
@@ -259,6 +285,49 @@
             <div class="intent-modal-actions">
                 <button id="btn-order-scan-cancel" class="btn secondary" type="button">取消</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 讀書會問題板：底部彈出（全組看得到，任何人都能打勾） -->
+    <div id="questions-sheet" class="pa-sheet hidden" role="dialog" aria-modal="true" aria-label="問題板">
+        <div class="pa-sheet-panel">
+            <div class="pa-sheet-grip"></div>
+            <p class="pa-sheet-title">問題板</p>
+            <p class="questions-hint">專心時卡住的問題先寫下來，休息時一起討論；解決了就打勾。</p>
+            <ul id="questions-list" class="questions-list"></ul>
+            <div class="questions-add">
+                <input id="question-input" class="text-input intent-reason-input" type="text" maxlength="80" placeholder="例如：第三章的公式怎麼推？" autocomplete="off" />
+                <button id="btn-question-add" class="btn primary orange" type="button">寫下</button>
+            </div>
+            <button class="pa-sheet-cancel" id="btn-questions-sheet-cancel" type="button">關閉</button>
+        </div>
+    </div>
+
+    <!-- 約會話題卡（只在自己這支手機，不同步） -->
+    <div id="date-topic-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="date-topic-title">
+        <div class="invite-card intent-card date-topic-card">
+            <button id="btn-date-topic-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+            <h3 id="date-topic-title">約會話題卡</h3>
+            <p class="hint">把手機放在中間，兩個人輪流回答。</p>
+            <p class="date-topic-text" id="date-topic-text"></p>
+            <div class="intent-modal-actions">
+                <button id="btn-date-topic-next" class="btn primary orange" type="button">換一張</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 認識新朋友：自我介紹卡（顯示自己的資料，拿給大家看） -->
+    <div id="intro-card-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="intro-card-name">
+        <div class="invite-card intent-card intro-card">
+            <button id="btn-intro-card-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+            <div class="intro-card-head">
+                <img id="intro-card-avatar" class="intro-card-avatar" alt="" hidden />
+                <span id="intro-card-avatar-fallback" class="intro-card-avatar intro-card-avatar-fallback" aria-hidden="true"></span>
+                <h3 id="intro-card-name"></h3>
+            </div>
+            <div id="intro-card-tags" class="intro-card-tags"></div>
+            <p id="intro-card-bio" class="intro-card-bio"></p>
+            <p id="intro-card-hint" class="hint intro-card-hint"></p>
         </div>
     </div>
 

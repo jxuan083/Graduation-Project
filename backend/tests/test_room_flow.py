@@ -610,6 +610,46 @@ class RoomFlowTest(unittest.TestCase):
                          json={"away_ms": 3 * MIN, "left_at_ms": 123})            # 手機時鐘亂掉的 left_at_ms 不採用
         self.assertEqual(main.rooms[room_id]["members"]["a"]["away_left_ms"], T0 + 17 * MIN)
 
+    def test_date_shows_who_picked_up_the_phone_first(self):
+        room_id, socks = self.start("a", context="date")
+        self.clock.now = T0 + 20 * MIN
+        socks["host"].send_json({"action": "LOG_DEVIATION", "count": 1, "at_ms": T0 + 15 * MIN})
+        self.until(socks["host"], "DEVIATION_RECORDED")
+        self.clock.now = T0 + 22 * MIN
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 2, "at_ms": T0 + 12 * MIN})   # 回來得晚，但其實更早分心
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.clock.now = T0 + 40 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        ended = self.until(socks["host"], "SESSION_ENDED")
+        self.assertEqual(ended["first_distracted"]["uid"], "a")
+
+    def test_date_with_nobody_distracted(self):
+        room_id, socks = self.start("a", context="date")
+        self.clock.now = T0 + 40 * MIN
+        socks["host"].send_json({"action": "END_SESSION"})
+        self.assertIsNone(self.until(socks["host"], "SESSION_ENDED")["first_distracted"])
+
+    def test_study_break_is_free_and_question_board_is_counted(self):
+        room_id, socks = self.start("a", context="study")
+        room = main.rooms[room_id]
+        self.clock.now = T0 + 27 * MIN                                   # 番茄鐘休息時段
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 3})
+        socks["a"].send_json({"action": "DECLARE_INTENT"})
+        self.assertIn("不用暫離", self.until(socks["a"], "INTENT_REJECTED")["reason"])
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 0)
+        socks["a"].send_json({"action": "ADD_QUESTION", "text": "積分第二題"})
+        qid = self.until(socks["host"], "ROOM_UPDATE")["room_state"]["questions"][0]["id"]
+        socks["host"].send_json({"action": "TOGGLE_QUESTION", "id": qid})
+        self.until(socks["a"], "ROOM_UPDATE")
+        socks["a"].send_json({"action": "ADD_QUESTION", "text": "第三章重點"})
+        self.until(socks["a"], "ROOM_UPDATE")
+        self.clock.now = T0 + 35 * MIN                                   # 回到專心時段：照算
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 1})
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 1)
+        socks["host"].send_json({"action": "END_SESSION"})
+        self.assertEqual(self.until(socks["host"], "SESSION_ENDED")["study_questions"], {"total": 2, "solved": 1})
+
     def test_ordering_is_not_available_in_formal_settings(self):
         room_id, socks = self.start("a", context="meeting")
         res = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))

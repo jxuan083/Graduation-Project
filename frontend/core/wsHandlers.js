@@ -13,13 +13,14 @@ import { startSessionPickupRecording, renderSessionPickupCard } from '../feature
 import { orderingPlugin } from './ordering.js';
 import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotify.js';
 import { renderMemberList } from '../features/members/render.js';
+import { sendFriendRequestByUid, loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes } from '../views/focus/focus.js?v=82';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes, applyStudyState } from '../views/focus/focus.js?v=83';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=82';
+} from '../views/sync-ritual/sync-ritual.js?v=83';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -80,7 +81,8 @@ function handleRoomUpdate(msg) {
     // 手機與伺服器的時差：房間裡的時間點（休息、限時開放的結束時間）都要先換算成手機時間再比
     if (Number.isFinite(msg.server_now_ms)) state.serverClockOffset = Date.now() - msg.server_now_ms;
     applyRestVotes(rs.rest_votes || [], rs.rest_end_votes || []);   // 旅行：投票休息
-    applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）、旅行休息
+    applyPhoneOpen(rs.phone_open || null);   // 主持人開放使用手機（開會、上課）、旅行／約會休息
+    applyStudyState(Number(rs.active_started_ms || 0), rs.questions || []);   // 讀書會番茄鐘、問題板
     refreshFocusMascot();
     renderMemberList(state.roomMembers);
     if (state.currentPhase === 'SYNC') renderSyncMembers(state.roomMembers);
@@ -175,6 +177,8 @@ function showLeftSummary(result) {
     setText('summary-member-count', Object.keys(state.roomMembers || {}).length || 1);
     renderSummaryPet({}, result.score ?? null);
     renderScoreRanking([]);
+    renderContextNote(null);
+    renderExchangeCard(null);
 
     const canRejoin = !result.session_ended && Number(result.rejoins_left || 0) > 0;
     if (canRejoin) state.leftRoomId = roomId;
@@ -279,11 +283,90 @@ function handleSessionEnded(msg) {
     }
 
     renderScoreRanking(ranking);
+    renderContextNote(msg);
+    renderExchangeCard(msg.reason === 'exchange_contacts' ? ranking : null);
     const rejoinBtn = document.getElementById('btn-summary-rejoin');
     if (rejoinBtn) rejoinBtn.style.display = 'none';
     state.leftRoomId = null;
 
     enterSummaryView();
+}
+
+// 情境的結算小結：約會「誰先拿起手機」、讀書會「一起解決了幾個問題」
+function renderContextNote(msg) {
+    const el = document.getElementById('summary-context-note');
+    if (!el) return;
+    let text = '';
+    if (msg?.context === 'date') {
+        const f = msg.first_distracted;
+        text = f
+            ? (f.uid === state.userId ? t('今晚先拿起手機的是：你') : t('今晚先拿起手機的是：{name}', { name: f.nickname || t('對方') }))
+            : t('今晚兩個人都沒有被手機分心，太棒了。');
+    } else if (msg?.context === 'study' && msg.study_questions) {
+        const { total = 0, solved = 0 } = msg.study_questions;
+        text = total ? t('這次一起解決了 {s} 個問題（共 {n} 題）', { s: solved, n: total }) : '';
+    }
+    el.textContent = text;
+    el.style.display = text ? '' : 'none';
+}
+
+// 認識新朋友：主持人選「交換聯絡方式」結束 → 5 分鐘交換時間＋成員名單（登入的人可以直接加好友）
+let _exchangeTimer = null;
+async function renderExchangeCard(ranking) {
+    const card = document.getElementById('summary-exchange-card');
+    const list = document.getElementById('summary-exchange-list');
+    const timer = document.getElementById('summary-exchange-timer');
+    const sub = document.getElementById('summary-exchange-sub');
+    clearInterval(_exchangeTimer); _exchangeTimer = null;
+    if (!card || !list) return;
+    if (!ranking) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    if (state.currentUser) {
+        try { await Promise.all([loadFriendUidCache(), loadFriendRequestsCache()]); } catch (_) { /* 讀不到就都顯示「加好友」 */ }
+    }
+    list.innerHTML = '';
+    const others = ranking.filter(r => r.uid && r.uid !== state.userId);
+    for (const r of others) {
+        const li = document.createElement('li');
+        li.className = 'ps-exchange-row';
+        const avatar = document.createElement('span');
+        avatar.className = 'ps-exchange-avatar';
+        const name = r.nickname || t('成員');
+        avatar.textContent = name.trim().charAt(0).toUpperCase() || '?';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'ps-exchange-name';
+        nameEl.textContent = name;
+        li.append(avatar, nameEl);
+        const isGuest = String(r.uid).startsWith('guest-');
+        if (state.currentUser && !isGuest) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ps-exchange-add';
+            if (state.friendUidSet?.has(r.uid)) { btn.textContent = t('已是好友'); btn.disabled = true; btn.classList.add('done'); }
+            else if (state.outgoingPendingSet?.has(r.uid)) { btn.textContent = t('等待回覆中'); btn.disabled = true; btn.classList.add('pending'); }
+            else { btn.textContent = t('加好友'); btn.onclick = () => sendFriendRequestByUid(r.uid, btn); }
+            li.appendChild(btn);
+        }
+        list.appendChild(li);
+    }
+    if (!others.length) {
+        const li = document.createElement('li');
+        li.className = 'ps-exchange-row ps-exchange-empty';
+        li.textContent = t('這場只有你一個人。');
+        list.appendChild(li);
+    }
+    sub.textContent = state.currentUser
+        ? t('聚會已經結算，現在想加 LINE、IG 都可以，也可以直接在這裡加好友。')
+        : t('聚會已經結算，現在想加 LINE、IG 都可以。登入後也能直接在 App 裡加好友。');
+    const endAt = Date.now() + 5 * 60 * 1000;
+    const tick = () => {
+        const left = Math.max(0, endAt - Date.now());
+        const sec = Math.ceil(left / 1000);
+        timer.textContent = left > 0 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : t('時間到');
+        if (left <= 0) { clearInterval(_exchangeTimer); _exchangeTimer = null; }
+    };
+    tick();
+    _exchangeTimer = setInterval(tick, 1000);
 }
 
 // 聚會總結的吉祥物卡：
@@ -387,14 +470,17 @@ function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function handleAnchorEstablished() {
+function handleAnchorEstablished(msg = {}) {
     state.currentPhase = 'ACTIVE';
     state.sessionStartTime = Date.now();
+    if (Number.isFinite(msg.server_now_ms)) state.serverClockOffset = Date.now() - msg.server_now_ms;
     startSessionPickupRecording();   // 開始錄「拿起手機」的感測資料（只在這支手機上分析）
     showAnchorEstablished().then(() => {
         switchView('view-focus', { replace: true });
         document.body.classList.add('mode-flow');
         refreshSessionControls();
+        // 讀書會番茄鐘從聚會開始起算（之後的 ROOM_UPDATE 也會帶，這裡先讓倒數馬上出現）
+        if (msg.active_started_ms) applyStudyState(Number(msg.active_started_ms), state.studyQuestions);
     });
 }
 

@@ -86,7 +86,7 @@ export const CONTEXT_CONFIGS = {
     general:     { label: '一般聚會', icon: 'party-popper',   difficulty: 'L', duration: 90,  mode: 'GATHERING' },
     meeting:     { label: '開會',     icon: 'briefcase',      difficulty: 'H', duration: 60,  mode: 'MEETING'   },
     family:      { label: '家庭聚會', icon: 'house',          difficulty: 'M', duration: 120, mode: 'FAMILY'    },
-    study:       { label: '自習讀書', icon: 'book-open',      difficulty: 'M', duration: 90,  mode: 'CLASS'     },
+    study:       { label: '讀書會',   icon: 'book-open',      difficulty: 'M', duration: 90,  mode: 'CLASS'     },
     class:       { label: '專心上課', icon: 'graduation-cap', difficulty: 'H', duration: 50,  mode: 'CLASS'     },
     meal:        { label: '吃飯聚餐', icon: 'utensils',       difficulty: 'L', duration: 90,  mode: 'GATHERING' },
     date:        { label: '約會',     icon: 'heart',          difficulty: 'M', duration: 120, mode: 'GATHERING' },
@@ -117,9 +117,16 @@ export function exemptWindowSec(context, difficulty) {
 //   timed = 老師輸入分鐘數，時間到自動結束、不能提前結束；until_end = 直到主持人按「結束開放」
 export const PHONE_OPEN_MODES = { meeting: ['until_end'], class: ['timed', 'until_end'] };
 export const PHONE_OPEN_MAX_MINUTES = 180;
-// 旅行：大家投票「休息一下」（在場一半以上按下就開始，最長 30 分鐘；真正把關在 backend/phone_open.py）
-export const REST_CONTEXTS = ['outdoor'];
-export const REST_MAX_MINUTES = 30;
+// 大家投票「休息一下」（顯示用鏡像；真正把關在 backend/phone_open.py 的 REST_RULES）
+//   旅行：在場一半以上按下就開始，最長 30 分鐘，一半以上按「結束休息」可提前結束
+//   約會：兩個人都按才開始，固定 5 分鐘，不能提前結束
+export const REST_RULES = {
+    outdoor: { minutes: 30, needed: 'half', endVote: true },
+    date: { minutes: 5, needed: 'all', endVote: false },
+};
+export const REST_CONTEXTS = Object.keys(REST_RULES);
+export const REST_MAX_MINUTES = REST_RULES.outdoor.minutes;
+
 
 // 掃碼點餐：哪些情境有「點餐」按鈕、每場可以帶出 App 幾次（顯示用鏡像；真正把關在 backend/ordering.py）
 export const ORDER_CONTEXTS = ['general', 'family', 'meal'];

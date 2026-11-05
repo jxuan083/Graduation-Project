@@ -75,6 +75,20 @@ export function setGraceCountdown(armed, graceMs, open = null) {
     });
 }
 
+// 讀書會番茄鐘休息中跳出 App：倒數到休息結束
+export function studyBreakActivity(breakEndMs) {
+    return {
+        kind: 'open_timed',
+        endsAt: breakEndMs,
+        labels: {
+            title: t('番茄鐘休息中'),
+            hint: t('休息結束前回到 App 就好'),
+            overTitle: t('休息時間結束'),
+            overHint: t('回到 App，不然會開始算分心'),
+        },
+    };
+}
+
 // 旅行的寬限倒數：移動中用手機不算分心，文字不要寫「快回到聚會」嚇人
 export function travelGraceActivity() {
     return {
@@ -95,6 +109,19 @@ export function travelGraceActivity() {
 export function phoneOpenActivity(po, context) {
     const isClass = context === 'class';
     const until = Number(po?.until_ms || 0);
+    if (po?.mode === 'rest' && context === 'date') {
+        // 約會一起休息：固定 5 分鐘、不能提前結束 → 可以直接倒數
+        return {
+            kind: 'open_timed',
+            endsAt: until,
+            labels: {
+                title: t('一起休息中'),
+                hint: t('時間到之前回到 App 就好'),
+                overTitle: t('休息時間結束'),
+                overHint: t('回到 App，不然會開始算分心'),
+            },
+        };
+    }
     if (po?.mode === 'rest') {
         // 旅行休息：不顯示時間（可能被大家提前結束）；最長 30 分鐘到點時另有通知
         return {

@@ -1045,6 +1045,8 @@ from intent import (  # noqa: E402
 import attendance as _att  # noqa: E402
 import ordering as _ordering  # noqa: E402
 import phone_open as _phone  # noqa: E402
+import study as _study  # noqa: E402
+import transcript_merge as _tm  # noqa: E402
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -1893,6 +1895,8 @@ class TranscriptEntryPayload(BaseModel):
     text: str
     started_at_ms: Optional[int] = None
     duration_sec: Optional[float] = None
+    # 這句講的時間（伺服器時鐘，前端用 serverClockOffset 換算）；多支手機的逐字稿靠它對齊、去重複
+    abs_ms: Optional[int] = None
 
 
 class TranscriptUploadPayload(BaseModel):
@@ -1935,7 +1939,25 @@ def _collect_meeting_transcripts(meeting_id: str) -> list:
         .order_by("started_at_ms")
         .stream()
     )
-    return [_serialize_transcript(d.to_dict() or {}, d.id) for d in docs]
+    # 多支手機同時錄音（以及同一支手機的 Whisper＋即時預覽）會有重複的句子，讀取時合併
+    return _tm.merge([_serialize_transcript(d.to_dict() or {}, d.id) for d in docs])
+
+
+def _transcript_clock(meeting_id: str, meeting: dict) -> int:
+    """這場聚會正式開始的時間（伺服器毫秒）；逐字稿的 started_at_ms 以它為 0。"""
+    live = rooms.get(meeting_id) or {}
+    return int(live.get("active_started_ms") or meeting.get("active_started_ms") or meeting.get("started_at_ms") or 0)
+
+
+def _participant_nickname(meeting_id: str, meeting: dict, uid: str) -> str:
+    for source in ((rooms.get(meeting_id) or {}).get("all_participants"), meeting.get("all_participants"), meeting.get("members")):
+        nick = ((source or {}).get(uid) or {}).get("nickname")
+        if nick:
+            return nick
+    for m in meeting.get("members_snapshot") or []:
+        if m.get("uid") == uid and m.get("nickname"):
+            return m["nickname"]
+    return ""
 
 
 def _collect_meeting_photos(meeting_id: str) -> list:
@@ -2032,6 +2054,7 @@ def _save_transcript_entries(meeting_id: str, uid: str, entries: list, source: s
             "language": (entry.get("language") or "")[:20],
             "created_by": uid,
             "created_at": firestore.SERVER_TIMESTAMP,
+            **({"abs_ms": int(entry["abs_ms"])} if entry.get("abs_ms") else {}),
         })
         saved_count += 1
 
@@ -2384,15 +2407,17 @@ async def upload_meeting_transcripts(
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
 
-    _get_meeting_or_403(meeting_id, uid)
+    meeting = _get_meeting_or_403(meeting_id, uid)
 
     if not payload.entries:
         raise HTTPException(status_code=400, detail="entries 不能是空的")
     if len(payload.entries) > 200:
         raise HTTPException(status_code=400, detail="一次最多上傳 200 筆逐字稿")
 
-    entries = [
-        {
+    active_ms, now_ms = _transcript_clock(meeting_id, meeting), _now_ms()
+    entries = []
+    for entry in payload.entries:
+        row = {
             "speaker_uid": entry.speaker_uid,
             "speaker_name": entry.speaker_name,
             "text": entry.text,
@@ -2400,8 +2425,8 @@ async def upload_meeting_transcripts(
             "duration_sec": entry.duration_sec,
             "source": "manual",
         }
-        for entry in payload.entries
-    ]
+        _tm.align_entry(row, _tm.plausible_abs_ms(entry.abs_ms, active_ms, now_ms), active_ms)
+        entries.append(row)
     saved_count = _save_transcript_entries(meeting_id, uid, entries, source="manual")
 
     if saved_count == 0:
@@ -2417,6 +2442,9 @@ async def transcribe_meeting_audio(
     min_speakers: Optional[int] = Form(None),
     max_speakers: Optional[int] = Form(None),
     started_at_ms_offset: Optional[int] = Form(0),
+    # 即時錄音：這段錄音開始的時間（伺服器時鐘）。有它才能跟其他手機的逐字稿對齊、去重複；
+    # 聚會結束後才上傳的音檔沒有這個時間，照舊用 started_at_ms_offset。
+    chunk_started_server_ms: Optional[int] = Form(None),
     decoded: dict = Depends(verify_token),
 ):
     """上傳聚會錄音，使用 WhisperX / Whisper 轉文字並寫入逐字稿集合。"""
@@ -2424,7 +2452,7 @@ async def transcribe_meeting_audio(
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
 
-    _get_meeting_or_403(meeting_id, uid)
+    meeting = _get_meeting_or_403(meeting_id, uid)
 
     filename = file.filename or ""
     _, ext = os.path.splitext(filename.lower())
@@ -2463,10 +2491,21 @@ async def transcribe_meeting_audio(
         if not entries:
             raise HTTPException(status_code=422, detail="轉錄完成，但沒有辨識到可儲存的語音內容")
 
+        active_ms = _transcript_clock(meeting_id, meeting)
+        chunk_abs = (_tm.plausible_abs_ms(chunk_started_server_ms, active_ms, _now_ms())
+                     if chunk_started_server_ms is not None else None)
         offset_ms = max(0, int(started_at_ms_offset or 0))
-        if offset_ms:
-            for entry in entries:
-                entry["started_at_ms"] = int(entry.get("started_at_ms") or 0) + offset_ms
+        recorder_name = _participant_nickname(meeting_id, meeting, uid)
+        diarized = bool(result.get("diarization"))
+        for entry in entries:
+            seg_ms = int(entry.get("started_at_ms") or 0)   # 這段錄音內的第幾毫秒
+            if chunk_abs is not None:
+                _tm.align_entry(entry, chunk_abs + seg_ms, active_ms)
+            else:
+                entry["started_at_ms"] = seg_ms + offset_ms
+            # 說話者標籤只在這支手機的這段錄音裡有意義，加上錄音者才不會跟別支手機的混在一起
+            entry.update(_tm.recorder_speaker(uid, recorder_name, entry.get("speaker_uid") or "SPEAKER_1",
+                                              entry.get("speaker_name") or "Speaker 1", diarized))
 
         saved_count = _save_transcript_entries(meeting_id, uid, entries, source="audio")
         db.collection("meetings").document(meeting_id).set({
@@ -4064,7 +4103,13 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
         "pet_coin_gain": pet_coin_gain,
         "score_ranking": score_ranking,
         "deviation_ranking": score_ranking,   # 舊前端相容
+        "context": context_local,
     }
+    if context_local == "date":
+        summary["first_distracted"] = _att.first_distracted(room_data)    # 約會：誰先拿起手機（沒人分心是 None）
+    _q_stats = _study.question_stats(room_data)
+    if _q_stats is not None:
+        summary["study_questions"] = _q_stats                            # 讀書會：一起解決了幾個問題
     room_data["final_result"] = summary
 
     # 獎勵確認後廣播，再寫聚會紀錄與個人鏡像。
@@ -4838,7 +4883,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                         print(f"Error updating status in Firestore: {e}")
 
                     await manager.broadcast_to_room(room_id, {
-                        "type": "ANCHOR_ESTABLISHED"
+                        "type": "ANCHOR_ESTABLISHED",
+                        # 讀書會番茄鐘從這一刻起算（前端用 server_now_ms 換成手機時間）
+                        "active_started_ms": rooms[room_id]["active_started_ms"],
+                        "server_now_ms": _now_ms(),
                     })
                 else:
                     # 進度更新太頻繁，通常只廣播不寫入資料庫，以節省資源
@@ -4922,6 +4970,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 if _att.is_class_teacher(rooms[room_id], user_id):
                     print(f"[LOG_DEVIATION] ignored for class teacher user={user_id} room={room_id}")
                     continue
+                # 讀書會番茄鐘的休息時段：全場都可以用手機
+                if _study.on_break(rooms[room_id], _exempt_now_ms):
+                    print(f"[LOG_DEVIATION] exempted by study break user={user_id} room={room_id}")
+                    continue
                 # 主持人開放使用手機中：全場都不算分心
                 if _phone.is_open(rooms[room_id], _exempt_now_ms):
                     print(f"[LOG_DEVIATION] exempted by phone open user={user_id} room={room_id}")
@@ -4941,7 +4993,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 count = max(1, int(data.get("count", 1)))
                 # members 記「這一段」的分心（畫面用，加回後從 0 開始）；all_participants 記計分用的累計。
                 # 同時中斷該用戶的連續專注 → 更新其最長專注時間（只加分用）
-                user_deviations, _ = _att.record_deviation(rooms[room_id], user_id, count, now_ms)
+                try:   # 這批分心第一次發生的時間（前端用伺服器時間換算後送來；約會的「誰先拿起手機」用）
+                    _dev_at = int(data.get("at_ms")) if data.get("at_ms") else None
+                except (TypeError, ValueError):
+                    _dev_at = None
+                user_deviations, _ = _att.record_deviation(rooms[room_id], user_id, count, now_ms, _dev_at)
 
                 try:
                     db.collection("rooms").document(room_id).update({
@@ -4974,7 +5030,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _di_used = int(_di_member.get("exempt_count_used", 0) or 0)
                 _di_last = int(_di_member.get("exempt_last_declared_ms", 0) or 0)
                 _di_ok, _di_reason = _intent_can_declare(_di_used, _di_last, _di_now, _di_budget)
-                if _di_ok and _phone.is_open(rooms[room_id], _di_now):
+                if _di_ok and (_phone.is_open(rooms[room_id], _di_now) or _study.on_break(rooms[room_id], _di_now)):
                     _di_ok, _di_reason = False, "現在大家都可以用手機，不用暫離"
                 if not _di_ok:
                     await websocket.send_text(json.dumps({
@@ -5049,6 +5105,25 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 except Exception as e:
                     print(f"Error saving rest vote in Firestore: {e}")
                 await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _rv_room})
+
+            # 6.8 讀書會問題板：寫下卡住的問題（全組看得到）、解決了打勾（任何人都能勾）
+            elif action == "ADD_QUESTION" or action == "TOGGLE_QUESTION":
+                if rooms[room_id].get("status") != "ACTIVE":
+                    continue
+                _q_room = rooms[room_id]
+                if action == "ADD_QUESTION":
+                    _q_nick = (_q_room["members"].get(user_id) or {}).get("nickname", "")
+                    _q_ok, _q_reason = _study.add_question(_q_room, user_id, _q_nick, data.get("text"), _now_ms(), uuid.uuid4().hex[:10])
+                elif action == "TOGGLE_QUESTION":
+                    _q_ok, _q_reason = _study.toggle_question(_q_room, str(data.get("id") or ""))
+                if not _q_ok:
+                    await websocket.send_text(json.dumps({"type": "ACTION_REJECTED", "reason": _q_reason}))
+                    continue
+                try:
+                    db.collection("rooms").document(room_id).update({"questions": _q_room.get("questions", [])})
+                except Exception as e:
+                    print(f"Error saving study questions in Firestore: {e}")
+                await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _q_room})
 
             # 7. 房主發起關鍵字遊戲 (Taboo Game)
             elif action == "START_TABOO_GAME":
