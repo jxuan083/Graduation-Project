@@ -2,11 +2,11 @@
 import { register } from '../../core/router.js';
 import { state } from '../../core/state.js';
 import { sendAction } from '../../core/ws.js';
-import { apiFetch } from '../../core/api.js';
+import { apiFetch, fetchProtectedBlob } from '../../core/api.js';
 import { events } from '../../core/events.js';
 import { openQaSourcePicker } from '../qa-source/qa-source.js';
 import { hostStartTabooGame } from '../../features/taboo/controller.js';
-import { startPhotoMode, endPhotoMode, uploadMeetingPhoto, autoSaveCapturedPhoto } from '../../features/photos/controller.js';
+import { startPhotoMode, endPhotoMode, uploadMeetingPhoto, autoSaveCapturedPhoto, compressImage } from '../../features/photos/controller.js';
 import { openInviteModal } from '../invite-modal/invite-modal.js';
 import { showToast } from '../../utils/toast.js';
 import { t } from '../../core/i18n.js';
@@ -21,7 +21,7 @@ import { DATE_TOPICS } from '../../features/date/topics.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications, scheduleStudyBreaks, cancelStudyBreaks } from '../../core/localNotify.js';
 import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest, localizePhoneOpen, toLocalMs } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=83';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=84';
 
 export function init() {
     register('view-focus', {
@@ -382,7 +382,7 @@ function openPhoneOpenModal() {
     document.getElementById('phone-open-title').textContent = isClassContext() ? t('開放學生使用手機') : t('開放大家使用手機');
     document.getElementById('phone-open-hint').textContent = timedAllowed
         ? t('這段時間大家離開 App 都不算分心。限時開放不能提前結束；選「直到我結束」，結束時還在外面的人收不到通知，請口頭提醒。')
-        : t('直到你按「結束開放」為止，大家離開 App 都不算分心。結束時還在外面的人收不到通知，請口頭提醒大家。');
+        : t('此功能開啟後只有在您按下結束之後才會停止，過程中都不會被計入分心。結束後記得口頭提醒與會人員。');
     document.getElementById('phone-open-minutes-row').style.display = timedAllowed ? '' : 'none';
     renderPhoneOpenModalButtons();
     modal.classList.remove('hidden');
@@ -727,18 +727,100 @@ function renderQuestionsList() {
         const by = document.createElement('p');
         by.className = 'questions-by';
         by.textContent = q.nickname || t('成員');
-        body.append(text, by);
+        if (q.text) body.append(text);
+        body.append(by);
         li.append(check, body);
+        if (q.image_id) li.appendChild(questionThumb(q.image_id));
         list.appendChild(li);
     }
 }
 
-function submitQuestion() {
+// 問題照片：先上傳拿到 image_id，再跟文字一起送出（只有這場聚會的人看得到，不進聚會相簿）
+let _questionImageFile = null;
+let _questionSubmitting = false;
+const _questionImageUrls = new Map();   // image_id → Promise<object URL>（列表每次更新都會重畫，照片只抓一次）
+
+const questionImagePath = (imageId) => `/api/rooms/${encodeURIComponent(state.roomId)}/questions/image/${encodeURIComponent(imageId)}`;
+
+function questionImageUrl(imageId) {
+    if (!_questionImageUrls.has(imageId)) {
+        const p = fetchProtectedBlob(questionImagePath(imageId)).then(blob => URL.createObjectURL(blob));
+        p.catch(() => _questionImageUrls.delete(imageId));   // 失敗下次再試
+        _questionImageUrls.set(imageId, p);
+    }
+    return _questionImageUrls.get(imageId);
+}
+
+function questionThumb(imageId) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'questions-thumb';
+    btn.setAttribute('aria-label', t('查看照片'));
+    const img = document.createElement('img');
+    img.alt = '';
+    btn.appendChild(img);
+    questionImageUrl(imageId).then(url => { img.src = url; }).catch(() => btn.classList.add('is-broken'));
+    btn.onclick = () => openQuestionImage(imageId);
+    return btn;
+}
+
+function openQuestionImage(imageId) {
+    const modal = document.getElementById('question-image-modal');
+    const full = document.getElementById('question-image-full');
+    if (!modal || !full) return;
+    full.removeAttribute('src');
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+    questionImageUrl(imageId).then(url => { full.src = url; }).catch(() => {
+        modal.classList.add('hidden');
+        showToast(t('照片讀取失敗'), 'warn');
+    });
+}
+
+function setQuestionImage(file) {
+    _questionImageFile = file || null;
+    const wrap = document.getElementById('question-image-preview');
+    const img = document.getElementById('question-image-preview-img');
+    if (img?.src) URL.revokeObjectURL(img.src);
+    if (_questionImageFile && img) img.src = URL.createObjectURL(_questionImageFile);
+    else img?.removeAttribute('src');
+    if (wrap) wrap.hidden = !_questionImageFile;
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function submitQuestion() {
+    if (_questionSubmitting) return;
     const input = document.getElementById('question-input');
+    const btn = document.getElementById('btn-question-add');
     const text = (input?.value || '').trim();
-    if (!text) return;
-    if (!sendAction('ADD_QUESTION', { text })) { reconnectSilent(); showToast(t('連線中斷，請再按一次'), 'warn'); return; }
-    input.value = '';
+    if (!text && !_questionImageFile) return;
+    _questionSubmitting = true;
+    if (btn) btn.disabled = true;
+    try {
+        let imageId = null;
+        if (_questionImageFile) {
+            let blob = _questionImageFile;
+            try { blob = await compressImage(_questionImageFile, 1600, 0.8); } catch (_) { /* 壓縮失敗就傳原檔 */ }
+            const form = new FormData();
+            form.append('file', blob, 'question.jpg');
+            const { res, data } = await apiFetch(`/api/rooms/${encodeURIComponent(state.roomId)}/questions/image`, { method: 'POST', body: form });
+            if (!res.ok || !data?.image_id) {
+                showToast(t('照片上傳失敗：{error}', { error: data?.detail || res.status }), 'warn');
+                return;
+            }
+            imageId = data.image_id;
+        }
+        const payload = imageId ? { text, image_id: imageId } : { text };
+        if (!sendAction('ADD_QUESTION', payload)) { reconnectSilent(); showToast(t('連線中斷，請再按一次'), 'warn'); return; }
+        input.value = '';
+        setQuestionImage(null);
+    } catch (err) {
+        console.warn('submit question failed:', err);
+        showToast(t('照片上傳失敗：{error}', { error: err?.message || err }), 'warn');
+    } finally {
+        _questionSubmitting = false;
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ── 約會話題卡（只在自己這支手機抽，不同步） ──
@@ -786,6 +868,17 @@ function initContextExtras() {
     document.getElementById('btn-study-questions')?.addEventListener('click', () => { renderQuestionsList(); openSheet('questions-sheet'); });
     bindSheet('questions-sheet', 'btn-questions-sheet-cancel');
     document.getElementById('btn-question-add')?.addEventListener('click', submitQuestion);
+    const imageInput = document.getElementById('question-image-input');
+    document.getElementById('btn-question-image')?.addEventListener('click', () => imageInput?.click());
+    imageInput?.addEventListener('change', () => {
+        const file = imageInput.files?.[0];
+        imageInput.value = '';   // 同一張再選一次也會觸發
+        if (file) setQuestionImage(file);
+    });
+    document.getElementById('btn-question-image-remove')?.addEventListener('click', () => setQuestionImage(null));
+    const imageModal = document.getElementById('question-image-modal');
+    document.getElementById('btn-question-image-close')?.addEventListener('click', () => imageModal?.classList.add('hidden'));
+    imageModal?.addEventListener('click', (e) => { if (e.target === imageModal) imageModal.classList.add('hidden'); });
     document.getElementById('question-input')?.addEventListener('keydown', (e) => {
         if (isImeComposing(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); submitQuestion(); }
@@ -810,6 +903,10 @@ function initContextExtras() {
         clearInterval(_studyTimer); _studyTimer = null; _studyWasBreak = null;
         state.activeStartedMs = 0; state.studyQuestions = [];
         cancelStudyBreaks();
+        setQuestionImage(null);
+        for (const p of _questionImageUrls.values()) p.then(url => URL.revokeObjectURL(url)).catch(() => {});
+        _questionImageUrls.clear();
+        document.getElementById('question-image-modal')?.classList.add('hidden');
         topicModal?.classList.add('hidden');
         introModal?.classList.add('hidden');
         renderStudy();
@@ -982,7 +1079,7 @@ function openOrderScan() {
         if (hint) hint.textContent = t('掃描函式庫載入失敗，請重新整理頁面');
         return;
     }
-    if (hint) hint.textContent = t('對準桌上的點餐 QR Code。點餐網頁會開在 App 裡，不算分心。');
+    if (hint) hint.textContent = t('對準桌上的點餐 QR Code。在點餐網頁點餐不會被計入分心。');
     _orderScanner = new Html5Qrcode('order-scan-reader');
     _orderScanner.start(
         { facingMode: 'environment' },

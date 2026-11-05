@@ -188,3 +188,118 @@ def generate_newspaper_copy(context: dict) -> dict | None:
     if not out.get("lead"):
         return None
     return out
+
+
+# ── 結算頁的寵物文字：依分心次數、在場時間說明這場的表現 ──
+
+SUMMARY_TIMEOUT_SEC = 8.0
+SUMMARY_MAX_CHARS = {"zh": 80, "en": 220}   # 英文一句話的字元數比中文多很多
+
+SUMMARY_SYSTEM_PROMPT_ZH = """你是「社交定錨」App 裡的寵物吉祥物。聚會剛結束，請用一句話告訴這位使用者這場的表現。
+規則：
+1. 繁體中文，30～45 個字，語氣溫暖像朋友，不說教、不用命令口吻，最多一個 emoji。
+2. 只能根據下面的數據，不要編造沒提供的事情。
+3. 先判斷分數高低的主要原因再寫（85 分以上算高分）：
+   - 分心次數多：點出分心，鼓勵下次把手機放遠一點。
+   - 分心很少（0～1 次）但分數不高：原因是參與時間短（陪伴分低），要稱讚專注，並說明時間短，不能說他分心。
+   - 比整場晚到或早退：提到在場時間比較短。
+   - 分數高：直接稱讚。高分但分心較多時，先稱讚，再輕輕提一下分心。
+4. 你是寵物本人在說話，一律用「我」自稱（例如「我今天吃得很飽」），不要提寵物的名字，也不要說「吉祥物」。
+5. 不要寫出分數數字（畫面上已經有），可以提分心次數或分鐘數。
+6. 只輸出那一句話，不要加引號或任何說明。
+7. 下面的範例只是語氣參考，不要照抄，要依這次的數據寫。
+
+範例：
+- 3 分鐘、0 次分心 → 這場雖然很短，你一次都沒分心！下次多待一會兒，我會長得更快。
+- 90 分鐘、6 次分心 → 這場分心了 6 次，我有點餓肚子，下次把手機蓋久一點吧。
+- 90 分鐘、0 次分心 → 整整 90 分鐘都沒分心，我今天吃得超飽！🎉"""
+
+SUMMARY_SYSTEM_PROMPT_EN = """You are the pet mascot in the "Phubbing Anchor" app. A gathering just ended. In one sentence, tell this user how they did.
+Rules:
+1. English, 12-25 words, warm and friendly like a buddy, never preachy or bossy, at most one emoji.
+2. Use only the data below. Do not invent anything that isn't given.
+3. First work out the main reason the score is high or low (85 or above is a high score):
+   - Many distractions: mention the distractions and encourage keeping the phone further away next time.
+   - Few distractions (0-1) but a low score: the reason is the short time (low presence score). Praise the focus and explain it was short. Never say they were distracted.
+   - Arrived late or left early: mention their time there was shorter.
+   - High score: just praise them. If the score is high but there were several distractions, praise first, then gently mention the distractions.
+4. You are the pet speaking, so always refer to yourself as "I" (e.g. "I'm well fed today"). Never use the pet's name or the word "mascot".
+5. Do not state the score (it's already on screen). You may mention the distraction count or minutes.
+6. Output only that one sentence, with no quotes or explanation.
+7. The examples below only show the tone. Don't copy them; write from this gathering's data.
+
+Examples:
+- 3 minutes, 0 distractions -> Short one, but you didn't get distracted once! Stay a bit longer next time and I'll grow even faster.
+- 90 minutes, 6 distractions -> 6 distractions this time, so I'm a little hungry. Maybe keep the phone face down a bit longer next time.
+- 90 minutes, 0 distractions -> A full 90 minutes without a single distraction, and I'm stuffed! 🎉"""
+
+
+def build_summary_prompt(data: dict, lang: str = "zh") -> str:
+    """把結算數據組成給 Qwen 的輸入（純函式，可單元測試）。"""
+    minutes = int(data.get("attended_minutes") or 0)
+    total = int(data.get("duration_minutes") or 0)
+    devs = int(data.get("deviations") or 0)
+    grace = int(data.get("grace_sec") or 20)
+    score = int(data.get("score") or 0)
+    focus, presence = round(float(data.get("focus") or 0)), round(float(data.get("presence") or 0))
+    fw, pw = round(float(data.get("focus_weight") or 0) * 100), round(float(data.get("presence_weight") or 0) * 100)
+    host = bool(data.get("is_host"))
+    # 結算以分鐘為單位，不到 1 分鐘會是 0；直接寫「0 分鐘」模型會以為他沒到場
+    mins_zh = f"{minutes} 分鐘" if minutes > 0 else "不到 1 分鐘"
+    total_zh = f"{total} 分鐘" if total > 0 else "不到 1 分鐘"
+    mins_en = f"{minutes} min" if minutes > 0 else "under 1 min"
+    total_en = f"{total} min" if total > 0 else "under 1 min"
+    if lang == "en":
+        return "\n".join([
+            f"Gathering type: {data.get('context_label_en') or data.get('context') or 'gathering'}",
+            f"Time there: {mins_en} (whole gathering {total_en})",
+            f"Distractions: {devs} (each time they left the app for more than {grace} seconds)",
+            f"Score: {score} / 100",
+            f"Score breakdown: focus {focus} ({fw}%), presence {presence} ({pw}%, full marks after 60 minutes)",
+            f"Host: {'yes' if host else 'no'}",
+        ])
+    return "\n".join([
+        f"情境：{data.get('context_label') or data.get('context') or '聚會'}",
+        f"在場時間：{mins_zh}（整場 {total_zh}）",
+        f"分心次數：{devs} 次（離開 App 超過 {grace} 秒算一次）",
+        f"分數：{score} / 100",
+        f"分數組成：專注 {focus} 分（占 {fw}%）、陪伴 {presence} 分（占 {pw}%，待滿 60 分鐘才拿滿）",
+        f"是否為主持人：{'是' if host else '否'}",
+    ])
+
+
+def clean_summary_message(text, lang: str = "zh") -> str | None:
+    """模型回覆 → 一行乾淨的句子；不合格（空的、太長、像 JSON）回傳 None，由前端用規則版。"""
+    if not isinstance(text, str):
+        return None
+    line = " ".join(text.strip().split())
+    line = line.strip("「」『』\"'“”‘’ ")
+    if not line or len(line) > SUMMARY_MAX_CHARS.get(lang, 80) or line.startswith(("{", "[")):
+        return None
+    return line
+
+
+def generate_summary_message(data: dict, lang: str = "zh") -> str | None:
+    """呼叫 Qwen 寫結算頁的寵物文字；任何失敗都回傳 None（前端保留規則版）。"""
+    api_key = _load_api_key()
+    if not api_key:
+        return None
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return None
+    try:
+        client = OpenAI(api_key=api_key, base_url=DASHSCOPE_BASE_URL, timeout=SUMMARY_TIMEOUT_SEC)
+        resp = client.chat.completions.create(
+            model=QWEN_MODEL,
+            messages=[
+                {"role": "system", "content": SUMMARY_SYSTEM_PROMPT_EN if lang == "en" else SUMMARY_SYSTEM_PROMPT_ZH},
+                {"role": "user", "content": build_summary_prompt(data, lang)},
+            ],
+            temperature=0.8,
+            max_tokens=120,
+        )
+        return clean_summary_message(resp.choices[0].message.content, lang)
+    except Exception as e:  # noqa: BLE001 — 任何 API 錯誤都退回規則版
+        print(f"[llm] 結算文字生成失敗，前端用規則版：{e}")
+        return None

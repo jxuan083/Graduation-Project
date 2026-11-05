@@ -1,8 +1,8 @@
 // core/login-sheet.js — reusable login method bottom sheet.
 import { IS_NATIVE_APP } from './config.js';
-import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doPasswordReset } from './auth.js?v=83';
-import { continueAsLocalGuest } from './guest.js?v=83';
-import { impact } from './haptics.js?v=83';
+import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doPasswordReset } from './auth.js?v=84';
+import { continueAsLocalGuest } from './guest.js?v=84';
+import { impact } from './haptics.js?v=84';
 import { applyTo, t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
 

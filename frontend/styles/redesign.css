@@ -2436,6 +2436,20 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 .questions-add { display: flex; gap: 8px; margin-bottom: 10px; }
 .questions-add .intent-reason-input { flex: 1; min-width: 0; }
 .questions-add .btn { flex: 0 0 auto; width: auto; height: 44px; margin: 0; padding: 0 18px; font-size: 15px; font-weight: 600; }
+.questions-photo-btn { flex: 0 0 44px; height: 44px; border: none; border-radius: var(--r-md); background: #fff; color: var(--brown); box-shadow: inset 0 0 0 1px var(--brown-10); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.questions-photo-btn svg { width: 20px; height: 20px; }
+.questions-photo-btn:active { transform: scale(.96); }
+.questions-preview { position: relative; width: 76px; height: 76px; margin: 0 0 8px; }
+.questions-preview[hidden] { display: none; }
+.questions-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-md); box-shadow: 0 1px 4px rgba(79,53,26,.12); }
+.questions-preview-remove { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; border: none; background: var(--brown); color: #fff; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.questions-preview-remove svg { width: 14px; height: 14px; }
+.questions-thumb { flex: 0 0 56px; width: 56px; height: 56px; padding: 0; border: none; border-radius: 10px; overflow: hidden; background: var(--brown-10); cursor: pointer; }
+.questions-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.questions-thumb.is-broken { opacity: .4; }
+.questions-item.is-solved .questions-thumb { opacity: .55; }
+.question-image-modal img { max-width: 100%; max-height: calc(100vh - 120px); border-radius: var(--r-md); object-fit: contain; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.question-image-modal .modal-close-x { top: calc(14px + var(--safe-area-top)); right: calc(14px + var(--safe-area-right)); background: rgba(255,255,255,.9); color: var(--brown); }
 
 /* ── 約會話題卡 ── */
 .date-topic-text { margin: 6px 0 4px; min-height: 96px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 18px 14px; background: #fff; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--brown-10); font-size: 19px; font-weight: 700; line-height: 1.55; color: var(--brown); text-wrap: pretty; }

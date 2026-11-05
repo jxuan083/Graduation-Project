@@ -418,6 +418,21 @@ class RoomFlowTest(unittest.TestCase):
         third = self.client.post(f"/api/rooms/{room_id}/order-trip", headers=self.auth("a"))
         self.assertEqual(third.status_code, 409)
 
+    def test_quick_repeated_trips_out_are_all_counted(self):
+        """回來後馬上又跳出去：第二次的分心也要記到（以前距離上次回報太近會整筆被丟掉）。"""
+        room_id, socks = self.start("a", context="family", difficulty="M")   # 寬限 20 秒
+        room = main.rooms[room_id]
+        self.clock.now = T0 + 25_000                                    # 第一次：離開 25 秒回來 → 1 次
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 1})
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.clock.now = T0 + 48_000                                    # 2 秒後又出去 21 秒 → 1 次（距上次 23 秒）
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 1})
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.clock.now = T0 + 49_000                                    # 不合理：1 秒後說又分心 5 次 → 只記 1 次
+        socks["a"].send_json({"action": "LOG_DEVIATION", "count": 5})
+        self.until(socks["a"], "DEVIATION_RECORDED")
+        self.assertEqual(room["all_participants"]["a"]["deviations"], 3)
+
     def test_meeting_host_opens_phones_until_ending_and_late_returners_are_charged(self):
         room_id, socks = self.start("a", context="meeting", difficulty="M")   # 寬限 20 秒
         room = main.rooms[room_id]

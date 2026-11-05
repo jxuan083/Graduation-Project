@@ -7,6 +7,8 @@ import { registerHandler, sendAction, closeWs } from './ws.js';
 import { cleanupSession, updateThemeByMode } from './session.js';
 import { showToast } from '../utils/toast.js';
 import { t } from './i18n.js';
+import { apiFetch } from './api.js';
+import { mascotTier, MASCOT_MESSAGES } from './summaryMessage.js';
 import { noteDistraction } from './meetingWeather.js';
 import { endCountdown } from './liveActivity.js';
 import { startSessionPickupRecording, renderSessionPickupCard } from '../features/pickup/sessionPickups.js';
@@ -15,12 +17,12 @@ import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotif
 import { renderMemberList } from '../features/members/render.js';
 import { sendFriendRequestByUid, loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes, applyStudyState } from '../views/focus/focus.js?v=83';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes, applyStudyState } from '../views/focus/focus.js?v=84';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=83';
+} from '../views/sync-ritual/sync-ritual.js?v=84';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
@@ -175,7 +177,11 @@ function showLeftSummary(result) {
     setText('summary-score', result.score ?? '—');
     setText('summary-deviations', Number(result.deviations || 0));
     setText('summary-member-count', Object.keys(state.roomMembers || {}).length || 1);
-    renderSummaryPet({}, result.score ?? null);
+    renderSummaryPet({}, {
+        score: result.score ?? null,
+        deviations: Number(result.deviations || 0),
+        attended_minutes: Number(result.duration_minutes || 0),
+    });
     renderScoreRanking([]);
     renderContextNote(null);
     renderExchangeCard(null);
@@ -254,7 +260,8 @@ function handleSessionEnded(msg) {
     if (scoreEl) scoreEl.innerText = myRow ? (myRow.score ?? 0) : '—';
     const memberCountEl = document.getElementById('summary-member-count');
     if (memberCountEl) memberCountEl.innerText = (msg.deviation_ranking || []).length || 0;
-    renderSummaryPet(msg, myRow ? myRow.score : null);
+    renderSummaryPet(msg, myRow);
+    if (myRow && !myRow.abandoned && state.roomId) requestAiMascotMessage(state.roomId);
 
     const summaryView = document.getElementById('view-summary');
     let hint = document.getElementById('summary-host-hint');
@@ -372,9 +379,7 @@ async function renderExchangeCard(ranking) {
 // 聚會總結的吉祥物卡：
 //  1. 場景沿用「聚會中」那張場景卡（同一情境、同一隻寵物 / 同一顆預設球，絕不是獅子）。
 //  2. 文字依「本場聚會分數」分級（拿不到分數時退回用分心次數判斷）。
-function renderSummaryPet(msg, myScore) {
-    const face = msg.group_pet_face_url || state.meetingGroupPetFace || '';
-    const petName = msg.group_pet_name || state.meetingGroupPetName || '群組寵物';
+function renderSummaryPet(msg, myRow) {
 
     // --- 直接複製聚會中那張場景卡（同情境、同寵物）到總結頁 ---
     // 關鍵：場景 SVG 用 <defs> 漸層 + fill="url(#id)"。複製後 id 會和聚會中那張撞名，
@@ -417,22 +422,30 @@ function renderSummaryPet(msg, myScore) {
 
     // --- 依分數分級的文字 ---
     const mascotMessage = document.getElementById('summary-mascot-message');
-    if (mascotMessage) mascotMessage.textContent = summaryMascotMessage(myScore, face ? petName : '');
+    if (mascotMessage) {
+        const tier = mascotTier({
+            score: myRow ? myRow.score : null,
+            deviations: myRow ? myRow.deviations : state.myDeviations,
+            minutes: myRow?.attended_minutes ?? msg.duration_minutes ?? 0,
+            abandoned: !!myRow?.abandoned,
+        });
+        mascotMessage.textContent = t(MASCOT_MESSAGES[tier]);   // 寵物在說話，用「我」自稱
+    }
 }
 
-function summaryMascotMessage(myScore, petName) {
-    const who = petName ? `${petName}` : t('大家的吉祥物');
-    const score = Number.isFinite(Number(myScore)) ? Number(myScore) : null;
-    // 有分數就照分數分級；沒有分數（重連漏收結算）退回用分心次數判斷
-    let tier;
-    if (score !== null) {
-        tier = score >= 85 ? 'great' : score >= 60 ? 'good' : 'try';
-    } else {
-        tier = state.myDeviations <= 3 ? 'great' : state.myDeviations <= 8 ? 'good' : 'try';
-    }
-    if (tier === 'great') return t('太專注了！這場聚會超棒，{who}獲得了豐盛養分 🎉', { who });
-    if (tier === 'good') return t('不錯的一場聚會，{who}也一起成長了，下次再更投入一點！', { who });
-    return t('這次分心多了些，下次多陪陪彼此，{who}會更健壯的！', { who });
+// 先顯示上面的規則版文字，再跟後端要 Qwen 依分心次數、在場時間寫的那一句，拿到就換上去（失敗就維持規則版）
+let _mascotRequest = 0;
+async function requestAiMascotMessage(roomId) {
+    const req = ++_mascotRequest;
+    try {
+        const { res, data } = await apiFetch(`/api/rooms/${encodeURIComponent(roomId)}/summary-message`, {
+            method: 'POST',
+            body: JSON.stringify({ lang: state.lang }),
+        });
+        if (req !== _mascotRequest || !res.ok || !data?.message) return;
+        const el = document.getElementById('summary-mascot-message');
+        if (el) el.textContent = data.message;
+    } catch (_) { /* 維持規則版 */ }
 }
 
 // 聚會分數排行：分數由高到低（後端已排序），每列同時顯示分數與分心次數

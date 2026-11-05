@@ -145,6 +145,29 @@ def note_focus_break(room: dict, uid: str, now_ms: int) -> None:
     ap["focus_last_ts_ms"] = now_ms
 
 
+# 一次回報最多記幾次分心（防止前端送出不合理的數字）
+DEVIATION_HARD_CAP = 500
+
+
+def cap_deviation_count(count, now_ms: int, last_report_ms: int, since_ms: int, grace_ms: int) -> int:
+    """前端回報的分心次數上限：每經過一個寬限時間最多 1 次，再多給 1 次。
+
+    前端是「離開超過寬限時間記 1 次，之後每滿一個寬限再記 1 次」，所以離開 65 秒（寬限 20 秒）會報 3 次，
+    距離上次回報的時間 ÷ 寬限 再加 1 一定涵蓋得到；正常回報永遠不會被砍。
+    以前是「距離上次回報不到 N 秒就整筆丟掉」，回來後又馬上跳出去的那次分心會被漏記。
+    每筆回報至少記 1 次。"""
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        count = 1
+    count = max(1, min(count, DEVIATION_HARD_CAP))
+    start = last_report_ms or since_ms
+    if not start or grace_ms <= 0:
+        return count
+    allowed = max(0, now_ms - start) // grace_ms + 1
+    return max(1, min(count, allowed))
+
+
 def record_deviation(room: dict, uid: str, count: int, now_ms: int, at_ms: Optional[int] = None) -> Tuple[int, int]:
     """記 count 次分心。回傳 (這一段的分心, 全場總分心)。
     at_ms：這批分心「第一次」發生的時間（前端回來才補報，實際發生得更早）；記下每個人最早的一次（約會的「誰先拿起手機」）。

@@ -84,7 +84,7 @@ export async function autoSaveCapturedPhoto(file) {
 }
 
 // === 圖片壓縮 — canvas resize 到長邊 1920 + JPEG 0.8 ===
-async function compressImage(file, maxEdge = 1920, quality = 0.8) {
+export async function compressImage(file, maxEdge = 1920, quality = 0.8) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {

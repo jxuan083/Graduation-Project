@@ -335,6 +335,87 @@ class ApiEndToEndTest(unittest.TestCase):
         names = {p["nickname"] for p in paper["participation"]}
         self.assertNotIn("Speaker 1", names)                               # 不會把兩支手機的 Speaker 1 當成同一人
 
+    # ── 讀書會問題板附照片：上傳 → 附在問題上 → 同場的人看得到、外人看不到 ──
+    def test_study_question_photo(self):
+        a = str(uuid.uuid4())
+        guest = f"guest-{uuid.uuid4()}"
+        room_id = self.call("POST", "/api/create_room", a, json={"context": "study"})["room_id"]
+        socks = {a: self.connect(room_id, a), guest: self.connect(room_id, guest, token=False)}
+        socks[a].send_json({"action": "START_SYNC"})
+        for ws in socks.values():
+            ws.send_json({"action": "SYNC_PROGRESS", "progress": 100})
+        for ws in socks.values():
+            self.until(ws, "ANCHOR_ESTABLISHED")
+
+        gh = {"X-Guest-Uid": guest}
+        photo = {"file": ("q.png", _png(), "image/png")}
+        image_id = self.client.post(f"/api/rooms/{room_id}/questions/image", headers=gh, files=photo).json()["image_id"]
+        # 還沒附到問題上：誰都看不到
+        self.call("GET", f"/api/rooms/{room_id}/questions/image/{image_id}", a, expect=404)
+        # 別人不能拿這張照片發問
+        socks[a].send_json({"action": "ADD_QUESTION", "text": "借用", "image_id": image_id})
+        self.assertIn("照片", self.until(socks[a], "ACTION_REJECTED")["reason"])
+        # 訪客只附照片、不打字
+        socks[guest].send_json({"action": "ADD_QUESTION", "text": "", "image_id": image_id})
+        q = self.until(socks[a], "ROOM_UPDATE")["room_state"]["questions"][0]
+        self.assertEqual((q["text"], q["image_id"]), ("", image_id))
+
+        got = self.call("GET", f"/api/rooms/{room_id}/questions/image/{image_id}", a)
+        self.assertEqual(got.content, _png())
+        self.assertEqual(self.client.get(f"/api/rooms/{room_id}/questions/image/{image_id}", headers=gh).status_code, 200)
+        self.call("GET", f"/api/rooms/{room_id}/questions/image/{image_id}", str(uuid.uuid4()), expect=403)   # 外人
+        self.call("GET", f"/api/rooms/{room_id}/questions/image/{image_id}", None, expect=401)
+
+        # 不是讀書會、不是圖片、太大都不收
+        other = self.call("POST", "/api/create_room", a, json={"context": "general"})["room_id"]
+        self.call("POST", f"/api/rooms/{other}/questions/image", a, expect=400, files=photo)
+        self.call("POST", f"/api/rooms/{room_id}/questions/image", a, expect=400,
+                  files={"file": ("x.svg", b"<svg/>", "image/svg+xml")})
+        self.call("POST", f"/api/rooms/{room_id}/questions/image", a, expect=400,
+                  files={"file": ("big.jpg", b"x" * (3 * 1024 * 1024 + 1), "image/jpeg")})
+
+    # ── 結算頁的寵物文字：結束後每個人各要一句；Qwen 失敗時回傳 None（前端用規則版） ──
+    def test_summary_message(self):
+        a, b = str(uuid.uuid4()), str(uuid.uuid4())
+        room_id = self.call("POST", "/api/create_room", a, json={"context": "study"})["room_id"]
+        socks = {uid: self.connect(room_id, uid) for uid in (a, b)}
+        socks[a].send_json({"action": "START_SYNC"})
+        for ws in socks.values():
+            ws.send_json({"action": "SYNC_PROGRESS", "progress": 100})
+        for ws in socks.values():
+            self.until(ws, "ANCHOR_ESTABLISHED")
+        body = {"lang": "zh"}
+        self.call("POST", f"/api/rooms/{room_id}/summary-message", a, expect=404, json=body)   # 還沒結算
+
+        calls = []
+        saved = main.llm.generate_summary_message
+        def fake(data, lang):
+            calls.append((data, lang))
+            return None if data["deviations"] < 0 else f"{lang}:{data['attended_minutes']}分鐘"
+        main.llm.generate_summary_message = fake
+        self.addCleanup(setattr, main.llm, "generate_summary_message", saved)
+
+        self.now_ms += 3 * 60_000
+        socks[a].send_json({"action": "END_SESSION", "duration_minutes": 3})
+        self.until(socks[b], "SESSION_ENDED")
+
+        self.assertEqual(self.call("POST", f"/api/rooms/{room_id}/summary-message", b, json=body)["message"], "zh:3分鐘")
+        data, lang = calls[0]
+        self.assertEqual((data["context_label"], data["deviations"], data["grace_sec"], data["is_host"]), ("讀書會", 0, 20, False))
+        self.assertEqual(data["focus"], 100.0)
+        self.assertLess(data["presence"], 25)                                    # 分數不高是因為時間短
+        self.call("POST", f"/api/rooms/{room_id}/summary-message", b, json=body)
+        self.assertEqual(len(calls), 1)                                          # 同一人同語言只生成一次
+        self.assertEqual(self.call("POST", f"/api/rooms/{room_id}/summary-message", b, json={"lang": "en"})["message"], "en:3分鐘")
+        self.assertTrue(calls[-1][0]["is_host"] is False)
+        self.assertTrue(self.call("POST", f"/api/rooms/{room_id}/summary-message", a, json=body)["message"])
+        self.assertTrue(calls[-1][0]["is_host"])
+        # 沒參加這場的人拿不到別人的數據，也不會呼叫 Qwen
+        n = len(calls)
+        self.assertIsNone(self.call("POST", f"/api/rooms/{room_id}/summary-message", str(uuid.uuid4()), json=body)["message"])
+        self.assertEqual(len(calls), n)
+        self.call("POST", f"/api/rooms/{room_id}/summary-message", None, expect=401, json=body)
+
 
 if __name__ == "__main__":
     unittest.main()

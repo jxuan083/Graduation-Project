@@ -65,14 +65,10 @@ def _profile(context: str) -> dict:
     return _CONTEXT_PROFILE.get(context or "general", _DEFAULT_PROFILE)
 
 
-def compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool,
-                          difficulty: str = "M", context: str = "general",
-                          metrics: Optional[dict] = None) -> int:
-    """個人聚會『專注品質』分數（0–100）= 情境加權(focus 分, presence 分)，夾 0–100。
-
-    抗操弄：完美專注全勤各情境都是 100；長時間分心會真的掉；第2次起的意圖豁免
-    時間算「在場不專注」→ 等比例削 focus，越用越低（漸進成本）。
-    """
+def score_parts(duration_minutes: int, deviations: int, difficulty: str = "M", context: str = "general",
+                metrics: Optional[dict] = None) -> dict:
+    """分數的兩個組成：focus（專注，0–100）、presence（陪伴，0–100）與各自的權重。
+    compute_meeting_score 用它算分；結算頁的寵物文案也用它說明「分數低是因為分心還是時間短」。"""
     d = (difficulty or "M").upper()
     duration = max(0.0, float(duration_minutes or 0))
     metrics = metrics or {}
@@ -101,8 +97,20 @@ def compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool,
     # ── presence 分（0–100）：到場/待滿（sqrt 遞減、封頂） ──
     presence_score = 100.0 * min(1.0, math.sqrt(duration / _ATTENDANCE_REF_MIN))
 
-    # ── 依情境權重混合 ──
-    quality = prof["focus"] * focus_score + prof["presence"] * presence_score
+    return {"focus": focus_score, "presence": presence_score,
+            "focus_weight": prof["focus"], "presence_weight": prof["presence"]}
+
+
+def compute_meeting_score(duration_minutes: int, deviations: int, is_host: bool,
+                          difficulty: str = "M", context: str = "general",
+                          metrics: Optional[dict] = None) -> int:
+    """個人聚會『專注品質』分數（0–100）= 情境加權(focus 分, presence 分)，夾 0–100。
+
+    抗操弄：完美專注全勤各情境都是 100；長時間分心會真的掉；第2次起的意圖豁免
+    時間算「在場不專注」→ 等比例削 focus，越用越低（漸進成本）。
+    """
+    parts = score_parts(duration_minutes, deviations, difficulty, context, metrics)
+    quality = parts["focus_weight"] * parts["focus"] + parts["presence_weight"] * parts["presence"]
     if is_host:
         quality += _HOST_BONUS
     return int(round(max(0.0, min(100.0, quality))))

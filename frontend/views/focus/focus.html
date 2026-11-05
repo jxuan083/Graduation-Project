@@ -280,7 +280,7 @@
         <div class="invite-card intent-card order-scan-card">
             <button id="btn-order-scan-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
             <h3 id="order-scan-title">掃描點餐 QR Code</h3>
-            <p class="hint" id="order-scan-hint">對準桌上的點餐 QR Code。點餐網頁會開在 App 裡，不算分心。</p>
+            <p class="hint" id="order-scan-hint">對準桌上的點餐 QR Code。在點餐網頁點餐不會被計入分心。</p>
             <div id="order-scan-reader" class="order-scan-reader"></div>
             <div class="intent-modal-actions">
                 <button id="btn-order-scan-cancel" class="btn secondary" type="button">取消</button>
@@ -293,14 +293,26 @@
         <div class="pa-sheet-panel">
             <div class="pa-sheet-grip"></div>
             <p class="pa-sheet-title">問題板</p>
-            <p class="questions-hint">專心時卡住的問題先寫下來，休息時一起討論；解決了就打勾。</p>
+            <p class="questions-hint">專心時卡住的問題先寫下來，休息時一起討論；解決了就打勾。題目太長可以直接拍照。</p>
             <ul id="questions-list" class="questions-list"></ul>
+            <div id="question-image-preview" class="questions-preview" hidden>
+                <img id="question-image-preview-img" alt="要附上的照片" />
+                <button id="btn-question-image-remove" class="questions-preview-remove" type="button" aria-label="移除照片"><i data-lucide="x"></i></button>
+            </div>
             <div class="questions-add">
+                <button id="btn-question-image" class="questions-photo-btn" type="button" aria-label="附上照片"><i data-lucide="camera"></i></button>
                 <input id="question-input" class="text-input intent-reason-input" type="text" maxlength="80" placeholder="例如：第三章的公式怎麼推？" autocomplete="off" />
                 <button id="btn-question-add" class="btn primary orange" type="button">寫下</button>
             </div>
+            <input id="question-image-input" type="file" accept="image/*" hidden />
             <button class="pa-sheet-cancel" id="btn-questions-sheet-cancel" type="button">關閉</button>
         </div>
+    </div>
+
+    <!-- 問題板照片放大 -->
+    <div id="question-image-modal" class="modal-overlay hidden question-image-modal" role="dialog" aria-modal="true" aria-label="問題照片">
+        <button id="btn-question-image-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
+        <img id="question-image-full" alt="問題照片" />
     </div>
 
     <!-- 約會話題卡（只在自己這支手機，不同步） -->
@@ -336,7 +348,7 @@
         <div class="invite-card intent-card">
             <button id="btn-phone-open-close" class="modal-close-x" type="button" aria-label="關閉"><i data-lucide="x"></i></button>
             <h3 id="phone-open-title">開放大家使用手機</h3>
-            <p class="hint" id="phone-open-hint">直到你按「結束開放」為止，大家離開 App 都不算分心。</p>
+            <p class="hint" id="phone-open-hint">此功能開啟後只有在您按下結束之後才會停止，過程中都不會被計入分心。結束後記得口頭提醒與會人員。</p>
             <div id="phone-open-minutes-row" style="display:none;">
                 <!-- 快速選項；也可以用 −／+ 或直接輸入自訂分鐘數 -->
                 <div class="phone-open-presets" role="group" aria-label="開放時間">

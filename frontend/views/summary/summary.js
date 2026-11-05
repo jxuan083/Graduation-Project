@@ -5,6 +5,7 @@ import { connectRoom } from '../../core/ws.js';
 import { events } from '../../core/events.js';
 import { resetSessionCounters } from '../../core/session.js';
 import { t } from '../../core/i18n.js';
+import { mascotTier, MASCOT_MESSAGES } from '../../core/summaryMessage.js';
 import { hidePickupCard } from '../../features/pickup/sessionPickups.js';
 
 export function init() {
@@ -45,12 +46,15 @@ export function renderPartySummaryFromMeeting(meeting, newspaper = null) {
     setText('summary-time', Number(meeting?.duration_minutes || newspaper?.stats?.duration_minutes || 0));
     setText('summary-deviations', myDeviations);
     setText('summary-member-count', members.length || ranking.length || Number(newspaper?.stats?.member_count || 0));
-    setText(
-        'summary-mascot-message',
-        myDeviations <= 3
-            ? '太專注了！這場聚會超棒，吉祥物獲得了豐盛養分 🎉'
-            : '這次分心多了些，下次多陪陪彼此，吉祥物會更健壯的！'
-    );
+    // 跟聚會剛結束時同一套規則：分數不高但沒什麼分心、時間又短 → 說時間短，不說分心多
+    const myRaw = (Array.isArray(meeting?.deviation_ranking) ? meeting.deviation_ranking : []).find(r => r.uid === myUid);
+    const tier = mascotTier({
+        score: myRaw?.score ?? null,
+        deviations: myDeviations,
+        minutes: myRaw?.attended_minutes ?? meeting?.duration_minutes ?? 0,
+        abandoned: !!myRaw?.abandoned,
+    });
+    setText('summary-mascot-message', t(MASCOT_MESSAGES[tier]));
 
     renderSummaryRanking(ranking, myUid);
 }

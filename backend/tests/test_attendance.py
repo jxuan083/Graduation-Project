@@ -27,6 +27,34 @@ def make_room(*uids, host="host"):
     return room
 
 
+class TestDeviationCap(unittest.TestCase):
+    """前端回報的分心次數：正常回報都收，只擋時間上不可能的數字。"""
+    G = 20_000   # 寬限 20 秒（M）
+
+    def test_one_long_absence_counts_fully(self):
+        # 離開 65 秒 → 前端報 3 次（20、40、60 秒）
+        self.assertEqual(att.cap_deviation_count(3, 1_065_000, 0, 1_000_000, self.G), 3)
+
+    def test_quick_second_trip_is_not_dropped(self):
+        # 第一次回來報 1 次（時間 25 秒），2 秒後又出去 21 秒，回來再報 1 次：距離上次回報 23 秒
+        self.assertEqual(att.cap_deviation_count(1, 48_000, 25_000, 0, self.G), 1)
+
+    def test_warning_page_tick_right_after_a_report(self):
+        # 回到 App 補報後停在警告頁，1 秒後倒數到 0 又記 1 次
+        self.assertEqual(att.cap_deviation_count(1, 26_000, 25_000, 0, self.G), 1)
+
+    def test_impossible_counts_are_capped(self):
+        self.assertEqual(att.cap_deviation_count(10, 35_000, 25_000, 0, self.G), 1)        # 10 秒內報 10 次
+        self.assertEqual(att.cap_deviation_count(50, 1_100_000, 0, 1_000_000, self.G), 6)  # 開始 100 秒內最多 6 次
+        self.assertEqual(att.cap_deviation_count(10_000, 10**12, 0, 0, self.G), att.DEVIATION_HARD_CAP)
+
+    def test_bad_input_counts_once(self):
+        self.assertEqual(att.cap_deviation_count(None, 50_000, 0, 0, self.G), 1)
+        self.assertEqual(att.cap_deviation_count("x", 50_000, 0, 0, self.G), 1)
+        self.assertEqual(att.cap_deviation_count(0, 50_000, 0, 0, self.G), 1)
+        self.assertEqual(att.cap_deviation_count(-3, 50_000, 0, 0, self.G), 1)
+
+
 class TestAdmit(unittest.TestCase):
     def test_reconnect_keeps_personal_state(self):
         room = make_room("a")

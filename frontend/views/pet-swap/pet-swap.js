@@ -721,7 +721,7 @@ async function setAsGroupAvatar() {
         btn.innerHTML = '建立中…';
         const blob = await getRenderedBlob();
         const portraitBlob = await getPortraitBlob();
-        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=83');
+        const { setGroupPetFace } = await import('../../features/groups/controller.js?v=84');
         const { res, data } = await setGroupPetFace(groupId, blob, state.petSwapTarget?.uid, petName, petBodyEmoji, portraitBlob);
         if (!res.ok || data?.status !== 'success') throw new Error(data?.detail || `HTTP ${res.status}`);
         state.currentGroupDetail = {

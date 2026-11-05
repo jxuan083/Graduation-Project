@@ -1034,6 +1034,7 @@ from scoring import (  # noqa: E402
     compute_perf_points as _compute_perf_points,
     score_for_uid as _score_for_uid,
     is_unscored as _is_unscored,
+    score_parts as _score_parts,
 )
 from intent import (  # noqa: E402
     can_declare_intent as _intent_can_declare,
@@ -1761,6 +1762,132 @@ async def list_meeting_photos(meeting_id: str, decoded: dict = Depends(verify_to
     # 封面優先，其餘照 uploaded_at 先後排列
     photos.sort(key=lambda p: (not p.get("is_cover"), p.get("uploaded_at") or ""))
     return {"status": "success", "photos": photos, "max": MAX_PHOTOS_PER_MEETING}
+
+
+# ── 結算頁的寵物文字：聚會結束後每個人各自要一句（Qwen 生成；失敗時前端用規則版） ──
+SUMMARY_CONTEXT_LABELS = {
+    "general": ("一般聚會", "casual gathering"), "meeting": ("開會", "meeting"), "family": ("家庭聚會", "family gathering"),
+    "study": ("讀書會", "study group"), "class": ("專心上課", "class"), "meal": ("吃飯聚餐", "meal"),
+    "date": ("約會", "date"), "social": ("認識新朋友", "meeting new people"), "outdoor": ("旅行", "trip"),
+}
+
+
+class SummaryMessageRequest(BaseModel):
+    lang: Optional[str] = None
+
+
+def _summary_message_data(room: dict, uid: str) -> Optional[dict]:
+    """這個人的結算數據（給 prompt 用）；不在排行裡（上課老師）或跑出去沒回來（0 分）回傳 None。"""
+    result = room.get("final_result") or {}
+    row = next((r for r in result.get("score_ranking") or [] if r.get("uid") == uid), None)
+    if not row:
+        return None
+    info = (room.get("all_participants") or {}).get(uid) or {}
+    if info.get("abandoned"):
+        return None   # 0 分的原因很明確，規則版的文字就夠了
+    context = room.get("context", "general")
+    difficulty = room.get("difficulty", "M")
+    minutes = int(row.get("attended_minutes") if row.get("attended_minutes") is not None else result.get("duration_minutes") or 0)
+    deviations = int(row.get("deviations") or 0)
+    parts = _score_parts(minutes, deviations, difficulty, context, info.get("quality_metrics"))
+    zh, en = SUMMARY_CONTEXT_LABELS.get(context, ("聚會", "gathering"))
+    return {
+        "context": context, "context_label": zh, "context_label_en": en,
+        "attended_minutes": minutes, "duration_minutes": int(result.get("duration_minutes") or 0),
+        "deviations": deviations, "grace_sec": _phone.grace_sec(difficulty), "score": int(row.get("score") or 0),
+        **parts, "is_host": uid == room.get("host_uid"),
+    }
+
+
+@app.post("/api/rooms/{room_id}/summary-message")
+async def summary_message(
+    room_id: str,
+    body: SummaryMessageRequest,
+    decoded: dict = Depends(verify_token_or_guest),
+):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    lang = "en" if (body.lang or "").lower().startswith("en") else "zh"
+    room = rooms.get(room_id)
+    if not room or room.get("status") != "ENDED" or not room.get("final_result"):
+        raise HTTPException(status_code=404, detail="這場聚會還沒結算")
+    cache = room.setdefault("summary_messages", {})
+    key = f"{uid}:{lang}"
+    if key not in cache:
+        data = _summary_message_data(room, uid)
+        message = None
+        if data and llm is not None:
+            message = await asyncio.to_thread(llm.generate_summary_message, data, lang)
+        if message is None:
+            return {"message": None}   # 不快取失敗：之後重新打開總結頁可以再試
+        cache[key] = message
+    return {"message": cache[key]}
+
+
+# ── 讀書會問題板的照片（題目打字麻煩時直接拍）：只給這場聚會的人看，不進聚會相簿 ──
+QUESTION_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif"}
+
+
+@app.post("/api/rooms/{room_id}/questions/image")
+async def upload_question_image(
+    room_id: str,
+    file: UploadFile = File(...),
+    decoded: dict = Depends(verify_token_or_guest),
+):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    room = rooms.get(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="找不到這場聚會")
+    ok, reason = _study.can_upload_image(room, uid)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+    ext = QUESTION_IMAGE_TYPES.get((file.content_type or "").lower())
+    if not ext:
+        raise HTTPException(status_code=400, detail="只接受 JPEG / PNG / WebP / HEIC 圖片")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="照片是空的")
+    if len(content) > _study.QUESTION_IMAGE_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="照片太大，請換一張")
+    image_id = uuid.uuid4().hex
+    path = f"room-questions/{room_id}/{image_id}.{ext}"
+    try:
+        _storage_bucket().blob(path).upload_from_string(content, content_type=file.content_type)
+    except Exception as e:
+        print(f"[question-image] upload failed for room={room_id}: {e}")
+        raise HTTPException(status_code=500, detail="照片上傳失敗")
+    _study.note_image(room, image_id, uid, path, file.content_type)
+    try:
+        db.collection("rooms").document(room_id).update({"question_images": room["question_images"]})
+    except Exception as e:
+        print(f"Error saving question image in Firestore: {e}")
+    return {"status": "success", "image_id": image_id}
+
+
+@app.get("/api/rooms/{room_id}/questions/image/{image_id}")
+async def get_question_image(
+    room_id: str,
+    image_id: str,
+    decoded: dict = Depends(verify_token_or_guest),
+):
+    uid = decoded.get("uid") or decoded.get("user_id")
+    room = rooms.get(room_id)
+    if room is None:   # 後端重啟過：從資料庫讀
+        snap = db.collection("rooms").document(room_id).get()
+        room = (snap.to_dict() or {}) if snap.exists else None
+    if not room:
+        raise HTTPException(status_code=404, detail="找不到這場聚會")
+    if not _study.can_view_image(room, uid):
+        raise HTTPException(status_code=403, detail="你沒有參與這場聚會")
+    img = _study.image_for(room, image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="找不到這張照片")
+    try:
+        content = _storage_bucket().blob(img["path"]).download_as_bytes()
+    except Exception as e:
+        print(f"[question-image] download failed for {img.get('path')}: {e}")
+        raise HTTPException(status_code=500, detail="讀取照片失敗")
+    return Response(content=content, media_type=img.get("content_type") or "image/jpeg",
+                    headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/meetings/{meeting_id}/photos/{photo_id}/content")
@@ -2625,7 +2752,7 @@ DIFFICULTY_PARAMS: Dict[str, dict] = {
         "buffer_check_interval_sec": 15,
         "pin_exempt_duration_sec": 600,
         "pin_exempt_max_count": 3,
-        "deviation_rate_limit_sec": 30,   # LOG_DEVIATION 最短間隔
+        "deviation_rate_limit_sec": 30,   # 結算時補記：沒回來的時間每幾秒算一次分心（intent／attendance）
     },
     "M": {
         "buffer_sec_per_window": 45,
@@ -4979,18 +5106,17 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"[LOG_DEVIATION] exempted by phone open user={user_id} room={room_id}")
                     continue
 
-                # per-user rate-limit: 間隔由難度參數 deviation_rate_limit_sec 決定
-                rate_limit_ms = int(rooms[room_id].get("session_params", {}).get("deviation_rate_limit_sec", 25)) * 1000
+                # 前端回到 App 時一次補報離開期間的分心次數（count）。每筆都收，但次數不能超過
+                # 「距離上次回報經過幾個寬限時間 + 1」；以前是間隔太近就整筆丟掉，連續跳出去會漏記。
                 now_ms = _now_ms()
                 member = rooms[room_id]["members"].get(user_id) or {}
-                last_dev_ms = member.get("last_deviation_ms", 0)
-                if now_ms - last_dev_ms < rate_limit_ms:
-                    print(f"[LOG_DEVIATION] rate-limited user={user_id} room={room_id}")
-                    continue
-                rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms
-
-                # 支援前端傳入 count（長時間離開時一次記多次）
-                count = max(1, int(data.get("count", 1)))
+                count = _att.cap_deviation_count(
+                    data.get("count", 1), now_ms, int(member.get("last_deviation_ms", 0) or 0),
+                    int(rooms[room_id].get("active_started_ms", 0) or 0),
+                    _phone.grace_sec(rooms[room_id].get("difficulty", "M")) * 1000,
+                )
+                if user_id in rooms[room_id]["members"]:
+                    rooms[room_id]["members"][user_id]["last_deviation_ms"] = now_ms
                 # members 記「這一段」的分心（畫面用，加回後從 0 開始）；all_participants 記計分用的累計。
                 # 同時中斷該用戶的連續專注 → 更新其最長專注時間（只加分用）
                 try:   # 這批分心第一次發生的時間（前端用伺服器時間換算後送來；約會的「誰先拿起手機」用）
@@ -5113,14 +5239,18 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 _q_room = rooms[room_id]
                 if action == "ADD_QUESTION":
                     _q_nick = (_q_room["members"].get(user_id) or {}).get("nickname", "")
-                    _q_ok, _q_reason = _study.add_question(_q_room, user_id, _q_nick, data.get("text"), _now_ms(), uuid.uuid4().hex[:10])
+                    _q_ok, _q_reason = _study.add_question(_q_room, user_id, _q_nick, data.get("text"), _now_ms(),
+                                                           uuid.uuid4().hex[:10], data.get("image_id"))
                 elif action == "TOGGLE_QUESTION":
                     _q_ok, _q_reason = _study.toggle_question(_q_room, str(data.get("id") or ""))
                 if not _q_ok:
                     await websocket.send_text(json.dumps({"type": "ACTION_REJECTED", "reason": _q_reason}))
                     continue
                 try:
-                    db.collection("rooms").document(room_id).update({"questions": _q_room.get("questions", [])})
+                    db.collection("rooms").document(room_id).update({
+                        "questions": _q_room.get("questions", []),
+                        "question_images": _q_room.get("question_images", {}),
+                    })
                 except Exception as e:
                     print(f"Error saving study questions in Firestore: {e}")
                 await manager.broadcast_to_room(room_id, {"type": "ROOM_UPDATE", "room_state": _q_room})

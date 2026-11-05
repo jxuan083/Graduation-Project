@@ -41,6 +41,9 @@
 | POST | `/api/questions/import` |
 | POST | `/api/meetings/{meeting_id}/photos` |
 | GET | `/api/meetings/{meeting_id}/photos` |
+| POST | `/api/rooms/{room_id}/summary-message` |
+| POST | `/api/rooms/{room_id}/questions/image` |
+| GET | `/api/rooms/{room_id}/questions/image/{image_id}` |
 | GET | `/api/meetings/{meeting_id}/photos/{photo_id}/content` |
 | DELETE | `/api/meetings/{meeting_id}/photos/{photo_id}` |
 | PATCH | `/api/meetings/{meeting_id}/photos/{photo_id}/cover` |
