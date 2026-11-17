@@ -1323,23 +1323,24 @@ let _pendingGachaOpen = false;
 let _activeBuff = null; // { item_id, buff_type, buff_value, buff_duration_hours, buff_expires_at }
 
 const _GACHA_IMG = id => `./assets/pets/gacha/${id}.svg`;
+const _GACHA_OVERLAY = id => `./assets/pets/gacha_overlay/${id}.svg`;
 
 // Local catalog fallback — mirrors backend pet_gacha.py
 const GACHA_LOCAL_CATALOG = [
-    { id: 'party_hat',       name: '派對帽',   type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('party_hat') },
-    { id: 'bow_tie',         name: '蝴蝶結帽', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('bow_tie_hat') },
-    { id: 'crown',           name: '小王冠',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('crown') },
-    { id: 'witch_hat',       name: '巫師帽',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('witch_hat') },
-    { id: 'star_crown',      name: '星辰王冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('star_crown') },
-    { id: 'rainbow_crown',   name: '彩虹皇冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('rainbow_crown') },
-    { id: 'cat_ears',        name: '貓耳頭飾', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('cat_ears') },
-    { id: 'star_glasses',    name: '星形眼鏡', type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('star_glasses') },
-    { id: 'scarf',           name: '格紋圍巾', type: 'costume',    slot: 'neck',   rarity: 'common',   img: _GACHA_IMG('scarf') },
-    { id: 'medal',           name: '聚會勳章', type: 'costume',    slot: 'neck',   rarity: 'rare',     img: _GACHA_IMG('medal') },
-    { id: 'crystal_pendant', name: '水晶吊墜', type: 'costume',    slot: 'neck',   rarity: 'treasure', img: _GACHA_IMG('crystal_pendant') },
-    { id: 'vest',            name: '小背心',   type: 'costume',    slot: 'body',   rarity: 'common',   img: _GACHA_IMG('vest') },
-    { id: 'cape',            name: '英雄披風', type: 'costume',    slot: 'body',   rarity: 'rare',     img: _GACHA_IMG('cape') },
-    { id: 'tuxedo',          name: '燕尾服',   type: 'costume',    slot: 'body',   rarity: 'treasure', img: _GACHA_IMG('tuxedo') },
+    { id: 'party_hat',       name: '派對帽',   type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('party_hat'),       overlay_img: _GACHA_OVERLAY('party_hat') },
+    { id: 'bow_tie',         name: '蝴蝶結帽', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('bow_tie_hat'),     overlay_img: _GACHA_OVERLAY('bow_tie_hat') },
+    { id: 'crown',           name: '小王冠',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('crown'),           overlay_img: _GACHA_OVERLAY('crown') },
+    { id: 'witch_hat',       name: '巫師帽',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('witch_hat'),       overlay_img: _GACHA_OVERLAY('witch_hat') },
+    { id: 'star_crown',      name: '星辰王冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('star_crown'),      overlay_img: _GACHA_OVERLAY('star_crown') },
+    { id: 'rainbow_crown',   name: '彩虹皇冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('rainbow_crown'),   overlay_img: _GACHA_OVERLAY('rainbow_crown') },
+    { id: 'cat_ears',        name: '貓耳頭飾', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('cat_ears'),        overlay_img: _GACHA_OVERLAY('cat_ears') },
+    { id: 'star_glasses',    name: '星形眼鏡', type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('star_glasses'),    overlay_img: _GACHA_OVERLAY('star_glasses') },
+    { id: 'scarf',           name: '格紋圍巾', type: 'costume',    slot: 'neck',   rarity: 'common',   img: _GACHA_IMG('scarf'),           overlay_img: _GACHA_OVERLAY('scarf') },
+    { id: 'medal',           name: '聚會勳章', type: 'costume',    slot: 'neck',   rarity: 'rare',     img: _GACHA_IMG('medal'),           overlay_img: _GACHA_OVERLAY('medal') },
+    { id: 'crystal_pendant', name: '水晶吊墜', type: 'costume',    slot: 'neck',   rarity: 'treasure', img: _GACHA_IMG('crystal_pendant'), overlay_img: _GACHA_OVERLAY('crystal_pendant') },
+    { id: 'vest',            name: '小背心',   type: 'costume',    slot: 'body',   rarity: 'common',   img: _GACHA_IMG('vest'),            overlay_img: _GACHA_OVERLAY('vest') },
+    { id: 'cape',            name: '英雄披風', type: 'costume',    slot: 'body',   rarity: 'rare',     img: _GACHA_IMG('cape'),            overlay_img: _GACHA_OVERLAY('cape') },
+    { id: 'tuxedo',          name: '燕尾服',   type: 'costume',    slot: 'body',   rarity: 'treasure', img: _GACHA_IMG('tuxedo'),          overlay_img: _GACHA_OVERLAY('tuxedo') },
     { id: 'sparkle',         name: '閃閃星光', type: 'decoration', slot: 'effect', rarity: 'common',   img: _GACHA_IMG('sparkle') },
     { id: 'music',           name: '音符飄飄', type: 'decoration', slot: 'effect', rarity: 'common',   img: _GACHA_IMG('music') },
     { id: 'hearts',          name: '愛心雨',   type: 'decoration', slot: 'effect', rarity: 'rare',     img: _GACHA_IMG('hearts') },
