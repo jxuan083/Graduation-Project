@@ -33,6 +33,19 @@ def _buff(buff_type: str, buff_value: float, duration_hours: int) -> dict:
     }
 
 
+# ── 每個 slot 按稀有度比例 (14:5:1) 分配 10000 總權重，確保各 slot 出現機率相等 ──
+# head  (3c+3r+2t): denom=59 → common=2373, rare=847,  treasure=169
+# neck  (1c+1r+1t): denom=20 → common=7000, rare=2500, treasure=500
+# body  (1c+1r+1t): denom=20 → common=7000, rare=2500, treasure=500
+# effect(2c+2r+2t): denom=40 → common=3500, rare=1250, treasure=250
+_SLOT_RARITY_WEIGHT: dict[str, dict[str, int]] = {
+    "head":   {"common": 2373, "rare":  847, "treasure": 169},
+    "neck":   {"common": 7000, "rare": 2500, "treasure": 500},
+    "body":   {"common": 7000, "rare": 2500, "treasure": 500},
+    "effect": {"common": 3500, "rare": 1250, "treasure": 250},
+}
+
+
 def _costume(item_id, name, rarity, slot, img_file, description, buff=None):
     item = {
         "id": item_id,
@@ -43,6 +56,7 @@ def _costume(item_id, name, rarity, slot, img_file, description, buff=None):
         "overlay_img": _GACHA_OVERLAY_BASE + img_file,
         "description": description,
         "slot": slot,
+        "weight": _SLOT_RARITY_WEIGHT[slot][rarity],
     }
     if buff is not None:
         item["buff"] = buff
@@ -59,6 +73,7 @@ def _decoration(item_id, name, rarity, effect, img_file, description, buff=None)
         "overlay_img": _GACHA_OVERLAY_BASE + img_file,
         "description": description,
         "effect": effect,
+        "weight": _SLOT_RARITY_WEIGHT["effect"][rarity],
     }
     if buff is not None:
         item["buff"] = buff
@@ -123,14 +138,19 @@ def gacha_catalog() -> dict:
 
 
 def draw_gacha_item(randbelow=None) -> dict:
-    """依加權機率隨機抽取一個道具，回傳 public_item dict。"""
-    roll = (randbelow or secrets.randbelow)(10000)
+    """
+    依每個道具的 weight 加權抽取一件道具，回傳 public_item dict。
+
+    各 slot 的 weight 總和均為 10000，所以 4 個 slot 各佔整體 25%；
+    slot 內 common:rare:treasure 比例 ≈ 14:5:1。
+    """
+    total_weight = sum(item["weight"] for item in GACHA_ITEMS)
+    roll = (randbelow or secrets.randbelow)(total_weight)
     ceiling = 0
-    for key, meta in RARITIES.items():
-        ceiling += meta["weight"]
+    for item in GACHA_ITEMS:
+        ceiling += item["weight"]
         if roll < ceiling:
-            candidates = [item for item in GACHA_ITEMS if item["rarity"] == key]
-            return public_item(secrets.choice(candidates))
+            return public_item(item)
     raise ValueError("gacha roll outside configured weights")
 
 
