@@ -17,13 +17,14 @@ import main
 
 OWNER = 'browser-owner'
 main._verify_id_token = lambda token: {'uid':OWNER,'sub':OWNER,'email':'browser@example.test'}
-main.db.collection('users').document(OWNER).set({'nickname':'本機測試','email':'browser@example.test'})
 group = main.db.collection('groups').document('browser-group')
+user_doc = main.db.collection('users').document(OWNER)
 def reset():
+    user_doc.set({'nickname':'本機測試','email':'browser@example.test','ranking_gacha_points':204})
     group.set({'creator_uid':OWNER,'member_uids':[OWNER,'browser-peer'],'name':'寵物驗收群組',
            'pet_face_url':'/assets/pets/illustrated/puppy-poster-v1.png',
            'pet_character_id':'puppy-v1','pet_name':'奶糖','pet_energy':50,'pet_happiness':50,
-           'pet_cleanliness':50,'pet_coins':204,
+           'pet_cleanliness':50,
            'pet_owned_toys':['cloth_ball','knot_rope','star_plush','flying_disc']})
     return {'status':'ok'}
 reset()

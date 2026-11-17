@@ -3479,11 +3479,12 @@ class PetDrawPayload(BaseModel):
 
 @app.post("/api/groups/{group_id}/pet/draw")
 async def draw_group_pet_item(group_id: str, payload: PetDrawPayload, decoded: dict = Depends(verify_token)):
-    """扣群組金幣與入背包在同一 transaction；重送回傳原抽取結果。"""
+    """扣個人金幣（ranking_gacha_points）與入群組背包在同一 transaction；重送回傳原抽取結果。"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
     ref = db.collection('groups').document(group_id)
+    user_ref = db.collection('users').document(uid)
     receipt_ref = ref.collection('pet_draw_receipts').document(f'{uid}_{payload.request_id}')
 
     @firestore.transactional
@@ -3499,21 +3500,26 @@ async def draw_group_pet_item(group_id: str, payload: PetDrawPayload, decoded: d
             saved = receipt.to_dict()
             if saved['kind'] != payload.kind:
                 raise HTTPException(status_code=409, detail="這次操作編號已用於其他抽取")
-            return {**saved['result'], **economy_payload(data),
-                    'pet_discovered_items': discovered_items(data), 'replayed': True}
+            return {**saved['result'], 'pet_discovered_items': discovered_items(data), 'replayed': True}
         if not data.get('pet_face_url'):
             raise HTTPException(status_code=409, detail="先領養一位寵物，再幫牠準備物品")
-        if economy_payload(data)['pet_coins'] < DRAW_PRICES[payload.kind]:
+        u_snap = user_ref.get(transaction=tx)
+        u_data = (u_snap.to_dict() or {}) if u_snap.exists else {}
+        current_points = int(u_data.get('ranking_gacha_points') or 0)
+        cost = DRAW_PRICES[payload.kind]
+        if current_points < cost:
             raise HTTPException(status_code=409, detail="金幣不足，一起完成聚會來累積金幣")
         item = draw_inventory_item(payload.kind)
         try:
-            economy, outcome = apply_inventory_draw(data, item)
+            inventory, outcome = apply_inventory_only(data, item)
         except ValueError as error:
             raise HTTPException(status_code=409, detail="這項食物已經放滿背包，先使用一些再抽") from error
+        new_points = current_points - cost + (outcome.get('refund') or 0)
         discoveries = sorted(set(discovered_items(data)) | {item['id']})
-        result = {'status': 'success', 'care_item': item, **outcome, **economy,
-                  'pet_discovered_items': discoveries}
-        tx.update(ref, {**economy, 'pet_discovered_items': discoveries})
+        result = {'status': 'success', 'care_item': item, **outcome, **inventory,
+                  'pet_discovered_items': discoveries, 'points_remaining': new_points}
+        tx.update(ref, {**inventory, 'pet_discovered_items': discoveries})
+        tx.set(user_ref, {'ranking_gacha_points': new_points}, merge=True)
         tx.set(receipt_ref, {'kind': payload.kind, 'result': result, 'at': firestore.SERVER_TIMESTAMP})
         return result
 

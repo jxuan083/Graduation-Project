@@ -45,7 +45,13 @@ class PetCareApiTests(unittest.TestCase):
             ref.get.side_effect = lambda **kwargs: Mock(exists=key in self.records, to_dict=lambda: self.records.get(key))
             return ref
         self.doc.collection.return_value.document.side_effect = subdoc
-        self.tx.set.side_effect = lambda ref, fields: self.records.update({ref.key: fields})
+        def tx_set(ref, fields, **_):
+            key = getattr(ref, 'key', None)
+            if isinstance(key, str):
+                self.records.update({key: fields})
+            else:
+                self.data.update(fields)
+        self.tx.set.side_effect = tx_set
         for patcher in [patch.object(main, 'db', self.db),
                         patch.object(main.firestore, 'transactional', side_effect=lambda fn: fn)]:
             patcher.start()
@@ -167,7 +173,7 @@ class PetCareApiTests(unittest.TestCase):
 
     def test_draw_retry_never_spends_or_rolls_twice(self):
         self.adopt()
-        self.data['pet_coins'] = 100
+        self.data['ranking_gacha_points'] = 100
         payload = main.PetDrawPayload(kind='toy', request_id='draw-request-001')
         with patch.object(main, 'draw_inventory_item', return_value=main.item_by_id('star_plush')) as draw:
             first = asyncio.run(main.draw_group_pet_item('group', payload, {'uid': 'member'}))
@@ -175,7 +181,7 @@ class PetCareApiTests(unittest.TestCase):
             draw.assert_called_once_with('toy')
         self.assertEqual(first['care_item'], second['care_item'])
         self.assertTrue(second['replayed'])
-        self.assertEqual(self.data['pet_coins'], 40)
+        self.assertEqual(self.data['ranking_gacha_points'], 40)
         self.assertIn('star_plush', self.data['pet_owned_toys'])
         with self.assertRaises(HTTPException):
             asyncio.run(main.draw_group_pet_item('group', main.PetDrawPayload(kind='food', request_id='draw-request-001'), {'uid': 'member'}))
