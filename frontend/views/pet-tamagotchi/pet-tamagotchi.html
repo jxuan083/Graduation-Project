@@ -42,9 +42,10 @@
         </div>
 
         <div class="pet-supplies-bar">
-            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>群組金幣</small></span>
+            <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>金幣</small></span>
             <button id="btn-pet-draw" type="button">抽物品</button>
             <button id="btn-pet-bag" type="button">背包</button>
+            <button id="btn-pet-gacha" type="button">扭蛋機<span class="gacha-entry-coins" id="gacha-entry-coins" aria-hidden="true"></span></button>
         </div>
 
         <!-- 舞台 -->
@@ -67,6 +68,10 @@
             <button id="btn-pet-animation-retry" class="pet-animation-retry" type="button" hidden>重新載入動畫</button>
             <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
                 <img id="pet-avatar-img" src="" alt="寵物" />
+                <span class="pet-costume-head" id="pet-costume-head" aria-hidden="true"></span>
+                <span class="pet-costume-body" id="pet-costume-body" aria-hidden="true"></span>
+                <span class="pet-costume-neck" id="pet-costume-neck" aria-hidden="true"></span>
+                <span class="pet-decoration-effect" id="pet-decoration-effect" aria-hidden="true"></span>
             </div>
             <div id="pet-rescue-overlay" class="pet-rescue-overlay" style="display:none;">
                 <div class="pet-cage" aria-hidden="true">
@@ -115,6 +120,9 @@
             <i data-lucide="move" style="width:13px;height:13px;"></i>
             <span>拖曳舞台可調整背景位置</span>
         </div>
+
+        <!-- 啟動中的扭蛋道具效果 -->
+        <div id="pet-buff-badge" class="pet-buff-badge" hidden></div>
 
         <!-- 動作按鈕 -->
         <div class="pet-actions">
@@ -205,8 +213,8 @@
 
     <dialog id="pet-care-shop" class="pet-care-shop" aria-labelledby="pet-shop-title">
         <div class="care-shop-heading"><div><p>一起聚會，替牠添點新東西</p><h2 id="pet-shop-title">補給小舖</h2></div><button data-shop-close type="button" aria-label="關閉補給小舖">×</button></div>
-        <div class="care-shop-wallet"><span>群組共用金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
-        <p class="care-shop-rules">至少兩位群組成員參與、滿 10 分鐘的聚會可獲得金幣。時長與專注表現會影響獎勵。</p>
+        <div class="care-shop-wallet"><span>我的金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
+        <p class="care-shop-rules">第 1 名 +50 · 第 2 名 +30 · 其他 +20（每場聚會）</p>
         <div class="care-shop-tabs"><button data-shop-tab="draw" type="button" aria-pressed="true">抽物品</button><button data-shop-tab="bag" type="button" aria-pressed="false">群組背包</button></div>
         <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button></div>
         <div data-draw-reveal class="draw-reveal" hidden></div>
@@ -265,6 +273,131 @@
                 <button id="btn-delete-cancel"  class="btn secondary" style="flex:1;">取消</button>
             </div>
         </div>
+    </dialog>
+
+    <!-- 扭蛋機 Dialog -->
+    <dialog id="pet-gacha-dialog" class="pet-gacha-dialog" aria-labelledby="pet-gacha-title">
+      <div class="gacha-machine">
+        <!-- Machine Header -->
+        <div class="gacha-header">
+          <button class="gacha-close-btn" id="btn-gacha-close" type="button" aria-label="關閉扭蛋機">×</button>
+          <div class="gacha-title-wrap">
+            <span class="gacha-eyebrow">群組寵物</span>
+            <h2 id="pet-gacha-title" class="gacha-title">扭蛋機</h2>
+          </div>
+        </div>
+
+        <!-- Machine Body (CSS art) -->
+        <div class="gacha-body-art" aria-hidden="true">
+          <div class="gacha-dome">
+            <div class="gacha-dome-inner">
+              <div class="gacha-capsules" id="gacha-capsules-display"></div>
+              <div class="gacha-dome-shine"></div>
+            </div>
+          </div>
+          <div class="gacha-tube"></div>
+          <div class="gacha-machine-body">
+            <div class="gacha-body-label">RANKING GACHA</div>
+            <div class="gacha-coin-slot"><div class="gacha-coin-slot-inner"></div></div>
+            <div class="gacha-dispenser" id="gacha-dispenser">
+              <div class="gacha-dispenser-window"></div>
+              <div class="gacha-dispenser-flap" id="gacha-dispenser-flap"></div>
+            </div>
+            <div class="gacha-handle-wrap">
+              <div class="gacha-handle-shaft"></div>
+              <div class="gacha-handle-arm" id="gacha-handle-arm">
+                <div class="gacha-handle-knob"></div>
+              </div>
+            </div>
+            <div class="gacha-body-bolts">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="gacha-base"></div>
+          <div class="gacha-journey-capsule" id="gacha-journey-capsule" aria-hidden="true"></div>
+        </div>
+
+        <!-- Points display -->
+        <div class="gacha-wallet">
+          <span class="gacha-wallet-label">金幣</span>
+          <strong class="gacha-wallet-points"><span id="gacha-user-points">0</span></strong>
+          <span class="gacha-wallet-hint" id="gacha-points-hint">第 1 名 +50 · 第 2 名 +30 · 其他 +20</span>
+        </div>
+
+        <!-- Tabs: draw / wardrobe -->
+        <div class="gacha-tabs">
+          <button class="gacha-tab active" data-gacha-tab="draw" type="button">抽扭蛋</button>
+          <button class="gacha-tab" data-gacha-tab="wardrobe" type="button">衣櫃</button>
+        </div>
+
+        <!-- Draw Panel -->
+        <div class="gacha-panel" id="gacha-panel-draw">
+          <!-- Category filter -->
+          <div class="gacha-kinds">
+            <button class="gacha-kind active" data-gacha-kind="all" type="button">全部</button>
+            <button class="gacha-kind" data-gacha-kind="costume" type="button">配件</button>
+            <button class="gacha-kind" data-gacha-kind="decoration" type="button">裝飾</button>
+          </div>
+          <!-- Rarity odds -->
+          <div class="gacha-odds">
+            <span class="rarity-badge common">普通 70%</span>
+            <span class="rarity-badge rare">稀有 25%</span>
+            <span class="rarity-badge treasure">珍藏 5%</span>
+          </div>
+          <!-- Collection preview -->
+          <div class="gacha-collection-wrap">
+            <div class="gacha-collection-header">
+              <span class="gacha-collection-title">可獲得配件</span>
+              <span class="gacha-collect-count" id="gacha-collect-count"></span>
+            </div>
+            <div class="gacha-collection-grid" id="gacha-collection-grid"></div>
+          </div>
+          <!-- Reveal area -->
+          <div class="gacha-reveal" id="gacha-reveal" hidden>
+            <div class="gacha-confetti" id="gacha-confetti" aria-hidden="true"></div>
+            <div class="gacha-capsule-anim" id="gacha-capsule-anim">
+              <div class="gacha-cap-top" id="gacha-cap-top"></div>
+              <div class="gacha-cap-seam"></div>
+              <div class="gacha-cap-bottom" id="gacha-cap-bottom"></div>
+            </div>
+            <div class="gacha-reveal-items" id="gacha-reveal-items"></div>
+            <div class="gacha-reveal-cta" id="gacha-reveal-cta" hidden>
+              <button class="gacha-cta-equip" id="btn-gacha-equip-now" type="button">立即穿戴</button>
+              <button class="gacha-cta-bag" id="btn-gacha-keep-bag" type="button">保留到背包</button>
+            </div>
+          </div>
+          <!-- Draw buttons -->
+          <div class="gacha-draw-btns">
+            <button class="gacha-draw-btn single" id="btn-gacha-draw-1" type="button">
+              <span class="gacha-draw-label">抽一次</span>
+              <span class="gacha-draw-cost">50 金幣</span>
+            </button>
+            <button class="gacha-draw-btn triple" id="btn-gacha-draw-3" type="button">
+              <span class="gacha-draw-label">抽三次</span>
+              <span class="gacha-draw-cost">120 金幣 <em>省 30</em></span>
+            </button>
+          </div>
+          <!-- Progress hint -->
+          <div class="gacha-draw-progress" id="gacha-draw-progress" role="status" aria-live="polite" hidden></div>
+          <!-- Status -->
+          <p class="gacha-status" id="gacha-draw-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <!-- Wardrobe Panel -->
+        <div class="gacha-panel" id="gacha-panel-wardrobe" hidden>
+          <div class="gacha-wardrobe-equipped" id="gacha-equipped-slots">
+            <!-- Equipped slots rendered by JS -->
+          </div>
+          <div class="gacha-wardrobe-label">群組背包</div>
+          <div class="gacha-wardrobe-grid" id="gacha-wardrobe-grid">
+            <!-- Items rendered by JS -->
+          </div>
+          <p class="gacha-status" id="gacha-wardrobe-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <!-- Debug: add points button (local dev only) -->
+        <button class="gacha-debug-btn" id="btn-gacha-add-points" type="button">+ 加 100 金幣（測試用）</button>
+      </div>
     </dialog>
 
 </section>

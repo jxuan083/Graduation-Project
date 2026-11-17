@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Crystal pendant necklace: chain from y=182, crystal at (200,240) -->
+  <!-- Chain left arc -->
+  <path d="M166,182 Q180,185 200,185 Q220,185 234,182"
+        stroke="#D1D5DB" stroke-width="2.5" fill="none"/>
+  <!-- Chain drops -->
+  <path d="M200,185 L200,228" stroke="#D1D5DB" stroke-width="2.5" stroke-dasharray="4,3"/>
+  <!-- Chain small circles -->
+  <circle cx="200" cy="190" r="2.5" fill="#9CA3AF"/>
+  <circle cx="200" cy="198" r="2.5" fill="#9CA3AF"/>
+  <circle cx="200" cy="206" r="2.5" fill="#9CA3AF"/>
+  <circle cx="200" cy="214" r="2.5" fill="#9CA3AF"/>
+  <circle cx="200" cy="222" r="2.5" fill="#9CA3AF"/>
+  <!-- Crystal diamond shape -->
+  <!-- Shadow -->
+  <polygon points="200,228 220,244 200,268 180,244" fill="#6D28D9" opacity="0.2" transform="translate(3,4)"/>
+  <!-- Crystal facets -->
+  <polygon points="200,228 220,244 200,268 180,244" fill="#DDD6FE" stroke="#7C3AED" stroke-width="2"/>
+  <!-- Left facet -->
+  <polygon points="200,228 180,244 200,244" fill="#C4B5FD" opacity="0.8"/>
+  <!-- Right facet -->
+  <polygon points="200,228 220,244 200,244" fill="#A78BFA" opacity="0.6"/>
+  <!-- Bottom facet -->
+  <polygon points="200,268 180,244 200,244" fill="#EDE9FE" opacity="0.9"/>
+  <polygon points="200,268 220,244 200,244" fill="#C4B5FD" opacity="0.7"/>
+  <!-- Crystal shine -->
+  <line x1="192" y1="234" x2="196" y2="240" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="193" cy="233" r="2.5" fill="white" opacity="0.7"/>
+  <!-- Top clasp -->
+  <circle cx="200" cy="228" r="4" fill="#9CA3AF" stroke="#6B7280" stroke-width="1.5"/>
+</svg>

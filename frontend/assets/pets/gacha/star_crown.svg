@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#EEF2FF"/>
+
+  <!-- Stardust glow -->
+  <ellipse cx="100" cy="108" rx="60" ry="38" fill="#C7D2FE" opacity="0.4"/>
+
+  <!-- Drop shadow -->
+  <ellipse cx="100" cy="158" rx="50" ry="8" fill="#3730A3" opacity="0.15"/>
+
+  <!-- Crown base band -->
+  <rect x="42" y="128" width="116" height="22" rx="8" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2"/>
+  <!-- Band shimmer -->
+  <rect x="46" y="131" width="108" height="8" rx="4" fill="white" opacity="0.5"/>
+
+  <!-- Blue gems on band -->
+  <ellipse cx="62" cy="139" rx="7" ry="6" fill="#60A5FA" stroke="#2563EB" stroke-width="1.5"/>
+  <ellipse cx="62" cy="137" rx="2.5" ry="2" fill="#BFDBFE" opacity="0.8"/>
+  <ellipse cx="90" cy="139" rx="7" ry="6" fill="#60A5FA" stroke="#2563EB" stroke-width="1.5"/>
+  <ellipse cx="90" cy="137" rx="2.5" ry="2" fill="#BFDBFE" opacity="0.8"/>
+  <ellipse cx="118" cy="139" rx="7" ry="6" fill="#60A5FA" stroke="#2563EB" stroke-width="1.5"/>
+  <ellipse cx="118" cy="137" rx="2.5" ry="2" fill="#BFDBFE" opacity="0.8"/>
+  <ellipse cx="146" cy="139" rx="7" ry="6" fill="#60A5FA" stroke="#2563EB" stroke-width="1.5"/>
+  <ellipse cx="146" cy="137" rx="2.5" ry="2" fill="#BFDBFE" opacity="0.8"/>
+
+  <!-- Crown body (5-point arched top) -->
+  <path d="M42,130 L42,100 L62,118 L78,78 L100,100 L122,78 L138,118 L158,100 L158,130 Z"
+        fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M50,130 L50,106 L65,120 L78,86 L100,106 L122,86 L135,120 L150,106 L150,130 Z"
+        fill="white" opacity="0.4"/>
+
+  <!-- 5-pointed stars at each crown point -->
+  <!-- Left outer star -->
+  <polygon points="42,98 44,104 50,104 45.5,108 47.5,114 42,110 36.5,114 38.5,108 34,104 40,104"
+           fill="#F59E0B" stroke="#D97706" stroke-width="1"/>
+  <!-- Left inner star -->
+  <polygon points="78,76 80,82 86,82 81.5,86 83.5,92 78,88 72.5,92 74.5,86 70,82 76,82"
+           fill="#F59E0B" stroke="#D97706" stroke-width="1"/>
+  <!-- Center star -->
+  <polygon points="100,56 103,65 112,65 105.5,70.5 108,80 100,74.5 92,80 94.5,70.5 88,65 97,65"
+           fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <circle cx="100" cy="68" r="3" fill="#FDE68A"/>
+  <!-- Right inner star -->
+  <polygon points="122,76 124,82 130,82 125.5,86 127.5,92 122,88 116.5,92 118.5,86 114,82 120,82"
+           fill="#F59E0B" stroke="#D97706" stroke-width="1"/>
+  <!-- Right outer star -->
+  <polygon points="158,98 160,104 166,104 161.5,108 163.5,114 158,110 152.5,114 154.5,108 150,104 156,104"
+           fill="#F59E0B" stroke="#D97706" stroke-width="1"/>
+
+  <!-- Stardust sparkles around crown -->
+  <path d="M68,55 L69,58 L68,61 L67,58 Z" fill="#F59E0B" opacity="0.9"/>
+  <path d="M68,58 L71,56.5 L68,55 L65,56.5 Z" fill="#F59E0B" opacity="0.9"/>
+  <path d="M136,60 L137,63 L136,66 L135,63 Z" fill="#60A5FA" opacity="0.9"/>
+  <path d="M136,63 L139,61.5 L136,60 L133,61.5 Z" fill="#60A5FA" opacity="0.9"/>
+  <path d="M50,72 L51,74 L50,76 L49,74 Z" fill="white" opacity="0.8"/>
+  <path d="M50,74 L52,73 L50,72 L48,73 Z" fill="white" opacity="0.8"/>
+  <path d="M155,72 L156,74 L155,76 L154,74 Z" fill="white" opacity="0.8"/>
+  <path d="M155,74 L157,73 L155,72 L153,73 Z" fill="white" opacity="0.8"/>
+</svg>

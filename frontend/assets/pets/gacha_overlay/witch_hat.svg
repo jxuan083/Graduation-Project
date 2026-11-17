@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Tall witch hat: tip near top of canvas, wide brim at ~y=78 -->
+  <defs>
+    <clipPath id="witch-cone">
+      <polygon points="202,2 150,78 258,78"/>
+    </clipPath>
+  </defs>
+  <!-- Hat cone shadow -->
+  <polygon points="202,2 150,78 258,78" fill="#1E1B4B" opacity="0.18" transform="translate(5,4)"/>
+  <!-- Hat cone body -->
+  <polygon points="202,2 150,78 258,78" fill="#4C1D95"/>
+  <!-- Shimmer stripes -->
+  <g clip-path="url(#witch-cone)">
+    <line x1="150" y1="50" x2="202" y2="2"  stroke="#7C3AED" stroke-width="10" opacity="0.5"/>
+    <line x1="150" y1="68" x2="230" y2="20" stroke="#7C3AED" stroke-width="10" opacity="0.5"/>
+    <line x1="162" y1="78" x2="258" y2="42" stroke="#7C3AED" stroke-width="10" opacity="0.5"/>
+  </g>
+  <polygon points="202,2 150,78 258,78" fill="none" stroke="#2E1065" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Wide brim -->
+  <ellipse cx="200" cy="78" rx="82" ry="16" fill="#4C1D95" stroke="#2E1065" stroke-width="2.5"/>
+  <ellipse cx="200" cy="76" rx="78" ry="10" fill="#6D28D9" opacity="0.6"/>
+  <!-- Hat band with stars -->
+  <rect x="158" y="70" width="84" height="12" rx="4" fill="#F59E0B" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Star on band -->
+  <path d="M200,72 L202,76 L206,76 L203,79 L204,83 L200,80 L196,83 L197,79 L194,76 L198,76Z"
+        fill="#FEF3C7"/>
+  <!-- Moon/star on brim -->
+  <circle cx="162" cy="78" r="4" fill="#FDE68A" opacity="0.8"/>
+  <path d="M236,74 L238,78 L242,78 L239,81 L240,85 L236,82 L232,85 L233,81 L230,78 L234,78Z"
+        fill="#FDE68A" opacity="0.8"/>
+  <!-- Buckle -->
+  <rect x="192" y="71" width="16" height="10" rx="2" fill="none" stroke="#FEF3C7" stroke-width="1.5"/>
+</svg>

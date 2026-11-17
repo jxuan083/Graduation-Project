@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="90" fill="#FEF3C7"/>
+  <ellipse cx="100" cy="140" rx="58" ry="36" fill="#FDE68A" opacity="0.45"/>
+  <!-- Left ear outer -->
+  <polygon points="52,100 72,36 108,100" fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Left ear inner -->
+  <polygon points="62,98 75,52 100,98" fill="#FECDD3"/>
+  <!-- Right ear outer -->
+  <polygon points="92,100 128,36 148,100" fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Right ear inner -->
+  <polygon points="100,98 125,52 138,98" fill="#FECDD3"/>
+  <!-- Headband -->
+  <rect x="48" y="97" width="104" height="15" rx="7.5" fill="#EC4899"/>
+  <rect x="52" y="99" width="96" height="7" rx="3.5" fill="#F472B6" opacity="0.6"/>
+  <!-- Bow on headband -->
+  <path d="M82,104 Q100,96 118,104 Q100,112 82,104Z" fill="#BE185D"/>
+  <circle cx="100" cy="104" r="4" fill="#EC4899"/>
+  <!-- Ear sparkle dots -->
+  <circle cx="72" cy="62" r="3.5" fill="white" opacity="0.75"/>
+  <circle cx="128" cy="62" r="3.5" fill="white" opacity="0.75"/>
+</svg>

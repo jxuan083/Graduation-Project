@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Medal hanging from neck y=185, medal circle center at (200,232) -->
+  <!-- Ribbon V-shape -->
+  <path d="M172,185 L200,210 L228,185" stroke="#3B82F6" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M172,185 L200,210 L228,185" stroke="#2563EB" stroke-width="3" fill="none" opacity="0.5"/>
+  <!-- Ribbon highlight -->
+  <path d="M176,185 L200,206 L224,185" stroke="#93C5FD" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
+  <!-- Medal chain drop -->
+  <line x1="200" y1="210" x2="200" y2="224" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+  <!-- Medal circle shadow -->
+  <circle cx="202" cy="234" r="22" fill="#D97706" opacity="0.3"/>
+  <!-- Medal circle -->
+  <circle cx="200" cy="232" r="22" fill="#F59E0B" stroke="#D97706" stroke-width="2.5"/>
+  <circle cx="200" cy="232" r="17" fill="#FBBF24"/>
+  <!-- Medal star -->
+  <path d="M200,218 L202,224 L209,224 L204,228 L206,235 L200,231 L194,235 L196,228 L191,224 L198,224Z"
+        fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <!-- Medal rim shine -->
+  <path d="M183,220 Q186,215 192,214" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <!-- Text area ring -->
+  <circle cx="200" cy="232" r="13" fill="none" stroke="#D97706" stroke-width="1.5" opacity="0.5"/>
+</svg>

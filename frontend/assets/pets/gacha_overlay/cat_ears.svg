@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Cat ears on top of puppy head, ears at x=130-175 and x=225-270, tips at y=18 -->
+  <!-- Left ear shadow -->
+  <polygon points="134,80 158,20 182,80" fill="#BE185D" opacity="0.2" transform="translate(3,4)"/>
+  <!-- Left ear outer -->
+  <polygon points="134,80 158,18 182,80"
+           fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Left ear inner -->
+  <polygon points="145,78 159,36 174,78" fill="#FECDD3"/>
+  <!-- Right ear shadow -->
+  <polygon points="218,80 242,20 266,80" fill="#BE185D" opacity="0.2" transform="translate(3,4)"/>
+  <!-- Right ear outer -->
+  <polygon points="218,80 242,18 266,80"
+           fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Right ear inner -->
+  <polygon points="226,78 242,36 258,78" fill="#FECDD3"/>
+  <!-- Headband connecting ears -->
+  <rect x="130" y="77" width="140" height="13" rx="6.5" fill="#EC4899"/>
+  <rect x="134" y="79" width="132" height="6" rx="3" fill="#F472B6" opacity="0.6"/>
+  <!-- Ear sheen dots -->
+  <circle cx="156" cy="38" r="4" fill="white" opacity="0.7"/>
+  <circle cx="244" cy="38" r="4" fill="white" opacity="0.7"/>
+</svg>

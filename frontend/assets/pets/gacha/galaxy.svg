@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Dark space background circle -->
+  <circle cx="100" cy="100" r="90" fill="#1E1B4B"/>
+
+  <!-- Outer nebula glow -->
+  <circle cx="100" cy="100" r="78" fill="#312E81" opacity="0.8"/>
+
+  <!-- Galaxy swirl using radial gradients / concentric arcs -->
+  <!-- Outer spiral suggestion - teal/blue -->
+  <circle cx="100" cy="100" r="68" fill="none" stroke="#2DD4BF" stroke-width="12" opacity="0.15"/>
+  <circle cx="100" cy="100" r="58" fill="none" stroke="#60A5FA" stroke-width="10" opacity="0.2"/>
+
+  <!-- Spiral arms (arcs suggesting rotation) -->
+  <!-- Arm 1 -->
+  <path d="M100,32 Q148,38 162,100 Q168,148 130,168 Q100,178 72,160"
+        fill="none" stroke="#60A5FA" stroke-width="12" opacity="0.25" stroke-linecap="round"/>
+  <!-- Arm 2 (opposite) -->
+  <path d="M100,168 Q52,162 38,100 Q32,52 70,32 Q100,22 128,40"
+        fill="none" stroke="#2DD4BF" stroke-width="10" opacity="0.2" stroke-linecap="round"/>
+
+  <!-- Inner glow rings -->
+  <circle cx="100" cy="100" r="45" fill="#3730A3" opacity="0.6"/>
+  <circle cx="100" cy="100" r="34" fill="#312E81" opacity="0.8"/>
+
+  <!-- Galaxy core - bright center -->
+  <circle cx="100" cy="100" r="22" fill="#6D28D9" opacity="0.9"/>
+  <circle cx="100" cy="100" r="16" fill="#7C3AED" opacity="0.9"/>
+  <circle cx="100" cy="100" r="10" fill="#A78BFA"/>
+  <circle cx="100" cy="100" r="5" fill="#DDD6FE"/>
+  <circle cx="100" cy="100" r="2" fill="white"/>
+
+  <!-- Star field - scattered dots of varying sizes -->
+  <!-- Bright stars -->
+  <circle cx="52" cy="48" r="2.5" fill="white" opacity="0.9"/>
+  <circle cx="148" cy="52" r="2" fill="white" opacity="0.8"/>
+  <circle cx="162" cy="128" r="2.5" fill="#BFDBFE" opacity="0.9"/>
+  <circle cx="38" cy="140" r="2" fill="white" opacity="0.8"/>
+  <circle cx="80" cy="34" r="1.5" fill="white" opacity="0.9"/>
+  <circle cx="130" cy="162" r="2" fill="#C4B5FD" opacity="0.9"/>
+  <circle cx="42" cy="82" r="1.5" fill="white" opacity="0.7"/>
+  <circle cx="158" cy="78" r="1.5" fill="#FDE68A" opacity="0.9"/>
+  <circle cx="168" cy="100" r="1.5" fill="white" opacity="0.7"/>
+
+  <!-- Medium stars -->
+  <circle cx="66" cy="62" r="1.5" fill="#C4B5FD" opacity="0.8"/>
+  <circle cx="140" cy="72" r="1.5" fill="white" opacity="0.8"/>
+  <circle cx="58" cy="130" r="1.5" fill="#BFDBFE" opacity="0.7"/>
+  <circle cx="142" cy="145" r="1.5" fill="white" opacity="0.8"/>
+  <circle cx="88" cy="162" r="1.5" fill="#C4B5FD" opacity="0.7"/>
+  <circle cx="120" cy="38" r="1" fill="white" opacity="0.8"/>
+  <circle cx="34" cy="100" r="1" fill="#BFDBFE" opacity="0.7"/>
+
+  <!-- Small dots for star field -->
+  <circle cx="72" cy="44" r="1" fill="white" opacity="0.6"/>
+  <circle cx="156" cy="58" r="1" fill="white" opacity="0.6"/>
+  <circle cx="44" cy="62" r="1" fill="white" opacity="0.5"/>
+  <circle cx="162" cy="150" r="1" fill="white" opacity="0.6"/>
+  <circle cx="52" cy="166" r="1" fill="#C4B5FD" opacity="0.5"/>
+  <circle cx="152" cy="38" r="1" fill="white" opacity="0.5"/>
+  <circle cx="34" cy="58" r="1" fill="white" opacity="0.4"/>
+  <circle cx="96" cy="168" r="1" fill="white" opacity="0.5"/>
+  <circle cx="128" cy="34" r="1" fill="white" opacity="0.5"/>
+
+  <!-- Gold star dots in spiral arms -->
+  <circle cx="135" cy="58" r="2" fill="#FDE68A" opacity="0.8"/>
+  <circle cx="58" cy="145" r="2" fill="#FDE68A" opacity="0.7"/>
+  <circle cx="162" cy="110" r="1.5" fill="#FBBF24" opacity="0.7"/>
+  <circle cx="40" cy="92" r="1.5" fill="#FDE68A" opacity="0.7"/>
+
+  <!-- 4-pt sparkles on brightest stars -->
+  <path d="M52,48 L53,51 L52,54 L51,51 Z" fill="white" opacity="0.8"/>
+  <path d="M52,51 L55,49.5 L52,48 L49,49.5 Z" fill="white" opacity="0.8"/>
+  <path d="M148,52 L149,55 L148,58 L147,55 Z" fill="white" opacity="0.7"/>
+  <path d="M148,55 L151,53.5 L148,52 L145,53.5 Z" fill="white" opacity="0.7"/>
+  <path d="M162,128 L163,131 L162,134 L161,131 Z" fill="#BFDBFE" opacity="0.7"/>
+  <path d="M162,131 L165,129.5 L162,128 L159,129.5 Z" fill="#BFDBFE" opacity="0.7"/>
+</svg>

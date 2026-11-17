@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Floating pink hearts around pet -->
+  <!-- Heart path helper: heart centered at (cx,cy) with given scale -->
+  <!-- Large heart (top-left) -->
+  <path d="M94,70 C94,62 102,56 110,60 C118,56 126,62 126,70 C126,80 110,92 110,92 C110,92 94,80 94,70Z"
+        fill="#F9A8D4" stroke="#EC4899" stroke-width="2"/>
+  <!-- Medium heart (top-right) -->
+  <path d="M278,55 C278,49 284,44 290,47 C296,44 302,49 302,55 C302,63 290,72 290,72 C290,72 278,63 278,55Z"
+        fill="#FDA4AF" stroke="#F43F5E" stroke-width="1.8"/>
+  <!-- Small heart (right) -->
+  <path d="M330,160 C330,155 335,151 340,154 C345,151 350,155 350,160 C350,166 340,173 340,173 C340,173 330,166 330,160Z"
+        fill="#FECDD3" stroke="#FB7185" stroke-width="1.5"/>
+  <!-- Medium heart (left) -->
+  <path d="M50,205 C50,198 57,193 64,196 C71,193 78,198 78,205 C78,214 64,223 64,223 C64,223 50,214 50,205Z"
+        fill="#F9A8D4" stroke="#EC4899" stroke-width="1.8"/>
+  <!-- Tiny heart (top-center) -->
+  <path d="M188,42 C188,38 192,35 196,37 C200,35 204,38 204,42 C204,47 196,52 196,52 C196,52 188,47 188,42Z"
+        fill="#FDA4AF" stroke="#F43F5E" stroke-width="1.5"/>
+  <!-- Small heart (bottom-right) -->
+  <path d="M308,308 C308,303 312,300 316,302 C320,300 324,303 324,308 C324,313 316,319 316,319 C316,319 308,313 308,308Z"
+        fill="#FECDD3" stroke="#FB7185" stroke-width="1.5"/>
+  <!-- Tiny heart (bottom-left) -->
+  <path d="M76,318 C76,314 79,311 83,313 C87,311 90,314 90,318 C90,323 83,328 83,328 C83,328 76,323 76,318Z"
+        fill="#F9A8D4" stroke="#EC4899" stroke-width="1.5"/>
+  <!-- Sparkle dots near hearts -->
+  <circle cx="104" cy="58" r="2.5" fill="#FDE8F0" opacity="0.9"/>
+  <circle cx="130" cy="88" r="2"   fill="#FDE8F0" opacity="0.9"/>
+  <circle cx="296" cy="52" r="2.5" fill="#FDE8F0" opacity="0.9"/>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Star crown: band y=57-76, 5 star points up to y=16 -->
+  <!-- Glow behind crown -->
+  <ellipse cx="200" cy="52" rx="68" ry="28" fill="#FDE68A" opacity="0.38"/>
+  <!-- Crown band -->
+  <rect x="143" y="58" width="114" height="20" rx="8" fill="#F59E0B" stroke="#D97706" stroke-width="2.5"/>
+  <!-- Band shimmer -->
+  <rect x="147" y="61" width="106" height="8" rx="4" fill="#FBBF24" opacity="0.5"/>
+  <!-- Pearl dots on band -->
+  <circle cx="162" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="181" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="200" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="219" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="238" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <!-- Star points above band (5 stars) -->
+  <!-- Left outer star -->
+  <path d="M155,56 L157,48 L163,48 L158,43 L160,36 L155,41 L150,36 L152,43 L147,48 L153,48Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Left inner star -->
+  <path d="M174,56 L176,46 L184,46 L178,40 L180,30 L174,36 L168,30 L170,40 L164,46 L172,46Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="1.5"/>
+  <circle cx="174" cy="34" r="4.5" fill="#FEF3C7"/>
+  <!-- Center big star -->
+  <path d="M200,56 L203,43 L215,43 L206,34 L209,20 L200,28 L191,20 L194,34 L185,43 L197,43Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="2"/>
+  <circle cx="200" cy="24" r="6" fill="#FEF3C7"/>
+  <!-- Right inner star -->
+  <path d="M226,56 L228,46 L236,46 L230,40 L232,30 L226,36 L220,30 L222,40 L216,46 L224,46Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="1.5"/>
+  <circle cx="226" cy="34" r="4.5" fill="#FEF3C7"/>
+  <!-- Right outer star -->
+  <path d="M245,56 L247,48 L253,48 L248,43 L250,36 L245,41 L240,36 L242,43 L237,48 L243,48Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Sparkle effects -->
+  <circle cx="134" cy="40" r="2.5" fill="#FDE68A" opacity="0.9"/>
+  <circle cx="266" cy="40" r="2.5" fill="#FDE68A" opacity="0.9"/>
+</svg>

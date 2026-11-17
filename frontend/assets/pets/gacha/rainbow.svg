@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#F0F9FF"/>
+
+  <!-- Golden radiance/glow below arc -->
+  <ellipse cx="100" cy="135" rx="62" ry="22" fill="#FDE68A" opacity="0.5"/>
+  <ellipse cx="100" cy="140" rx="50" ry="14" fill="#FBBF24" opacity="0.3"/>
+
+  <!-- Rainbow arc bands (thick, from outside in) -->
+  <!-- Red - outermost -->
+  <path d="M22,138 Q22,42 100,42 Q178,42 178,138" fill="none" stroke="#EF4444" stroke-width="11" stroke-linecap="round"/>
+  <!-- Orange -->
+  <path d="M30,138 Q30,52 100,52 Q170,52 170,138" fill="none" stroke="#F97316" stroke-width="10" stroke-linecap="round"/>
+  <!-- Yellow -->
+  <path d="M37,138 Q37,61 100,61 Q163,61 163,138" fill="none" stroke="#FBBF24" stroke-width="10" stroke-linecap="round"/>
+  <!-- Green -->
+  <path d="M44,138 Q44,70 100,70 Q156,70 156,138" fill="none" stroke="#34D399" stroke-width="10" stroke-linecap="round"/>
+  <!-- Blue -->
+  <path d="M51,138 Q51,79 100,79 Q149,79 149,138" fill="none" stroke="#60A5FA" stroke-width="10" stroke-linecap="round"/>
+  <!-- Purple - innermost -->
+  <path d="M58,138 Q58,88 100,88 Q142,88 142,138" fill="none" stroke="#A855F7" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Left cloud -->
+  <ellipse cx="28" cy="134" rx="20" ry="13" fill="white"/>
+  <ellipse cx="18" cy="140" rx="13" ry="9" fill="white"/>
+  <ellipse cx="38" cy="140" rx="13" ry="9" fill="white"/>
+  <ellipse cx="28" cy="146" rx="17" ry="8" fill="white"/>
+  <!-- Left cloud shadow -->
+  <ellipse cx="28" cy="150" rx="14" ry="4" fill="#BAE6FD" opacity="0.3"/>
+
+  <!-- Right cloud -->
+  <ellipse cx="172" cy="134" rx="20" ry="13" fill="white"/>
+  <ellipse cx="162" cy="140" rx="13" ry="9" fill="white"/>
+  <ellipse cx="182" cy="140" rx="13" ry="9" fill="white"/>
+  <ellipse cx="172" cy="146" rx="17" ry="8" fill="white"/>
+  <!-- Right cloud shadow -->
+  <ellipse cx="172" cy="150" rx="14" ry="4" fill="#BAE6FD" opacity="0.3"/>
+
+  <!-- Bottom center golden shine burst -->
+  <line x1="100" y1="130" x2="92" y2="155" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="100" y1="130" x2="100" y2="158" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="100" y1="130" x2="108" y2="155" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="100" y1="130" x2="84" y2="150" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <line x1="100" y1="130" x2="116" y2="150" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Small sparkle at top of arc -->
+  <path d="M100,42 L102,36 L100,30 L98,36 Z" fill="white" opacity="0.8"/>
+  <path d="M100,36 L106,34 L100,32 L94,34 Z" fill="white" opacity="0.8"/>
+</svg>

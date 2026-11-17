@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Party hat: cone sits on puppy's head, tip at top, brim at crown level ~y=72 -->
+  <defs>
+    <clipPath id="cone-clip">
+      <polygon points="200,8 138,74 262,74"/>
+    </clipPath>
+  </defs>
+  <!-- Hat cone body -->
+  <polygon points="200,8 138,74 262,74" fill="#F5B731"/>
+  <!-- Stripes inside cone -->
+  <g clip-path="url(#cone-clip)">
+    <line x1="138" y1="40" x2="200" y2="8"  stroke="#EC4899" stroke-width="14" opacity="0.85"/>
+    <line x1="138" y1="62" x2="234" y2="20" stroke="#EC4899" stroke-width="14" opacity="0.85"/>
+    <line x1="150" y1="74" x2="262" y2="40" stroke="#EC4899" stroke-width="14" opacity="0.85"/>
+    <line x1="138" y1="40" x2="200" y2="8"  stroke="#A855F7" stroke-width="6" opacity="0.65"/>
+    <line x1="138" y1="62" x2="234" y2="20" stroke="#A855F7" stroke-width="6" opacity="0.65"/>
+    <line x1="150" y1="74" x2="262" y2="40" stroke="#A855F7" stroke-width="6" opacity="0.65"/>
+  </g>
+  <!-- Cone outline -->
+  <polygon points="200,8 138,74 262,74" fill="none" stroke="#C45220" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Brim band -->
+  <rect x="136" y="70" width="128" height="13" rx="6" fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Pom-pom at tip -->
+  <circle cx="200" cy="8" r="10" fill="white" opacity="0.92"/>
+  <circle cx="196" cy="5" r="4" fill="white"/>
+  <circle cx="204" cy="4" r="3.5" fill="white"/>
+  <circle cx="200" cy="14" r="3.5" fill="white"/>
+  <!-- Hat string on left -->
+  <path d="M148,83 Q136,96 132,108" stroke="#D97706" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Hat string on right -->
+  <path d="M252,83 Q264,96 268,108" stroke="#D97706" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Confetti near hat -->
+  <circle cx="124" cy="52" r="4"  fill="#EC4899" opacity="0.9"/>
+  <circle cx="278" cy="44" r="3"  fill="#A855F7" opacity="0.9"/>
+  <circle cx="118" cy="68" r="3"  fill="#34D399" opacity="0.9"/>
+  <circle cx="282" cy="66" r="3.5" fill="#60A5FA" opacity="0.9"/>
+</svg>

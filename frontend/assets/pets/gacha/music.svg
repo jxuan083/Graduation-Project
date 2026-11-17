@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#F5F3FF"/>
+
+  <!-- Soft glow -->
+  <ellipse cx="105" cy="105" rx="55" ry="55" fill="#DDD6FE" opacity="0.35"/>
+
+  <!-- Motion lines for floating upward effect -->
+  <!-- Note 1 motion lines -->
+  <line x1="58" y1="145" x2="55" y2="130" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <line x1="64" y1="145" x2="61" y2="130" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <!-- Note 2 motion lines -->
+  <line x1="104" y1="128" x2="100" y2="112" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <line x1="110" y1="128" x2="106" y2="112" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <!-- Note 3 motion lines -->
+  <line x1="145" y1="108" x2="142" y2="92" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <line x1="151" y1="108" x2="148" y2="92" stroke="#C4B5FD" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- Note 1: Quarter note (bottom-left, tallest stem) -->
+  <!-- Note head -->
+  <ellipse cx="62" cy="148" rx="12" ry="9" fill="#7C3AED" transform="rotate(-15,62,148)"/>
+  <ellipse cx="61" cy="147" rx="4" ry="3" fill="#A78BFA" opacity="0.5" transform="rotate(-15,61,147)"/>
+  <!-- Stem -->
+  <line x1="72" y1="145" x2="72" y2="98" stroke="#7C3AED" stroke-width="4" stroke-linecap="round"/>
+  <!-- Flag -->
+  <path d="M72,98 Q90,106 85,122" fill="none" stroke="#7C3AED" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Note 2: Eighth note pair (connected, middle) -->
+  <!-- Left head of pair -->
+  <ellipse cx="108" cy="130" rx="12" ry="9" fill="#6D28D9" transform="rotate(-15,108,130)"/>
+  <ellipse cx="107" cy="129" rx="4" ry="3" fill="#A78BFA" opacity="0.5" transform="rotate(-15,107,129)"/>
+  <!-- Left stem -->
+  <line x1="118" y1="127" x2="118" y2="90" stroke="#6D28D9" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Right head of pair -->
+  <ellipse cx="138" cy="118" rx="12" ry="9" fill="#6D28D9" transform="rotate(-15,138,118)"/>
+  <ellipse cx="137" cy="117" rx="4" ry="3" fill="#A78BFA" opacity="0.5" transform="rotate(-15,137,117)"/>
+  <!-- Right stem -->
+  <line x1="148" y1="115" x2="148" y2="78" stroke="#6D28D9" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Beam connecting the pair -->
+  <path d="M118,90 L148,78" stroke="#6D28D9" stroke-width="6" stroke-linecap="round"/>
+  <!-- Second beam (eighth note pair) -->
+  <path d="M118,98 L148,86" stroke="#6D28D9" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Small decorative dots/bubbles floating upward -->
+  <circle cx="78" cy="78" r="4" fill="#A855F7" opacity="0.5"/>
+  <circle cx="92" cy="62" r="3" fill="#C4B5FD" opacity="0.6"/>
+  <circle cx="128" cy="58" r="3.5" fill="#A855F7" opacity="0.5"/>
+  <circle cx="156" cy="60" r="2.5" fill="#C4B5FD" opacity="0.6"/>
+  <circle cx="50" cy="118" r="3" fill="#DDD6FE" opacity="0.7"/>
+
+  <!-- Small 4-pt stars -->
+  <path d="M88,88 L89.5,93 L88,98 L86.5,93 Z" fill="#7C3AED" opacity="0.6"/>
+  <path d="M88,93 L93,91 L88,89 L83,91 Z" fill="#7C3AED" opacity="0.6"/>
+  <path d="M160,90 L161,94 L160,98 L159,94 Z" fill="#A855F7" opacity="0.5"/>
+  <path d="M160,94 L164,92 L160,90 L156,92 Z" fill="#A855F7" opacity="0.5"/>
+</svg>

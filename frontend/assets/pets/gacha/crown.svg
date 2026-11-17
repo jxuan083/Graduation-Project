@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FFFBEB"/>
+
+  <!-- Glow behind crown -->
+  <ellipse cx="100" cy="108" rx="62" ry="40" fill="#FDE68A" opacity="0.5"/>
+
+  <!-- Drop shadow -->
+  <ellipse cx="100" cy="158" rx="50" ry="9" fill="#D97706" opacity="0.18"/>
+
+  <!-- Crown base band -->
+  <rect x="42" y="130" width="116" height="22" rx="8" fill="#F59E0B" stroke="#D97706" stroke-width="2.5"/>
+
+  <!-- Pearl dots on band -->
+  <circle cx="58" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="76" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="94" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="112" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="130" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="148" cy="141" r="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+
+  <!-- Crown body (main shape) -->
+  <path d="M42,132 L42,88 L65,110 L100,52 L135,110 L158,88 L158,132 Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Crown inner shading -->
+  <path d="M50,132 L50,96 L67,112 L100,62 L133,112 L150,96 L150,132 Z"
+        fill="#FBBF24" opacity="0.6"/>
+
+  <!-- Left point gem (red) -->
+  <circle cx="42" cy="85" r="11" fill="#EF4444" stroke="#B91C1C" stroke-width="2"/>
+  <circle cx="39" cy="82" r="3.5" fill="#FCA5A5" opacity="0.7"/>
+
+  <!-- Middle point gem (blue) -->
+  <circle cx="100" cy="48" r="13" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/>
+  <circle cx="96" cy="44" r="4" fill="#93C5FD" opacity="0.7"/>
+
+  <!-- Right point gem (green) -->
+  <circle cx="158" cy="85" r="11" fill="#10B981" stroke="#047857" stroke-width="2"/>
+  <circle cx="155" cy="82" r="3.5" fill="#6EE7B7" opacity="0.7"/>
+
+  <!-- Crown inner detail lines -->
+  <line x1="65" y1="132" x2="65" y2="108" stroke="#D97706" stroke-width="1.5" opacity="0.5"/>
+  <line x1="135" y1="132" x2="135" y2="108" stroke="#D97706" stroke-width="1.5" opacity="0.5"/>
+</svg>

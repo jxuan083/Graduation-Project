@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#F0F9FF"/>
+
+  <!-- Rainbow arc above crown -->
+  <!-- Red -->
+  <path d="M38,118 Q38,42 100,42 Q162,42 162,118" fill="none" stroke="#EF4444" stroke-width="8" stroke-linecap="round"/>
+  <!-- Orange -->
+  <path d="M44,118 Q44,50 100,50 Q156,50 156,118" fill="none" stroke="#F97316" stroke-width="7" stroke-linecap="round"/>
+  <!-- Yellow -->
+  <path d="M50,118 Q50,57 100,57 Q150,57 150,118" fill="none" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+  <!-- Green -->
+  <path d="M56,118 Q56,64 100,64 Q144,64 144,118" fill="none" stroke="#34D399" stroke-width="7" stroke-linecap="round"/>
+  <!-- Blue -->
+  <path d="M62,118 Q62,71 100,71 Q138,71 138,118" fill="none" stroke="#60A5FA" stroke-width="7" stroke-linecap="round"/>
+  <!-- Purple -->
+  <path d="M68,118 Q68,78 100,78 Q132,78 132,118" fill="none" stroke="#A855F7" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Left cloud -->
+  <ellipse cx="40" cy="118" rx="16" ry="10" fill="white"/>
+  <ellipse cx="32" cy="122" rx="11" ry="8" fill="white"/>
+  <ellipse cx="50" cy="122" rx="11" ry="8" fill="white"/>
+  <ellipse cx="40" cy="126" rx="14" ry="7" fill="white"/>
+
+  <!-- Right cloud -->
+  <ellipse cx="160" cy="118" rx="16" ry="10" fill="white"/>
+  <ellipse cx="152" cy="122" rx="11" ry="8" fill="white"/>
+  <ellipse cx="168" cy="122" rx="11" ry="8" fill="white"/>
+  <ellipse cx="160" cy="126" rx="14" ry="7" fill="white"/>
+
+  <!-- Drop shadow for crown -->
+  <ellipse cx="100" cy="167" rx="45" ry="8" fill="#7DD3FC" opacity="0.2"/>
+
+  <!-- Crown base band -->
+  <rect x="48" y="135" width="104" height="20" rx="7" fill="#F9A8D4" stroke="#EC4899" stroke-width="2"/>
+  <rect x="52" y="138" width="96" height="8" rx="4" fill="#FBCFE8" opacity="0.6"/>
+
+  <!-- Crown body (rose gold) -->
+  <path d="M48,136 L48,112 L66,124 L84,96 L100,114 L116,96 L134,124 L152,112 L152,136 Z"
+        fill="#FBCFE8" stroke="#EC4899" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Crown shimmer -->
+  <path d="M56,136 L56,118 L68,127 L84,103 L100,120 L116,103 L132,127 L144,118 L144,136 Z"
+        fill="white" opacity="0.3"/>
+
+  <!-- Small hearts or gems on crown points -->
+  <circle cx="48" cy="110" r="7" fill="#F472B6" stroke="#DB2777" stroke-width="1.5"/>
+  <circle cx="46" cy="108" r="2.5" fill="#FDF2F8" opacity="0.8"/>
+  <circle cx="84" cy="94" r="7" fill="#F472B6" stroke="#DB2777" stroke-width="1.5"/>
+  <circle cx="82" cy="92" r="2.5" fill="#FDF2F8" opacity="0.8"/>
+  <circle cx="100" cy="112" r="8" fill="#EC4899" stroke="#DB2777" stroke-width="1.5"/>
+  <circle cx="98" cy="110" r="3" fill="#FDF2F8" opacity="0.8"/>
+  <circle cx="116" cy="94" r="7" fill="#F472B6" stroke="#DB2777" stroke-width="1.5"/>
+  <circle cx="114" cy="92" r="2.5" fill="#FDF2F8" opacity="0.8"/>
+  <circle cx="152" cy="110" r="7" fill="#F472B6" stroke="#DB2777" stroke-width="1.5"/>
+  <circle cx="150" cy="108" r="2.5" fill="#FDF2F8" opacity="0.8"/>
+</svg>

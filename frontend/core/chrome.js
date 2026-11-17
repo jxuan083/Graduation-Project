@@ -4,16 +4,16 @@
 import { state } from './state.js';
 import { events } from './events.js';
 import { switchView, getActiveViewElement, isMeetingViewId, isChromeHiddenViewId } from './router.js';
-import { doSignOut } from './auth.js?v=84';
+import { doSignOut } from './auth.js?v=91';
 import { cleanupSession } from './session.js';
 import { sendAction } from './ws.js';
 import { apiFetch } from './api.js';
 import { requestLeaveSession } from './leave.js';
-import { openLoginMethodSheet } from './login-sheet.js?v=84';
+import { openLoginMethodSheet } from './login-sheet.js?v=91';
 import { loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
-import { openProfileView } from '../views/profile/profile.js?v=84';
-import { openFriendsView } from '../views/friends/friends.js?v=84';
-import { handleCreateRoom } from '../views/home/home.js?v=84';
+import { openProfileView } from '../views/profile/profile.js?v=91';
+import { openFriendsView } from '../views/friends/friends.js?v=91';
+import { handleCreateRoom } from '../views/home/home.js?v=91';
 import { openLeaderboardView } from '../features/leaderboard/controller.js';
 import { openMeetingsList } from '../features/meetings/controller.js';
 import { enablePush, isPushAvailable, reEnablePushIfPreviouslyGranted } from './push.js';
@@ -89,6 +89,7 @@ export function initChrome() {
 }
 
 const BOTTOM_NAV_CURRENT_BY_VIEW = new Map([
+    ['view-home', 'btn-open-groups'],
     ['view-groups', 'btn-open-groups'],
     ['view-group', 'btn-open-groups'],
     ['view-group-setup', 'btn-open-groups'],
@@ -101,6 +102,7 @@ const BOTTOM_NAV_CURRENT_BY_VIEW = new Map([
     ['view-join', 'btn-scan-qr'],
     ['view-meeting-setup', 'btn-create-room'],
     ['view-pet-tamagotchi', 'btn-bottom-pets'],
+    ['view-leaderboard', 'btn-bottom-leaderboard'],
 ]);
 
 function initBottomNavigation() {
@@ -108,13 +110,13 @@ function initBottomNavigation() {
     if (!bar) return;
 
     const groups = bar.querySelector('#btn-open-groups');
-    const friends = bar.querySelector('#btn-open-friends');
+    const leaderboard = bar.querySelector('#btn-bottom-leaderboard');
     const create = bar.querySelector('#btn-create-room');
     const join = bar.querySelector('#btn-scan-qr');
     const pets = bar.querySelector('#btn-bottom-pets');
 
-    if (groups) groups.onclick = () => switchView('view-groups');
-    if (friends) friends.onclick = () => openFriendsView('add');
+    if (groups) groups.onclick = () => switchView('view-home');
+    if (leaderboard) leaderboard.onclick = () => openLeaderboardView();
     if (create) create.onclick = handleCreateRoom;
     if (join) join.onclick = () => switchView('view-join-method');
     if (pets) pets.onclick = () => {

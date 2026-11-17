@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Bow/ribbon decoration on top of puppy head, center ~(200,52) -->
+  <!-- Left wing -->
+  <path d="M134,34 Q155,52 134,70 Q165,62 200,52 Q165,42 134,34Z"
+        fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Right wing -->
+  <path d="M266,34 Q245,52 266,70 Q235,62 200,52 Q235,42 266,34Z"
+        fill="#F9A8D4" stroke="#EC4899" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Wing highlight -->
+  <path d="M148,40 Q158,52 148,64 Q162,58 182,52 Q162,46 148,40Z" fill="#FECDD3" opacity="0.6"/>
+  <path d="M252,40 Q242,52 252,64 Q238,58 218,52 Q238,46 252,40Z" fill="#FECDD3" opacity="0.6"/>
+  <!-- Center knot -->
+  <ellipse cx="200" cy="52" rx="11" ry="13" fill="#EC4899" stroke="#BE185D" stroke-width="2"/>
+  <ellipse cx="200" cy="52" rx="6"  ry="7"  fill="#F472B6" opacity="0.7"/>
+  <!-- Sparkle dots on wings -->
+  <circle cx="150" cy="46" r="3" fill="white" opacity="0.75"/>
+  <circle cx="250" cy="46" r="3" fill="white" opacity="0.75"/>
+  <circle cx="152" cy="60" r="2.5" fill="white" opacity="0.6"/>
+  <circle cx="248" cy="60" r="2.5" fill="white" opacity="0.6"/>
+</svg>

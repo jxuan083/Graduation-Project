@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#EEF2FF"/>
+
+  <!-- Main burst glow (gold/orange center) -->
+  <circle cx="85" cy="88" r="28" fill="#FDE68A" opacity="0.4"/>
+  <!-- Secondary burst glow (blue/purple) -->
+  <circle cx="145" cy="68" r="20" fill="#C7D2FE" opacity="0.4"/>
+  <!-- Tertiary burst glow (smaller, bottom) -->
+  <circle cx="120" cy="140" r="16" fill="#FDE68A" opacity="0.3"/>
+
+  <!-- Comet tails / trailing sparks going to bursts -->
+  <!-- Main burst tail -->
+  <path d="M38,160 Q55,130 85,88" stroke="#F97316" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <!-- Secondary burst tail -->
+  <path d="M50,145 Q90,110 145,68" stroke="#818CF8" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <!-- Tertiary burst tail -->
+  <path d="M68,170 Q90,158 120,140" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+
+  <!-- Main burst: gold/orange radiating lines -->
+  <g transform="translate(85,88)">
+    <!-- Radiating lines -->
+    <line x1="0" y1="0" x2="0" y2="-34" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="24" y2="-24" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="34" y2="0" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="24" y2="24" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="34" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-24" y2="24" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-34" y2="0" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-24" y2="-24" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    <!-- Shorter diagonal rays -->
+    <line x1="0" y1="0" x2="12" y2="-30" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="30" y2="-12" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="30" y2="12" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="12" y2="30" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="-12" y2="30" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="-30" y2="12" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="-30" y2="-12" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="0" x2="-12" y2="-30" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+    <!-- Center bright spot -->
+    <circle cx="0" cy="0" r="6" fill="white" opacity="0.9"/>
+    <!-- Dot tips on rays -->
+    <circle cx="0" cy="-34" r="3" fill="#FBBF24"/>
+    <circle cx="24" cy="-24" r="3" fill="#F97316"/>
+    <circle cx="34" cy="0" r="3" fill="#FBBF24"/>
+    <circle cx="24" cy="24" r="3" fill="#F97316"/>
+    <circle cx="0" cy="34" r="3" fill="#FBBF24"/>
+    <circle cx="-24" cy="24" r="3" fill="#F97316"/>
+    <circle cx="-34" cy="0" r="3" fill="#FBBF24"/>
+    <circle cx="-24" cy="-24" r="3" fill="#F97316"/>
+  </g>
+
+  <!-- Secondary burst: blue/purple radiating lines -->
+  <g transform="translate(145,68)">
+    <line x1="0" y1="0" x2="0" y2="-24" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="17" y2="-17" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="24" y2="0" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="17" y2="17" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="24" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-17" y2="17" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-24" y2="0" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-17" y2="-17" stroke="#A5B4FC" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="5" fill="white" opacity="0.9"/>
+    <circle cx="0" cy="-24" r="2.5" fill="#818CF8"/>
+    <circle cx="17" cy="-17" r="2.5" fill="#A5B4FC"/>
+    <circle cx="24" cy="0" r="2.5" fill="#818CF8"/>
+    <circle cx="17" cy="17" r="2.5" fill="#A5B4FC"/>
+    <circle cx="0" cy="24" r="2.5" fill="#818CF8"/>
+    <circle cx="-17" cy="17" r="2.5" fill="#A5B4FC"/>
+    <circle cx="-24" cy="0" r="2.5" fill="#818CF8"/>
+    <circle cx="-17" cy="-17" r="2.5" fill="#A5B4FC"/>
+  </g>
+
+  <!-- Small tertiary burst (simpler) -->
+  <g transform="translate(120,140)">
+    <line x1="0" y1="0" x2="0" y2="-18" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="13" y2="-13" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="18" y2="0" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="13" y2="13" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="18" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-13" y2="13" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-18" y2="0" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-13" y2="-13" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="4" fill="white" opacity="0.9"/>
+  </g>
+
+  <!-- Scattered sparks/dots -->
+  <circle cx="58" cy="68" r="3" fill="#FBBF24" opacity="0.8"/>
+  <circle cx="130" cy="108" r="2.5" fill="#A5B4FC" opacity="0.8"/>
+  <circle cx="52" cy="118" r="2" fill="#F97316" opacity="0.7"/>
+  <circle cx="162" cy="90" r="2.5" fill="#FDE68A" opacity="0.8"/>
+  <circle cx="98" cy="128" r="2" fill="#818CF8" opacity="0.7"/>
+  <circle cx="162" cy="128" r="2" fill="#FBBF24" opacity="0.7"/>
+</svg>

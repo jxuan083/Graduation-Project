@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="90" fill="#EFF6FF"/>
+  <ellipse cx="100" cy="130" rx="60" ry="38" fill="#DBEAFE" opacity="0.5"/>
+  <!-- Bridge -->
+  <line x1="80" y1="100" x2="120" y2="100" stroke="#2563EB" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Left star lens -->
+  <path d="M50,100 L62,86 L60,68 L78,76 L90,64 L90,84 L104,92 L90,100 L90,120 L78,110 L60,118 L62,100 Z"
+        fill="#BFDBFE" stroke="#2563EB" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M54,100 L63,89 L62,74 L76,81 L86,71 L86,88 L97,94 L86,100 L86,117 L76,108 L62,115 L63,100 Z"
+        fill="#93C5FD" opacity="0.5"/>
+  <circle cx="68" cy="82" r="4" fill="white" opacity="0.7"/>
+  <!-- Right star lens -->
+  <path d="M110,92 L124,80 L122,62 L140,70 L152,58 L152,78 L166,86 L152,94 L152,114 L140,104 L122,112 L124,96 Z"
+        fill="#BFDBFE" stroke="#2563EB" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M114,92 L125,82 L124,68 L138,75 L148,66 L148,82 L159,88 L148,94 L148,111 L138,103 L124,109 L125,96 Z"
+        fill="#93C5FD" opacity="0.5"/>
+  <circle cx="130" cy="74" r="4" fill="white" opacity="0.7"/>
+  <!-- Ear arms -->
+  <path d="M38,96 L50,100" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+  <path d="M166,86 L178,82" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+</svg>

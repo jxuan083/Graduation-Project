@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Small vest: collar at y=205, body covers y=215-325, x=138-262 -->
+  <!-- Vest body shadow -->
+  <path d="M142,210 L138,325 L262,325 L258,210 Q240,205 220,207 L200,216 L180,207 Q160,205 142,210Z"
+        fill="#374151" opacity="0.15" transform="translate(4,4)"/>
+  <!-- Vest body -->
+  <path d="M142,210 L138,322 L262,322 L258,210 Q240,204 220,206 L200,215 L180,206 Q160,204 142,210Z"
+        fill="#4B5563" stroke="#374151" stroke-width="2.5"/>
+  <!-- Vest inner lining (lighter) -->
+  <path d="M148,212 L144,316 L200,316 L200,215 L180,206 Q162,204 148,212Z" fill="#6B7280" opacity="0.6"/>
+  <path d="M252,212 L256,316 L200,316 L200,215 L220,206 Q238,204 252,212Z" fill="#6B7280" opacity="0.6"/>
+  <!-- Collar/lapels -->
+  <path d="M142,210 Q160,204 180,206 L200,215 L180,232 Q155,235 142,222Z"
+        fill="#6B7280" stroke="#374151" stroke-width="2"/>
+  <path d="M258,210 Q240,204 220,206 L200,215 L220,232 Q245,235 258,222Z"
+        fill="#6B7280" stroke="#374151" stroke-width="2"/>
+  <!-- White shirt peeking from collar -->
+  <path d="M182,207 L200,216 L218,207 L200,220Z" fill="#F9FAFB" opacity="0.9"/>
+  <!-- Front buttons -->
+  <circle cx="200" cy="244" r="5" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <circle cx="200" cy="263" r="5" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <circle cx="200" cy="282" r="5" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <circle cx="200" cy="301" r="5" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="1.5"/>
+  <!-- Pocket (left) -->
+  <rect x="148" y="258" width="30" height="22" rx="3" fill="none" stroke="#374151" stroke-width="2"/>
+  <!-- Pocket flap -->
+  <path d="M148,264 L178,264" stroke="#374151" stroke-width="2"/>
+  <!-- Shoulder seam highlights -->
+  <path d="M148,214 Q155,210 164,210" stroke="#9CA3AF" stroke-width="2" fill="none" opacity="0.5"/>
+  <path d="M252,214 Q245,210 236,210" stroke="#9CA3AF" stroke-width="2" fill="none" opacity="0.5"/>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Rainbow crown: 7 colored points above head, band at y=58-76 -->
+  <!-- Soft glow -->
+  <ellipse cx="200" cy="50" rx="78" ry="30" fill="#FEF3C7" opacity="0.4"/>
+  <!-- Crown band gradient -->
+  <rect x="134" y="58" width="132" height="20" rx="8" fill="#FBBF24" stroke="#D97706" stroke-width="2.5"/>
+  <rect x="138" y="61" width="124" height="9" rx="4" fill="#FDE68A" opacity="0.5"/>
+  <!-- Pearl band dots -->
+  <circle cx="152" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="169" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="186" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="200" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="214" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="231" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="248" cy="68" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <!-- 7 rainbow-colored spikes above band -->
+  <path d="M140,57 L144,38 L152,57Z" fill="#EF4444" stroke="#B91C1C" stroke-width="1.5"/>
+  <path d="M155,57 L161,32 L171,57Z" fill="#F97316" stroke="#C2410C" stroke-width="1.5"/>
+  <path d="M172,57 L180,24 L190,57Z" fill="#EAB308" stroke="#A16207" stroke-width="1.5"/>
+  <path d="M191,57 L200,16 L209,57Z" fill="#22C55E" stroke="#15803D" stroke-width="2"/>
+  <path d="M210,57 L220,24 L228,57Z" fill="#3B82F6" stroke="#1D4ED8" stroke-width="1.5"/>
+  <path d="M229,57 L239,32 L245,57Z" fill="#8B5CF6" stroke="#6D28D9" stroke-width="1.5"/>
+  <path d="M248,57 L256,38 L260,57Z" fill="#EC4899" stroke="#BE185D" stroke-width="1.5"/>
+  <!-- Gem tips -->
+  <circle cx="144" cy="37" r="4.5" fill="#FCA5A5"/>
+  <circle cx="161" cy="30" r="5"   fill="#FED7AA"/>
+  <circle cx="180" cy="22" r="5"   fill="#FEF08A"/>
+  <circle cx="200" cy="14" r="6"   fill="#BBF7D0"/>
+  <circle cx="220" cy="22" r="5"   fill="#BFDBFE"/>
+  <circle cx="239" cy="30" r="5"   fill="#DDD6FE"/>
+  <circle cx="256" cy="37" r="4.5" fill="#FBCFE8"/>
+</svg>

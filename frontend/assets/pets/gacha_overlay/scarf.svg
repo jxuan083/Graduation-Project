@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Scarf wrapped around neck at y=182-218 -->
+  <!-- Main wrap -->
+  <path d="M148,182 Q200,172 252,182 Q264,196 252,210 Q200,222 148,210 Q136,196 148,182Z"
+        fill="#16A34A" stroke="#15803D" stroke-width="2.5"/>
+  <!-- Plaid pattern horizontal lines -->
+  <clipPath id="scarf-clip">
+    <path d="M148,182 Q200,172 252,182 Q264,196 252,210 Q200,222 148,210 Q136,196 148,182Z"/>
+  </clipPath>
+  <g clip-path="url(#scarf-clip)">
+    <line x1="136" y1="188" x2="264" y2="188" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="136" y1="196" x2="264" y2="196" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="136" y1="204" x2="264" y2="204" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="160" y1="172" x2="160" y2="224" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="180" y1="172" x2="180" y2="224" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="200" y1="172" x2="200" y2="224" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="220" y1="172" x2="220" y2="224" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="240" y1="172" x2="240" y2="224" stroke="#166534" stroke-width="3" opacity="0.5"/>
+    <line x1="136" y1="188" x2="264" y2="188" stroke="#FEF3C7" stroke-width="1" opacity="0.4"/>
+    <line x1="136" y1="196" x2="264" y2="196" stroke="#FEF3C7" stroke-width="1" opacity="0.4"/>
+    <line x1="136" y1="204" x2="264" y2="204" stroke="#FEF3C7" stroke-width="1" opacity="0.4"/>
+    <line x1="180" y1="172" x2="180" y2="224" stroke="#FEF3C7" stroke-width="1" opacity="0.4"/>
+    <line x1="220" y1="172" x2="220" y2="224" stroke="#FEF3C7" stroke-width="1" opacity="0.4"/>
+  </g>
+  <!-- Hanging tail end (right side) -->
+  <path d="M252,205 Q268,215 272,240 Q270,255 265,265"
+        stroke="#16A34A" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M252,205 Q268,215 272,240 Q270,255 265,265"
+        stroke="#166534" stroke-width="2" fill="none" opacity="0.4"/>
+  <!-- Fringe at hanging end -->
+  <line x1="258" y1="262" x2="256" y2="272" stroke="#16A34A" stroke-width="3" stroke-linecap="round"/>
+  <line x1="264" y1="264" x2="262" y2="274" stroke="#16A34A" stroke-width="3" stroke-linecap="round"/>
+  <line x1="270" y1="262" x2="268" y2="272" stroke="#16A34A" stroke-width="3" stroke-linecap="round"/>
+</svg>

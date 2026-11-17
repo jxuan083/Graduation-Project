@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FFFBEB"/>
+
+  <!-- Background glow -->
+  <circle cx="100" cy="100" r="60" fill="#FDE68A" opacity="0.3"/>
+
+  <!-- Large center 4-pt star (gold) -->
+  <path d="M100,52 L107,88 L143,95 L107,102 L100,138 L93,102 L57,95 L93,88 Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <path d="M100,62 L105,88 L131,95 L105,102 L100,128 L95,102 L69,95 L95,88 Z"
+        fill="#FDE68A" opacity="0.7"/>
+  <!-- Center shine -->
+  <circle cx="100" cy="95" r="8" fill="white" opacity="0.6"/>
+
+  <!-- 4-pt star top-left (white/pale yellow) -->
+  <path d="M54,52 L57,65 L70,68 L57,71 L54,84 L51,71 L38,68 L51,65 Z"
+        fill="white" stroke="#FDE68A" stroke-width="1"/>
+  <path d="M54,57 L56.5,65 L64,68 L56.5,71 L54,79 L51.5,71 L44,68 L51.5,65 Z"
+        fill="#FFFBEB" opacity="0.8"/>
+
+  <!-- 4-pt star bottom-right (gold) -->
+  <path d="M148,118 L152,132 L166,136 L152,140 L148,154 L144,140 L130,136 L144,132 Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="1"/>
+  <path d="M148,124 L150.5,132 L158,136 L150.5,140 L148,148 L145.5,140 L138,136 L145.5,132 Z"
+        fill="#FDE68A" opacity="0.7"/>
+
+  <!-- 6-pt star top-right (pale yellow) -->
+  <!-- Rotated hexagram -->
+  <polygon points="148,42 152,55 166,55 155.5,63 159,76 148,68 137,76 140.5,63 130,55 144,55"
+           fill="white" stroke="#FBBF24" stroke-width="1.5" opacity="0.9"/>
+  <polygon points="148,48 150.5,56 158,56 152.5,61 154.5,69 148,65 141.5,69 143.5,61 138,56 145.5,56"
+           fill="#FFFBEB" opacity="0.6"/>
+
+  <!-- 4-pt star bottom-left (gold small) -->
+  <path d="M44,138 L46.5,148 L57,151 L46.5,154 L44,164 L41.5,154 L31,151 L41.5,148 Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1"/>
+
+  <!-- 6-pt star left-center (white) -->
+  <polygon points="38,92 40.5,100 48,100 42.5,105 44.5,113 38,109 31.5,113 33.5,105 28,100 35.5,100"
+           fill="white" stroke="#FDE68A" stroke-width="1" opacity="0.9"/>
+
+  <!-- Trailing sparkle lines -->
+  <!-- Center star trails -->
+  <line x1="100" y1="52" x2="100" y2="40" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <line x1="143" y1="95" x2="156" y2="95" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <line x1="100" y1="138" x2="100" y2="150" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <line x1="57" y1="95" x2="44" y2="95" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <!-- Diagonal trails -->
+  <line x1="128" y1="67" x2="136" y2="59" stroke="#FDE68A" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="72" y1="123" x2="64" y2="131" stroke="#FDE68A" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Tiny dot sparkles scattered -->
+  <circle cx="122" cy="52" r="3" fill="#FBBF24" opacity="0.8"/>
+  <circle cx="80" cy="155" r="3" fill="#F59E0B" opacity="0.8"/>
+  <circle cx="162" cy="78" r="2.5" fill="white" opacity="0.9"/>
+  <circle cx="40" cy="118" r="2.5" fill="#FDE68A" opacity="0.9"/>
+  <circle cx="156" cy="150" r="3" fill="#FBBF24" opacity="0.7"/>
+</svg>

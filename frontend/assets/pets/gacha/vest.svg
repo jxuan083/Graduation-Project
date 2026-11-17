@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#ECFDF5"/>
+
+  <!-- Drop shadow -->
+  <ellipse cx="100" cy="168" rx="52" ry="8" fill="#065F46" opacity="0.15"/>
+
+  <!-- Vest main body -->
+  <path d="M46,68 Q46,52 62,52 L80,52 Q86,60 100,65 Q114,60 120,52 L138,52 Q154,52 154,68 L154,152 Q154,162 144,162 L56,162 Q46,162 46,152 Z"
+        fill="#047857" stroke="#065F46" stroke-width="2.5"/>
+
+  <!-- V-neck cutout -->
+  <path d="M80,52 Q86,80 100,88 Q114,80 120,52 Z"
+        fill="#ECFDF5"/>
+  <!-- V-neck collar edge -->
+  <path d="M80,52 Q86,80 100,88 Q114,80 120,52"
+        fill="none" stroke="#065F46" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Vest inner shading/depth -->
+  <path d="M54,68 Q54,58 64,58 L80,58 Q85,66 100,72 Q115,66 120,58 L136,58 Q146,58 146,68 L146,154 Q146,158 142,158 L58,158 Q54,158 54,154 Z"
+        fill="#059669" opacity="0.35"/>
+
+  <!-- Left shoulder -->
+  <path d="M46,68 Q46,52 62,52 L80,52 L78,68 Q66,66 56,70 Z" fill="#047857"/>
+  <!-- Right shoulder -->
+  <path d="M154,68 Q154,52 138,52 L120,52 L122,68 Q134,66 144,70 Z" fill="#047857"/>
+
+  <!-- Left pocket -->
+  <rect x="58" y="118" width="32" height="24" rx="6" fill="#065F46" stroke="#047857" stroke-width="1.5"/>
+  <rect x="60" y="118" width="28" height="8" rx="4" fill="#047857" stroke="#065F46" stroke-width="1"/>
+  <!-- Right pocket -->
+  <rect x="110" y="118" width="32" height="24" rx="6" fill="#065F46" stroke="#047857" stroke-width="1.5"/>
+  <rect x="112" y="118" width="28" height="8" rx="4" fill="#047857" stroke="#065F46" stroke-width="1"/>
+
+  <!-- Center button line -->
+  <line x1="100" y1="92" x2="100" y2="158" stroke="#065F46" stroke-width="1.5" stroke-dasharray="2,8" opacity="0.6"/>
+
+  <!-- Buttons (lighter green) -->
+  <circle cx="100" cy="102" r="6" fill="#34D399" stroke="#059669" stroke-width="1.5"/>
+  <circle cx="100" cy="102" r="2" fill="#047857"/>
+  <circle cx="100" cy="120" r="6" fill="#34D399" stroke="#059669" stroke-width="1.5"/>
+  <circle cx="100" cy="120" r="2" fill="#047857"/>
+  <circle cx="100" cy="138" r="6" fill="#34D399" stroke="#059669" stroke-width="1.5"/>
+  <circle cx="100" cy="138" r="2" fill="#047857"/>
+
+  <!-- Stitching detail on edges -->
+  <path d="M54,70 L54,152 Q54,158 60,158 L146,158 Q152,158 152,152 L152,70"
+        fill="none" stroke="#34D399" stroke-width="1" stroke-dasharray="4,6" opacity="0.5"/>
+  <!-- Shoulder stitching -->
+  <path d="M50,68 Q52,56 65,55"
+        fill="none" stroke="#34D399" stroke-width="1" stroke-dasharray="3,5" opacity="0.5"/>
+  <path d="M150,68 Q148,56 135,55"
+        fill="none" stroke="#34D399" stroke-width="1" stroke-dasharray="3,5" opacity="0.5"/>
+</svg>

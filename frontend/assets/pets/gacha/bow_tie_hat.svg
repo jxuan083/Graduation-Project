@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FDF2F8"/>
+
+  <!-- Drop shadow -->
+  <ellipse cx="100" cy="158" rx="52" ry="9" fill="#DB2777" opacity="0.15"/>
+
+  <!-- Left ribbon loop -->
+  <ellipse cx="62" cy="95" rx="38" ry="26" fill="#EC4899" stroke="#C026D3" stroke-width="2" transform="rotate(-8,62,95)"/>
+  <ellipse cx="62" cy="95" rx="28" ry="17" fill="#F472B6" opacity="0.5" transform="rotate(-8,62,95)"/>
+
+  <!-- Right ribbon loop -->
+  <ellipse cx="138" cy="95" rx="38" ry="26" fill="#EC4899" stroke="#C026D3" stroke-width="2" transform="rotate(8,138,95)"/>
+  <ellipse cx="138" cy="95" rx="28" ry="17" fill="#F472B6" opacity="0.5" transform="rotate(8,138,95)"/>
+
+  <!-- Left tail -->
+  <path d="M82,112 Q68,135 56,152 Q62,152 70,142 Q80,128 92,117 Z" fill="#EC4899" stroke="#C026D3" stroke-width="1.5"/>
+  <!-- Right tail -->
+  <path d="M118,112 Q132,135 144,152 Q138,152 130,142 Q120,128 108,117 Z" fill="#EC4899" stroke="#C026D3" stroke-width="1.5"/>
+
+  <!-- Center knot -->
+  <ellipse cx="100" cy="100" rx="17" ry="22" fill="#F9A8D4" stroke="#EC4899" stroke-width="2"/>
+  <ellipse cx="100" cy="100" rx="10" ry="14" fill="#FBCFE8" opacity="0.7"/>
+
+  <!-- Sparkle stars on ribbon -->
+  <g fill="#FFF" opacity="0.9">
+    <!-- Left loop stars -->
+    <polygon points="50,88 51.5,92 56,92 52.5,95 54,99 50,96.5 46,99 47.5,95 44,92 48.5,92" transform="scale(0.7) translate(22,38)"/>
+    <polygon points="72,78 73,81 76,81 73.5,83 74.5,86 72,84.5 69.5,86 70.5,83 68,81 71,81" transform="scale(0.6) translate(22,42)"/>
+    <!-- Right loop stars -->
+    <polygon points="150,88 151.5,92 156,92 152.5,95 154,99 150,96.5 146,99 147.5,95 144,92 148.5,92" transform="scale(0.7) translate(-38,38)"/>
+  </g>
+  <!-- Simple 4-point star sparkles -->
+  <path d="M50,86 L52,90 L50,94 L48,90 Z" fill="white" opacity="0.85"/>
+  <path d="M50,90 L54,88 L50,86 L46,88 Z" fill="white" opacity="0.85"/>
+  <path d="M148,80 L150,85 L148,90 L146,85 Z" fill="white" opacity="0.85"/>
+  <path d="M148,85 L153,82 L148,79 L143,82 Z" fill="white" opacity="0.85"/>
+  <path d="M72,100 L73.5,104 L72,108 L70.5,104 Z" fill="white" opacity="0.7"/>
+  <path d="M72,104 L76,101 L72,98 L68,101 Z" fill="white" opacity="0.7"/>
+
+  <!-- Shimmer lines on tails -->
+  <line x1="68" y1="128" x2="62" y2="148" stroke="#F9A8D4" stroke-width="1.5" opacity="0.6"/>
+  <line x1="130" y1="128" x2="136" y2="148" stroke="#F9A8D4" stroke-width="1.5" opacity="0.6"/>
+</svg>

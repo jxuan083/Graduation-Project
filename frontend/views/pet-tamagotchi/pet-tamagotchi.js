@@ -329,6 +329,88 @@ export function init() {
     document.getElementById('pet-delete-overlay').addEventListener('cancel', event => { if (_deleteBusy) event.preventDefault(); });
     setupCustomBgDrag();
     document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    // ── 扭蛋機 ────────────────────────────────────────────────
+    document.getElementById('btn-pet-gacha').onclick = openGachaDialog;
+    document.getElementById('btn-gacha-close').onclick = () => document.getElementById('pet-gacha-dialog').close();
+    document.getElementById('btn-gacha-draw-1').onclick = () => drawGacha(1);
+    document.getElementById('btn-gacha-draw-3').onclick = () => drawGacha(3);
+
+    // Tab switching
+    document.querySelectorAll('.gacha-tab[data-gacha-tab]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const targetTab = tab.dataset.gachaTab;
+            document.getElementById('gacha-panel-draw').hidden     = targetTab !== 'draw';
+            document.getElementById('gacha-panel-wardrobe').hidden = targetTab !== 'wardrobe';
+            if (targetTab === 'wardrobe') renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+        });
+    });
+
+    // Kind filter buttons
+    document.querySelectorAll('.gacha-kind[data-gacha-kind]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.gacha-kind').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderGachaCollection(GACHA_LOCAL_CATALOG, _gachaWardrobe, btn.dataset.gachaKind);
+        });
+    });
+
+    // Debug: add points (only visible on localhost)
+    const debugBtn = document.getElementById('btn-gacha-add-points');
+    if (debugBtn) {
+        debugBtn.hidden = !(location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        debugBtn.onclick = async () => {
+            try {
+                const { res, data } = await apiFetch('/api/users/gacha/add_points', {
+                    method: 'POST', body: JSON.stringify({ amount: 100 }),
+                });
+                if (res.ok && data?.points !== undefined) {
+                    _gachaUserPoints = data.points;
+                } else {
+                    _gachaUserPoints += 100;
+                }
+            } catch (_) {
+                _gachaUserPoints += 100;
+            }
+            document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
+            updateGachaBtnCoins();
+        };
+    }
+
+    // CTA: 立即穿戴 → switch to wardrobe tab
+    document.getElementById('btn-gacha-equip-now')?.addEventListener('click', () => {
+        document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
+        const wardrobeTab = document.querySelector('.gacha-tab[data-gacha-tab="wardrobe"]');
+        if (wardrobeTab) wardrobeTab.classList.add('active');
+        document.getElementById('gacha-panel-draw').hidden = true;
+        document.getElementById('gacha-panel-wardrobe').hidden = false;
+        renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+        document.getElementById('gacha-panel-wardrobe')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    // CTA: 保留到背包 → hide reveal only, stay on draw tab
+    document.getElementById('btn-gacha-keep-bag')?.addEventListener('click', () => {
+        document.getElementById('gacha-reveal').hidden = true;
+        document.getElementById('gacha-reveal-cta').hidden = true;
+        document.getElementById('gacha-reveal-items').innerHTML = '';
+    });
+
+    // Reset state when dialog closes
+    document.getElementById('pet-gacha-dialog').addEventListener('close', () => {
+        _gachaDrawBusy = false;
+        document.getElementById('gacha-reveal').hidden = true;
+        document.getElementById('gacha-reveal-cta').hidden = true;
+        document.getElementById('gacha-reveal-items').innerHTML = '';
+        document.getElementById('gacha-draw-status').textContent = '';
+        // Switch back to draw tab
+        document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
+        const drawTab = document.querySelector('.gacha-tab[data-gacha-tab="draw"]');
+        if (drawTab) drawTab.classList.add('active');
+        document.getElementById('gacha-panel-draw').hidden     = false;
+        document.getElementById('gacha-panel-wardrobe').hidden = true;
+    });
 }
 
 // ── 進入 / 離開 ───────────────────────────────────────────────────────────────
@@ -337,6 +419,7 @@ async function onShow() {
     _viewActive = true; _screenSeq++; _actionLock = false; resetSceneFeedback();
     const chooseCharacter = Boolean(state.tamagotchiChooseCharacter); state.tamagotchiChooseCharacter = false;
     const directGroupId = state.tamagotchiGroupId || null;
+    _pendingGachaOpen = Boolean(state.openGachaAfterLoad); state.openGachaAfterLoad = false;
 
     if (directGroupId) {
         state.tamagotchiGroupId = null;
@@ -349,6 +432,7 @@ async function onShow() {
         await loadGroupPet();
         if (!_viewActive) return;
         if (chooseCharacter) openAdoptDialog();
+        if (_pendingGachaOpen) { _pendingGachaOpen = false; openGachaDialog(); }
         startPolling();
         startCooldownTicker();
     } else {
@@ -401,11 +485,22 @@ function renderPetList() {
 
     if (!_groupPets.length) {
         emptyEl.style.display = 'block';
+        _pendingGachaOpen = false;
         showScreen('list');
         if (window.lucide) window.lucide.createIcons();
         return;
     }
     emptyEl.style.display = 'none';
+
+    // If coming from leaderboard "去抽", skip the list and auto-enter a group
+    if (_pendingGachaOpen) {
+        const target = _groupPets.find(p => p.pet?.pet_face_url) || _groupPets[0];
+        if (target) {
+            enterGroupPet(target.group_id, target.is_creator);
+            return;
+        }
+        _pendingGachaOpen = false; // no adoptable pet found — fall through to list
+    }
 
     _groupPets.forEach(({ group_id, group_name, is_creator, pet = {} }, index) => {
         if (!pet?.pet_face_url) {
@@ -488,6 +583,7 @@ async function enterGroupPet(groupId, isCreator) {
     showLoading(true);
     await loadGroupPet();
     if (!_viewActive) return;
+    if (_pendingGachaOpen) { _pendingGachaOpen = false; openGachaDialog(); }
     startPolling();
     startCooldownTicker();
 }
@@ -504,8 +600,15 @@ async function loadGroupPet() {
         if (!grpRes.res.ok) throw new Error(readApiError(grpRes.data, '群組資料載入失敗'));
         _groupPet = petRes.data?.pet || null;
         _careCatalog = petRes.data?.care_catalog || null;
+        if (petRes.data?.user_coins !== undefined) _gachaUserPoints = petRes.data.user_coins;
+        if (petRes.data?.active_buff !== undefined) _activeBuff = petRes.data.active_buff || null;
         if (_groupPet) {
             _groupPet._groupName = grpRes.data?.group?.name || '群組';
+        }
+        // Restore gacha equipped state from pet data if available
+        if (petRes.data?.gacha_equipped) {
+            _gachaEquipped = petRes.data.gacha_equipped;
+            updateCostumeOverlays(_gachaEquipped);
         }
         // 若 direct entry 尚未確認是否為建立者，從群組資料補上
         if (_entryMode === 'direct') {
@@ -513,6 +616,7 @@ async function loadGroupPet() {
             _isCreator  = myUid && grpRes.data?.group?.creator_uid === myUid;
         }
         renderGroupMode();
+        updateBuffBadge();
         showLoading(false);
     } catch (e) {
         if (!sameScreen(seq, groupId)) return;
@@ -1161,10 +1265,10 @@ function syncCareCollection() {
             if (saved && ['food','toy'].includes(saved.kind) && /^[A-Za-z0-9_-]{8,64}$/.test(saved.request_id)) _pendingDraw.set(key,saved);
         } catch { /* Storage may be unavailable; in-memory retries still work. */ }
     }
-    document.getElementById('pet-coin-balance').textContent = Number(_groupPet.pet_coins || 0);
+    document.getElementById('pet-coin-balance').textContent = _gachaUserPoints;
     document.getElementById('btn-pet-draw').disabled = !_careCatalog;
     document.getElementById('btn-pet-bag').disabled = !_careCatalog;
-    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,pending:_pendingDraw.get(careKey()),busy:_drawBusy});
+    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,pending:_pendingDraw.get(careKey()),busy:_drawBusy,coins:_gachaUserPoints});
 }
 async function drawCareItem(kind) {
     if (_drawBusy || !_groupId) return;
@@ -1186,9 +1290,10 @@ async function drawCareItem(kind) {
         }
         clearPendingDraw(key);
         if (!sameScreen(seq,groupId)) return;
-        for (const field of ['pet_coins','pet_food_inventory','pet_owned_toys','pet_discovered_items']) {
+        for (const field of ['pet_food_inventory','pet_owned_toys','pet_discovered_items']) {
             if (data[field] !== undefined) _groupPet[field] = data[field];
         }
+        if (data.points_remaining !== undefined) _gachaUserPoints = data.points_remaining;
         const message = data.duplicate ? t('已收藏的玩具，返還 {n} 金幣', {n:data.refund})
             : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，可重複使用');
         await _careCollection.finishDraw(data.care_item,message);
@@ -1206,4 +1311,561 @@ async function drawCareItem(kind) {
 function clearPendingDraw(key) {
     _pendingDraw.delete(key);
     try { sessionStorage.removeItem(`pet_draw_pending:${key}`); } catch { /* Optional persistence. */ }
+}
+
+// ── 扭蛋機 ────────────────────────────────────────────────────────────────────
+
+let _gachaDrawBusy = false;
+let _gachaWardrobe = [];
+let _gachaEquipped = {};
+let _gachaUserPoints = 0;
+let _pendingGachaOpen = false;
+let _activeBuff = null; // { item_id, buff_type, buff_value, buff_duration_hours, buff_expires_at }
+
+const _GACHA_IMG = id => `./assets/pets/gacha/${id}.svg`;
+
+// Local catalog fallback — mirrors backend pet_gacha.py
+const GACHA_LOCAL_CATALOG = [
+    { id: 'party_hat',       name: '派對帽',   type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('party_hat') },
+    { id: 'bow_tie',         name: '蝴蝶結帽', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('bow_tie_hat') },
+    { id: 'crown',           name: '小王冠',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('crown') },
+    { id: 'witch_hat',       name: '巫師帽',   type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('witch_hat') },
+    { id: 'star_crown',      name: '星辰王冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('star_crown') },
+    { id: 'rainbow_crown',   name: '彩虹皇冠', type: 'costume',    slot: 'head',   rarity: 'treasure', img: _GACHA_IMG('rainbow_crown') },
+    { id: 'cat_ears',        name: '貓耳頭飾', type: 'costume',    slot: 'head',   rarity: 'common',   img: _GACHA_IMG('cat_ears') },
+    { id: 'star_glasses',    name: '星形眼鏡', type: 'costume',    slot: 'head',   rarity: 'rare',     img: _GACHA_IMG('star_glasses') },
+    { id: 'scarf',           name: '格紋圍巾', type: 'costume',    slot: 'neck',   rarity: 'common',   img: _GACHA_IMG('scarf') },
+    { id: 'medal',           name: '聚會勳章', type: 'costume',    slot: 'neck',   rarity: 'rare',     img: _GACHA_IMG('medal') },
+    { id: 'crystal_pendant', name: '水晶吊墜', type: 'costume',    slot: 'neck',   rarity: 'treasure', img: _GACHA_IMG('crystal_pendant') },
+    { id: 'vest',            name: '小背心',   type: 'costume',    slot: 'body',   rarity: 'common',   img: _GACHA_IMG('vest') },
+    { id: 'cape',            name: '英雄披風', type: 'costume',    slot: 'body',   rarity: 'rare',     img: _GACHA_IMG('cape') },
+    { id: 'tuxedo',          name: '燕尾服',   type: 'costume',    slot: 'body',   rarity: 'treasure', img: _GACHA_IMG('tuxedo') },
+    { id: 'sparkle',         name: '閃閃星光', type: 'decoration', slot: 'effect', rarity: 'common',   img: _GACHA_IMG('sparkle') },
+    { id: 'music',           name: '音符飄飄', type: 'decoration', slot: 'effect', rarity: 'common',   img: _GACHA_IMG('music') },
+    { id: 'hearts',          name: '愛心雨',   type: 'decoration', slot: 'effect', rarity: 'rare',     img: _GACHA_IMG('hearts') },
+    { id: 'rainbow',         name: '彩虹光環', type: 'decoration', slot: 'effect', rarity: 'rare',     img: _GACHA_IMG('rainbow') },
+    { id: 'fireworks',       name: '聚會煙火', type: 'decoration', slot: 'effect', rarity: 'treasure', img: _GACHA_IMG('fireworks') },
+    { id: 'galaxy',          name: '銀河光環', type: 'decoration', slot: 'effect', rarity: 'treasure', img: _GACHA_IMG('galaxy') },
+];
+
+const GACHA_ITEM_EMOJI = {
+    party_hat: '🎉', bow_tie: '🎀', crown: '👑', witch_hat: '🧙', star_crown: '⭐', rainbow_crown: '🌈',
+    cat_ears: '🐱', star_glasses: '🕶️',
+    scarf: '🧣', medal: '🏅', crystal_pendant: '💎',
+    vest: '👕', cape: '🦸', tuxedo: '🎩',
+    sparkle: '✨', music: '🎵', hearts: '💕', rainbow: '🌈', fireworks: '🎆', galaxy: '🌌',
+};
+
+function renderGachaCollection(catalog, wardrobe, kind) {
+    const gridEl  = document.getElementById('gacha-collection-grid');
+    const countEl = document.getElementById('gacha-collect-count');
+    if (!gridEl) return;
+    const titleEl = gridEl.closest('.gacha-collection-wrap')?.querySelector('.gacha-collection-title');
+    if (titleEl) {
+        const labels = { all: '全部配件', costume: '配件', decoration: '裝飾' };
+        titleEl.textContent = labels[kind] || '全部配件';
+    }
+    const ownedIds = new Set((wardrobe || []).map(w => w.id));
+    const filtered = kind === 'all' ? catalog : catalog.filter(i => i.type === kind);
+    const ownedCount = filtered.filter(i => ownedIds.has(i.id)).length;
+    if (countEl) countEl.textContent = `${ownedCount}/${filtered.length}`;
+    gridEl.innerHTML = filtered.map(item => {
+        const owned = ownedIds.has(item.id);
+        const emoji = GACHA_ITEM_EMOJI[item.id] || '🎁';
+        return `<div class="gacha-collect-item rarity-${item.rarity}${owned ? ' owned' : ''}" title="${escHtml(item.name)}">
+            <div class="gacha-collect-img">
+                <img src="${escHtml(item.img)}" alt="" draggable="false" onerror="this.style.display='none'">
+                <span class="gacha-collect-emoji" aria-hidden="true">${emoji}</span>
+                ${owned ? '<span class="gacha-collect-check" aria-label="已收集">✓</span>' : ''}
+            </div>
+            <span class="gacha-collect-name">${escHtml(item.name)}</span>
+        </div>`;
+    }).join('');
+}
+
+function gachaRoll() {
+    const r = Math.random() * 100;
+    if (r < 5)  return 'treasure';
+    if (r < 30) return 'rare';
+    return 'common';
+}
+
+function gachaPickItem(catalog) {
+    const rarity = gachaRoll();
+    const pool = catalog.filter(i => i.rarity === rarity);
+    const fallback = catalog.filter(i => i.rarity === 'common');
+    const source = pool.length ? pool : fallback;
+    return { ...source[Math.floor(Math.random() * source.length)], rarity };
+}
+
+function updateGachaBtnCoins() {
+    const el = document.getElementById('gacha-entry-coins');
+    if (el) {
+        el.textContent = _gachaUserPoints > 0 ? `${_gachaUserPoints}` : '';
+        el.classList.remove('popping');
+        void el.offsetWidth;
+        el.classList.add('popping');
+    }
+    updateDrawProgress();
+}
+
+function updateDrawProgress() {
+    const el = document.getElementById('gacha-draw-progress');
+    if (!el) return;
+    if (_gachaUserPoints >= 50) {
+        el.hidden = true;
+        el.textContent = '';
+    } else {
+        const needed = 50 - _gachaUserPoints;
+        el.textContent = `還差 ${needed} 金幣就可以單抽`;
+        el.hidden = false;
+    }
+}
+
+async function openGachaDialog() {
+    const dialog = document.getElementById('pet-gacha-dialog');
+    if (!dialog) return;
+
+    // Reset state
+    document.getElementById('gacha-reveal').hidden = true;
+    document.getElementById('gacha-reveal-items').innerHTML = '';
+    document.getElementById('gacha-draw-status').textContent = '';
+    document.getElementById('gacha-wardrobe-status').textContent = '';
+    _gachaDrawBusy = false;
+
+    // Fetch catalog + points (best-effort; fall back to local)
+    if (_groupId) {
+        try {
+            const { res, data } = await apiFetch(`/api/users/gacha/catalog?group_id=${_groupId}`);
+            if (res.ok && data) {
+                _gachaUserPoints = data.points ?? _gachaUserPoints;
+                _gachaWardrobe   = data.wardrobe ?? _gachaWardrobe;
+                _gachaEquipped   = data.equipped  ?? _gachaEquipped;
+                if (data.active_buff !== undefined) _activeBuff = data.active_buff || null;
+            }
+        } catch (_) { /* offline – use cached state */ }
+    }
+
+    document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
+    updateGachaBtnCoins();
+    renderGachaCapsules();
+    const activeKind = document.querySelector('.gacha-kind.active')?.dataset.gachaKind || 'all';
+    renderGachaCollection(GACHA_LOCAL_CATALOG, _gachaWardrobe, activeKind);
+    renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+    updateCostumeOverlays(_gachaEquipped);
+    updateBuffBadge();
+
+    dialog.showModal();
+}
+
+function renderGachaCapsules() {
+    const container = document.getElementById('gacha-capsules-display');
+    if (!container) return;
+    const palettes = [
+        ['#ff8fa3','#ffc1cc'],['#ffd166','#ffe8a0'],['#c77dff','#e4b5ff'],
+        ['#74c2ff','#b8e0ff'],['#80ed99','#b7f4c7'],['#ffb347','#ffd8a0'],
+        ['#ff6b9d','#ffaac8'],['#a8dadc','#d4f0f1'],['#f4a261','#f9c99a'],
+    ];
+    const count = 11 + Math.floor(Math.random() * 5);
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const pal = palettes[i % palettes.length];
+        const w = Math.round(20 + Math.random() * 14);
+        const h = Math.round(w * 1.22);
+        const cap = document.createElement('div');
+        cap.className = 'gacha-capsule';
+        cap.style.cssText = [
+            `left:${5 + Math.random() * 80}%`,
+            `top:${5 + Math.random() * 72}%`,
+            `--float-duration:${2.4 + Math.random() * 2.4}s`,
+            `--float-delay:${-(Math.random() * 2.8)}s`,
+        ].join(';');
+        // Classic gashapon capsule SVG: colored top half, clear bottom, seam line
+        cap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
+            <defs><clipPath id="ct${i}"><rect x="0" y="0" width="${w}" height="${h/2}"/></clipPath></defs>
+            <ellipse cx="${w/2}" cy="${h/2}" rx="${w/2-1}" ry="${h/2-1}" fill="rgba(255,255,255,0.3)" stroke="${pal[0]}" stroke-width="1.2"/>
+            <ellipse cx="${w/2}" cy="${h/2}" rx="${w/2-1}" ry="${h/2-1}" fill="${pal[0]}" clip-path="url(#ct${i})"/>
+            <line x1="1.5" y1="${h/2}" x2="${w-1.5}" y2="${h/2}" stroke="rgba(255,255,255,0.45)" stroke-width="1.2"/>
+            <ellipse cx="${w*0.33}" cy="${h*0.2}" rx="${w*0.13}" ry="${h*0.07}" fill="rgba(255,255,255,0.52)" transform="rotate(-20,${w*0.33},${h*0.2})"/>
+        </svg>`;
+        container.appendChild(cap);
+    }
+}
+
+function buffLabel(buff) {
+    if (!buff) return '';
+    const types = { feed_boost: '餵食', play_boost: '玩耍', wipe_boost: '清潔', all_boost: '全能', decay_resist: '減耗' };
+    const label = types[buff.buff_type] || buff.buff_type;
+    if (buff.buff_type === 'decay_resist') {
+        return `${label} ${Math.round((1 - buff.buff_value) * 100)}%↓`;
+    }
+    return `${label} ×${buff.buff_value}`;
+}
+
+function _wardrobe_from_ids(ids) {
+    return ids.map(id => GACHA_LOCAL_CATALOG.find(c => c.id === id)).filter(Boolean);
+}
+
+function updateBuffBadge() {
+    const badge = document.getElementById('pet-buff-badge');
+    if (!badge) return;
+    if (!_activeBuff) { badge.hidden = true; return; }
+    const expires = new Date(_activeBuff.buff_expires_at);
+    const msLeft = expires - Date.now();
+    if (msLeft <= 0) { _activeBuff = null; badge.hidden = true; return; }
+    const hLeft = Math.ceil(msLeft / 3600000);
+    badge.hidden = false;
+    badge.textContent = `✨ ${buffLabel(_activeBuff)} · 剩 ${hLeft}h`;
+}
+
+function renderGachaWardrobe(wardrobe, equipped) {
+    // Equipped slots
+    const slotsEl = document.getElementById('gacha-equipped-slots');
+    const slotMeta = [
+        { slot: 'head',   label: '頭部' },
+        { slot: 'neck',   label: '頸部' },
+        { slot: 'body',   label: '身體' },
+        { slot: 'effect', label: '特效' },
+    ];
+    if (slotsEl) {
+        slotsEl.innerHTML = slotMeta.map(({ slot, label }) => {
+            const item = equipped?.[slot];
+            return `<div class="gacha-equipped-slot${item ? ' has-item' : ''}">
+                <div class="gacha-equipped-slot-img">
+                    ${item ? `<img src="${escHtml(item.img)}" alt="${escHtml(item.name)}" draggable="false">` : '<span class="gacha-slot-empty">＋</span>'}
+                </div>
+                <div class="gacha-equipped-slot-label">${label}</div>
+                ${item ? `<div class="gacha-equipped-slot-name">${escHtml(item.name)}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    // Wardrobe grid
+    const gridEl = document.getElementById('gacha-wardrobe-grid');
+    if (!gridEl) return;
+    if (!wardrobe || !wardrobe.length) {
+        gridEl.innerHTML = `<div class="gacha-wardrobe-empty">還沒有任何配件<br>快去抽扭蛋！</div>`;
+        return;
+    }
+    const rarityLabel = r => r === 'common' ? '普通' : r === 'rare' ? '稀有' : '珍藏';
+    gridEl.innerHTML = wardrobe.map(item => {
+        const isEquipped = equipped?.[item.slot]?.id === item.id;
+        const buffBadge = item.buff
+            ? `<div class="gacha-wardrobe-buff">${escHtml(buffLabel(item.buff))}<span class="gacha-wb-dur">${item.buff.buff_duration_hours}h</span></div>`
+            : '';
+        const useBtn = item.buff
+            ? `<button class="gacha-wardrobe-use-btn" type="button" data-item-id="${escHtml(item.id)}">啟動</button>`
+            : '';
+        return `<div class="gacha-wardrobe-item${isEquipped ? ' equipped' : ''}" data-item-id="${escHtml(item.id)}" data-item-slot="${escHtml(item.slot)}">
+            <div class="gacha-wardrobe-item-img">
+                <img src="${escHtml(item.img)}" alt="${escHtml(item.name)}" draggable="false">
+            </div>
+            <div class="gacha-wardrobe-item-name">${escHtml(item.name)}</div>
+            <span class="rarity-badge ${item.rarity}">${rarityLabel(item.rarity)}</span>
+            ${buffBadge}
+            <button class="gacha-wardrobe-equip-btn${isEquipped ? ' unequip' : ''}" type="button">${isEquipped ? '卸除' : '穿戴'}</button>
+            ${useBtn}
+        </div>`;
+    }).join('');
+
+    gridEl.querySelectorAll('.gacha-wardrobe-equip-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const card = e.currentTarget.closest('[data-item-id]');
+            const itemId = card?.dataset.itemId;
+            const slot   = card?.dataset.itemSlot;
+            if (!itemId || !slot) return;
+
+            const isEquipped = equipped?.[slot]?.id === itemId;
+            const statusEl = document.getElementById('gacha-wardrobe-status');
+            btn.disabled = true;
+
+            if (isEquipped) {
+                // Unequip: remove from local state
+                const updated = { ...equipped };
+                delete updated[slot];
+                _gachaEquipped = updated;
+                if (_groupId) {
+                    try {
+                        await apiFetch(`/api/groups/${_groupId}/pet/equip`, {
+                            method: 'POST', body: JSON.stringify({ slot, item_id: null }),
+                        });
+                    } catch (_) { /* local prototype – ignore */ }
+                }
+            } else {
+                // Equip
+                const catalogItem = GACHA_LOCAL_CATALOG.find(c => c.id === itemId)
+                    || wardrobe.find(w => w.id === itemId);
+                if (catalogItem) {
+                    _gachaEquipped = { ...equipped, [slot]: catalogItem };
+                }
+                if (_groupId) {
+                    try {
+                        await apiFetch(`/api/groups/${_groupId}/pet/equip`, {
+                            method: 'POST', body: JSON.stringify({ slot, item_id: itemId }),
+                        });
+                    } catch (_) { /* local prototype – ignore */ }
+                }
+            }
+
+            renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+            updateCostumeOverlays(_gachaEquipped);
+            if (statusEl) statusEl.textContent = isEquipped ? '已卸除裝備' : '已穿戴裝備！';
+        });
+    });
+
+    gridEl.querySelectorAll('.gacha-wardrobe-use-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const itemId = e.currentTarget.dataset.itemId;
+            if (!itemId || !_groupId) return;
+            btn.disabled = true;
+            const statusEl = document.getElementById('gacha-wardrobe-status');
+            try {
+                const { res, data } = await apiFetch(`/api/groups/${_groupId}/pet/use_gacha_item`, {
+                    method: 'POST', body: JSON.stringify({ item_id: itemId }),
+                });
+                if (!res.ok) throw new Error(data?.detail || '啟動失敗');
+                if (data.wardrobe) _gachaWardrobe = _wardrobe_from_ids(data.wardrobe);
+                if (data.active_buff) _activeBuff = data.active_buff;
+                renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+                renderGachaCollection(GACHA_LOCAL_CATALOG, _gachaWardrobe, 'all');
+                updateBuffBadge();
+                if (statusEl) statusEl.textContent = '道具效果已啟動！';
+            } catch (err) {
+                if (statusEl) statusEl.textContent = err.message;
+                btn.disabled = false;
+            }
+        });
+    });
+}
+
+function renderGachaReveal(items) {
+    const handleArm  = document.getElementById('gacha-handle-arm');
+    const revealEl   = document.getElementById('gacha-reveal');
+    const itemsEl    = document.getElementById('gacha-reveal-items');
+    const capAnimEl  = document.getElementById('gacha-capsule-anim');
+    const capTopEl   = document.getElementById('gacha-cap-top');
+    const capBotEl   = document.getElementById('gacha-cap-bottom');
+    const journeyEl  = document.getElementById('gacha-journey-capsule');
+    const flapEl     = document.getElementById('gacha-dispenser-flap');
+    const confettiEl = document.getElementById('gacha-confetti');
+    if (!revealEl || !itemsEl) return;
+
+    // ── Step 1: Handle pull ──
+    if (handleArm) {
+        handleArm.classList.remove('gacha-handle-pulling');
+        void handleArm.offsetWidth;
+        handleArm.classList.add('gacha-handle-pulling');
+        setTimeout(() => handleArm.classList.remove('gacha-handle-pulling'), 1000);
+    }
+
+    // ── Step 2: Journey capsule falls from dome to dispenser ──
+    if (journeyEl) {
+        const palettes = ['#ff8fa3','#ffd166','#c77dff','#74c2ff','#80ed99','#ffb347'];
+        const color = palettes[Math.floor(Math.random() * palettes.length)];
+        journeyEl.innerHTML = `<svg viewBox="0 0 36 44" width="36" height="44" aria-hidden="true">
+            <defs><clipPath id="jcp"><rect x="0" y="0" width="36" height="22"/></clipPath></defs>
+            <ellipse cx="18" cy="22" rx="16" ry="20" fill="rgba(255,255,255,0.28)" stroke="${color}" stroke-width="1.5"/>
+            <ellipse cx="18" cy="22" rx="16" ry="20" fill="${color}" clip-path="url(#jcp)"/>
+            <line x1="2" y1="22" x2="34" y2="22" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"/>
+            <ellipse cx="12" cy="12" rx="4.5" ry="2.8" fill="rgba(255,255,255,0.5)" transform="rotate(-18,12,12)"/>
+        </svg>`;
+        journeyEl.classList.remove('gacha-journey-active');
+        void journeyEl.offsetWidth;
+        journeyEl.classList.add('gacha-journey-active');
+        setTimeout(() => { journeyEl.classList.remove('gacha-journey-active'); }, 850);
+    }
+
+    // ── Step 3: Flap opens ──
+    setTimeout(() => {
+        if (flapEl) {
+            flapEl.classList.add('opening');
+            setTimeout(() => flapEl.classList.remove('opening'), 400);
+        }
+    }, 500);
+
+    // ── Step 4: Show reveal, capsule appears with rarity color ──
+    setTimeout(() => {
+        revealEl.hidden = false;
+        itemsEl.innerHTML = '';
+
+        const topRarity = items.reduce((best, i) => {
+            const levels = { treasure: 3, rare: 2, common: 1 };
+            return (levels[i.rarity] || 1) > (levels[best] || 1) ? i.rarity : best;
+        }, 'common');
+
+        const rarityColor = { treasure: '#fbbf24', rare: '#60a5fa', common: '#f97316' };
+        const capColor = rarityColor[topRarity] || '#f97316';
+
+        if (capTopEl) capTopEl.style.background = capColor;
+        if (capBotEl) capBotEl.style.background = capColor;
+        if (capAnimEl) { capAnimEl.style.opacity = '1'; capAnimEl.style.display = ''; }
+
+        // ── Step 5: Shake then split ──
+        if (capAnimEl) {
+            capAnimEl.classList.remove('gacha-cap-shaking', 'gacha-cap-splitting');
+            void capAnimEl.offsetWidth;
+            capAnimEl.classList.add('gacha-cap-shaking');
+
+            setTimeout(() => {
+                capAnimEl.classList.remove('gacha-cap-shaking');
+                capAnimEl.classList.add('gacha-cap-splitting');
+
+                // ── Step 6: Items pop in + confetti ──
+                setTimeout(() => {
+                    capAnimEl.classList.remove('gacha-cap-splitting');
+                    capAnimEl.style.opacity = '0';
+
+                    const hasSpecial = items.some(i => i.rarity === 'rare' || i.rarity === 'treasure');
+                    if (hasSpecial && confettiEl) spawnConfetti(confettiEl, topRarity);
+
+                    const rarityLabel = r => r === 'common' ? '普通' : r === 'rare' ? '稀有' : '珍藏';
+                    items.forEach((item, index) => {
+                        const card = document.createElement('div');
+                        card.className = `gacha-reveal-item rarity-${item.rarity}`;
+                        card.style.animationDelay = `${index * 160}ms`;
+                        card.innerHTML = `
+                            <div class="gacha-reveal-item-img">
+                                <img src="${escHtml(item.img)}" alt="${escHtml(item.name)}" draggable="false">
+                            </div>
+                            <div class="gacha-reveal-item-name">${escHtml(item.name)}</div>
+                            <span class="rarity-badge ${item.rarity}">${rarityLabel(item.rarity)}</span>
+                        `;
+                        itemsEl.appendChild(card);
+                    });
+
+                    // Show CTA after all item pop-in animations finish
+                    const ctaDelay = (items.length - 1) * 160 + 520;
+                    setTimeout(() => {
+                        const ctaEl = document.getElementById('gacha-reveal-cta');
+                        if (ctaEl) ctaEl.hidden = false;
+                    }, ctaDelay);
+                }, 420);
+            }, 380);
+        }
+    }, 580);
+}
+
+function spawnConfetti(container, rarity) {
+    const colors = rarity === 'treasure'
+        ? ['#FBBF24','#F59E0B','#EC4899','#A855F7','#FBBF24','#EF4444','#F97316','#FDE68A']
+        : ['#60A5FA','#A855F7','#34D399','#F472B6','#60A5FA','#FBBF24','#60A5FA','#C084FC'];
+    const dirs = [
+        { tx: -80, ty: -110, rot: 320 }, { tx: 80, ty: -110, rot: -320 },
+        { tx: -120, ty: -55, rot: 260 }, { tx: 120, ty: -55, rot: -260 },
+        { tx: -40, ty: -140, rot: 480 }, { tx: 40, ty: -140, rot: -480 },
+        { tx: -100, ty: -20, rot: 160 }, { tx: 100, ty: -20, rot: -160 },
+        { tx: -60, ty: -125, rot: 400 }, { tx: 60, ty: -125, rot: -400 },
+        { tx: -140, ty: -40, rot: 220 }, { tx: 140, ty: -40, rot: -220 },
+        { tx: -20, ty: -150, rot: 540 }, { tx: 20, ty: -150, rot: -540 },
+        { tx: -90, ty: -80, rot: 300 },  { tx: 90, ty: -80, rot: -300 },
+    ];
+    dirs.forEach((d, i) => {
+        const p = document.createElement('span');
+        const size = 5 + Math.random() * 5;
+        p.className = 'gacha-confetti-particle';
+        p.style.cssText = [
+            `--tx:${d.tx + (Math.random() - 0.5) * 30}px`,
+            `--ty:${d.ty + (Math.random() - 0.5) * 20}px`,
+            `--rot:${d.rot}deg`,
+            `--duration:${0.85 + Math.random() * 0.45}s`,
+            `--delay:${Math.random() * 0.18}s`,
+            `background:${colors[i % colors.length]}`,
+            `width:${size}px`,
+            `height:${size * (Math.random() > 0.5 ? 1 : 2.2)}px`,
+            `border-radius:${Math.random() > 0.4 ? '50%' : '1px'}`,
+        ].join(';');
+        container.appendChild(p);
+    });
+    setTimeout(() => { container.innerHTML = ''; }, 1800);
+}
+
+async function drawGacha(count) {
+    if (_gachaDrawBusy || !_groupId) return;
+
+    const cost = count === 1 ? 50 : 120;
+    if (_gachaUserPoints < cost) {
+        document.getElementById('gacha-draw-status').textContent = '金幣不足';
+        return;
+    }
+
+    const btn1 = document.getElementById('btn-gacha-draw-1');
+    const btn3 = document.getElementById('btn-gacha-draw-3');
+    const statusEl = document.getElementById('gacha-draw-status');
+
+    _gachaDrawBusy = true;
+    if (btn1) btn1.disabled = true;
+    if (btn3) btn3.disabled = true;
+    if (statusEl) statusEl.textContent = '抽取中…';
+
+    const requestId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+
+    try {
+        const { res, data } = await apiFetch('/api/users/gacha/draw', {
+            method: 'POST',
+            body: JSON.stringify({ group_id: _groupId, count, request_id: requestId }),
+        });
+
+        let items;
+        if (res.ok && data?.items) {
+            items = data.items;
+            _gachaUserPoints = data.points_remaining ?? Math.max(0, _gachaUserPoints - cost);
+            if (data.wardrobe) _gachaWardrobe = data.wardrobe;
+            if (data.equipped) _gachaEquipped = data.equipped;
+        } else {
+            // Local fallback: generate items client-side
+            _gachaUserPoints = Math.max(0, _gachaUserPoints - cost);
+            items = Array.from({ length: count }, () => gachaPickItem(GACHA_LOCAL_CATALOG));
+
+            // Add drawn items to local wardrobe if not already owned
+            items.forEach(item => {
+                if (!_gachaWardrobe.find(w => w.id === item.id)) {
+                    _gachaWardrobe = [..._gachaWardrobe, item];
+                }
+            });
+        }
+
+        document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
+        updateGachaBtnCoins();
+        renderGachaReveal(items);
+        renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+        updateCostumeOverlays(_gachaEquipped);
+        if (statusEl) statusEl.textContent = `獲得 ${items.length} 件道具！`;
+    } catch (err) {
+        // Full offline fallback
+        _gachaUserPoints = Math.max(0, _gachaUserPoints - cost);
+        const items = Array.from({ length: count }, () => gachaPickItem(GACHA_LOCAL_CATALOG));
+        items.forEach(item => {
+            if (!_gachaWardrobe.find(w => w.id === item.id)) {
+                _gachaWardrobe = [..._gachaWardrobe, item];
+            }
+        });
+        document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
+        updateGachaBtnCoins();
+        renderGachaReveal(items);
+        renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+        updateCostumeOverlays(_gachaEquipped);
+        if (statusEl) statusEl.textContent = `獲得 ${items.length} 件道具！`;
+    } finally {
+        _gachaDrawBusy = false;
+        if (btn1) btn1.disabled = false;
+        if (btn3) btn3.disabled = false;
+    }
+}
+
+function updateCostumeOverlays(equipped) {
+    const isIllustrated = document.getElementById('pet-stage')?.classList.contains('has-illustrated-pet');
+    const slots = { head: 'pet-costume-head', neck: 'pet-costume-neck', body: 'pet-costume-body', effect: 'pet-decoration-effect' };
+    for (const [slot, elId] of Object.entries(slots)) {
+        const el = document.getElementById(elId);
+        if (!el) continue;
+        const item = equipped?.[slot];
+        const imgSrc = isIllustrated ? (item?.overlay_img || item?.img) : item?.img;
+        if (imgSrc) {
+            el.innerHTML = `<img src="${escHtml(imgSrc)}" alt="${escHtml(item.name)}" draggable="false">`;
+            if (slot === 'effect') el.classList.add('has-effect');
+        } else {
+            el.innerHTML = '';
+            if (slot === 'effect') el.classList.remove('has-effect');
+        }
+    }
 }

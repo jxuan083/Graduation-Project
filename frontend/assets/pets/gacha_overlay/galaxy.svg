@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Galaxy swirl around pet -->
+  <!-- Outer swirl arc (purple) -->
+  <path d="M44,200 Q44,80 200,36 Q356,80 356,200 Q356,320 200,364 Q44,320 44,200Z"
+        fill="none" stroke="#A855F7" stroke-width="2.5" stroke-dasharray="12,8" opacity="0.5"/>
+  <!-- Inner swirl arc (blue) -->
+  <path d="M72,200 Q72,100 200,66 Q328,100 328,200 Q328,300 200,334 Q72,300 72,200Z"
+        fill="none" stroke="#6366F1" stroke-width="2" stroke-dasharray="10,7" opacity="0.5"/>
+  <!-- Spiral arms -->
+  <path d="M200,200 Q230,120 300,80 Q350,65 360,100 Q345,145 290,160 Q240,170 200,200Z"
+        fill="none" stroke="#C084FC" stroke-width="2.5" opacity="0.65"/>
+  <path d="M200,200 Q170,280 100,320 Q50,335 40,300 Q55,255 110,240 Q160,230 200,200Z"
+        fill="none" stroke="#818CF8" stroke-width="2.5" opacity="0.65"/>
+  <!-- Star particles scattered on spiral -->
+  <circle cx="310" cy="82"  r="3.5" fill="#E879F9"/>
+  <circle cx="348" cy="102" r="2.5" fill="#A78BFA"/>
+  <circle cx="285" cy="155" r="3"   fill="#C084FC"/>
+  <circle cx="52"  cy="302" r="3.5" fill="#818CF8"/>
+  <circle cx="96"  cy="324" r="2.5" fill="#A78BFA"/>
+  <circle cx="115" cy="242" r="3"   fill="#C084FC"/>
+  <!-- Bright core glow -->
+  <circle cx="200" cy="200" r="22" fill="#7C3AED" opacity="0.12"/>
+  <circle cx="200" cy="200" r="12" fill="#A855F7" opacity="0.18"/>
+  <circle cx="200" cy="200" r="6"  fill="#C084FC" opacity="0.3"/>
+  <!-- Scattered star dots across canvas -->
+  <circle cx="66"  cy="78"  r="2.5" fill="#DDD6FE" opacity="0.9"/>
+  <circle cx="334" cy="68"  r="2"   fill="#DDD6FE" opacity="0.9"/>
+  <circle cx="42"  cy="150" r="2"   fill="#C4B5FD" opacity="0.9"/>
+  <circle cx="358" cy="160" r="2.5" fill="#C4B5FD" opacity="0.9"/>
+  <circle cx="74"  cy="338" r="2"   fill="#DDD6FE" opacity="0.9"/>
+  <circle cx="326" cy="332" r="2"   fill="#DDD6FE" opacity="0.9"/>
+  <circle cx="156" cy="38"  r="2"   fill="#E879F9" opacity="0.8"/>
+  <circle cx="244" cy="38"  r="2"   fill="#E879F9" opacity="0.8"/>
+  <circle cx="156" cy="362" r="2"   fill="#818CF8" opacity="0.8"/>
+  <circle cx="244" cy="362" r="2"   fill="#818CF8" opacity="0.8"/>
+</svg>

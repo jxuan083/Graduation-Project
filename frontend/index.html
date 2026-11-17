@@ -18,16 +18,16 @@
     <link rel="stylesheet" href="https://font.emtech.cc/css/TaipeiSansTC">
 
     <!-- 共用樣式 (warm-campfire redesign v=51) -->
-    <link rel="stylesheet" href="./styles/base.css?v=84">
-    <link rel="stylesheet" href="./styles/components.css?v=84">
-    <link rel="stylesheet" href="./styles/social.css?v=84">
-    <link rel="stylesheet" href="./styles/taboo.css?v=84">
-    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=84">
+    <link rel="stylesheet" href="./styles/base.css?v=91">
+    <link rel="stylesheet" href="./styles/components.css?v=91">
+    <link rel="stylesheet" href="./styles/social.css?v=91">
+    <link rel="stylesheet" href="./styles/taboo.css?v=91">
+    <link rel="stylesheet" href="./styles/pet-tamagotchi.css?v=91">
 
     <!-- front-preview 淡色設計合併層（載入順序最後，覆蓋深色主題） -->
-    <link rel="stylesheet" href="./styles/redesign.css?v=84">
+    <link rel="stylesheet" href="./styles/redesign.css?v=91">
 
-    <script src="./native-runtime-config.js?v=84"></script>
+    <script src="./native-runtime-config.js?v=91"></script>
 
     <!-- QR Code 掃描 + 產生 + 動畫 -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -72,7 +72,7 @@
         <!-- 所有 view 會由 main.js 動態載入到這裡 -->
         <main id="app"></main>
 
-        <!-- 底部主導覽：群組、好友、發起、加入、寵物 -->
+        <!-- 底部主導覽：群組、排行榜、發起、加入、寵物 -->
         <div class="bottom-bar">
             <button class="btn-bottom btn-bottom-group" id="btn-open-groups">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -81,15 +81,15 @@
                     <path d="M3 21c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
                     <path d="M14.5 15.5c2.8.2 5.5 2.2 5.5 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
                 </svg>
-                我的群組
+                群組
             </button>
-            <button class="btn-bottom btn-bottom-friends" id="btn-open-friends">
+            <button class="btn-bottom btn-bottom-leaderboard" id="btn-bottom-leaderboard" type="button">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="7.5" r="3.2" stroke="currentColor" stroke-width="1.8" fill="none"/>
-                    <path d="M5 21c0-3.8 3.1-6.8 7-6.8s7 3 7 6.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-                    <path d="M18 5.5v4M16 7.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <rect x="2" y="13" width="4" height="8" rx="1" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                    <rect x="10" y="8" width="4" height="13" rx="1" stroke="currentColor" stroke-width="1.8" fill="none"/>
+                    <rect x="18" y="4" width="4" height="17" rx="1" stroke="currentColor" stroke-width="1.8" fill="none"/>
                 </svg>
-                好友
+                排行榜
             </button>
             <button class="btn-bottom btn-bottom-create" id="btn-create-room">
                 <span class="bottom-create-plus" aria-hidden="true">
@@ -102,7 +102,7 @@
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                     <path d="M10 17l5-5-5-5M15 12H3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                加入聚會
+                加入
             </button>
             <button class="btn-bottom btn-bottom-pets" id="btn-bottom-pets" type="button">
                 <i data-lucide="paw-print" aria-hidden="true"></i>
@@ -123,6 +123,6 @@
     </div>
 
     <!-- App 進入點 (ES Module) -->
-    <script type="module" src="./main.js?v=84"></script>
+    <script type="module" src="./main.js?v=91"></script>
 </body>
 </html>

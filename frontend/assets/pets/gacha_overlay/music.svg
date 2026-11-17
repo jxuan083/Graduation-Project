@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Floating music notes around pet -->
+  <!-- Note 1 (top-left, quarter note) -->
+  <g transform="translate(88,85) rotate(-12)">
+    <line x1="0" y1="0" x2="0" y2="-28" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="0" cy="2" rx="9" ry="7" fill="#F59E0B" transform="rotate(-20)"/>
+  </g>
+  <!-- Note 2 (top-right, eighth note) -->
+  <g transform="translate(302,70) rotate(10)">
+    <line x1="0" y1="0" x2="0" y2="-26" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="-26" x2="14" y2="-20" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="0" cy="2" rx="9" ry="7" fill="#FBBF24" transform="rotate(-20)"/>
+  </g>
+  <!-- Note 3 (right side, double eighth) -->
+  <g transform="translate(330,195) rotate(8)">
+    <line x1="0"  y1="0" x2="0"  y2="-28" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+    <line x1="13" y1="0" x2="13" y2="-28" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0"  y1="-28" x2="13" y2="-22" stroke="#F59E0B" stroke-width="2.5"/>
+    <ellipse cx="0"  cy="2" rx="8" ry="6" fill="#F59E0B" transform="rotate(-20)"/>
+    <ellipse cx="13" cy="2" rx="8" ry="6" fill="#F59E0B" transform="rotate(-20)"/>
+  </g>
+  <!-- Note 4 (left, single eighth) -->
+  <g transform="translate(62,215) rotate(-8)">
+    <line x1="0" y1="0" x2="0" y2="-24" stroke="#FDE68A" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="-24" x2="12" y2="-18" stroke="#FDE68A" stroke-width="2.5"/>
+    <ellipse cx="0" cy="2" rx="8" ry="6" fill="#FDE68A" transform="rotate(-20)"/>
+  </g>
+  <!-- Note 5 (bottom right, quarter) -->
+  <g transform="translate(315,310) rotate(6)">
+    <line x1="0" y1="0" x2="0" y2="-22" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/>
+    <ellipse cx="0" cy="2" rx="7" ry="5.5" fill="#FBBF24" transform="rotate(-20)"/>
+  </g>
+  <!-- Musical dots -->
+  <circle cx="135" cy="62"  r="3.5" fill="#FEF3C7" opacity="0.8"/>
+  <circle cx="260" cy="48"  r="3"   fill="#FEF3C7" opacity="0.8"/>
+  <circle cx="348" cy="145" r="3"   fill="#FEF3C7" opacity="0.8"/>
+  <circle cx="52"  cy="162" r="3"   fill="#FEF3C7" opacity="0.8"/>
+</svg>

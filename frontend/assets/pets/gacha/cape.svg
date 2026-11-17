@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FEF2F2"/>
+
+  <!-- Cape drop shadow -->
+  <ellipse cx="100" cy="170" rx="68" ry="10" fill="#991B1B" opacity="0.18"/>
+
+  <!-- Cape outer shape (back view, fanned out) -->
+  <path d="M68,42 Q42,52 30,90 Q22,130 28,165 Q50,172 100,172 Q150,172 172,165 Q178,130 170,90 Q158,52 132,42 L100,38 Z"
+        fill="#DC2626" stroke="#B91C1C" stroke-width="2.5"/>
+
+  <!-- Cape inner lining (yellow) -->
+  <path d="M76,48 Q55,60 46,95 Q38,132 44,162 Q68,168 100,168 Q132,168 156,162 Q162,132 154,95 Q145,60 124,48 L100,44 Z"
+        fill="#FBBF24" opacity="0.85"/>
+
+  <!-- Cape inner depth shading -->
+  <path d="M84,56 Q68,70 62,102 Q56,134 62,158 Q78,163 100,163 Q122,163 138,158 Q144,134 138,102 Q132,70 116,56 L100,52 Z"
+        fill="#F59E0B" opacity="0.5"/>
+
+  <!-- Collar/neck area -->
+  <path d="M68,42 Q84,30 100,28 Q116,30 132,42"
+        fill="none" stroke="#B91C1C" stroke-width="3" stroke-linecap="round"/>
+  <!-- Collar clasp area -->
+  <path d="M76,46 Q88,36 100,34 Q112,36 124,46 L120,56 Q110,48 100,46 Q90,48 80,56 Z"
+        fill="#DC2626" stroke="#B91C1C" stroke-width="2"/>
+  <!-- Clasp circle -->
+  <circle cx="100" cy="52" r="8" fill="#FBBF24" stroke="#D97706" stroke-width="2"/>
+  <circle cx="100" cy="52" r="4" fill="#D97706"/>
+
+  <!-- Golden star/emblem in center back -->
+  <!-- Star shadow -->
+  <circle cx="102" cy="118" r="28" fill="#D97706" opacity="0.3"/>
+  <!-- Star shape -->
+  <polygon points="100,88 106,106 126,106 110.5,117.5 116,136 100,125 84,136 89.5,117.5 74,106 94,106"
+           fill="#FBBF24" stroke="#D97706" stroke-width="2"/>
+  <!-- Star inner glow -->
+  <polygon points="100,94 104.5,108 118,108 107.5,116 111,130 100,122 89,130 92.5,116 82,108 95.5,108"
+           fill="#FDE68A" opacity="0.8"/>
+  <circle cx="100" cy="112" r="6" fill="white" opacity="0.6"/>
+
+  <!-- Cape fold lines suggesting billowing -->
+  <path d="M44,80 Q52,100 46,130" stroke="#B91C1C" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <path d="M156,80 Q148,100 154,130" stroke="#B91C1C" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <path d="M66,54 Q72,80 68,110" stroke="#B91C1C" stroke-width="1" fill="none" opacity="0.3"/>
+  <path d="M134,54 Q128,80 132,110" stroke="#B91C1C" stroke-width="1" fill="none" opacity="0.3"/>
+</svg>

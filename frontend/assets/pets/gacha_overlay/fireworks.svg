@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Fireworks bursts around the pet -->
+  <!-- Burst 1 (top-left, golden) -->
+  <g transform="translate(88,100)">
+    <line x1="0" y1="-32" x2="0" y2="-52"   stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="22" y1="-22" x2="36" y2="-36" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="32" y1="0"  x2="52" y2="0"    stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="22" y1="22" x2="36" y2="36"   stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0"  y1="32" x2="0"  y2="52"   stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-22" y1="22" x2="-36" y2="36" stroke="#FDE68A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-32" y1="0"  x2="-52" y2="0"  stroke="#FDE68A" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-22" y1="-22" x2="-36" y2="-36" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+    <circle r="10" fill="#FBBF24"/>
+    <circle cx="0"  cy="-52" r="4" fill="#FDE68A"/>
+    <circle cx="52" cy="0"   r="4" fill="#FDE68A"/>
+    <circle cx="0"  cy="52"  r="4" fill="#FDE68A"/>
+    <circle cx="-52" cy="0"  r="4" fill="#FDE68A"/>
+  </g>
+  <!-- Burst 2 (top-right, pink) -->
+  <g transform="translate(308,80)">
+    <line x1="0" y1="-28" x2="0" y2="-44"   stroke="#EC4899" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="20" y1="-20" x2="31" y2="-31" stroke="#EC4899" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="28" y1="0"  x2="44" y2="0"    stroke="#F472B6" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="20" y1="20" x2="31" y2="31"   stroke="#F472B6" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="0"  y1="28" x2="0"  y2="44"   stroke="#F472B6" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-20" y1="20" x2="-31" y2="31" stroke="#FBCFE8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-28" y1="0"  x2="-44" y2="0"  stroke="#FBCFE8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-20" y1="-20" x2="-31" y2="-31" stroke="#EC4899" stroke-width="2.5" stroke-linecap="round"/>
+    <circle r="9" fill="#F472B6"/>
+    <circle cx="0" cy="-44"  r="3.5" fill="#FBCFE8"/>
+    <circle cx="44" cy="0"   r="3.5" fill="#FBCFE8"/>
+    <circle cx="-44" cy="0"  r="3.5" fill="#FBCFE8"/>
+  </g>
+  <!-- Burst 3 (bottom-right, blue) smaller -->
+  <g transform="translate(320,290)">
+    <line x1="0" y1="-22" x2="0" y2="-36"   stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+    <line x1="16" y1="-16" x2="25" y2="-25" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+    <line x1="22" y1="0"  x2="36" y2="0"    stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+    <line x1="16" y1="16" x2="25" y2="25"   stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0"  y1="22" x2="0"  y2="36"   stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-16" y1="16" x2="-25" y2="25" stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-22" y1="0"  x2="-36" y2="0"  stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-16" y1="-16" x2="-25" y2="-25" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+    <circle r="7" fill="#60A5FA"/>
+  </g>
+  <!-- Scatter dots -->
+  <circle cx="145" cy="68" r="3"  fill="#FDE68A"/>
+  <circle cx="255" cy="52" r="2.5" fill="#FBCFE8"/>
+  <circle cx="52"  cy="195" r="2.5" fill="#BFDBFE"/>
+  <circle cx="348" cy="195" r="2.5" fill="#FDE68A"/>
+</svg>

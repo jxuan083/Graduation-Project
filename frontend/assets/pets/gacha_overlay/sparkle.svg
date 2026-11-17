@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- 8 golden sparkle stars scattered around the pet -->
+  <!-- Large center-top sparkle -->
+  <path d="M200,45 L202,53 L210,53 L204,58 L206,66 L200,61 L194,66 L196,58 L190,53 L198,53Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Top-left sparkle (large) -->
+  <path d="M94,88 L97,99 L108,99 L100,106 L103,117 L94,110 L85,117 L88,106 L80,99 L91,99Z"
+        fill="#FDE68A" stroke="#F59E0B" stroke-width="1.5"/>
+  <!-- Top-right sparkle -->
+  <path d="M310,72 L312,80 L320,80 L314,85 L316,93 L310,88 L304,93 L306,85 L300,80 L308,80Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Left sparkle (small) -->
+  <path d="M68,180 L70,186 L76,186 L71,190 L73,196 L68,192 L63,196 L65,190 L60,186 L66,186Z"
+        fill="#FDE68A" stroke="#F59E0B" stroke-width="1.5"/>
+  <!-- Right sparkle (medium) -->
+  <path d="M330,165 L332,172 L339,172 L334,177 L336,184 L330,180 L324,184 L326,177 L321,172 L328,172Z"
+        fill="#FEF3C7" stroke="#FBBF24" stroke-width="1.5"/>
+  <!-- Bottom-left sparkle -->
+  <path d="M82,290 L84,297 L91,297 L86,301 L88,308 L82,304 L76,308 L78,301 L73,297 L80,297Z"
+        fill="#FBBF24" stroke="#D97706" stroke-width="1.5"/>
+  <!-- Bottom-right sparkle -->
+  <path d="M318,310 L320,316 L326,316 L322,320 L323,326 L318,322 L313,326 L314,320 L310,316 L316,316Z"
+        fill="#FDE68A" stroke="#F59E0B" stroke-width="1.5"/>
+  <!-- Extra tiny twinkle dots -->
+  <circle cx="135" cy="58" r="3.5" fill="#FDE68A"/>
+  <circle cx="265" cy="98" r="3"   fill="#FBBF24"/>
+  <circle cx="52"  cy="240" r="3"  fill="#FEF3C7" opacity="0.9"/>
+  <circle cx="348" cy="250" r="3"  fill="#FEF3C7" opacity="0.9"/>
+  <line x1="94"  y1="84" x2="94"  y2="92" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+  <line x1="90"  y1="88" x2="98"  y2="88" stroke="#FBBF24" stroke-width="2" stroke-linecap="round"/>
+  <line x1="310" y1="68" x2="310" y2="76" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
+  <line x1="306" y1="72" x2="314" y2="72" stroke="#FDE68A" stroke-width="2" stroke-linecap="round"/>
+</svg>

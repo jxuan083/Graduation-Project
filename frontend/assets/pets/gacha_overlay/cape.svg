@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Hero cape: collar at neck y=185, cape drapes behind, wide at bottom -->
+  <!-- Cape shadow -->
+  <path d="M148,188 Q110,220 96,310 Q120,355 200,362 Q280,355 304,310 Q290,220 252,188Z"
+        fill="#B91C1C" opacity="0.2" transform="translate(4,5)"/>
+  <!-- Cape main body (behind puppy) -->
+  <path d="M148,188 Q110,220 96,310 Q120,355 200,362 Q280,355 304,310 Q290,220 252,188Z"
+        fill="#EF4444"/>
+  <!-- Cape inner lighter edge -->
+  <path d="M155,192 Q118,224 106,310 Q128,350 200,356 Q272,350 294,310 Q282,224 245,192Z"
+        fill="#F87171" opacity="0.5"/>
+  <!-- Cape outline -->
+  <path d="M148,188 Q110,220 96,310 Q120,355 200,362 Q280,355 304,310 Q290,220 252,188Z"
+        fill="none" stroke="#B91C1C" stroke-width="2.5"/>
+  <!-- Collar over shoulders -->
+  <path d="M148,188 Q166,180 180,183 L200,192 L220,183 Q234,180 252,188 L240,208 Q220,215 200,218 Q180,215 160,208Z"
+        fill="#DC2626" stroke="#991B1B" stroke-width="2.5"/>
+  <path d="M155,190 Q168,183 180,185 L200,193 L220,185 Q232,183 245,190 L236,206 Q218,212 200,215 Q182,212 164,206Z"
+        fill="#EF4444" opacity="0.6"/>
+  <!-- Cape clasp/button -->
+  <circle cx="200" cy="196" r="8" fill="#FBBF24" stroke="#D97706" stroke-width="2"/>
+  <circle cx="200" cy="196" r="4" fill="#FDE68A"/>
+  <!-- Emblem on cape -->
+  <path d="M200,245 L204,255 L215,255 L207,262 L210,273 L200,266 L190,273 L193,262 L185,255 L196,255Z"
+        fill="#FEF3C7" opacity="0.75" stroke="#FBBF24" stroke-width="1"/>
+  <!-- Cape shimmer -->
+  <path d="M118,250 Q110,275 108,300" stroke="#FECACA" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.4"/>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Background -->
+  <circle cx="100" cy="100" r="90" fill="#FDF2F8"/>
+
+  <!-- Soft glow -->
+  <ellipse cx="100" cy="100" rx="58" ry="58" fill="#FBCFE8" opacity="0.3"/>
+
+  <!-- Heart helper path definition -->
+  <!-- Heart 1: Large center, deep pink, slight tilt -->
+  <g transform="rotate(-8,100,100)">
+    <path d="M100,135 Q68,112 68,90 Q68,72 82,68 Q92,65 100,76 Q108,65 118,68 Q132,72 132,90 Q132,112 100,135 Z"
+          fill="#EC4899" stroke="#DB2777" stroke-width="2"/>
+    <!-- Heart inner sheen -->
+    <path d="M86,74 Q84,82 90,88 Q94,84 92,76 Z" fill="white" opacity="0.4"/>
+  </g>
+
+  <!-- Heart 2: Small top-left, light pink -->
+  <g transform="rotate(12,56,66)">
+    <path d="M56,80 Q40,68 40,55 Q40,45 48,42 Q53,40 56,46 Q59,40 64,42 Q72,45 72,55 Q72,68 56,80 Z"
+          fill="#F9A8D4" stroke="#EC4899" stroke-width="1.5"/>
+    <path d="M48,46 Q46,51 50,55 Q52,52 51,47 Z" fill="white" opacity="0.4"/>
+  </g>
+
+  <!-- Heart 3: Medium top-right, red -->
+  <g transform="rotate(-15,148,58)">
+    <path d="M148,76 Q128,61 128,46 Q128,34 138,30 Q144,28 148,36 Q152,28 158,30 Q168,34 168,46 Q168,61 148,76 Z"
+          fill="#EF4444" stroke="#DC2626" stroke-width="2"/>
+    <path d="M138,34 Q136,40 141,45 Q143,41 141,35 Z" fill="white" opacity="0.35"/>
+  </g>
+
+  <!-- Heart 4: Small bottom-left, light pink -->
+  <g transform="rotate(20,48,145)">
+    <path d="M48,158 Q34,148 34,138 Q34,129 41,127 Q45.5,125 48,131 Q50.5,125 55,127 Q62,129 62,138 Q62,148 48,158 Z"
+          fill="#F9A8D4" stroke="#EC4899" stroke-width="1.5"/>
+    <path d="M41,130 Q39.5,135 43,139 Q45,136 44,130 Z" fill="white" opacity="0.35"/>
+  </g>
+
+  <!-- Heart 5: Medium bottom-right, deep pink -->
+  <g transform="rotate(-10,152,140)">
+    <path d="M152,158 Q132,144 132,130 Q132,118 141,115 Q147,113 152,120 Q157,113 163,115 Q172,118 172,130 Q172,144 152,158 Z"
+          fill="#EC4899" stroke="#DB2777" stroke-width="2"/>
+    <path d="M141,118 Q139,124 143,129 Q146,125 144,119 Z" fill="white" opacity="0.4"/>
+  </g>
+
+  <!-- Sparkle dots between hearts -->
+  <circle cx="78" cy="58" r="3.5" fill="#F472B6" opacity="0.7"/>
+  <circle cx="122" cy="88" r="3" fill="#FBBF24" opacity="0.8"/>
+  <circle cx="58" cy="108" r="2.5" fill="#F9A8D4" opacity="0.8"/>
+  <circle cx="162" cy="100" r="3" fill="white" opacity="0.9"/>
+  <circle cx="88" cy="162" r="3" fill="#F472B6" opacity="0.7"/>
+  <circle cx="130" cy="162" r="2.5" fill="#EC4899" opacity="0.6"/>
+
+  <!-- 4-pt star sparkles -->
+  <path d="M120,52 L121.5,57 L120,62 L118.5,57 Z" fill="#F9A8D4" opacity="0.8"/>
+  <path d="M120,57 L125,55 L120,53 L115,55 Z" fill="#F9A8D4" opacity="0.8"/>
+  <path d="M68,135 L69.5,139 L68,143 L66.5,139 Z" fill="#F472B6" opacity="0.7"/>
+  <path d="M68,139 L72,137 L68,135 L64,137 Z" fill="#F472B6" opacity="0.7"/>
+  <path d="M136,42 L137,45 L136,48 L135,45 Z" fill="white" opacity="0.8"/>
+  <path d="M136,45 L139,43.5 L136,42 L133,43.5 Z" fill="white" opacity="0.8"/>
+</svg>

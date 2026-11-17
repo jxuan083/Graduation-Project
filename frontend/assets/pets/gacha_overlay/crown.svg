@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Crown sitting on puppy head, band at y=56-74, points up to y=24 -->
+  <!-- Crown band -->
+  <rect x="143" y="57" width="114" height="20" rx="7" fill="#F59E0B" stroke="#D97706" stroke-width="2.5"/>
+  <!-- Crown band pearls -->
+  <circle cx="158" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="174" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="190" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="206" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="222" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <circle cx="238" cy="67" r="4.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+  <!-- Crown body (5 points) -->
+  <path d="M143,59 L143,34 L163,48 L200,24 L237,48 L257,34 L257,59 Z"
+        fill="#F59E0B" stroke="#D97706" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M150,59 L150,40 L165,50 L200,30 L235,50 L250,40 L250,59 Z"
+        fill="#FBBF24" opacity="0.55"/>
+  <!-- Left gem -->
+  <circle cx="143" cy="31" r="10" fill="#EF4444" stroke="#B91C1C" stroke-width="2"/>
+  <circle cx="140" cy="28" r="3.5" fill="#FCA5A5" opacity="0.75"/>
+  <!-- Middle gem -->
+  <circle cx="200" cy="21" r="12" fill="#3B82F6" stroke="#1D4ED8" stroke-width="2"/>
+  <circle cx="196" cy="17" r="4"   fill="#93C5FD" opacity="0.75"/>
+  <!-- Right gem -->
+  <circle cx="257" cy="31" r="10" fill="#10B981" stroke="#047857" stroke-width="2"/>
+  <circle cx="254" cy="28" r="3.5" fill="#6EE7B7" opacity="0.75"/>
+</svg>
