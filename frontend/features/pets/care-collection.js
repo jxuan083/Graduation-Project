@@ -38,8 +38,9 @@ export class CareCollection {
         dialog.querySelectorAll('[data-shop-tab]').forEach(button => button.onclick = () => { this.tab = button.dataset.shopTab; this.render(); });
         dialog.querySelectorAll('[data-shop-kind]').forEach(button => button.onclick = () => { this.kind = button.dataset.shopKind; this.render(); });
     }
-    update({pet,catalog,pending,busy}) {
+    update({pet,catalog,pending,busy,coins}) {
         this.pet = pet; this.catalog = catalog; this.pending = pending; this.busy = busy;
+        if (coins !== undefined) this.coins = coins;
         if (this.dialog.open) this.render();
     }
     open(tab = 'draw') {
@@ -77,7 +78,7 @@ export class CareCollection {
         dialog.querySelector('#pet-shop-title').textContent = t(choosing ? this.kind === 'food' ? '選擇食物' : '選擇玩具' : '補給小舖');
         dialog.querySelector('.care-shop-heading p').textContent = t(choosing ? this.kind === 'food' ? '選一份牠今天想吃的' : '今天想怎麼一起玩？' : '一起聚會，替牠添點新東西');
         for (const selector of ['.care-shop-wallet', ':scope > .care-shop-rules', '.care-shop-tabs', '.care-shop-kinds']) dialog.querySelector(selector).hidden = choosing;
-        dialog.querySelector('[data-shop-coins]').textContent = Number(pet.pet_coins || 0);
+        dialog.querySelector('[data-shop-coins]').textContent = Number(this.coins ?? pet.pet_coins ?? 0);
         dialog.querySelectorAll('[data-shop-tab]').forEach(b => { const active = b.dataset.shopTab === this.tab; b.setAttribute('aria-pressed', String(active)); });
         dialog.querySelectorAll('[data-shop-kind]').forEach(b => { b.hidden = this.tab !== 'bag'; b.setAttribute('aria-pressed', String(b.dataset.shopKind === this.kind)); });
         const content = dialog.querySelector('[data-shop-content]');
@@ -88,7 +89,7 @@ export class CareCollection {
                 const cost = catalog.prices[kind], retry = this.pending?.kind === kind;
                 const button = document.createElement('button'); button.type = 'button'; button.className = 'care-draw-card';
                 button.innerHTML = `${itemArt(featured)}<span><strong>${t(kind === 'food' ? '食物小包' : '玩具禮盒')}</strong><small>${t(kind === 'food' ? '隨機一種食物，共 3 份' : '隨機一款玩具，永久保留')}</small></span><b>${escape(t(retry ? '重試確認結果' : '{n} 金幣', {n:cost}))}</b>`;
-                button.disabled = this.busy || (this.pending ? !retry : Number(pet.pet_coins || 0) < cost);
+                button.disabled = this.busy || (this.pending ? !retry : Number(this.coins ?? pet.pet_coins ?? 0) < cost);
                 button.onclick = () => this.onDraw(kind);
                 content.append(button);
             }

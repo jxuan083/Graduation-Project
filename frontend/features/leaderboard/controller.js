@@ -5,7 +5,6 @@ import { switchView } from '../../core/router.js';
 import { t } from '../../core/i18n.js';
 
 export function openLeaderboardView() {
-    if (!state.currentUser) { alert(t('請先登入')); return; }
     switchView('view-leaderboard');
     switchLeaderboardTab(state.currentLeaderboardTab || 'global');
 }

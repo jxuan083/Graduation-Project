@@ -150,6 +150,23 @@ def apply_inventory_draw(data, item):
                      'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': cost}
 
 
+def apply_inventory_only(data, item):
+    """Update group inventory only; coin deduction is handled by the caller."""
+    economy = economy_payload(data)
+    cost = DRAW_PRICES[item['kind']]
+    duplicate = item['kind'] == 'toy' and item['id'] in economy['pet_owned_toys']
+    if item['kind'] == 'food':
+        food = economy['pet_food_inventory']
+        if food.get(item['id'], 0) > 9999 - FOOD_DRAW_PORTIONS:
+            raise ValueError('inventory_full')
+        food[item['id']] = food.get(item['id'], 0) + FOOD_DRAW_PORTIONS
+    elif not duplicate:
+        economy['pet_owned_toys'] = sorted(set(economy['pet_owned_toys']) | {item['id']})
+    inventory = {'pet_food_inventory': economy['pet_food_inventory'], 'pet_owned_toys': economy['pet_owned_toys']}
+    return inventory, {'duplicate': duplicate, 'refund': TOY_DUPLICATE_REFUND if duplicate else 0,
+                       'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': cost}
+
+
 def use_inventory_item(data, action, item_id=None):
     economy = economy_payload(data)
     kind = {'feed': 'food', 'play': 'toy'}.get(action)

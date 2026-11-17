@@ -21,7 +21,7 @@ import { DATE_TOPICS } from '../../features/date/topics.js';
 import { scheduleIntentEnd, cancelIntentNotifications, initIntentActions, scheduleOrderReminders, cancelOrderReminders, schedulePhoneOpenEnd, cancelPhoneOpenNotifications, scheduleStudyBreaks, cancelStudyBreaks } from '../../core/localNotify.js';
 import { phoneOpenModes, phoneOpenActive, phoneOpenTimed, phoneOpenEndedMs, phoneOpenIsRest, localizePhoneOpen, toLocalMs } from '../../core/phoneOpen.js';
 import { myRejoinsLeft, presentMemberEntries, requestExtendIntent, requestLeaveSession } from '../../core/leave.js';
-import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=84';
+import { pushDeviationDeadlineToExemptEnd } from '../buffer/buffer.js?v=89';
 
 export function init() {
     register('view-focus', {

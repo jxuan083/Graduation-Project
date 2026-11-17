@@ -40,6 +40,21 @@ def _as_naive_utc(value: Any) -> datetime.datetime | None:
     return value
 
 
+def get_active_buff(data: dict, now: datetime.datetime | None = None) -> dict | None:
+    """回傳尚未過期的啟用 buff，否則回傳 None。"""
+    buff = data.get("pet_active_buff")
+    if not buff or not buff.get("buff_type"):
+        return None
+    expires_at = buff.get("buff_expires_at")
+    if not expires_at:
+        return None
+    expires_naive = _as_naive_utc(expires_at)
+    current = _as_naive_utc(now or datetime.datetime.utcnow())
+    if expires_naive and current and current < expires_naive:
+        return buff
+    return None
+
+
 def elapsed_hours(last_updated: Any, now: datetime.datetime | None = None) -> float:
     last = _as_naive_utc(last_updated)
     if last is None:
@@ -70,8 +85,12 @@ def group_pet_current_stats(data: dict, now: datetime.datetime | None = None) ->
         key: float(data.get(key, default))
         for key, default in GROUP_PET_STAT_DEFAULTS.items()
     }
+    active_buff = get_active_buff(data, now)
+    decay_multiplier = 1.0
+    if active_buff and active_buff.get("buff_type") == "decay_resist":
+        decay_multiplier = float(active_buff.get("buff_value", 1.0))
     for key, rate in GROUP_PET_DECAY_PER_HOUR.items():
-        stats[key] = max(0.0, stats[key] - rate * hours)
+        stats[key] = max(0.0, stats[key] - rate * hours * decay_multiplier)
     return stats
 
 
@@ -148,17 +167,22 @@ def cooldown_remaining_seconds(
     return max(0, int(cooldown_seconds - elapsed + 0.999))
 
 
-def apply_group_pet_action(stats: dict, action: str) -> dict:
+def apply_group_pet_action(stats: dict, action: str, buff: dict | None = None) -> dict:
     """套用一次有效照顧動作；前置條件由 API 在 transaction 內檢查。"""
     result = dict(stats)
+    multiplier = 1.0
+    if buff:
+        btype = buff.get("buff_type", "")
+        if btype == "all_boost" or btype == f"{action}_boost":
+            multiplier = float(buff.get("buff_value", 1.0))
     if action == "feed":
-        result["pet_energy"] = min(100.0, result["pet_energy"] + 25)
+        result["pet_energy"] = min(100.0, result["pet_energy"] + 25 * multiplier)
         result["pet_happiness"] = min(100.0, result["pet_happiness"] + 3)
     elif action == "play":
-        result["pet_happiness"] = min(100.0, result["pet_happiness"] + 20)
+        result["pet_happiness"] = min(100.0, result["pet_happiness"] + 20 * multiplier)
         result["pet_energy"] = max(0.0, result["pet_energy"] - 5)
     elif action == "wipe":
-        result["pet_cleanliness"] = min(100.0, result["pet_cleanliness"] + 35)
+        result["pet_cleanliness"] = min(100.0, result["pet_cleanliness"] + 35 * multiplier)
         result["pet_happiness"] = min(100.0, result["pet_happiness"] + 3)
     else:
         raise ValueError(f"unknown pet action: {action}")

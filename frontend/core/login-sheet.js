@@ -1,8 +1,8 @@
 // core/login-sheet.js — reusable login method bottom sheet.
-import { IS_NATIVE_APP } from './config.js';
-import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doPasswordReset } from './auth.js?v=84';
-import { continueAsLocalGuest } from './guest.js?v=84';
-import { impact } from './haptics.js?v=84';
+import { IS_NATIVE_APP, IS_LOCAL_FRONTEND } from './config.js';
+import { doEmailSignIn, doEmailSignUp, doGoogleLogin, doPasswordReset, doDevLogin } from './auth.js?v=89';
+import { continueAsLocalGuest } from './guest.js?v=89';
+import { impact } from './haptics.js?v=89';
 import { applyTo, t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
 
@@ -47,6 +47,15 @@ const LOGIN_METHOD_OPTIONS = [
         icon: 'user-round',
         note: () => '不需帳號，可直接加入聚會',
         action: continueAsLocalGuest,
+    },
+    {
+        id: 'dev',
+        label: '本機開發登入',
+        icon: 'terminal',
+        renderWhen: () => IS_LOCAL_FRONTEND,
+        note: () => '僅限 localhost，繞過 Cognito',
+        action: async () => { await doDevLogin(); closeLoginMethodSheet(); },
+        keepSheetOpen: false,
     },
 ];
 

@@ -12,12 +12,21 @@
         <button id="lb-tab-friends" class="tab-underline-btn" type="button">好友圈</button>
     </div>
 
-    <p class="lb-week-hint" id="leaderboard-period-hint">本週</p>
-    <div id="leaderboard-list" class="lb-list"></div>
-    <p id="leaderboard-empty" class="hint" style="display:none; text-align:center; margin-top:32px;">本週還沒有人聚會喔</p>
+    <div class="lb-scroll scroll-body">
+        <p class="lb-week-hint" id="leaderboard-period-hint">本週</p>
+        <div id="leaderboard-list" class="lb-list"></div>
+        <p id="leaderboard-empty" class="hint" style="display:none; text-align:center; margin-top:32px;">本週還沒有人聚會喔</p>
 
-    <p class="lb-formula-hint">
-        計分：max(0, 50 − 分心×5) + 時長×0.5<br>零分心且≥20分鐘 +10 · 房主 +5
-    </p>
+        <div class="lb-gacha-banner">
+            <div class="lb-gacha-banner-left">
+                <span class="lb-gacha-icon" aria-hidden="true">🎰</span>
+                <div>
+                    <div class="lb-gacha-banner-title">扭蛋機</div>
+                    <div class="lb-gacha-banner-desc">第 1 名 +50 金幣 · 第 2 名 +30 · 其他 +20 · 去寵物頁抽</div>
+                </div>
+            </div>
+            <button class="lb-gacha-btn" id="btn-lb-open-gacha" type="button">去抽</button>
+        </div>
+    </div>
 
 </section>

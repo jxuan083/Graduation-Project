@@ -26,12 +26,17 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from pet_care import (care_catalog, apply_item_effects, discovered_items, item_by_id,
                       economy_payload, session_coins, draw_inventory_item, apply_inventory_draw,
-                      use_inventory_item, DRAW_PRICES)
+                      apply_inventory_only, use_inventory_item, DRAW_PRICES)
+from pet_gacha import (gacha_catalog as _gacha_catalog, draw_gacha_item as _draw_gacha_item,
+                       apply_gacha_draw as _apply_gacha_draw, public_item as _gacha_public_item,
+                       wardrobe_items as _wardrobe_items, equipped_items as _equipped_items,
+                       DRAW_COST_SINGLE, DRAW_COST_TRIPLE)
 from pet_logic import (
     GROUP_PET_ACTION_COOLDOWN_SECONDS,
     GROUP_PET_STAT_DEFAULTS,
     apply_group_pet_action as _apply_group_pet_action,
     cooldown_remaining_seconds as _cooldown_remaining_seconds,
+    get_active_buff as _get_active_buff,
     group_pet_current_stats as _group_pet_current_stats,
     group_pet_display as _group_pet_display,
     group_pet_growth as _group_pet_growth,
@@ -94,6 +99,7 @@ DEFAULT_FRONTEND_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5000",
+    "http://127.0.0.1:5002",
     "http://127.0.0.1:5173",
     # Capacitor 原生殼的 Origin。webview 不是從 LAN IP 載入的，而是從自己的
     # scheme://localhost 載入，且**不帶 port**——CORS 是整串精確比對，
@@ -274,15 +280,25 @@ def _verify_id_token(id_token: str) -> dict:
     return claims
 
 
+_DEV_MODE = os.environ.get("DOCSTORE", "").lower() == "memory"
+_DEV_TOKEN = "local-dev-bypass"
+_DEV_USER  = {"uid": "dev-local-001", "sub": "dev-local-001",
+               "email": "dev@localhost", "name": "本機測試用戶"}
+
+
 def verify_token(authorization: Optional[str] = Header(None)) -> dict:
     """
     從 Authorization: Bearer <ID_TOKEN> 解析並驗證 Cognito ID Token。
     驗證成功回傳 decoded token (含 uid, email, name, picture 等 claims)。
+    DOCSTORE=memory 模式下接受特殊開發 token，方便本機測試。
     """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="缺少 Authorization Bearer Token")
 
     id_token = authorization.split(" ", 1)[1].strip()
+
+    if _DEV_MODE and id_token == _DEV_TOKEN:
+        return _DEV_USER
 
     try:
         decoded = _verify_id_token(id_token)
@@ -1065,7 +1081,7 @@ def _week_start_utc_from_taipei() -> datetime.datetime:
 @app.get("/api/leaderboard/global")
 async def get_leaderboard_global(
     period: str = "week",
-    decoded: dict = Depends(verify_token)
+    decoded: dict = Depends(verify_token_or_guest)
 ):
     """全站週榜：本週台北時區週一起到現在"""
     me_uid = decoded.get("uid") or decoded.get("user_id")
@@ -1113,7 +1129,7 @@ async def get_leaderboard_global(
 @app.get("/api/leaderboard/friends")
 async def get_leaderboard_friends(
     period: str = "week",
-    decoded: dict = Depends(verify_token)
+    decoded: dict = Depends(verify_token_or_guest)
 ):
     """好友圈週榜：自己 + 好友"""
     me_uid = decoded.get("uid") or decoded.get("user_id")
@@ -3260,6 +3276,13 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
                 "photoURL": pd.get("photoURL", ""),
             }
 
+    # 附上個人金幣餘額，前端照護抽取與扭蛋共用
+    try:
+        u_snap = db.collection("users").document(uid).get()
+        user_coins = int((u_snap.to_dict() or {}).get("ranking_gacha_points") or 0) if u_snap.exists else 0
+    except Exception:
+        user_coins = 0
+
     return {
         "status": "success",
         "pet": pet_fields,
@@ -3267,6 +3290,8 @@ async def get_pet(group_id: str, decoded: dict = Depends(verify_token)):
         "pet_person": pet_person_profile,
         "pet_body_options": PET_BODY_OPTIONS,
         "member_count": len(data.get("member_uids", [])),
+        "user_coins": user_coins,
+        "active_buff": _get_active_buff(data),
     }
 
 
@@ -3454,45 +3479,368 @@ class PetDrawPayload(BaseModel):
 
 @app.post("/api/groups/{group_id}/pet/draw")
 async def draw_group_pet_item(group_id: str, payload: PetDrawPayload, decoded: dict = Depends(verify_token)):
-    """扣群組金幣與入背包在同一 transaction；重送回傳原抽取結果。"""
+    """扣個人金幣購買照護道具，道具放入群組背包。"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
-    ref = db.collection('groups').document(group_id)
-    receipt_ref = ref.collection('pet_draw_receipts').document(f'{uid}_{payload.request_id}')
+    group_ref = db.collection('groups').document(group_id)
+    user_ref  = db.collection('users').document(uid)
+    receipt_ref = group_ref.collection('pet_draw_receipts').document(f'{uid}_{payload.request_id}')
 
     @firestore.transactional
     def draw(tx):
-        snap = ref.get(transaction=tx)
+        snap   = group_ref.get(transaction=tx)
+        u_snap = user_ref.get(transaction=tx)
         if not snap.exists:
             raise HTTPException(status_code=404, detail="找不到群組")
-        data = snap.to_dict() or {}
+        data   = snap.to_dict() or {}
+        u_data = u_snap.to_dict() or {} if u_snap.exists else {}
         if uid not in (data.get('member_uids') or []):
             raise HTTPException(status_code=403, detail="你不是群組成員")
+
         receipt = receipt_ref.get(transaction=tx)
         if receipt.exists:
             saved = receipt.to_dict()
             if saved['kind'] != payload.kind:
                 raise HTTPException(status_code=409, detail="這次操作編號已用於其他抽取")
-            return {**saved['result'], **economy_payload(data),
-                    'pet_discovered_items': discovered_items(data), 'replayed': True}
+            eco = economy_payload(data)
+            user_coins = int(u_data.get("ranking_gacha_points") or 0)
+            return {**saved['result'], 'pet_food_inventory': eco['pet_food_inventory'],
+                    'pet_owned_toys': eco['pet_owned_toys'],
+                    'pet_discovered_items': discovered_items(data),
+                    'points_remaining': user_coins, 'replayed': True}
+
         if not data.get('pet_face_url'):
             raise HTTPException(status_code=409, detail="先領養一位寵物，再幫牠準備物品")
-        if economy_payload(data)['pet_coins'] < DRAW_PRICES[payload.kind]:
-            raise HTTPException(status_code=409, detail="金幣不足，一起完成聚會來累積金幣")
+
+        cost = DRAW_PRICES[payload.kind]
+        user_coins = int(u_data.get("ranking_gacha_points") or 0)
+        if user_coins < cost:
+            raise HTTPException(status_code=409, detail=f"金幣不足（需要 {cost} 枚）")
+
         item = draw_inventory_item(payload.kind)
         try:
-            economy, outcome = apply_inventory_draw(data, item)
+            inventory_updates, outcome = apply_inventory_only(data, item)
         except ValueError as error:
             raise HTTPException(status_code=409, detail="這項食物已經放滿背包，先使用一些再抽") from error
+
+        new_coins = user_coins - cost + outcome['refund']
         discoveries = sorted(set(discovered_items(data)) | {item['id']})
-        result = {'status': 'success', 'care_item': item, **outcome, **economy,
-                  'pet_discovered_items': discoveries}
-        tx.update(ref, {**economy, 'pet_discovered_items': discoveries})
+        result = {'status': 'success', 'care_item': item, **outcome,
+                  **inventory_updates, 'pet_discovered_items': discoveries,
+                  'points_remaining': new_coins}
+
+        tx.update(group_ref, {**inventory_updates, 'pet_discovered_items': discoveries})
+        tx.set(user_ref, {"ranking_gacha_points": new_coins}, merge=True)
         tx.set(receipt_ref, {'kind': payload.kind, 'result': result, 'at': firestore.SERVER_TIMESTAMP})
         return result
 
     return draw(db.transaction())
+
+
+# ── Gacha (扭蛋機) ──────────────────────────────────────────────────────────
+
+class GachaDrawPayload(BaseModel):
+    group_id: str = Field(min_length=1, max_length=128)
+    count: int = Field(ge=1, le=3)
+    request_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class GachaEquipPayload(BaseModel):
+    slot: str = Field(min_length=1, max_length=32)
+    item_id: Optional[str] = Field(default=None, max_length=64)
+
+
+class GachaAddPointsPayload(BaseModel):
+    amount: int = Field(ge=1, le=99999)
+
+
+class UseGachaItemPayload(BaseModel):
+    item_id: str = Field(min_length=1, max_length=64)
+
+
+@app.get("/api/users/gacha/catalog")
+async def get_gacha_catalog(
+    group_id: Optional[str] = None,
+    decoded: dict = Depends(verify_token),
+):
+    """回傳扭蛋目錄 + 使用者點數（可選帶入 group_id 附上衣櫥資訊）。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    catalog = _gacha_catalog()
+
+    # 使用者點數
+    try:
+        u_snap = db.collection("users").document(uid).get()
+        u_data = u_snap.to_dict() or {} if u_snap.exists else {}
+        ranking_gacha_points = int(u_data.get("ranking_gacha_points") or 0)
+    except Exception as e:
+        print(f"[gacha catalog] user fetch error: {e}")
+        ranking_gacha_points = 0
+
+    result = {**catalog, "ranking_gacha_points": ranking_gacha_points, "points": ranking_gacha_points}
+
+    # 若有帶 group_id，附上群組衣櫥
+    if group_id:
+        try:
+            g_snap = db.collection("groups").document(group_id).get()
+            if g_snap.exists:
+                g_data = g_snap.to_dict() or {}
+                result["wardrobe"] = _wardrobe_items(g_data)
+                result["pet_equipped"] = _equipped_items(g_data)
+        except Exception as e:
+            print(f"[gacha catalog] group fetch error: {e}")
+
+    return result
+
+
+@app.post("/api/users/gacha/draw")
+async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_token)):
+    """扣扭蛋券並抽取道具；單抽 1 券，三連抽 2 券（省 1）。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    if payload.count not in (1, 3):
+        raise HTTPException(status_code=400, detail="count 只能是 1 或 3")
+
+    draw_cost_total = DRAW_COST_SINGLE if payload.count == 1 else DRAW_COST_TRIPLE
+    draw_cost_per   = draw_cost_total if payload.count == 1 else DRAW_COST_TRIPLE // 3
+
+    group_ref   = db.collection("groups").document(payload.group_id)
+    user_ref    = db.collection("users").document(uid)
+    receipt_ref = user_ref.collection("draw_receipts").document(payload.request_id)
+
+    @firestore.transactional
+    def _do_draw(tx):
+        # 冪等性檢查
+        receipt_snap = receipt_ref.get(transaction=tx)
+        if receipt_snap.exists:
+            saved = receipt_snap.to_dict() or {}
+            return {**saved["result"], "replayed": True}
+
+        # 讀取群組
+        g_snap = group_ref.get(transaction=tx)
+        if not g_snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        g_data = g_snap.to_dict() or {}
+        if uid not in (g_data.get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+
+        # 讀取使用者點數
+        u_snap = user_ref.get(transaction=tx)
+        u_data = u_snap.to_dict() or {} if u_snap.exists else {}
+        current_points = int(u_data.get("ranking_gacha_points") or 0)
+        if current_points < draw_cost_total:
+            raise HTTPException(
+                status_code=409,
+                detail=f"金幣不足（需要 {draw_cost_total} 枚，目前 {current_points} 枚）",
+            )
+
+        # 抽取道具
+        items_drawn = [_draw_gacha_item() for _ in range(payload.count)]
+        total_refund = 0
+        wardrobe: list[str] = list(g_data.get("pet_wardrobe") or [])
+        outcomes = []
+        for item in items_drawn:
+            duplicate = item["id"] in wardrobe
+            from pet_gacha import DUPLICATE_REFUND
+            refund = DUPLICATE_REFUND.get(item["rarity"], 0) if duplicate else 0
+            total_refund += refund
+            if not duplicate:
+                wardrobe = sorted(set(wardrobe) | {item["id"]})
+            outcomes.append({"item": item, "duplicate": duplicate, "refund": refund})
+
+        new_points = current_points - draw_cost_total + total_refund
+
+        # Firestore 更新
+        tx.update(group_ref, {"pet_wardrobe": wardrobe})
+        tx.set(user_ref, {"ranking_gacha_points": new_points}, merge=True)
+
+        result = {
+            "status": "success",
+            "count": payload.count,
+            "draws": outcomes,
+            "item": items_drawn[0] if payload.count == 1 else None,
+            "items": items_drawn,
+            "ranking_gacha_points_remaining": new_points,
+            "points_remaining": new_points,
+            "wardrobe_size": len(wardrobe),
+            "refund_points": total_refund,
+            "cost": draw_cost_total,
+        }
+        tx.set(receipt_ref, {
+            "result": result,
+            "group_id": payload.group_id,
+            "count": payload.count,
+            "at": firestore.SERVER_TIMESTAMP,
+        })
+        return result
+
+    try:
+        return _do_draw(db.transaction())
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[gacha draw] transaction failed: {e}")
+        raise HTTPException(status_code=500, detail="扭蛋抽取失敗，請稍後再試")
+
+
+@app.post("/api/groups/{group_id}/pet/equip")
+async def equip_pet_item(
+    group_id: str,
+    payload: GachaEquipPayload,
+    decoded: dict = Depends(verify_token),
+):
+    """替群組寵物穿戴（或脫下）扭蛋道具。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    group_ref = db.collection("groups").document(group_id)
+    try:
+        g_snap = group_ref.get()
+        if not g_snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        g_data = g_snap.to_dict() or {}
+        if uid not in (g_data.get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+
+        item_id = payload.item_id or None
+        if item_id:
+            # 驗證道具存在且在衣櫥中
+            from pet_gacha import GACHA_BY_ID
+            if item_id not in GACHA_BY_ID:
+                raise HTTPException(status_code=400, detail="找不到這個道具")
+            wardrobe = list(g_data.get("pet_wardrobe") or [])
+            if item_id not in wardrobe:
+                raise HTTPException(status_code=409, detail="這個道具不在衣櫥中，請先抽取")
+            item = GACHA_BY_ID[item_id]
+            # 判斷裝備欄位：服裝用 slot，裝飾用 "effect"
+            equip_slot = item.get("slot") or "effect"
+        else:
+            equip_slot = payload.slot
+
+        pet_equipped = dict(g_data.get("pet_equipped") or {})
+        if item_id:
+            pet_equipped[equip_slot] = item_id
+        else:
+            pet_equipped.pop(equip_slot, None)
+
+        group_ref.update({"pet_equipped": pet_equipped})
+        return {
+            "status": "success",
+            "pet_equipped": _equipped_items({**g_data, "pet_equipped": pet_equipped}),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[pet equip] error: {e}")
+        raise HTTPException(status_code=500, detail="裝備更新失敗")
+
+
+@app.get("/api/groups/{group_id}/pet/wardrobe")
+async def get_pet_wardrobe(group_id: str, decoded: dict = Depends(verify_token)):
+    """取得群組寵物衣櫥清單與目前裝備。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    try:
+        g_snap = db.collection("groups").document(group_id).get()
+        if not g_snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        g_data = g_snap.to_dict() or {}
+        if uid not in (g_data.get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+
+        return {
+            "status": "success",
+            "wardrobe": _wardrobe_items(g_data),
+            "pet_equipped": _equipped_items(g_data),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[pet wardrobe] error: {e}")
+        raise HTTPException(status_code=500, detail="取得衣櫥失敗")
+
+
+@app.post("/api/users/gacha/add_points")
+async def gacha_add_points(payload: GachaAddPointsPayload, decoded: dict = Depends(verify_token)):
+    """（本機測試用）直接增加排行點數。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    try:
+        user_ref = db.collection("users").document(uid)
+        u_snap = user_ref.get()
+        u_data = u_snap.to_dict() or {} if u_snap.exists else {}
+        current = int(u_data.get("ranking_gacha_points") or 0)
+        new_balance = current + payload.amount
+        user_ref.set({"ranking_gacha_points": new_balance}, merge=True)
+        return {"status": "success", "ranking_gacha_points": new_balance, "points": new_balance, "added": payload.amount}
+    except Exception as e:
+        print(f"[gacha add_points] error: {e}")
+        raise HTTPException(status_code=500, detail="點數增加失敗")
+
+
+@app.post("/api/groups/{group_id}/pet/use_gacha_item")
+async def use_gacha_item(group_id: str, payload: UseGachaItemPayload, decoded: dict = Depends(verify_token)):
+    """啟動扭蛋道具 buff（一次性、限時消耗）。"""
+    uid = decoded.get("uid") or decoded.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Token 內無 uid")
+
+    from pet_gacha import GACHA_BY_ID, public_item as _gacha_public_item_local
+
+    item_def = GACHA_BY_ID.get(payload.item_id)
+    if not item_def:
+        raise HTTPException(status_code=400, detail="找不到這個道具")
+    buff_def = item_def.get("buff")
+    if not buff_def:
+        raise HTTPException(status_code=400, detail="這個道具沒有 buff 效果")
+
+    group_ref = db.collection("groups").document(group_id)
+    try:
+        snap = group_ref.get()
+        if not snap.exists:
+            raise HTTPException(status_code=404, detail="找不到群組")
+        data = snap.to_dict() or {}
+        if uid not in (data.get("member_uids") or []):
+            raise HTTPException(status_code=403, detail="你不是群組成員")
+
+        wardrobe: list[str] = list(data.get("pet_wardrobe") or [])
+        if payload.item_id not in wardrobe:
+            raise HTTPException(status_code=409, detail="衣櫥裡沒有這個道具")
+
+        wardrobe.remove(payload.item_id)
+        expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=buff_def["buff_duration_hours"])
+        active_buff = {
+            "item_id": payload.item_id,
+            "item_name": item_def["name"],
+            "buff_type": buff_def["buff_type"],
+            "buff_value": buff_def["buff_value"],
+            "buff_duration_hours": buff_def["buff_duration_hours"],
+            "buff_expires_at": expires_at,
+        }
+        group_ref.update({
+            "pet_wardrobe": wardrobe,
+            "pet_active_buff": active_buff,
+        })
+        return {
+            "status": "success",
+            "active_buff": active_buff,
+            "wardrobe": wardrobe,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[use_gacha_item] error: {e}")
+        raise HTTPException(status_code=500, detail="啟動道具失敗")
 
 
 class GroupPetActionPayload(BaseModel):
@@ -3602,7 +3950,8 @@ async def group_pet_action(group_id: str, payload: GroupPetActionPayload, decode
             care_item, economy = use_inventory_item(data, action, payload.item_id)
         except ValueError as error:
             raise HTTPException(status_code=409, detail="背包裡沒有這個物品，請重新選擇") from error
-        next_stats = apply_item_effects(stats, care_item) if care_item else _apply_group_pet_action(stats, action)
+        active_buff = _get_active_buff(data)
+        next_stats = apply_item_effects(stats, care_item) if care_item else _apply_group_pet_action(stats, action, active_buff)
         energy = next_stats["pet_energy"]
         happiness = next_stats["pet_happiness"]
         cleanliness = next_stats["pet_cleanliness"]
@@ -4352,6 +4701,31 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
                     .document(room_id).set(mirror, merge=True)
             except Exception as mm_err:
                 print(f"[END_SESSION] mirror write failed for {p_uid}: {mm_err}")
+
+        # 依聚會排名發放金幣：第 1 名 50，第 2 名 30，其餘各 20，未計分 0
+        try:
+            coin_awards: dict = {}
+            if len(score_ranking) == 1:
+                coin_awards[score_ranking[0]["uid"]] = 20
+            else:
+                for rank, row in enumerate(score_ranking):
+                    if rank == 0:
+                        coin_awards[row["uid"]] = 50
+                    elif rank == 1:
+                        coin_awards[row["uid"]] = 30
+                    else:
+                        coin_awards[row["uid"]] = 20
+
+            gacha_batch = db.batch()
+            for p_uid, coins in coin_awards.items():
+                gacha_batch.set(
+                    db.collection("users").document(p_uid),
+                    {"ranking_gacha_points": firestore.Increment(coins)},
+                    merge=True,
+                )
+            gacha_batch.commit()
+        except Exception as gacha_err:
+            print(f"[END_SESSION] coin awards batch failed: {gacha_err}")
     except Exception as e:
         print(f"Error saving meeting record: {e}")
 

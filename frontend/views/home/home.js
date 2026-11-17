@@ -5,10 +5,10 @@ import { state } from '../../core/state.js';
 import { events } from '../../core/events.js';
 import { openQuestionBank } from '../question-bank/question-bank.js';
 import { openFriendsView } from '../friends/friends.js';
-import { fetchMyGroups } from '../../features/groups/controller.js?v=84';
-import { openLoginMethodSheet } from '../../core/login-sheet.js?v=84';
+import { fetchMyGroups } from '../../features/groups/controller.js?v=89';
+import { openLoginMethodSheet } from '../../core/login-sheet.js?v=89';
 import { t } from '../../core/i18n.js';
-import { vibrate } from '../../core/haptics.js?v=84';
+import { vibrate } from '../../core/haptics.js?v=89';
 import { showToast } from '../../utils/toast.js';
 
 let _groupsCacheTs = 0;
@@ -49,7 +49,11 @@ export function init() {
     if (homeGoogleLogin) homeGoogleLogin.onclick = openLoginMethodSheet;
 
     // 登入/登出後刷新群組
-    events.on('auth:logged-in', () => { _groupsCacheTs = 0; renderGroups(); });
+    events.on('auth:logged-in', () => {
+        _groupsCacheTs = 0;
+        renderGroups();
+        if (localStorage.getItem(LANDING_GUIDE_KEY) === '1') removePurpose();
+    });
     events.on('auth:logged-out', () => { _groupsCacheTs = 0; renderGroups(); });
 }
 
@@ -58,7 +62,7 @@ function loadHomeOnboardingStyles() {
     const link = document.createElement('link');
     link.id = 'home-onboarding-css';
     link.rel = 'stylesheet';
-    link.href = './views/home/home-onboarding.css?v=84';
+    link.href = './views/home/home-onboarding.css?v=89';
     document.head.appendChild(link);
 }
 
@@ -89,7 +93,9 @@ function initHomeOnboarding() {
     if (!_purposeTemplate) _purposeTemplate = purpose.outerHTML;
 
     const hasSeenGuide = localStorage.getItem(LANDING_GUIDE_KEY) === '1';
-    if (hasSeenGuide) {
+    // For logged-in users who've already seen the guide, remove it immediately.
+    // For guests, always show it so a new visitor always sees the intro.
+    if (hasSeenGuide && state.currentUser) {
         removePurpose();
         return;
     }

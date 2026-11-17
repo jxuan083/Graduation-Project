@@ -8,7 +8,7 @@ import { state } from './state.js';
 import { events } from './events.js';
 import { t } from './i18n.js';
 import { showToast } from '../utils/toast.js';
-import { getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=84';
+import { getLocalGuestNickname, leaveLocalGuestMode } from './guest.js?v=89';
 
 const SESSION_KEY = 'phubbing_cognito_session';
 const PKCE_KEY = 'phubbing_cognito_pkce';
@@ -304,4 +304,24 @@ export async function doSignOut() {
     } catch (err) {
         console.error('Sign-out failed:', err);
     }
+}
+
+// 本機開發用假登入（只在 DOCSTORE=memory 後端 + localhost 前端時有效）
+export async function doDevLogin() {
+    const fakeSession = {
+        idToken: 'local-dev-bypass',
+        refreshToken: null,
+        expiresAt: Date.now() + 8 * 3600 * 1000,
+    };
+    saveSession(fakeSession);
+    const fakeUser = {
+        uid: 'dev-local-001',
+        email: 'dev@localhost',
+        displayName: '本機測試用戶',
+        photoURL: null,
+        getIdToken: async () => 'local-dev-bypass',
+    };
+    state.currentUser = fakeUser;
+    events.emit('auth-changed', fakeUser);
+    return fakeUser;
 }

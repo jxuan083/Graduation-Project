@@ -828,6 +828,7 @@ body.bottom-nav-hidden #app { padding-bottom: 0; }
 .btn-bottom-schedule { color: var(--gold); }
 .btn-bottom-group { color: #80613f; }
 .btn-bottom-friends { color: #4f6f9f; }
+.btn-bottom-leaderboard { color: #b07d2a; }
 
 @media (prefers-reduced-motion: reduce) {
   .bottom-bar,
@@ -2191,9 +2192,17 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* 排行榜 */
 /* 排行榜（leaderboard）— front-preview screen-leaderboard 頒獎台結構 */
 #view-leaderboard { justify-content: flex-start; align-items: stretch; text-align: left; }
+#view-leaderboard .lb-scroll { padding: 0 16px 24px; }
 #view-leaderboard .lb-week-hint { text-align: center; font-size: 11px; color: var(--brown-50); margin: 0 0 12px; }
 #view-leaderboard .lb-list { display: flex; flex-direction: column; }
 #view-leaderboard .lb-formula-hint { margin-top: 20px; font-size: .78rem; text-align: center; line-height: 1.6; color: var(--brown-45); }
+#view-leaderboard .lb-gacha-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 8px; padding: 12px 14px; background: linear-gradient(135deg,#fff8ee,#fff3e0); border: 1.5px solid #f5c97a; border-radius: 14px; }
+#view-leaderboard .lb-gacha-banner-left { display: flex; align-items: center; gap: 10px; }
+#view-leaderboard .lb-gacha-icon { font-size: 26px; line-height: 1; }
+#view-leaderboard .lb-gacha-banner-title { font-size: .88rem; font-weight: 700; color: #4f351a; }
+#view-leaderboard .lb-gacha-banner-desc { font-size: .75rem; color: #7a5a3a; margin-top: 2px; }
+#view-leaderboard .lb-gacha-btn { flex-shrink: 0; padding: 7px 16px; border-radius: 20px; background: #f97316; color: #fff; font-size: .85rem; font-weight: 600; border: none; cursor: pointer; }
+#view-leaderboard .lb-gacha-btn:active { background: #ea6c0a; }
 
 /* 頒獎台 */
 #view-leaderboard .lb-podium { display: flex; align-items: flex-end; justify-content: center; gap: 8px; margin-bottom: 20px; }
