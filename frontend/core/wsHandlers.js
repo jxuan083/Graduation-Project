@@ -17,12 +17,12 @@ import { cancelOrderReminders, cancelPhoneOpenNotifications } from './localNotif
 import { renderMemberList } from '../features/members/render.js';
 import { sendFriendRequestByUid, loadFriendUidCache, loadFriendRequestsCache } from '../features/friends/controller.js';
 import { enterTabooPrepare, cleanupTabooLocalState } from '../features/taboo/controller.js';
-import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes, applyStudyState } from '../views/focus/focus.js?v=91';
+import { refreshFocusMascot, refreshSessionControls, stopLiveTranscript, applyIntentGranted, applyIntentRejected, applyPhoneOpen, applyPhoneOpenOverage, renderPhoneOpenAway, applyRestVotes, applyStudyState } from '../views/focus/focus.js?v=92';
 import {
     renderSyncMembers,
     resetSyncRitual,
     showAnchorEstablished,
-} from '../views/sync-ritual/sync-ritual.js?v=91';
+} from '../views/sync-ritual/sync-ritual.js?v=92';
 
 export function registerAllWsHandlers() {
     registerHandler('ROOM_UPDATE', handleRoomUpdate);
