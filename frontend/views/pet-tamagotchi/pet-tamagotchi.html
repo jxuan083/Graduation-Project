@@ -43,7 +43,6 @@
 
         <div class="pet-supplies-bar">
             <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>金幣</small></span>
-            <button id="btn-pet-draw" type="button">抽物品</button>
             <button id="btn-pet-bag" type="button">背包</button>
             <button id="btn-pet-gacha" type="button">扭蛋機<span class="gacha-entry-coins" id="gacha-entry-coins" aria-hidden="true"></span></button>
         </div>
@@ -215,7 +214,7 @@
         <div class="care-shop-heading"><div><p>一起聚會，替牠添點新東西</p><h2 id="pet-shop-title">補給小舖</h2></div><button data-shop-close type="button" aria-label="關閉補給小舖">×</button></div>
         <div class="care-shop-wallet"><span>我的金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
         <p class="care-shop-rules">第 1 名 +50 · 第 2 名 +30 · 其他 +20（每場聚會）</p>
-        <div class="care-shop-tabs"><button data-shop-tab="draw" type="button" aria-pressed="true">抽物品</button><button data-shop-tab="bag" type="button" aria-pressed="false">群組背包</button></div>
+        <div class="care-shop-tabs" hidden><button data-shop-tab="draw" type="button" aria-pressed="false">補給品</button><button data-shop-tab="bag" type="button" aria-pressed="true">背包</button></div>
         <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button></div>
         <div data-draw-reveal class="draw-reveal" hidden></div>
         <div data-shop-result class="care-item-result" role="status" aria-live="polite" hidden></div>
@@ -324,9 +323,10 @@
           <span class="gacha-wallet-hint" id="gacha-points-hint">第 1 名 +50 · 第 2 名 +30 · 其他 +20</span>
         </div>
 
-        <!-- Tabs: draw / wardrobe -->
+        <!-- Tabs: draw / supplies / wardrobe -->
         <div class="gacha-tabs">
           <button class="gacha-tab active" data-gacha-tab="draw" type="button">抽扭蛋</button>
+          <button class="gacha-tab" data-gacha-tab="supplies" type="button">補給品</button>
           <button class="gacha-tab" data-gacha-tab="wardrobe" type="button">衣櫃</button>
         </div>
 
@@ -383,16 +383,27 @@
           <p class="gacha-status" id="gacha-draw-status" role="status" aria-live="polite"></p>
         </div>
 
+        <!-- Supplies Panel -->
+        <div class="gacha-panel" id="gacha-panel-supplies" hidden>
+          <div id="gacha-supplies-cards"></div>
+          <p class="gacha-status" id="gacha-supplies-status" role="status" aria-live="polite"></p>
+        </div>
+
         <!-- Wardrobe Panel -->
         <div class="gacha-panel" id="gacha-panel-wardrobe" hidden>
           <div class="gacha-wardrobe-equipped" id="gacha-equipped-slots">
             <!-- Equipped slots rendered by JS -->
           </div>
-          <div class="gacha-wardrobe-label">群組背包</div>
+          <div class="gacha-wardrobe-label">裝飾配件</div>
           <div class="gacha-wardrobe-grid" id="gacha-wardrobe-grid">
             <!-- Items rendered by JS -->
           </div>
+          <div class="gacha-care-section" id="gacha-wardrobe-care-section" hidden>
+            <div class="gacha-care-section-label">背包物品</div>
+            <div class="gacha-care-list"></div>
+          </div>
           <p class="gacha-status" id="gacha-wardrobe-status" role="status" aria-live="polite"></p>
+          <button class="gacha-done-btn" id="btn-gacha-done" type="button">裝飾完畢，回去看看牠</button>
         </div>
 
         <!-- Debug: add points button (local dev only) -->

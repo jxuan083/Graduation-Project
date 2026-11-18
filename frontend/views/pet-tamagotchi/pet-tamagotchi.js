@@ -3,7 +3,7 @@ import { apiFetch } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult } from '../../features/pets/care-collection.js';
+import { CareCollection, renderCareResult, itemArt, itemBadge } from '../../features/pets/care-collection.js';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -238,7 +238,6 @@ export function init() {
         onDraw: drawCareItem, onUse: doAction,
         availability: action => careAvailability(_groupPet, action, {busy: _actionLock || _petViewer?.busy || Boolean(_pendingCare.get(careKey())), pending: _pendingCare.get(careKey())?.action}),
     });
-    document.getElementById('btn-pet-draw').onclick = () => { syncCareCollection(); _careCollection.open('draw'); };
     document.getElementById('btn-pet-bag').onclick = () => { syncCareCollection(); _careCollection.open('bag'); };
     document.getElementById('btn-pet-feed').onclick  = () => chooseCareItem('feed');
     document.getElementById('btn-pet-wipe').onclick  = () => doAction('wipe');
@@ -343,8 +342,10 @@ export function init() {
             tab.classList.add('active');
             const targetTab = tab.dataset.gachaTab;
             document.getElementById('gacha-panel-draw').hidden     = targetTab !== 'draw';
+            document.getElementById('gacha-panel-supplies').hidden = targetTab !== 'supplies';
             document.getElementById('gacha-panel-wardrobe').hidden = targetTab !== 'wardrobe';
             if (targetTab === 'wardrobe') renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
+            if (targetTab === 'supplies') renderGachaSupplies();
         });
     });
 
@@ -384,10 +385,16 @@ export function init() {
         document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
         const wardrobeTab = document.querySelector('.gacha-tab[data-gacha-tab="wardrobe"]');
         if (wardrobeTab) wardrobeTab.classList.add('active');
-        document.getElementById('gacha-panel-draw').hidden = true;
+        document.getElementById('gacha-panel-draw').hidden     = true;
+        document.getElementById('gacha-panel-supplies').hidden = true;
         document.getElementById('gacha-panel-wardrobe').hidden = false;
         renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
         document.getElementById('gacha-panel-wardrobe')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    // 裝飾完畢 → close gacha
+    document.getElementById('btn-gacha-done')?.addEventListener('click', () => {
+        document.getElementById('pet-gacha-dialog').close();
     });
 
     // CTA: 保留到背包 → hide reveal only, stay on draw tab
@@ -404,11 +411,13 @@ export function init() {
         document.getElementById('gacha-reveal-cta').hidden = true;
         document.getElementById('gacha-reveal-items').innerHTML = '';
         document.getElementById('gacha-draw-status').textContent = '';
+        document.getElementById('gacha-supplies-status').textContent = '';
         // Switch back to draw tab
         document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
         const drawTab = document.querySelector('.gacha-tab[data-gacha-tab="draw"]');
         if (drawTab) drawTab.classList.add('active');
         document.getElementById('gacha-panel-draw').hidden     = false;
+        document.getElementById('gacha-panel-supplies').hidden = true;
         document.getElementById('gacha-panel-wardrobe').hidden = true;
     });
 }
@@ -1266,9 +1275,9 @@ function syncCareCollection() {
         } catch { /* Storage may be unavailable; in-memory retries still work. */ }
     }
     document.getElementById('pet-coin-balance').textContent = _gachaUserPoints;
-    document.getElementById('btn-pet-draw').disabled = !_careCatalog;
     document.getElementById('btn-pet-bag').disabled = !_careCatalog;
     _careCollection?.update({pet:_groupPet,catalog:_careCatalog,pending:_pendingDraw.get(careKey()),busy:_drawBusy,coins:_gachaUserPoints});
+    renderGachaSupplies();
 }
 async function drawCareItem(kind) {
     if (_drawBusy || !_groupId) return;
@@ -1311,6 +1320,38 @@ async function drawCareItem(kind) {
 function clearPendingDraw(key) {
     _pendingDraw.delete(key);
     try { sessionStorage.removeItem(`pet_draw_pending:${key}`); } catch { /* Optional persistence. */ }
+}
+
+function isOwnedCareItem(item) {
+    if (!_groupPet || !_careCatalog) return false;
+    if (item.id === _careCatalog.base_food || item.id === _careCatalog.base_toy) return true;
+    if (item.kind === 'food') return (_groupPet.pet_food_inventory?.[item.id] || 0) > 0;
+    return _groupPet.pet_owned_toys?.includes(item.id);
+}
+
+function renderGachaSupplies() {
+    const container = document.getElementById('gacha-supplies-cards');
+    if (!container) return;
+    if (!_careCatalog) { container.replaceChildren(); return; }
+    container.replaceChildren();
+    const key = careKey();
+    const pending = _pendingDraw.get(key);
+    for (const kind of ['food', 'toy']) {
+        const featured = _careCatalog.items.find(i => i.kind === kind && i.rarity === 'treasure')
+            || _careCatalog.items.find(i => i.kind === kind);
+        const cost = _careCatalog.prices?.[kind] ?? (kind === 'food' ? 30 : 60);
+        const retry = pending?.kind === kind;
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'care-draw-card';
+        const artHtml = featured ? itemArt(featured) : '';
+        const labelKey = kind === 'food' ? '食物小包' : '玩具禮盒';
+        const descKey  = kind === 'food' ? '隨機一種食物，共 3 份' : '隨機一款玩具，永久保留';
+        const coinLabel = retry ? t('重試確認結果') : t('{n} 金幣', { n: cost });
+        btn.innerHTML = `${artHtml}<span><strong>${t(labelKey)}</strong><small>${t(descKey)}</small></span><b>${coinLabel}</b>`;
+        btn.disabled = _drawBusy || (pending ? !retry : _gachaUserPoints < cost);
+        btn.onclick = () => { syncCareCollection(); _careCollection.open('draw'); drawCareItem(kind); };
+        container.append(btn);
+    }
 }
 
 // ── 扭蛋機 ────────────────────────────────────────────────────────────────────
@@ -1423,7 +1464,7 @@ function updateDrawProgress() {
     }
 }
 
-async function openGachaDialog() {
+async function openGachaDialog(initialTab = 'draw') {
     const dialog = document.getElementById('pet-gacha-dialog');
     if (!dialog) return;
 
@@ -1432,6 +1473,7 @@ async function openGachaDialog() {
     document.getElementById('gacha-reveal-items').innerHTML = '';
     document.getElementById('gacha-draw-status').textContent = '';
     document.getElementById('gacha-wardrobe-status').textContent = '';
+    document.getElementById('gacha-supplies-status').textContent = '';
     _gachaDrawBusy = false;
 
     // Fetch catalog + points (best-effort; fall back to local)
@@ -1455,6 +1497,17 @@ async function openGachaDialog() {
     renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
     updateCostumeOverlays(_gachaEquipped);
     updateBuffBadge();
+
+    // Switch to initialTab if requested
+    if (initialTab !== 'draw') {
+        document.querySelectorAll('.gacha-tab').forEach(t => t.classList.remove('active'));
+        const tab = document.querySelector(`.gacha-tab[data-gacha-tab="${initialTab}"]`);
+        if (tab) tab.classList.add('active');
+        document.getElementById('gacha-panel-draw').hidden     = initialTab !== 'draw';
+        document.getElementById('gacha-panel-supplies').hidden = initialTab !== 'supplies';
+        document.getElementById('gacha-panel-wardrobe').hidden = initialTab !== 'wardrobe';
+        if (initialTab === 'supplies') renderGachaSupplies();
+    }
 
     dialog.showModal();
 }
@@ -1637,6 +1690,25 @@ function renderGachaWardrobe(wardrobe, equipped) {
             }
         });
     });
+
+    // ── Care items section ──
+    const careSection = document.getElementById('gacha-wardrobe-care-section');
+    if (careSection && _careCatalog) {
+        const ownedItems = (_careCatalog.items || []).filter(isOwnedCareItem);
+        if (ownedItems.length) {
+            careSection.hidden = false;
+            const list = careSection.querySelector('.gacha-care-list');
+            if (list) {
+                list.innerHTML = ownedItems.map(item => {
+                    const qty = item.kind === 'food' ? (_groupPet?.pet_food_inventory?.[item.id] || 0) : null;
+                    const qtyBadge = qty !== null ? `<span class="gacha-care-qty">×${qty}</span>` : '';
+                    return `<div class="gacha-care-chip">${itemArt(item)}${itemBadge(item)}<span>${escHtml(t(item.name))}</span>${qtyBadge}</div>`;
+                }).join('');
+            }
+        } else {
+            careSection.hidden = true;
+        }
+    }
 }
 
 function renderGachaReveal(items) {

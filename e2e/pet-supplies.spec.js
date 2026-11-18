@@ -37,7 +37,8 @@ test('draw retry survives reload; backpack food consumes once and toys stay owne
         await page.getByRole('button',{name:'進入',exact:false}).first().click();
         await expect(page.locator('#pet-stage')).toHaveClass(/illustrated-ready/,{timeout:20000});
     };
-    await enter();await page.locator('#btn-pet-draw').click();
+    const openSupplies=async()=>{await page.locator('#btn-pet-gacha').click();await page.getByRole('button',{name:'補給品',exact:true}).click();};
+    await enter();await openSupplies();
     let lost=true;const requests=[];
     await page.route('**/api/groups/browser-group/pet/draw',async route=>{
         requests.push(route.request().postDataJSON());
@@ -46,7 +47,7 @@ test('draw retry survives reload; backpack food consumes once and toys stay owne
     });
     await page.locator('.care-draw-card').first().click();
     await expect(page.locator('#pet-draw-status')).toContainText('尚未確認');
-    await page.reload();await enter();await page.locator('#btn-pet-draw').click();
+    await page.reload();await enter();await openSupplies();
     await expect(page.locator('.care-draw-card').first()).toContainText('重試確認結果');
     await page.locator('.care-draw-card').first().click();
     await expect(page.locator('#pet-draw-status')).toContainText('沒有再次扣款');
@@ -59,6 +60,7 @@ test('draw retry survives reload; backpack food consumes once and toys stay owne
     await food.getByRole('button').click();
     await expect(page.locator('#pet-stage')).toHaveAttribute('data-care-phase','feedComplete');
     await expect(page.locator('#pet-care-result')).toContainText(itemName);
+    await page.locator('#btn-gacha-close').click();
     await page.locator('#btn-pet-bag').click();await expect(food).toContainText('2 份');
     await page.locator('[data-shop-kind=toy]').click();
     const plush=page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'星星布偶'})});
@@ -158,7 +160,9 @@ test('main care retry keeps the selected item without reopening the picker',asyn
 
 async function openDraw(page) {
     await page.locator('#btn-bottom-pets').click();await page.locator('.btn-care-pet').first().click();
-    await page.locator('#btn-pet-draw').click();
+    await expect(page.locator('#pet-stage')).toHaveClass(/illustrated-ready/,{timeout:20000});
+    await page.locator('#btn-pet-gacha').click();
+    await page.getByRole('button',{name:'補給品',exact:true}).click();
 }
 
 test('draw animation can skip while waiting but reveals only confirmed results',async({page})=>{
@@ -185,6 +189,7 @@ test('closing an opening animation keeps the confirmed item without another draw
     await openDraw(page);await page.locator('.care-draw-card').first().click();
     await expect(page.locator('[data-draw-reveal]')).toHaveAttribute('data-phase','opening');
     await page.locator('[data-shop-close]').click();
+    await page.locator('#btn-gacha-close').click();
     await page.locator('#btn-pet-bag').click();
     await expect(page.locator('[data-shop-coins]')).toHaveText('174');
     await expect(page.locator('.care-bag-item').filter({hasText:'3 份'})).toHaveCount(1);

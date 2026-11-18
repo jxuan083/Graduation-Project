@@ -31,7 +31,7 @@ export function renderCareResult(container, item, text) {
 export class CareCollection {
     constructor(dialog, {onDraw,onUse,availability}) {
         this.dialog = dialog; this.onDraw = onDraw; this.onUse = onUse; this.availability = availability;
-        this.tab = 'draw'; this.kind = 'food';
+        this.tab = 'bag'; this.kind = 'food';
         this.reveal = new DrawReveal(dialog.querySelector('[data-draw-reveal]'));
         dialog.addEventListener('close',()=>this.cancelReveal());
         dialog.querySelector('[data-shop-close]').onclick = () => dialog.close();
@@ -43,7 +43,7 @@ export class CareCollection {
         if (coins !== undefined) this.coins = coins;
         if (this.dialog.open) this.render();
     }
-    open(tab = 'draw') {
+    open(tab = 'bag') {
         this.selectKind = null;
         this.tab = tab; this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
     }
