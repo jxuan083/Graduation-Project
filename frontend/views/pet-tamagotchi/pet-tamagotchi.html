@@ -67,6 +67,7 @@
             <button id="btn-pet-animation-retry" class="pet-animation-retry" type="button" hidden>重新載入動畫</button>
             <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
                 <img id="pet-avatar-img" src="" alt="寵物" />
+                <img id="pet-dressed-layer" class="pet-dressed-layer" src="" alt="" aria-hidden="true" draggable="false" style="display:none">
                 <span class="pet-costume-head" id="pet-costume-head" aria-hidden="true"></span>
                 <span class="pet-costume-body" id="pet-costume-body" aria-hidden="true"></span>
                 <span class="pet-costume-neck" id="pet-costume-neck" aria-hidden="true"></span>
@@ -211,14 +212,8 @@
     </div>
 
     <dialog id="pet-care-shop" class="pet-care-shop" aria-labelledby="pet-shop-title">
-        <div class="care-shop-heading"><div><p>一起聚會，替牠添點新東西</p><h2 id="pet-shop-title">補給小舖</h2></div><button data-shop-close type="button" aria-label="關閉補給小舖">×</button></div>
-        <div class="care-shop-wallet"><span>我的金幣</span><strong><b data-shop-coins>0</b> 金幣</strong></div>
-        <p class="care-shop-rules">第 1 名 +50 · 第 2 名 +30 · 其他 +20（每場聚會）</p>
-        <div class="care-shop-tabs" hidden><button data-shop-tab="draw" type="button" aria-pressed="false">補給品</button><button data-shop-tab="bag" type="button" aria-pressed="true">背包</button></div>
-        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button></div>
-        <div data-draw-reveal class="draw-reveal" hidden></div>
-        <div data-shop-result class="care-item-result" role="status" aria-live="polite" hidden></div>
-        <p id="pet-draw-status" class="care-draw-status" role="status" aria-live="polite"></p>
+        <div class="care-shop-heading"><div><p id="pet-shop-desc">食物、玩具和配件都在這裡</p><h2 id="pet-shop-title">背包</h2></div><button data-shop-close type="button" aria-label="關閉背包">×</button></div>
+        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button><button data-shop-kind="costume" type="button" aria-pressed="false">配件</button></div>
         <div data-shop-content></div>
     </dialog>
 
@@ -386,6 +381,7 @@
         <!-- Supplies Panel -->
         <div class="gacha-panel" id="gacha-panel-supplies" hidden>
           <div id="gacha-supplies-cards"></div>
+          <div id="gacha-supplies-result" class="gacha-supplies-result" hidden></div>
           <p class="gacha-status" id="gacha-supplies-status" role="status" aria-live="polite"></p>
         </div>
 

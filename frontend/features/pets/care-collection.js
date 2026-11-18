@@ -1,4 +1,3 @@
-import { DrawReveal } from './draw-reveal.js';
 import { t } from '../../core/i18n.js';
 
 const ART = {
@@ -29,94 +28,82 @@ export function renderCareResult(container, item, text) {
 }
 
 export class CareCollection {
-    constructor(dialog, {onDraw,onUse,availability}) {
-        this.dialog = dialog; this.onDraw = onDraw; this.onUse = onUse; this.availability = availability;
-        this.tab = 'bag'; this.kind = 'food';
-        this.reveal = new DrawReveal(dialog.querySelector('[data-draw-reveal]'));
-        dialog.addEventListener('close',()=>this.cancelReveal());
+    constructor(dialog, {onUse, availability, onEquip, onUnequip}) {
+        this.dialog = dialog; this.onUse = onUse; this.availability = availability;
+        this.onEquip = onEquip; this.onUnequip = onUnequip;
+        this.kind = 'food';
         dialog.querySelector('[data-shop-close]').onclick = () => dialog.close();
-        dialog.querySelectorAll('[data-shop-tab]').forEach(button => button.onclick = () => { this.tab = button.dataset.shopTab; this.render(); });
         dialog.querySelectorAll('[data-shop-kind]').forEach(button => button.onclick = () => { this.kind = button.dataset.shopKind; this.render(); });
     }
-    update({pet,catalog,pending,busy,coins}) {
-        this.pet = pet; this.catalog = catalog; this.pending = pending; this.busy = busy;
-        if (coins !== undefined) this.coins = coins;
+    update({pet, catalog, wardrobe, equipped}) {
+        this.pet = pet; this.catalog = catalog;
+        if (wardrobe !== undefined) this.wardrobe = wardrobe;
+        if (equipped !== undefined) this.equipped = equipped;
         if (this.dialog.open) this.render();
     }
-    open(tab = 'bag') {
+    open() {
         this.selectKind = null;
-        this.tab = tab; this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
-    }
-    choose(kind) {
-        this.selectKind = kind; this.kind = kind; this.tab = 'bag';
-        this.result(null,'');
-        this.dialog.querySelector('#pet-draw-status').textContent = '';
         this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
     }
-    beginDraw(kind) {
-        this.result(null,'');this.dialog.classList.add('is-opening-draw');
-        this.reveal.begin(kind);this.dialog.scrollTop=0;
-    }
-    async finishDraw(item,message) {
-        const completed = await this.reveal.finish(item);
-        this.dialog.classList.remove('is-opening-draw');
-        if(!completed)return;
-        this.result(item,message);
-        this.reveal.present(this.dialog.querySelector('[data-shop-result]'));
-    }
-    cancelReveal() { this.reveal.cancel();this.dialog.classList.remove('is-opening-draw'); }
-    result(item, message) {
-        const result=this.dialog.querySelector('[data-shop-result]');
-        result.classList.toggle('is-treasured-draw',item?.rarity==='treasure');
-        renderCareResult(result, item, message);
+    choose(kind) {
+        this.selectKind = kind; this.kind = kind;
+        this.render(); this.dialog.showModal(); this.dialog.scrollTop = 0;
     }
     render() {
         if (!this.pet || !this.catalog) return;
-        const {pet,catalog,dialog} = this;
+        const { pet, catalog, dialog } = this;
         const choosing = Boolean(this.selectKind);
-        dialog.querySelector('[data-shop-close]').setAttribute('aria-label',t(choosing ? '關閉選擇' : '關閉補給小舖'));
-        dialog.querySelector('#pet-shop-title').textContent = t(choosing ? this.kind === 'food' ? '選擇食物' : '選擇玩具' : '補給小舖');
-        dialog.querySelector('.care-shop-heading p').textContent = t(choosing ? this.kind === 'food' ? '選一份牠今天想吃的' : '今天想怎麼一起玩？' : '一起聚會，替牠添點新東西');
-        for (const selector of ['.care-shop-wallet', ':scope > .care-shop-rules', '.care-shop-tabs', '.care-shop-kinds']) dialog.querySelector(selector).hidden = choosing;
-        dialog.querySelector('[data-shop-coins]').textContent = Number(this.coins ?? pet.pet_coins ?? 0);
-        dialog.querySelectorAll('[data-shop-tab]').forEach(b => { const active = b.dataset.shopTab === this.tab; b.setAttribute('aria-pressed', String(active)); });
-        dialog.querySelectorAll('[data-shop-kind]').forEach(b => { b.hidden = this.tab !== 'bag'; b.setAttribute('aria-pressed', String(b.dataset.shopKind === this.kind)); });
+        dialog.querySelector('[data-shop-close]').setAttribute('aria-label', t(choosing ? '關閉選擇' : '關閉背包'));
+        dialog.querySelector('#pet-shop-title').textContent = t(choosing ? (this.kind === 'food' ? '選擇食物' : '選擇玩具') : '背包');
+        const descEl = dialog.querySelector('#pet-shop-desc');
+        if (descEl) descEl.textContent = t(choosing ? (this.kind === 'food' ? '選一份牠今天想吃的' : '今天想怎麼一起玩？') : '食物、玩具和配件都在這裡');
+        const kindsEl = dialog.querySelector('.care-shop-kinds');
+        if (kindsEl) kindsEl.hidden = choosing;
+        dialog.querySelectorAll('[data-shop-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.shopKind === this.kind)));
         const content = dialog.querySelector('[data-shop-content]');
         content.replaceChildren();
-        if (this.tab === 'draw') {
-            for (const kind of ['food','toy']) {
-                const featured = catalog.items.find(i => i.id === (kind === 'food' ? 'heart_biscuit' : 'star_plush'));
-                const cost = catalog.prices[kind], retry = this.pending?.kind === kind;
-                const button = document.createElement('button'); button.type = 'button'; button.className = 'care-draw-card';
-                button.innerHTML = `${itemArt(featured)}<span><strong>${t(kind === 'food' ? '食物小包' : '玩具禮盒')}</strong><small>${t(kind === 'food' ? '隨機一種食物，共 3 份' : '隨機一款玩具，永久保留')}</small></span><b>${escape(t(retry ? '重試確認結果' : '{n} 金幣', {n:cost}))}</b>`;
-                button.disabled = this.busy || (this.pending ? !retry : Number(this.coins ?? pet.pet_coins ?? 0) < cost);
-                button.onclick = () => this.onDraw(kind);
-                content.append(button);
+        if (this.kind === 'costume') {
+            const wardrobe = this.wardrobe || [];
+            const equipped = this.equipped || {};
+            const note = document.createElement('p'); note.className = 'care-shop-rules';
+            note.textContent = t('已收藏 {n} 件配件', {n: wardrobe.length});
+            content.append(note);
+            if (!wardrobe.length) {
+                const empty = document.createElement('p'); empty.className = 'care-bag-empty';
+                empty.textContent = t('還沒有任何配件，快去商城抽扭蛋！');
+                content.append(empty); return;
             }
-            const odds = document.createElement('p'); odds.className = 'care-shop-odds';
-            odds.textContent = catalog.rarities.map(r => `${t(r.label)} ${Math.round(r.probability*100)}%`).join(' · ');
-            content.append(odds);
-            const rules = document.createElement('p'); rules.className = 'care-shop-rules';
-            rules.textContent = t('先抽等級，再於同等級內等機率抽取。免費基本款不在抽取池。重複玩具返還 20 金幣。');
-            content.append(rules);
+            const grid = document.createElement('div'); grid.className = 'care-bag-grid';
+            const rarityLabel = r => r === 'common' ? '普通' : r === 'rare' ? '稀有' : '珍藏';
+            for (const item of wardrobe) {
+                const isEquipped = equipped[item.slot]?.id === item.id;
+                const card = document.createElement('article'); card.className = `care-bag-item${isEquipped ? ' is-equipped' : ''}`;
+                const iconSrc = item.img || new URL(`../../assets/pets/gacha/${item.id}.svg`, import.meta.url).href;
+                card.innerHTML = `<span class="care-art care-art-costume" aria-hidden="true"><img src="${escape(iconSrc)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='🎁'"></span><span class="care-rarity ${item.rarity}">${rarityLabel(item.rarity)}</span><strong>${escape(t(item.name))}</strong><small>${t(isEquipped ? '已穿戴' : item.slot === 'head' ? '頭部' : item.slot === 'neck' ? '頸部' : item.slot === 'body' ? '身體' : '特效')}</small>`;
+                const button = document.createElement('button'); button.type = 'button'; button.className = 'btn secondary';
+                button.textContent = t(isEquipped ? '卸除' : '穿戴');
+                button.onclick = () => isEquipped ? this.onUnequip?.(item) : this.onEquip?.(item);
+                card.append(button); grid.append(card);
+            }
+            content.append(grid);
         } else {
             const items = catalog.items.filter(i => i.kind === this.kind).sort((a,b) => Number(this.owned(b)) - Number(this.owned(a)));
             const grid = document.createElement('div'); grid.className = 'care-bag-grid';
             const unlocked = items.filter(i => this.owned(i)).length;
             const note = document.createElement('p'); note.className = 'care-shop-rules';
-            note.textContent = t('已備有 {n} / {total} 種', {n:unlocked,total:items.length}); content.append(note);
+            note.textContent = t('已備有 {n} / {total} 種', {n:unlocked, total:items.length}); content.append(note);
             for (const item of items) {
                 const owned = this.owned(item), base = item.id === catalog.base_food || item.id === catalog.base_toy;
                 const quantity = pet.pet_food_inventory?.[item.id] || 0;
                 const action = item.kind === 'food' ? 'feed' : 'play';
-                const card = document.createElement('article'); card.className = `care-bag-item${owned?'':' is-locked'}`;
-                const quantityText = base ? t('基本款 · 隨時可用') : item.kind === 'food' ? t('{n} 份', {n:quantity}) : t(owned?'已收藏 · 可重複使用':'尚未收藏');
+                const card = document.createElement('article'); card.className = `care-bag-item${owned ? '' : ' is-locked'}`;
+                const quantityText = base ? t('基本款 · 隨時可用') : item.kind === 'food' ? t('{n} 份', {n:quantity}) : t(owned ? '已收藏 · 可重複使用' : '尚未收藏');
                 const availability = this.availability(action);
                 card.innerHTML = `${itemArt(item)}${itemBadge(item)}<strong>${escape(t(item.name))}</strong><small>${escape(quantityText)}</small><p>${escape(itemEffects(item))}</p>`;
                 const button = document.createElement('button'); button.type = 'button'; button.className = 'btn secondary';
                 button.textContent = t(!owned ? '尚未擁有' : availability.disabled ? availability.label : item.kind === 'food' ? '餵一份' : '陪牠玩');
                 button.disabled = !owned || availability.disabled;
-                button.onclick = () => { dialog.close(); this.onUse(action,item.id); };
+                button.onclick = () => { dialog.close(); this.onUse(action, item.id); };
                 card.append(button); grid.append(card);
             }
             content.append(grid);

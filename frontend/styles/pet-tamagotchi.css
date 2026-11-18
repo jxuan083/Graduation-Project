@@ -2105,3 +2105,22 @@
   .gacha-cap-shaking, .gacha-cap-splitting .gacha-cap-top,
   .gacha-cap-splitting .gacha-cap-bottom { animation: none !important; }
 }
+
+.care-art-costume { width:90px!important; height:90px!important; }
+.care-art-costume img { width:100%; height:100%; object-fit:contain; position:static!important; }
+.care-bag-empty { text-align: center; color: #7d826f; font-size: 13px; padding: 24px 0; }
+.pet-dressed-layer { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; z-index:4; visibility:visible!important; }
+.gacha-collect-rarity {
+  font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 20px; letter-spacing: .02em;
+}
+.gacha-collect-rarity.rarity-common   { background: #e8e0d6; color: #7a6652; }
+.gacha-collect-rarity.rarity-rare     { background: #dbeafe; color: #1d4ed8; }
+.gacha-collect-rarity.rarity-treasure { background: #fef3c7; color: #b45309; }
+.gacha-supplies-result {
+  display: flex; align-items: center; gap: 12px;
+  background: #faf4e6; border: 1.5px solid #e0d0b4; border-radius: 14px;
+  padding: 12px 14px; margin: 8px 0 4px; animation: care-result-in .25s ease;
+}
+.gacha-supplies-result img { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
+.gacha-supplies-result strong { font-size: 15px; color: #5a4535; display: block; margin-bottom: 3px; }
+.gacha-supplies-result p { font-size: 12px; color: #8a7560; margin: 0; }
