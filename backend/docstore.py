@@ -232,11 +232,31 @@ class _DynamoBackend:
         return self._query(IndexName="by_collection", KeyConditionExpression=self._key("coll").eq(coll))
 
 
+_DEV_DB_PATH = os.path.join(os.path.dirname(__file__), "dev_db.json")
+
+
 class _MemoryBackend:
-    """本機測試用，資料只存在記憶體。"""
+    """本機測試用。資料存記憶體，同時持久化到 dev_db.json，重啟不遺失。"""
 
     def __init__(self):
         self._items = {}
+        self._load()
+
+    def _load(self):
+        try:
+            with open(_DEV_DB_PATH, "r", encoding="utf-8") as f:
+                raw_map = json.load(f)
+            self._items = {(pk, sk): v for entry in raw_map for pk, sk, v in [entry]}
+        except (FileNotFoundError, Exception):
+            self._items = {}
+
+    def _save(self):
+        try:
+            raw_map = [[pk, sk, v] for (pk, sk), v in self._items.items()]
+            with open(_DEV_DB_PATH, "w", encoding="utf-8") as f:
+                json.dump(raw_map, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"[dev_db] save failed: {e}")
 
     def get(self, pk, sk):
         return self.snapshot(pk, sk)[0]
@@ -249,7 +269,6 @@ class _MemoryBackend:
         with _TX_LOCK:
             if any(self._items.get(key) != before for key,before in reads.items()):
                 raise TransactionConflict()
-            # Encode everything before replacing the backing map: failures never partially commit.
             next_items = dict(self._items)
             for key,data in writes.items():
                 if data is None:
@@ -257,12 +276,15 @@ class _MemoryBackend:
                 else:
                     next_items[key] = _dumps(data)
             self._items = next_items
+            self._save()
 
     def put(self, pk, sk, data):
         self._items[(pk, sk)] = _dumps(data)
+        self._save()
 
     def delete(self, pk, sk):
         self._items.pop((pk, sk), None)
+        self._save()
 
     def list_collection(self, pk):
         return [(p, s, _loads(r)) for (p, s), r in sorted(self._items.items()) if p == pk]

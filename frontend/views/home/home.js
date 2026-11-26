@@ -48,6 +48,9 @@ export function init() {
     const homeGoogleLogin = document.getElementById('btn-home-google-login');
     if (homeGoogleLogin) homeGoogleLogin.onclick = openLoginMethodSheet;
 
+    const newGroupBtn = document.getElementById('btn-home-new-group');
+    if (newGroupBtn) newGroupBtn.onclick = () => switchView('view-groups');
+
     // 登入/登出後刷新群組
     events.on('auth:logged-in', () => {
         _groupsCacheTs = 0;

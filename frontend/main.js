@@ -20,7 +20,7 @@ import { showJoinView } from './views/join/join.js?v=93';
 import { events } from './core/events.js';
 import { initI18n, t } from './core/i18n.js?v=93';
 
-const ASSET_VERSION = '92';
+const ASSET_VERSION = '95';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -40,7 +40,7 @@ const VIEW_NAMES = [
 
 // ===== view 模組(動態 import,parallel) =====
 const VIEW_MODULES = {
-    'home':              () => import('./views/home/home.js?v=93'),
+    'home':              () => import('./views/home/home.js?v=94'),
     'more':              () => import('./views/more/more.js?v=93'),
     'scanner':           () => import('./views/scanner/scanner.js?v=93'),
     'meetings':          () => import('./views/meetings/meetings.js?v=93'),
@@ -76,7 +76,7 @@ const VIEW_MODULES = {
     'group-chat':        () => import('./views/group-chat/group-chat.js?v=93'),
     'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=93'),
     'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=93'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=101'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=116'),
 };
 
 async function loadAllViewHtml() {

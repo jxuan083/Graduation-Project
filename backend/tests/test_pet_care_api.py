@@ -140,7 +140,8 @@ class PetCareApiTests(unittest.TestCase):
     def test_full_or_rescue_pet_is_not_mutated(self):
         self.adopt()
         for fields, code in [({'pet_energy': 100}, 409),
-                             ({'pet_last_session_at': datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=15)}, 423)]:
+                             ({'pet_hp': 0}, 423),
+                             ({'pet_hp': 5, 'pet_last_session_at': datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)}, 423)]:
             self.data.update(fields)
             writes = self.tx.update.call_count
             with self.assertRaises(HTTPException) as ctx:
@@ -163,10 +164,11 @@ class PetCareApiTests(unittest.TestCase):
 
     def test_group_cards_and_care_page_derive_the_same_growth(self):
         self.adopt()
-        self.data.update(pet_accumulated_score=250, pet_level=1)
+        # Level is now meeting-based: 7 meetings → Lv4
+        self.data.update(pet_accumulated_score=250, pet_meetings_completed=7)
         group = main._serialize_group(self.data, 'group')
         pet = main._group_pet_public_payload(self.data, 'owner')
-        self.assertEqual(group['pet_level'], 3)
+        self.assertEqual(group['pet_level'], 4)
         for key in ['pet_level', 'pet_xp_current', 'pet_status', 'pet_energy', 'pet_hp']:
             self.assertEqual(group[key], pet[key], key)
 

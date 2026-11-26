@@ -110,3 +110,4 @@ ios/.build-sim/
 # Browser QA artifacts
 test-results/
 playwright-report/
+backend/dev_db.json

@@ -10,6 +10,7 @@
             <div class="pet-empty-icon"><i data-lucide="paw-print"></i></div>
             <h2>還沒有群組寵物</h2>
             <p>先加入或建立群組，就能一起領養、照顧寵物。</p>
+            <button id="btn-pet-list-create" class="btn primary" type="button" style="margin-top:8px; width:100%;">建立 / 加入群組</button>
         </div>
         <div id="pet-list-cards" class="pet-list-cards"></div>
     </div>
@@ -43,8 +44,9 @@
 
         <div class="pet-supplies-bar">
             <span><i data-lucide="coins"></i><b id="pet-coin-balance">0</b><small>金幣</small></span>
+            <span class="pet-ticket-balance"><b id="pet-ticket-balance">0</b><small>抽獎卷</small></span>
             <button id="btn-pet-bag" type="button">背包</button>
-            <button id="btn-pet-gacha" type="button">扭蛋機<span class="gacha-entry-coins" id="gacha-entry-coins" aria-hidden="true"></span></button>
+            <button id="btn-pet-gacha" type="button">商城<span class="gacha-entry-coins" id="gacha-entry-coins" aria-hidden="true"></span></button>
         </div>
 
         <!-- 舞台 -->
@@ -65,13 +67,9 @@
             <button id="btn-pet-touch" class="pet-touch-target" type="button" aria-label="摸摸寵物的頭" hidden></button>
             <p id="pet-viewer-status" class="pet-viewer-status" role="status" hidden></p>
             <button id="btn-pet-animation-retry" class="pet-animation-retry" type="button" hidden>重新載入動畫</button>
+            <div id="pet-equip-badges" class="pet-equip-badges" aria-hidden="true"></div>
             <div id="pet-avatar-wrap" class="pet-avatar-wrap state-idle">
                 <img id="pet-avatar-img" src="" alt="寵物" />
-                <img id="pet-dressed-layer" class="pet-dressed-layer" src="" alt="" aria-hidden="true" draggable="false" style="display:none">
-                <span class="pet-costume-head" id="pet-costume-head" aria-hidden="true"></span>
-                <span class="pet-costume-body" id="pet-costume-body" aria-hidden="true"></span>
-                <span class="pet-costume-neck" id="pet-costume-neck" aria-hidden="true"></span>
-                <span class="pet-decoration-effect" id="pet-decoration-effect" aria-hidden="true"></span>
             </div>
             <div id="pet-rescue-overlay" class="pet-rescue-overlay" style="display:none;">
                 <div class="pet-cage" aria-hidden="true">
@@ -212,8 +210,8 @@
     </div>
 
     <dialog id="pet-care-shop" class="pet-care-shop" aria-labelledby="pet-shop-title">
-        <div class="care-shop-heading"><div><p id="pet-shop-desc">食物、玩具和配件都在這裡</p><h2 id="pet-shop-title">背包</h2></div><button data-shop-close type="button" aria-label="關閉背包">×</button></div>
-        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button><button data-shop-kind="costume" type="button" aria-pressed="false">配件</button></div>
+        <div class="care-shop-heading"><div><p id="pet-shop-desc">食物、玩具和徽章都在這裡</p><h2 id="pet-shop-title">背包</h2></div><span id="pet-shop-tickets-wrap">抽獎卷 <b id="pet-shop-tickets">0</b></span><button data-shop-close type="button" aria-label="關閉背包">×</button></div>
+        <div class="care-shop-kinds"><button data-shop-kind="food" type="button" aria-pressed="true">食物</button><button data-shop-kind="toy" type="button" aria-pressed="false">玩具</button><button data-shop-kind="costume" type="button" aria-pressed="false">徽章</button></div>
         <div data-shop-content></div>
     </dialog>
 
@@ -315,14 +313,16 @@
         <div class="gacha-wallet">
           <span class="gacha-wallet-label">金幣</span>
           <strong class="gacha-wallet-points"><span id="gacha-user-points">0</span></strong>
-          <span class="gacha-wallet-hint" id="gacha-points-hint">第 1 名 +50 · 第 2 名 +30 · 其他 +20</span>
+          <span class="gacha-wallet-sep">·</span>
+          <span class="gacha-wallet-label">抽獎卷</span>
+          <strong class="gacha-wallet-points"><span id="gacha-user-tickets">0</span></strong>
+          <span class="gacha-wallet-hint" id="gacha-points-hint">每場聚會 +1 抽獎卷 · 高分名次金幣加成</span>
         </div>
 
-        <!-- Tabs: draw / supplies / wardrobe -->
+        <!-- Tabs: draw / supplies -->
         <div class="gacha-tabs">
           <button class="gacha-tab active" data-gacha-tab="draw" type="button">抽扭蛋</button>
           <button class="gacha-tab" data-gacha-tab="supplies" type="button">補給品</button>
-          <button class="gacha-tab" data-gacha-tab="wardrobe" type="button">衣櫃</button>
         </div>
 
         <!-- Draw Panel -->
@@ -338,6 +338,9 @@
             <span class="rarity-badge common">普通 70%</span>
             <span class="rarity-badge rare">稀有 25%</span>
             <span class="rarity-badge treasure">珍藏 5%</span>
+          </div>
+          <div class="gacha-pity-info" id="gacha-pity-info">
+            <span>珍藏保底</span><span id="gacha-pity-counter">0</span><span>/ 40 抽</span>
           </div>
           <!-- Collection preview -->
           <div class="gacha-collection-wrap">
@@ -357,19 +360,19 @@
             </div>
             <div class="gacha-reveal-items" id="gacha-reveal-items"></div>
             <div class="gacha-reveal-cta" id="gacha-reveal-cta" hidden>
-              <button class="gacha-cta-equip" id="btn-gacha-equip-now" type="button">立即穿戴</button>
-              <button class="gacha-cta-bag" id="btn-gacha-keep-bag" type="button">保留到背包</button>
+              <button class="gacha-cta-equip" id="btn-gacha-equip-now" type="button">去背包穿戴</button>
+              <button class="gacha-cta-bag" id="btn-gacha-keep-bag" type="button">知道了</button>
             </div>
           </div>
           <!-- Draw buttons -->
           <div class="gacha-draw-btns">
             <button class="gacha-draw-btn single" id="btn-gacha-draw-1" type="button">
               <span class="gacha-draw-label">抽一次</span>
-              <span class="gacha-draw-cost">50 金幣</span>
+              <span class="gacha-draw-cost" id="gacha-single-cost-label">30 金幣</span>
             </button>
             <button class="gacha-draw-btn triple" id="btn-gacha-draw-3" type="button">
               <span class="gacha-draw-label">抽三次</span>
-              <span class="gacha-draw-cost">120 金幣 <em>省 30</em></span>
+              <span class="gacha-draw-cost">80 金幣 <em>省 10</em></span>
             </button>
           </div>
           <!-- Progress hint -->
@@ -383,23 +386,6 @@
           <div id="gacha-supplies-cards"></div>
           <div id="gacha-supplies-result" class="gacha-supplies-result" hidden></div>
           <p class="gacha-status" id="gacha-supplies-status" role="status" aria-live="polite"></p>
-        </div>
-
-        <!-- Wardrobe Panel -->
-        <div class="gacha-panel" id="gacha-panel-wardrobe" hidden>
-          <div class="gacha-wardrobe-equipped" id="gacha-equipped-slots">
-            <!-- Equipped slots rendered by JS -->
-          </div>
-          <div class="gacha-wardrobe-label">裝飾配件</div>
-          <div class="gacha-wardrobe-grid" id="gacha-wardrobe-grid">
-            <!-- Items rendered by JS -->
-          </div>
-          <div class="gacha-care-section" id="gacha-wardrobe-care-section" hidden>
-            <div class="gacha-care-section-label">背包物品</div>
-            <div class="gacha-care-list"></div>
-          </div>
-          <p class="gacha-status" id="gacha-wardrobe-status" role="status" aria-live="polite"></p>
-          <button class="gacha-done-btn" id="btn-gacha-done" type="button">裝飾完畢，回去看看牠</button>
         </div>
 
         <!-- Debug: add points button (local dev only) -->

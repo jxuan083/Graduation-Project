@@ -41,6 +41,7 @@ class EconomyTests(unittest.TestCase):
 
     def test_food_consumes_a_portion_and_toys_remain_owned(self):
         from pet_care import use_inventory_item
+        # Legacy list format is migrated automatically
         data = {'pet_food_inventory': {'heart_biscuit': 1}, 'pet_owned_toys': ['star_plush']}
         item, result = use_inventory_item(data, 'feed', 'heart_biscuit')
         self.assertEqual(result['pet_food_inventory']['heart_biscuit'], 0)
@@ -48,7 +49,9 @@ class EconomyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             use_inventory_item(result, 'feed', 'heart_biscuit')
         _, result = use_inventory_item(data, 'play', 'star_plush')
+        # pet_owned_toys is now a dict; 'in' checks keys
         self.assertIn('star_plush', result['pet_owned_toys'])
+        self.assertIsInstance(result['pet_owned_toys'], dict)
         with self.assertRaises(ValueError):
             use_inventory_item(data, 'play', 'flying_disc')
         with self.assertRaises(ValueError):
@@ -63,12 +66,40 @@ class EconomyTests(unittest.TestCase):
         self.assertEqual(food['pet_food_inventory']['heart_biscuit'], 3)
         toy, outcome = apply_inventory_draw({'pet_coins': 90}, item_by_id('star_plush'))
         self.assertEqual(toy['pet_coins'], 30)
+        self.assertFalse(outcome['duplicate'])
+        self.assertEqual(toy['pet_owned_toys']['star_plush'], 1)
+        # Second draw of same toy increments count, no refund
         duplicate, outcome = apply_inventory_draw({**toy, 'pet_coins': 90}, item_by_id('star_plush'))
-        self.assertEqual(duplicate['pet_coins'], 50)
+        self.assertEqual(duplicate['pet_coins'], 30)  # 90 - 60, no refund
         self.assertTrue(outcome['duplicate'])
-        self.assertEqual(outcome['refund'], 20)
+        self.assertEqual(outcome['refund'], 0)
+        self.assertEqual(duplicate['pet_owned_toys']['star_plush'], 2)
         with self.assertRaises(ValueError):
             apply_inventory_draw({'pet_coins': 59}, item_by_id('star_plush'))
+
+    def test_exchange_toy_duplicates_for_tickets(self):
+        from pet_care import exchange_toy_duplicates_for_tickets
+        toys = {'star_plush': 4, 'flying_disc': 7, 'cloth_ball': 1}
+        # star_plush: 4-1=3 extra → 1 set available; flying_disc: 7-1=6 extra → 2 sets
+        new_toys, tickets = exchange_toy_duplicates_for_tickets(toys, [
+            {'item_id': 'star_plush', 'exchange_sets': 1},
+            {'item_id': 'flying_disc', 'exchange_sets': 2},
+        ])
+        self.assertEqual(tickets, 3)
+        self.assertEqual(new_toys['star_plush'], 1)   # 4 - 1*3 = 1
+        self.assertEqual(new_toys['flying_disc'], 1)  # 7 - 2*3 = 1
+        self.assertEqual(new_toys['cloth_ball'], 1)   # unchanged
+        with self.assertRaises(ValueError):  # zero sets invalid
+            exchange_toy_duplicates_for_tickets(toys, [{'item_id': 'star_plush', 'exchange_sets': 2}])
+        with self.assertRaises(ValueError):  # unknown toy
+            exchange_toy_duplicates_for_tickets(toys, [{'item_id': 'fake_item', 'exchange_sets': 1}])
+
+    def test_toy_inventory_normalizes_legacy_list(self):
+        from pet_care import _normalize_toy_inventory
+        self.assertEqual(_normalize_toy_inventory(['star_plush', 'knot_rope']), {'star_plush': 1, 'knot_rope': 1})
+        self.assertEqual(_normalize_toy_inventory({'star_plush': 3}), {'star_plush': 3})
+        self.assertEqual(_normalize_toy_inventory(None), {})
+        self.assertEqual(_normalize_toy_inventory(['fake']), {})
 
     def test_paid_toy_pool_never_includes_free_starter(self):
         from pet_care import draw_inventory_item

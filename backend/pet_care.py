@@ -54,6 +54,17 @@ CARE_ITEMS = [
 CARE_BY_ID = {item["id"]: item for item in CARE_ITEMS}
 
 
+def _normalize_toy_inventory(raw) -> dict:
+    """Normalize pet_owned_toys to {toy_id: count}; migrates old list format."""
+    if isinstance(raw, dict):
+        return {k: max(1, int(v)) for k, v in raw.items()
+                if k in CARE_BY_ID and CARE_BY_ID[k]['kind'] == 'toy' and int(v or 0) > 0}
+    elif isinstance(raw, list):
+        return {item_id: 1 for item_id in raw
+                if item_id in CARE_BY_ID and CARE_BY_ID[item_id]['kind'] == 'toy'}
+    return {}
+
+
 def public_item(item):
     if not item:
         return None
@@ -69,7 +80,6 @@ def item_by_id(item_id):
 def care_catalog():
     return {"version": 2, "mode": "inventory",
             "prices": DRAW_PRICES, "food_portions": FOOD_DRAW_PORTIONS,
-            "toy_duplicate_refund": TOY_DUPLICATE_REFUND,
             "base_food": BASE_FOOD, "base_toy": BASE_TOY,
             "coin_rules": {"min_minutes": 10, "min_members": 2},
             "rarities": [{"id": key, **meta, "probability": meta["weight"] / 10000}
@@ -103,7 +113,6 @@ def discovered_items(data):
 
 DRAW_PRICES = {"food": 30, "toy": 60}
 FOOD_DRAW_PORTIONS = 3
-TOY_DUPLICATE_REFUND = 20
 BASE_FOOD = "oat_biscuit"
 BASE_TOY = "cloth_ball"
 
@@ -111,8 +120,9 @@ BASE_TOY = "cloth_ball"
 def economy_payload(data):
     food = {key: min(9999, max(0, int(value))) for key, value in (data.get('pet_food_inventory') or {}).items()
             if key in CARE_BY_ID and CARE_BY_ID[key]['kind'] == 'food' and int(value) > 0}
-    toys = sorted({BASE_TOY} | {key for key in (data.get('pet_owned_toys') or [])
-                              if key in CARE_BY_ID and CARE_BY_ID[key]['kind'] == 'toy'})
+    toys = _normalize_toy_inventory(data.get('pet_owned_toys'))
+    if BASE_TOY not in toys:
+        toys[BASE_TOY] = 1
     return {'pet_coins': max(0, int(data.get('pet_coins', 0) or 0)),
             'pet_food_inventory': food, 'pet_owned_toys': toys}
 
@@ -136,35 +146,42 @@ def apply_inventory_draw(data, item):
     if economy['pet_coins'] < cost:
         raise ValueError('insufficient_coins')
     economy['pet_coins'] -= cost
-    duplicate = item['kind'] == 'toy' and item['id'] in economy['pet_owned_toys']
     if item['kind'] == 'food':
         food = economy['pet_food_inventory']
         if food.get(item['id'], 0) > 9999 - FOOD_DRAW_PORTIONS:
             raise ValueError('inventory_full')
         food[item['id']] = food.get(item['id'], 0) + FOOD_DRAW_PORTIONS
-    elif duplicate:
-        economy['pet_coins'] += TOY_DUPLICATE_REFUND
+        duplicate = False
+        new_count = None
     else:
-        economy['pet_owned_toys'] = sorted(set(economy['pet_owned_toys']) | {item['id']})
-    return economy, {'duplicate': duplicate, 'refund': TOY_DUPLICATE_REFUND if duplicate else 0,
+        toys = economy['pet_owned_toys']
+        duplicate = item['id'] in toys
+        new_count = toys.get(item['id'], 0) + 1
+        toys[item['id']] = new_count
+    return economy, {'duplicate': duplicate, 'refund': 0,
+                     'toy_count': new_count,
                      'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': cost}
 
 
 def apply_inventory_only(data, item):
     """Update group inventory only; coin deduction is handled by the caller."""
     economy = economy_payload(data)
-    cost = DRAW_PRICES[item['kind']]
-    duplicate = item['kind'] == 'toy' and item['id'] in economy['pet_owned_toys']
     if item['kind'] == 'food':
         food = economy['pet_food_inventory']
         if food.get(item['id'], 0) > 9999 - FOOD_DRAW_PORTIONS:
             raise ValueError('inventory_full')
         food[item['id']] = food.get(item['id'], 0) + FOOD_DRAW_PORTIONS
-    elif not duplicate:
-        economy['pet_owned_toys'] = sorted(set(economy['pet_owned_toys']) | {item['id']})
+        duplicate = False
+        new_count = None
+    else:
+        toys = economy['pet_owned_toys']
+        duplicate = item['id'] in toys
+        new_count = toys.get(item['id'], 0) + 1
+        toys[item['id']] = new_count
     inventory = {'pet_food_inventory': economy['pet_food_inventory'], 'pet_owned_toys': economy['pet_owned_toys']}
-    return inventory, {'duplicate': duplicate, 'refund': TOY_DUPLICATE_REFUND if duplicate else 0,
-                       'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': cost}
+    return inventory, {'duplicate': duplicate, 'refund': 0,
+                       'toy_count': new_count,
+                       'quantity': FOOD_DRAW_PORTIONS if item['kind'] == 'food' else 1, 'cost': DRAW_PRICES[item['kind']]}
 
 
 def use_inventory_item(data, action, item_id=None):
@@ -182,6 +199,33 @@ def use_inventory_item(data, action, item_id=None):
             raise ValueError('item_not_owned')
         if quantity:
             economy['pet_food_inventory'][item['id']] = quantity - 1
-    elif item['id'] not in economy['pet_owned_toys']:
-        raise ValueError('item_not_owned')
+    else:  # toy
+        quantity = economy['pet_owned_toys'].get(item['id'], 0)
+        if item['id'] != BASE_TOY and quantity < 1:
+            raise ValueError('item_not_owned')
+        # Non-base toys are consumed on use; base toy (cloth_ball) is unlimited
+        if item['id'] != BASE_TOY:
+            new_qty = quantity - 1
+            if new_qty <= 0:
+                del economy['pet_owned_toys'][item['id']]
+            else:
+                economy['pet_owned_toys'][item['id']] = new_qty
     return item, economy
+
+
+def exchange_toy_duplicates_for_tickets(toys: dict, exchange_items: list) -> tuple:
+    """Exchange toy duplicates for tickets: every 3 copies → 1 ticket."""
+    result = dict(toys)
+    total = 0
+    for entry in exchange_items:
+        item_id = str(entry.get("item_id", ""))
+        sets = int(entry.get("exchange_sets", 0))
+        if item_id not in CARE_BY_ID or CARE_BY_ID[item_id]['kind'] != 'toy':
+            raise ValueError(f"unknown_toy:{item_id}")
+        current = result.get(item_id, 0)
+        available_sets = max(0, current // 3)
+        if sets < 1 or sets > available_sets:
+            raise ValueError(f"invalid_sets:{item_id}:{sets}:{available_sets}")
+        result[item_id] = current - sets * 3
+        total += sets
+    return result, total

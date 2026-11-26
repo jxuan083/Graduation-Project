@@ -1,9 +1,8 @@
 """
 寵物扭蛋系統 — 服裝與裝飾道具目錄及抽取邏輯（純函式，無 I/O）
 
-金幣（ranking_gacha_points）由聚會 finalize 依排名發放：
-  - 第一名：50 幣；第二名：30 幣；其餘：20 幣；未計分（教師）：0 幣。
-單抽 50 幣，三連抽 120 幣（省 30）。重複珍藏退 10 幣。
+金幣（ranking_gacha_points）由聚會 finalize 依排名發放（含專注度倍率）。
+單抽 30 幣（有票免費），三連抽 80 幣。每 40 抽必出珍藏（硬保底）。
 """
 from __future__ import annotations
 
@@ -15,9 +14,9 @@ RARITIES = {
     "treasure": {"label": "珍藏", "level": 3, "weight": 500},
 }
 
-DRAW_COST_SINGLE = 50
-DRAW_COST_TRIPLE = 120
-DUPLICATE_REFUND = {"common": 0, "rare": 0, "treasure": 10}
+DRAW_COST_SINGLE = 30   # was 50
+DRAW_COST_TRIPLE = 80   # was 120
+PITY_HARD = 40          # new: hard pity counter
 
 # ── 目錄 ─────────────────────────────────────────────────────────────────────
 
@@ -110,6 +109,24 @@ GACHA_ITEMS = [
 GACHA_BY_ID = {item["id"]: item for item in GACHA_ITEMS}
 
 
+def _normalize_wardrobe(raw) -> dict:
+    """Migrate old list format or handle new dict format.  Returns {item_id: count}."""
+    if isinstance(raw, dict):
+        return {k: max(1, int(v)) for k, v in raw.items() if k in GACHA_BY_ID and int(v or 0) > 0}
+    elif isinstance(raw, list):
+        return {item_id: 1 for item_id in raw if item_id in GACHA_BY_ID}
+    return {}
+
+
+def draw_gacha_item_forced_rarity(rarity: str, randbelow=None) -> dict:
+    """Force-draw an item of the given rarity (used for pity)."""
+    candidates = [item for item in GACHA_ITEMS if item["rarity"] == rarity]
+    if not candidates:
+        raise ValueError(f"no items with rarity: {rarity}")
+    roll = (randbelow or secrets.randbelow)(len(candidates))
+    return public_item(candidates[roll])
+
+
 # ── 公開輔助 ─────────────────────────────────────────────────────────────────
 
 def public_item(item: dict | None) -> dict | None:
@@ -121,14 +138,14 @@ def public_item(item: dict | None) -> dict | None:
 
 
 def gacha_catalog() -> dict:
-    """回傳完整扭蛋目錄（前端展示用）。"""
     return {
-        "version": 1,
+        "version": 2,
         "draw_costs": {
             "single": DRAW_COST_SINGLE,
             "triple": DRAW_COST_TRIPLE,
+            "ticket_single": True,
         },
-        "duplicate_refund": DUPLICATE_REFUND,
+        "pity": {"hard": PITY_HARD, "rarity": "treasure"},
         "rarities": [
             {"id": key, **meta, "probability": meta["weight"] / 10000}
             for key, meta in RARITIES.items()
@@ -159,51 +176,46 @@ def apply_gacha_draw(
     user_data: dict,
     item: dict,
     draw_cost: int,
+    pity_count: int = 0,
 ) -> tuple[dict, dict, dict]:
-    """
-    執行一次扭蛋抽取邏輯（純函式）。
-
-    Parameters
-    ----------
-    group_data : groups/{group_id} Firestore 文件 dict
-    user_data  : users/{uid}       Firestore 文件 dict
-    item       : draw_gacha_item() 回傳的 public_item dict
-    draw_cost  : 本次扣除點數（DRAW_COST_SINGLE 或 DRAW_COST_TRIPLE / 3）
-
-    Returns
-    -------
-    wardrobe_update : dict  → 寫入 group_data 的欄位（pet_wardrobe）
-    points_update   : dict  → 寫入 user_data 的欄位（ranking_gacha_points）
-    outcome         : dict  → 給前端的結果說明
-    """
     current_points = int(user_data.get("ranking_gacha_points") or 0)
-    if current_points < draw_cost:
+    user_tickets = int(user_data.get("gacha_tickets") or 0)
+    using_ticket = draw_cost == 0
+
+    if not using_ticket and current_points < draw_cost:
         raise ValueError("insufficient_points")
 
-    wardrobe: list[str] = list(group_data.get("pet_wardrobe") or [])
+    wardrobe = _normalize_wardrobe(group_data.get("pet_wardrobe"))
     duplicate = item["id"] in wardrobe
-    refund = DUPLICATE_REFUND.get(item["rarity"], 0) if duplicate else 0
 
-    new_points = current_points - draw_cost + refund
+    new_points = current_points - draw_cost
+    new_pity = 0 if item["rarity"] == "treasure" else pity_count + 1
 
-    if not duplicate:
-        wardrobe = sorted(set(wardrobe) | {item["id"]})
+    if duplicate:
+        wardrobe[item["id"]] = wardrobe[item["id"]] + 1
+    else:
+        wardrobe[item["id"]] = 1
 
-    wardrobe_update = {"pet_wardrobe": wardrobe}
-    points_update   = {"ranking_gacha_points": new_points}
+    wardrobe_update = {"pet_wardrobe": wardrobe, "pet_gacha_pity": new_pity}
+    points_update = {"ranking_gacha_points": new_points}
+    if using_ticket:
+        points_update["gacha_tickets"] = max(0, user_tickets - 1)
+
     outcome = {
         "duplicate": duplicate,
-        "refund": refund,
+        "refund": 0,
         "cost": draw_cost,
+        "used_ticket": using_ticket,
+        "pity_triggered": pity_count >= PITY_HARD,
     }
     return wardrobe_update, points_update, outcome
 
 
 def wardrobe_items(group_data: dict) -> list[dict]:
-    """回傳群組衣櫥中所有道具的完整 public_item dict 列表。"""
+    wardrobe = _normalize_wardrobe(group_data.get("pet_wardrobe"))
     return [
-        public_item(GACHA_BY_ID[item_id])
-        for item_id in (group_data.get("pet_wardrobe") or [])
+        {**public_item(GACHA_BY_ID[item_id]), "count": count}
+        for item_id, count in wardrobe.items()
         if item_id in GACHA_BY_ID
     ]
 
@@ -219,3 +231,27 @@ def equipped_items(group_data: dict) -> dict:
         if item_id and item_id in GACHA_BY_ID:
             result[slot] = public_item(GACHA_BY_ID[item_id])
     return result
+
+
+def exchange_duplicates_for_tickets(wardrobe: dict, exchange_items: list[dict]) -> tuple[dict, int]:
+    """
+    Deduct duplicates and return (new_wardrobe, total_tickets).
+    exchange_items: list of {"item_id": str, "exchange_sets": int}
+    Each set costs 3 copies (every 3 total = 1 ticket, no keep-1 requirement).
+    """
+    new_wardrobe = dict(wardrobe)
+    total_tickets = 0
+    for entry in exchange_items:
+        item_id = entry.get("item_id")
+        exchange_sets = int(entry.get("exchange_sets", 0))
+        if not item_id or item_id not in new_wardrobe or exchange_sets <= 0:
+            continue
+        count = new_wardrobe[item_id]
+        needed = exchange_sets * 3
+        if count < needed:
+            raise ValueError(f"not_enough_duplicates:{item_id}")
+        new_wardrobe[item_id] = count - needed
+        if new_wardrobe[item_id] == 0:
+            del new_wardrobe[item_id]
+        total_tickets += exchange_sets
+    return new_wardrobe, total_tickets
