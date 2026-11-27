@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=121';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=122';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -2133,9 +2133,8 @@ async function drawGacha(count) {
               }).then(async r => ({ res: r, data: await r.json().catch(() => null) }))
             : await apiFetch('/api/users/gacha/draw', { method: 'POST', body: drawBody });
 
-        // 伺服器明確拒絕（例如群組券剛被別人用完、金幣不足）：顯示原因並更新餘額，不顯示抽獎結果
+        // 伺服器明確拒絕（例如群組券剛被別人用完、金幣不足）：同步最新餘額再顯示原因
         if (!res.ok && res.status >= 400 && res.status < 500) {
-            if (statusEl) statusEl.textContent = readApiError(data, '抽取失敗，請再試一次');
             try {
                 const { res: cr, data: cd } = await gachaFetch(`/api/users/gacha/catalog?group_id=${_groupId}`);
                 if (cr.ok && cd) {
@@ -2143,6 +2142,13 @@ async function drawGacha(count) {
                     _gachaGroupTickets = cd.group_gacha_tickets ?? _gachaGroupTickets;
                 }
             } catch { /* 保留目前顯示 */ }
+            const serverMsg = readApiError(data, '');
+            const ticketsNow = _gachaGroupTickets;
+            let errMsg = serverMsg || t('抽取失敗，請再試一次');
+            if (res.status === 409 && ticketsNow === 0 && usingTicket) {
+                errMsg = t('抽獎卷已被其他成員使用，目前餘額 0 張');
+            }
+            if (statusEl) statusEl.textContent = errMsg;
             document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
             updateGachaBtnCoins();
             updateDrawBtnLabels();
@@ -2187,23 +2193,7 @@ async function drawGacha(count) {
         const newCount = items.filter(i => !i.duplicate).length;
         if (statusEl) statusEl.textContent = newCount > 0 ? `獲得 ${newCount} 個新徽章！` : '全為已收集徽章。';
     } catch (err) {
-        _gachaUserPoints  = Math.max(0, _gachaUserPoints - cost);
-        _gachaGroupTickets = Math.max(0, _gachaGroupTickets - usedGroup);
-        const items = Array.from({ length: count }, () => {
-            const item = gachaPickItem(GACHA_LOCAL_CATALOG);
-            const duplicate = !!_gachaWardrobe.find(w => w.id === item.id);
-            if (!duplicate) _gachaWardrobe = [..._gachaWardrobe, item];
-            return { ...item, duplicate, refund: 0 };
-        });
-        document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
-        updateGachaBtnCoins();
-        updateDrawBtnLabels();
-        renderGachaReveal(items);
-        renderGachaWardrobe(_gachaWardrobe, _gachaEquipped);
-        updateCostumeOverlays(_gachaEquipped);
-        syncCareCollection();
-        const newCount = items.filter(i => !i.duplicate).length;
-        if (statusEl) statusEl.textContent = newCount > 0 ? `獲得 ${newCount} 個新徽章！` : '全為已收集徽章。';
+        if (statusEl) statusEl.textContent = t('網路錯誤，請重試');
     } finally {
         _gachaDrawBusy = false;
         if (btn1) btn1.disabled = false;

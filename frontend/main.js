@@ -71,12 +71,12 @@ const VIEW_MODULES = {
     'meeting-setup':     () => import('./views/meeting-setup/meeting-setup.js?v=93'),
     'groups':            () => import('./views/groups/groups.js?v=93'),
     'group':             () => import('./views/group/group.js?v=93'),
-    'group-setup':       () => import('./views/group-setup/group-setup.js?v=93'),
+    'group-setup':       () => import('./views/group-setup/group-setup.js?v=94'),
     'group-invite':      () => import('./views/group-invite/group-invite.js?v=93'),
     'group-chat':        () => import('./views/group-chat/group-chat.js?v=94'),
     'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=93'),
     'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=93'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=121'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=122'),
 };
 
 async function loadAllViewHtml() {

@@ -3687,6 +3687,13 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
                          GROUP_TICKETS_FIELD: group_tickets_after}
         tx.update(group_ref, group_updates)
         tx.set(user_ref, {"ranking_gacha_points": new_points}, merge=True)
+        if using_ticket:
+            actor_name = u_data.get("nickname") or uid
+            _stage_group_system_message(
+                tx, group_ref,
+                f"{actor_name} 用了 1 張群組抽獎卷抽扭蛋 🎰（剩餘 {group_tickets_after} 張）",
+                kind="gacha_draw", actor_uid=uid,
+            )
 
         result = {
             "status": "success",
