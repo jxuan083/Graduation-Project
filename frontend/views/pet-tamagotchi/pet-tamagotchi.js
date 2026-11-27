@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=117';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=119';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -1486,17 +1486,17 @@ function renderGachaSupplies() {
     const toyInventory = (_groupPet?.pet_owned_toys) || {};
     const totalToys = Object.values(toyInventory).reduce((s, n) => s + Number(n || 0), 0);
 
-    // 兌換群組抽獎券按鈕：同款玩具保留 1 件，多出的每 3 件換 1 張（滿 4 件才出現）
+    // 兌換按鈕：同款玩具每 3 件換 1 張抽獎卷
     const toyExchangeItems = (_careCatalog.items || [])
         .filter(i => i.kind === 'toy')
-        .map(i => ({ item_id: i.id, count: Number(toyInventory[i.id] || 0), exchange_sets: exchangeableSets(toyInventory[i.id]) }))
+        .map(i => ({ item_id: i.id, count: Number(toyInventory[i.id] || 0), exchange_sets: exchangeableSets(Number(toyInventory[i.id] || 0)) }))
         .filter(e => e.exchange_sets > 0);
     const totalExchangeTickets = toyExchangeItems.reduce((s, e) => s + e.exchange_sets, 0);
     if (totalExchangeTickets > 0) {
         const exBtn = document.createElement('button');
         exBtn.type = 'button';
         exBtn.className = 'care-exchange-btn';
-        exBtn.innerHTML = `<span>🎟 ${escHtml(t('兌換群組抽獎券'))}</span><b>${escHtml(t('可換 {n} 張', {n: totalExchangeTickets}))}</b>`;
+        exBtn.innerHTML = `<span>🎟 ${escHtml(t('兌換抽獎卷'))}</span><b>${escHtml(t('可換 {n} 張', {n: totalExchangeTickets}))}</b>`;
         exBtn.disabled = _drawBusy;
         exBtn.onclick = async () => {
             exBtn.disabled = true;
@@ -1544,7 +1544,7 @@ let _gachaWardrobe = [];
 let _gachaEquipped = {};
 let _gachaUserPoints = 0;
 let _gachaUserTickets = 0;
-let _gachaGroupTickets = 0;   // 群組共用抽獎券（用群組道具換來的，所有成員都能用）
+let _gachaGroupTickets = 0;
 let _gachaPityCount = 0;
 let _pendingGachaOpen = false;
 let _gachaWardrobeLoaded = false;
@@ -2122,15 +2122,10 @@ function chooseTicketSource() {
 async function drawGacha(count) {
     if (_gachaDrawBusy || !_groupId) return;
 
-    // 單抽：有券就用券（個人券、群組券都有時讓使用者選），沒有券扣 30 金幣；三連抽 80 金幣
+    // 單抽：有券就用券，沒有券扣 30 金幣；三連抽 80 金幣
     let ticketSource = null;
     if (count === 1) {
-        if (_gachaUserTickets > 0 && _gachaGroupTickets > 0) {
-            _gachaDrawBusy = true;
-            try { ticketSource = await chooseTicketSource(); } finally { _gachaDrawBusy = false; }
-            if (!ticketSource) return;
-        } else if (_gachaUserTickets > 0) ticketSource = 'personal';
-        else if (_gachaGroupTickets > 0) ticketSource = 'group';
+        ticketSource = _gachaUserTickets > 0 ? 'personal' : null;
     }
     const usingTicket = Boolean(ticketSource);
     const usedPersonal = ticketSource === 'personal' ? 1 : 0;

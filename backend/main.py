@@ -3593,7 +3593,7 @@ async def get_gacha_catalog(
                 g_data = g_snap.to_dict() or {}
                 result["wardrobe"] = _wardrobe_items(g_data)
                 result["pet_equipped"] = _equipped_items(g_data)
-                result["group_gacha_tickets"] = int(g_data.get(GROUP_TICKETS_FIELD) or 0)
+                result["group_gacha_tickets"] = 0
         except Exception as e:
             print(f"[gacha catalog] group fetch error: {e}")
 
@@ -3632,28 +3632,17 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
         u_data = u_snap.to_dict() or {} if u_snap.exists else {}
         current_points  = int(u_data.get("ranking_gacha_points") or 0)
         current_tickets = int(u_data.get("gacha_tickets") or 0)
-        group_tickets   = int(g_data.get(GROUP_TICKETS_FIELD) or 0)
         ticket_source   = None
 
         if payload.count == 1:
-            if payload.ticket_source == "group" and group_tickets <= 0:
-                raise HTTPException(status_code=409, detail="群組抽獎券已經用完了")
-            if payload.ticket_source == "personal" and current_tickets <= 0:
-                raise HTTPException(status_code=409, detail="你沒有個人抽獎券")
-            ticket_source = payload.ticket_source or (
-                "personal" if current_tickets > 0 else "group" if group_tickets > 0 else None)
-            if ticket_source == "personal":
-                using_ticket   = True
-                draw_cost      = 0
-                tickets_after  = current_tickets - 1
-            elif ticket_source == "group":
-                using_ticket   = True
-                draw_cost      = 0
-                tickets_after  = current_tickets
-                group_tickets -= 1
+            if current_tickets > 0:
+                using_ticket  = True
+                draw_cost     = 0
+                tickets_after = current_tickets - 1
+                ticket_source = "personal"
             else:
-                using_ticket   = False
-                draw_cost      = DRAW_COST_SINGLE
+                using_ticket  = False
+                draw_cost     = DRAW_COST_SINGLE
                 if current_points < draw_cost:
                     raise HTTPException(
                         status_code=409,
@@ -3695,13 +3684,6 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
             items_drawn.append(item)
 
         group_updates = {"pet_wardrobe": wardrobe, "pet_gacha_pity": pity}
-        if ticket_source == "group":
-            group_updates[GROUP_TICKETS_FIELD] = group_tickets
-            _stage_group_system_message(
-                tx, group_ref,
-                f"🎰 {_actor_nickname(u_data, decoded)} 用 1 張群組抽獎券抽到了「{items_drawn[0]['name']}」",
-                kind="gacha_group_ticket_draw", actor_uid=uid,
-            )
         tx.update(group_ref, group_updates)
         tx.set(user_ref, {
             "ranking_gacha_points": new_points,
@@ -3717,7 +3699,7 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
             "ranking_gacha_points_remaining": new_points,
             "points_remaining": new_points,
             "gacha_tickets": tickets_after,
-            "group_gacha_tickets": group_tickets,
+            "group_gacha_tickets": 0,
             "ticket_source": ticket_source,
             "wardrobe_size": len(wardrobe),
             "refund_points": 0,
@@ -3919,31 +3901,22 @@ async def gacha_exchange_duplicates(payload: ExchangeDuplicatesPayload, decoded:
 
         u_snap = user_ref.get(transaction=tx)
         u_data = u_snap.to_dict() or {} if u_snap.exists else {}
-        new_group_tickets = int(g_data.get(GROUP_TICKETS_FIELD) or 0) + total_tickets
+        new_personal_tickets = int(u_data.get("gacha_tickets") or 0) + total_tickets
 
-        group_updates: dict = {GROUP_TICKETS_FIELD: new_group_tickets}
+        group_updates: dict = {}
         if payload.items:
             group_updates["pet_wardrobe"] = new_wardrobe
         if payload.toy_items:
             group_updates["pet_owned_toys"] = new_toys
-        tx.update(group_ref, group_updates)
-
-        from pet_gacha import GACHA_BY_ID
-        used = (_exchange_notice_parts(wardrobe, new_wardrobe,
-                                       lambda iid: GACHA_BY_ID[iid]["name"] if iid in GACHA_BY_ID else iid)
-                + _exchange_notice_parts(toys, new_toys,
-                                         lambda iid: (item_by_id(iid) or {}).get("name", iid)))
-        _stage_group_system_message(
-            tx, group_ref,
-            f"🎟 {_actor_nickname(u_data, decoded)} 用 {'、'.join(used)}換了 {total_tickets} 張群組抽獎券",
-            kind="gacha_exchange", actor_uid=uid,
-        )
+        if group_updates:
+            tx.update(group_ref, group_updates)
+        tx.set(user_ref, {"gacha_tickets": new_personal_tickets}, merge=True)
 
         result = {
             "status": "success",
             "tickets_earned": total_tickets,
-            "gacha_tickets": int(u_data.get("gacha_tickets") or 0),
-            "group_gacha_tickets": new_group_tickets,
+            "gacha_tickets": new_personal_tickets,
+            "group_gacha_tickets": 0,
             "wardrobe": [
                 {**_gacha_public_item(GACHA_BY_ID[iid]), "count": cnt}
                 for iid, cnt in new_wardrobe.items()

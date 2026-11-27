@@ -38,14 +38,13 @@ function effectsHtml(item) {
     });
     return `<div class="care-item-effects">${parts.join('')}</div>`;
 }
-// 重複道具換群組抽獎券：同款永遠保留 1 件，多出的每 3 件換 1 張（與後端 pet_gacha.exchangeable_sets 一致）
+// 每 3 件同款 = 1 張抽獎卷（count/3，無 keep-1 保留）
 export function exchangeableSets(count) {
-    return Math.max(0, Math.floor((Number(count || 0) - 1) / 3));
+    return Math.max(0, Math.floor(Number(count || 0) / 3));
 }
 export function formatTickets(tickets) {
     if (tickets && typeof tickets === 'object') {
-        const personal = Number(tickets.personal || 0), group = Number(tickets.group || 0);
-        return group > 0 ? t('個人 {p} · 群組 {g}', {p: personal, g: group}) : String(personal);
+        return String(Number(tickets.personal || 0));
     }
     return String(tickets ?? 0);
 }
@@ -119,7 +118,7 @@ export class CareCollection {
                 const exchangeAllBtn = document.createElement('button');
                 exchangeAllBtn.type = 'button';
                 exchangeAllBtn.className = 'btn primary care-exchange-all-btn';
-                exchangeAllBtn.textContent = t('一鍵兌換全部重複（+{n} 張群組抽獎券，每款保留 1 件）', {n: totalExchangeable});
+                exchangeAllBtn.textContent = t('一鍵兌換全部重複 +{n} 張抽獎卷', {n: totalExchangeable});
                 exchangeAllBtn.onclick = () => this.onExchangeAll?.('gacha');
                 content.append(exchangeAllBtn);
             }
@@ -133,7 +132,7 @@ export class CareCollection {
                 const count = item.count || 1;
                 const countBadge = count > 1 ? `<span class="care-count-badge">×${count}</span>` : '';
                 const exchangeSets = exchangeableSets(count);
-                const exchangeBadge = exchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張群組抽獎券', {n: exchangeSets}))}</span>` : '';
+                const exchangeBadge = exchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張抽獎卷', {n: exchangeSets}))}</span>` : '';
                 const slotLabel = item.slot === 'head' ? '頭部' : item.slot === 'neck' ? '頸部' : item.slot === 'body' ? '身體' : '特效';
                 const buffHtml = item.buff
                     ? `<div class="care-item-buff">✨ 啟用：${escape(buffDescription(item.buff))}</div>`
@@ -174,7 +173,7 @@ export class CareCollection {
                     const exchangeAllBtn = document.createElement('button');
                     exchangeAllBtn.type = 'button';
                     exchangeAllBtn.className = 'btn primary care-exchange-all-btn';
-                    exchangeAllBtn.textContent = t('一鍵兌換全部重複（+{n} 張群組抽獎券，每款保留 1 件）', {n: totalToyExchangeable});
+                    exchangeAllBtn.textContent = t('一鍵兌換全部重複 +{n} 張抽獎卷', {n: totalToyExchangeable});
                     exchangeAllBtn.onclick = () => this.onExchangeAll?.('toy');
                     content.append(exchangeAllBtn);
                 }
