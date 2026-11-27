@@ -38,6 +38,17 @@ function effectsHtml(item) {
     });
     return `<div class="care-item-effects">${parts.join('')}</div>`;
 }
+// 重複道具換群組抽獎券：同款永遠保留 1 件，多出的每 3 件換 1 張（與後端 pet_gacha.exchangeable_sets 一致）
+export function exchangeableSets(count) {
+    return Math.max(0, Math.floor((Number(count || 0) - 1) / 3));
+}
+export function formatTickets(tickets) {
+    if (tickets && typeof tickets === 'object') {
+        const personal = Number(tickets.personal || 0), group = Number(tickets.group || 0);
+        return group > 0 ? t('個人 {p} · 群組 {g}', {p: personal, g: group}) : String(personal);
+    }
+    return String(tickets ?? 0);
+}
 export function itemBadge(item) {
     const tier = ['common','rare','treasure'].includes(item?.rarity) ? item.rarity : 'common';
     return `<span class="care-rarity ${tier}">${escape(t(item?.rarity_label || '普通'))}</span>`;
@@ -94,7 +105,7 @@ export class CareCollection {
 
             // Ticket count display
             const ticketEl = this.dialog.querySelector('#pet-shop-tickets');
-            if (ticketEl && this.tickets !== undefined) ticketEl.textContent = this.tickets;
+            if (ticketEl && this.tickets !== undefined) ticketEl.textContent = formatTickets(this.tickets);
 
             if (!wardrobe.length) {
                 const empty = document.createElement('p'); empty.className = 'care-bag-empty';
@@ -103,12 +114,12 @@ export class CareCollection {
             }
 
             // "一鍵兌換全部重複" button
-            const totalExchangeable = wardrobe.reduce((sum, item) => sum + Math.floor((item.count || 1) / 3), 0);
+            const totalExchangeable = wardrobe.reduce((sum, item) => sum + exchangeableSets(item.count || 1), 0);
             if (totalExchangeable > 0) {
                 const exchangeAllBtn = document.createElement('button');
                 exchangeAllBtn.type = 'button';
                 exchangeAllBtn.className = 'btn primary care-exchange-all-btn';
-                exchangeAllBtn.textContent = t(`一鍵兌換全部重複（+${totalExchangeable} 張抽獎卷）`);
+                exchangeAllBtn.textContent = t('一鍵兌換全部重複（+{n} 張群組抽獎券，每款保留 1 件）', {n: totalExchangeable});
                 exchangeAllBtn.onclick = () => this.onExchangeAll?.('gacha');
                 content.append(exchangeAllBtn);
             }
@@ -121,8 +132,8 @@ export class CareCollection {
                 const iconSrc = item.img || new URL(`../../assets/pets/gacha/${item.id}.svg`, import.meta.url).href;
                 const count = item.count || 1;
                 const countBadge = count > 1 ? `<span class="care-count-badge">×${count}</span>` : '';
-                const exchangeSets = Math.floor(count / 3);
-                const exchangeBadge = exchangeSets > 0 ? `<span class="care-exchange-badge">可兌換 ${exchangeSets} 張抽獎卷</span>` : '';
+                const exchangeSets = exchangeableSets(count);
+                const exchangeBadge = exchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張群組抽獎券', {n: exchangeSets}))}</span>` : '';
                 const slotLabel = item.slot === 'head' ? '頭部' : item.slot === 'neck' ? '頸部' : item.slot === 'body' ? '身體' : '特效';
                 const buffHtml = item.buff
                     ? `<div class="care-item-buff">✨ 啟用：${escape(buffDescription(item.buff))}</div>`
@@ -136,7 +147,7 @@ export class CareCollection {
                     const exchangeBtn = document.createElement('button');
                     exchangeBtn.type = 'button';
                     exchangeBtn.className = 'btn secondary care-exchange-btn';
-                    exchangeBtn.textContent = t('兌換抽獎卷');
+                    exchangeBtn.textContent = t('兌換群組抽獎券');
                     exchangeBtn.dataset.itemId = item.id;
                     exchangeBtn.dataset.exchangeSets = String(exchangeSets);
                     exchangeBtn.onclick = () => this.onExchange?.(item, exchangeSets, 'gacha');
@@ -157,13 +168,13 @@ export class CareCollection {
                 const toyInventory = pet.pet_owned_toys || {};
                 const totalToyExchangeable = items.reduce((sum, item) => {
                     const cnt = Number(toyInventory[item.id] || 0);
-                    return sum + Math.floor(cnt / 3);
+                    return sum + exchangeableSets(cnt);
                 }, 0);
                 if (totalToyExchangeable > 0) {
                     const exchangeAllBtn = document.createElement('button');
                     exchangeAllBtn.type = 'button';
                     exchangeAllBtn.className = 'btn primary care-exchange-all-btn';
-                    exchangeAllBtn.textContent = t(`一鍵兌換全部重複（+${totalToyExchangeable} 張抽獎卷）`);
+                    exchangeAllBtn.textContent = t('一鍵兌換全部重複（+{n} 張群組抽獎券，每款保留 1 件）', {n: totalToyExchangeable});
                     exchangeAllBtn.onclick = () => this.onExchangeAll?.('toy');
                     content.append(exchangeAllBtn);
                 }
@@ -176,8 +187,8 @@ export class CareCollection {
                 const action = item.kind === 'food' ? 'feed' : 'play';
                 const card = document.createElement('article'); card.className = `care-bag-item${owned ? '' : ' is-locked'}`;
                 const countBadge = item.kind === 'toy' && toyCount > 1 ? `<span class="care-count-badge">×${toyCount}</span>` : '';
-                const toyExchangeSets = item.kind === 'toy' ? Math.floor(toyCount / 3) : 0;
-                const toyExchangeBadge = toyExchangeSets > 0 ? `<span class="care-exchange-badge">可兌換 ${toyExchangeSets} 張抽獎卷</span>` : '';
+                const toyExchangeSets = item.kind === 'toy' ? exchangeableSets(toyCount) : 0;
+                const toyExchangeBadge = toyExchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張群組抽獎券', {n: toyExchangeSets}))}</span>` : '';
                 const quantityText = base ? t('基本款 · 今日可用') : item.kind === 'food' ? t('{n} 份', {n:quantity}) : t(owned ? '已收藏 · 可重複使用' : '尚未收藏');
                 const availability = this.availability(action);
                 card.innerHTML = `${itemArt(item)}${itemBadge(item)}<strong>${escape(t(item.name))}</strong>${countBadge}<small>${escape(quantityText)}</small>${effectsHtml(item)}${toyExchangeBadge}`;
@@ -190,7 +201,7 @@ export class CareCollection {
                     const exchangeBtn = document.createElement('button');
                     exchangeBtn.type = 'button';
                     exchangeBtn.className = 'btn secondary care-exchange-btn';
-                    exchangeBtn.textContent = t('兌換抽獎卷');
+                    exchangeBtn.textContent = t('兌換群組抽獎券');
                     exchangeBtn.dataset.itemId = item.id;
                     exchangeBtn.dataset.exchangeSets = String(toyExchangeSets);
                     exchangeBtn.onclick = () => this.onExchange?.(item, toyExchangeSets, 'toy');

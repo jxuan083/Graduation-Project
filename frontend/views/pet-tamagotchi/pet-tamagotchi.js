@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge } from '../../features/pets/care-collection.js?v=115';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=116';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -657,6 +657,7 @@ async function loadGroupPet() {
                 if (cr.ok && cd) {
                     _gachaUserPoints  = cd.points ?? _gachaUserPoints;
                     _gachaUserTickets = cd.gacha_tickets ?? _gachaUserTickets;
+                    _gachaGroupTickets = cd.group_gacha_tickets ?? _gachaGroupTickets;
                     _gachaWardrobe    = cd.wardrobe ?? _gachaWardrobe;
                     _gachaEquipped    = cd.pet_equipped ?? cd.equipped ?? _gachaEquipped;
                     _gachaWardrobeLoaded = true;
@@ -1333,7 +1334,7 @@ function syncCareCollection() {
     }
     document.getElementById('pet-coin-balance').textContent = _gachaUserPoints;
     document.getElementById('btn-pet-bag').disabled = !_careCatalog;
-    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,wardrobe:_gachaWardrobe,equipped:_gachaEquipped,tickets:_gachaUserTickets});
+    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,wardrobe:_gachaWardrobe,equipped:_gachaEquipped,tickets:{personal:_gachaUserTickets, group:_gachaGroupTickets}});
     renderGachaSupplies();
 }
 async function drawCareItem(kind) {
@@ -1361,7 +1362,7 @@ async function drawCareItem(kind) {
         }
         if (data.points_remaining !== undefined) _gachaUserPoints = data.points_remaining;
         const message = data.duplicate
-            ? t('已是第 {n} 件！集滿 3 件可換 1 張扭蛋券', {n: data.toy_count || 2})
+            ? t('已是第 {n} 件！同款滿 4 件可換 1 張群組抽獎券', {n: data.toy_count || 2})
             : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，可重複使用');
         await _careCollection.finishDraw(data.care_item,message);
         if (!sameScreen(seq,groupId)) return;
@@ -1403,7 +1404,7 @@ async function drawCareItemInline(kind) {
         if (data.points_remaining !== undefined) _gachaUserPoints = data.points_remaining;
         const item = data.care_item;
         const message = data.duplicate
-            ? t('已是第 {n} 件！集滿 3 件可換 1 張扭蛋券', {n: data.toy_count || 2})
+            ? t('已是第 {n} 件！同款滿 4 件可換 1 張群組抽獎券', {n: data.toy_count || 2})
             : item.kind === 'food' ? t('已放進群組背包，共 {n} 份', { n: data.quantity }) : t('已放進群組背包，可重複使用');
         if (resultEl) {
             resultEl.innerHTML = `${itemArt(item)}<div>${itemBadge(item)}<strong>${escHtml(t(item.name))}</strong><p>${escHtml(message)}</p></div>`;
@@ -1433,8 +1434,11 @@ async function exchangeDuplicates(exchangePayload) {
         });
         if (!res.ok) { alert(t('兌換失敗：') + (data?.detail || `HTTP ${res.status}`)); return; }
         _gachaUserTickets = data.gacha_tickets ?? _gachaUserTickets;
+        _gachaGroupTickets = data.group_gacha_tickets ?? _gachaGroupTickets;
         if (data.wardrobe) _gachaWardrobe = data.wardrobe;
         if (data.toy_inventory && _groupPet) _groupPet.pet_owned_toys = data.toy_inventory;
+        updateGachaBtnCoins();
+        updateDrawBtnLabels();
         syncCareCollection();
     } catch (err) {
         alert(t('兌換失敗：') + (err.message || err));
@@ -1447,13 +1451,13 @@ async function exchangeAllDuplicates(kind) {
         const toyInventory = _groupPet.pet_owned_toys || {};
         const toyItems = _careCatalog.items
             .filter(i => i.kind === 'toy')
-            .map(i => ({ item_id: i.id, exchange_sets: Math.floor(Number(toyInventory[i.id] || 0) / 3) }))
+            .map(i => ({ item_id: i.id, exchange_sets: exchangeableSets(toyInventory[i.id]) }))
             .filter(e => e.exchange_sets > 0);
         if (!toyItems.length) return;
         await exchangeDuplicates({ toy_items: toyItems });
     } else {
         const wardrobeItems = (_gachaWardrobe || [])
-            .map(i => ({ item_id: i.id, exchange_sets: Math.floor((i.count || 1) / 3) }))
+            .map(i => ({ item_id: i.id, exchange_sets: exchangeableSets(i.count || 1) }))
             .filter(e => e.exchange_sets > 0);
         if (!wardrobeItems.length) return;
         await exchangeDuplicates({ items: wardrobeItems });
@@ -1482,17 +1486,17 @@ function renderGachaSupplies() {
     const toyInventory = (_groupPet?.pet_owned_toys) || {};
     const totalToys = Object.values(toyInventory).reduce((s, n) => s + Number(n || 0), 0);
 
-    // 兌換扭蛋券按鈕：任一玩具達 3 件可換
+    // 兌換群組抽獎券按鈕：同款玩具保留 1 件，多出的每 3 件換 1 張（滿 4 件才出現）
     const toyExchangeItems = (_careCatalog.items || [])
         .filter(i => i.kind === 'toy')
-        .map(i => ({ item_id: i.id, count: Number(toyInventory[i.id] || 0), exchange_sets: Math.floor(Number(toyInventory[i.id] || 0) / 3) }))
+        .map(i => ({ item_id: i.id, count: Number(toyInventory[i.id] || 0), exchange_sets: exchangeableSets(toyInventory[i.id]) }))
         .filter(e => e.exchange_sets > 0);
     const totalExchangeTickets = toyExchangeItems.reduce((s, e) => s + e.exchange_sets, 0);
     if (totalExchangeTickets > 0) {
         const exBtn = document.createElement('button');
         exBtn.type = 'button';
         exBtn.className = 'care-exchange-btn';
-        exBtn.innerHTML = `<span>🎟 兌換扭蛋券</span><b>可換 ${totalExchangeTickets} 張</b>`;
+        exBtn.innerHTML = `<span>🎟 ${escHtml(t('兌換群組抽獎券'))}</span><b>${escHtml(t('可換 {n} 張', {n: totalExchangeTickets}))}</b>`;
         exBtn.disabled = _drawBusy;
         exBtn.onclick = async () => {
             exBtn.disabled = true;
@@ -1540,6 +1544,7 @@ let _gachaWardrobe = [];
 let _gachaEquipped = {};
 let _gachaUserPoints = 0;
 let _gachaUserTickets = 0;
+let _gachaGroupTickets = 0;   // 群組共用抽獎券（用群組道具換來的，所有成員都能用）
 let _gachaPityCount = 0;
 let _pendingGachaOpen = false;
 let _gachaWardrobeLoaded = false;
@@ -1633,15 +1638,17 @@ function updateGachaBtnCoins() {
     }
     const ticketsEl = document.getElementById('gacha-user-tickets');
     if (ticketsEl) ticketsEl.textContent = _gachaUserTickets;
+    const groupTicketsEl = document.getElementById('gacha-group-tickets');
+    if (groupTicketsEl) groupTicketsEl.textContent = _gachaGroupTickets;
     const ptBalanceEl = document.getElementById('pet-ticket-balance');
-    if (ptBalanceEl) ptBalanceEl.textContent = _gachaUserTickets;
+    if (ptBalanceEl) ptBalanceEl.textContent = _gachaUserTickets + _gachaGroupTickets;
     updateDrawProgress();
 }
 
 function updateDrawProgress() {
     const el = document.getElementById('gacha-draw-progress');
     if (!el) return;
-    if (_gachaUserTickets > 0 || _gachaUserPoints >= 30) {
+    if (_gachaUserTickets > 0 || _gachaGroupTickets > 0 || _gachaUserPoints >= 30) {
         el.hidden = true;
         el.textContent = '';
     } else {
@@ -1654,7 +1661,7 @@ function updateDrawProgress() {
 function updateDrawBtnLabels() {
     const singleCostEl = document.getElementById('gacha-single-cost-label');
     if (singleCostEl) {
-        singleCostEl.textContent = _gachaUserTickets > 0 ? '1 張抽獎卷' : '30 金幣';
+        singleCostEl.textContent = (_gachaUserTickets > 0 || _gachaGroupTickets > 0) ? '1 張抽獎卷' : '30 金幣';
     }
     const pityEl = document.getElementById('gacha-pity-counter');
     if (pityEl && _gachaPityCount !== undefined) pityEl.textContent = _gachaPityCount;
@@ -1679,6 +1686,7 @@ async function openGachaDialog(initialTab = 'draw') {
             if (res.ok && data) {
                 _gachaUserPoints  = data.points ?? _gachaUserPoints;
                 _gachaUserTickets = data.gacha_tickets ?? _gachaUserTickets;
+                _gachaGroupTickets = data.group_gacha_tickets ?? _gachaGroupTickets;
                 _gachaPityCount   = data.pity_count ?? _gachaPityCount;
                 _gachaWardrobe    = data.wardrobe ?? _gachaWardrobe;
                 _gachaEquipped    = data.pet_equipped ?? data.equipped ?? _gachaEquipped;
@@ -1690,6 +1698,8 @@ async function openGachaDialog(initialTab = 'draw') {
 
     document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
     document.getElementById('gacha-user-tickets').textContent = _gachaUserTickets;
+    const groupTicketsEl = document.getElementById('gacha-group-tickets');
+    if (groupTicketsEl) groupTicketsEl.textContent = _gachaGroupTickets;
     updateGachaBtnCoins();
     updateDrawBtnLabels();
     renderGachaCapsules();
@@ -2092,11 +2102,39 @@ function spawnConfetti(container, rarity) {
     setTimeout(() => { container.innerHTML = ''; }, 1800);
 }
 
+// 個人券與群組券都有時，讓使用者選這次要用哪一種；取消回傳 null
+function chooseTicketSource() {
+    const sheet = document.getElementById('gacha-ticket-sheet');
+    if (!sheet?.showModal) return Promise.resolve('personal');
+    document.getElementById('gacha-ticket-personal-count').textContent = t('你自己的，剩 {n} 張', {n: _gachaUserTickets});
+    document.getElementById('gacha-ticket-group-count').textContent = t('群組共用，剩 {n} 張 · 會通知群組聊天室', {n: _gachaGroupTickets});
+    return new Promise(resolve => {
+        const done = value => { sheet.onclose = null; if (sheet.open) sheet.close(); resolve(value); };
+        sheet.querySelector('[data-ticket-source="personal"]').onclick = () => done('personal');
+        sheet.querySelector('[data-ticket-source="group"]').onclick = () => done('group');
+        sheet.querySelector('[data-ticket-cancel]').onclick = () => done(null);
+        sheet.onclick = e => { if (e.target === sheet) done(null); };
+        sheet.onclose = () => resolve(null);
+        sheet.showModal();
+    });
+}
+
 async function drawGacha(count) {
     if (_gachaDrawBusy || !_groupId) return;
 
-    // Single: use ticket if available, otherwise 30 coins. Triple: 80 coins.
-    const usingTicket = count === 1 && _gachaUserTickets > 0;
+    // 單抽：有券就用券（個人券、群組券都有時讓使用者選），沒有券扣 30 金幣；三連抽 80 金幣
+    let ticketSource = null;
+    if (count === 1) {
+        if (_gachaUserTickets > 0 && _gachaGroupTickets > 0) {
+            _gachaDrawBusy = true;
+            try { ticketSource = await chooseTicketSource(); } finally { _gachaDrawBusy = false; }
+            if (!ticketSource) return;
+        } else if (_gachaUserTickets > 0) ticketSource = 'personal';
+        else if (_gachaGroupTickets > 0) ticketSource = 'group';
+    }
+    const usingTicket = Boolean(ticketSource);
+    const usedPersonal = ticketSource === 'personal' ? 1 : 0;
+    const usedGroup = ticketSource === 'group' ? 1 : 0;
     const cost = count === 3 ? 80 : (usingTicket ? 0 : 30);
     if (!usingTicket && _gachaUserPoints < cost) {
         document.getElementById('gacha-draw-status').textContent = count === 1 ? '金幣不足，需要 30 金幣或 1 張抽獎卷' : '金幣不足，三連抽需要 80 金幣';
@@ -2116,7 +2154,7 @@ async function drawGacha(count) {
     const isDevMode = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
     try {
-        const drawBody = JSON.stringify({ group_id: _groupId, count, request_id: requestId });
+        const drawBody = JSON.stringify({ group_id: _groupId, count, request_id: requestId, ...(ticketSource ? { ticket_source: ticketSource } : {}) });
         const { res, data } = isDevMode
             ? await fetch(`${apiBase}/api/users/gacha/draw`, {
                 method: 'POST',
@@ -2125,11 +2163,29 @@ async function drawGacha(count) {
               }).then(async r => ({ res: r, data: await r.json().catch(() => null) }))
             : await apiFetch('/api/users/gacha/draw', { method: 'POST', body: drawBody });
 
+        // 伺服器明確拒絕（例如群組券剛被別人用完、金幣不足）：顯示原因並更新餘額，不顯示抽獎結果
+        if (!res.ok && res.status >= 400 && res.status < 500) {
+            if (statusEl) statusEl.textContent = readApiError(data, '抽取失敗，請再試一次');
+            try {
+                const { res: cr, data: cd } = await gachaFetch(`/api/users/gacha/catalog?group_id=${_groupId}`);
+                if (cr.ok && cd) {
+                    _gachaUserPoints = cd.points ?? _gachaUserPoints;
+                    _gachaUserTickets = cd.gacha_tickets ?? _gachaUserTickets;
+                    _gachaGroupTickets = cd.group_gacha_tickets ?? _gachaGroupTickets;
+                }
+            } catch { /* 保留目前顯示 */ }
+            document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
+            updateGachaBtnCoins();
+            updateDrawBtnLabels();
+            return;
+        }
+
         let items;
         if (res.ok && data?.draws) {
             items = data.draws.map(d => ({ ...d.item, duplicate: d.duplicate, refund: d.refund || 0 }));
             _gachaUserPoints  = data.points_remaining ?? Math.max(0, _gachaUserPoints - cost);
-            _gachaUserTickets = data.gacha_tickets    ?? Math.max(0, _gachaUserTickets - (usingTicket ? 1 : 0));
+            _gachaUserTickets = data.gacha_tickets    ?? Math.max(0, _gachaUserTickets - usedPersonal);
+            _gachaGroupTickets = data.group_gacha_tickets ?? Math.max(0, _gachaGroupTickets - usedGroup);
             _gachaPityCount   = data.pity ?? _gachaPityCount;
             // Update wardrobe: now wardrobe items have count
             items.filter(i => !i.duplicate).forEach(item => {
@@ -2144,7 +2200,8 @@ async function drawGacha(count) {
             if (data.equipped) _gachaEquipped = data.equipped;
         } else {
             _gachaUserPoints  = Math.max(0, _gachaUserPoints - cost);
-            _gachaUserTickets = Math.max(0, _gachaUserTickets - (usingTicket ? 1 : 0));
+            _gachaUserTickets = Math.max(0, _gachaUserTickets - usedPersonal);
+            _gachaGroupTickets = Math.max(0, _gachaGroupTickets - usedGroup);
             items = Array.from({ length: count }, () => {
                 const item = gachaPickItem(GACHA_LOCAL_CATALOG);
                 const duplicate = !!_gachaWardrobe.find(w => w.id === item.id);
@@ -2164,7 +2221,8 @@ async function drawGacha(count) {
         if (statusEl) statusEl.textContent = newCount > 0 ? `獲得 ${newCount} 個新徽章！` : '全為已收集徽章。';
     } catch (err) {
         _gachaUserPoints  = Math.max(0, _gachaUserPoints - cost);
-        _gachaUserTickets = Math.max(0, _gachaUserTickets - (usingTicket ? 1 : 0));
+        _gachaUserTickets = Math.max(0, _gachaUserTickets - usedPersonal);
+        _gachaGroupTickets = Math.max(0, _gachaGroupTickets - usedGroup);
         const items = Array.from({ length: count }, () => {
             const item = gachaPickItem(GACHA_LOCAL_CATALOG);
             const duplicate = !!_gachaWardrobe.find(w => w.id === item.id);

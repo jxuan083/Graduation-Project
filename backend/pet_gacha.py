@@ -233,11 +233,22 @@ def equipped_items(group_data: dict) -> dict:
     return result
 
 
+# ── 重複道具兌換群組抽獎券（服裝與玩具共用同一規則）──
+# 同款永遠保留 1 件，多出來的每 3 件換 1 張：4 件 → 1 張（剩 1）、7 件 → 2 張（剩 1）。
+EXCHANGE_COPIES_PER_TICKET = 3
+EXCHANGE_KEEP = 1
+
+
+def exchangeable_sets(count: int) -> int:
+    """這款道具目前最多可換幾張券（已扣掉要保留的 1 件）。"""
+    return max(0, (int(count or 0) - EXCHANGE_KEEP) // EXCHANGE_COPIES_PER_TICKET)
+
+
 def exchange_duplicates_for_tickets(wardrobe: dict, exchange_items: list[dict]) -> tuple[dict, int]:
     """
     Deduct duplicates and return (new_wardrobe, total_tickets).
     exchange_items: list of {"item_id": str, "exchange_sets": int}
-    Each set costs 3 copies (every 3 total = 1 ticket, no keep-1 requirement).
+    Each set costs 3 copies; at least 1 copy of every item is always kept.
     """
     new_wardrobe = dict(wardrobe)
     total_tickets = 0
@@ -247,11 +258,8 @@ def exchange_duplicates_for_tickets(wardrobe: dict, exchange_items: list[dict]) 
         if not item_id or item_id not in new_wardrobe or exchange_sets <= 0:
             continue
         count = new_wardrobe[item_id]
-        needed = exchange_sets * 3
-        if count < needed:
+        if exchange_sets > exchangeable_sets(count):
             raise ValueError(f"not_enough_duplicates:{item_id}")
-        new_wardrobe[item_id] = count - needed
-        if new_wardrobe[item_id] == 0:
-            del new_wardrobe[item_id]
+        new_wardrobe[item_id] = count - exchange_sets * EXCHANGE_COPIES_PER_TICKET
         total_tickets += exchange_sets
     return new_wardrobe, total_tickets

@@ -131,8 +131,13 @@ function renderMessages(msgs) {
                 lastDayKey = dayKey;
             }
         }
-        const mine = m.sender_uid === myUid;
         const time = fmtTime(m.created_at);
+        if (m.type === 'system') {
+            // 系統通知（例如群組抽獎券的兌換與使用）：置中小字，不算任何人的訊息
+            parts.push(`<div class="chat-system-note"><span>${escHtml(m.text)}<small>${time}</small></span></div>`);
+            return;
+        }
+        const mine = m.sender_uid === myUid;
         const bubble = renderBubble(m);
         if (mine) {
             parts.push(`<div class="chat-msg me">${bubble}<span class="chat-time">${time}</span></div>`);

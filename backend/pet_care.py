@@ -214,7 +214,8 @@ def use_inventory_item(data, action, item_id=None):
 
 
 def exchange_toy_duplicates_for_tickets(toys: dict, exchange_items: list) -> tuple:
-    """Exchange toy duplicates for tickets: every 3 copies → 1 ticket."""
+    """Exchange toy duplicates for tickets: keep 1, then every 3 extra copies → 1 ticket."""
+    from pet_gacha import EXCHANGE_COPIES_PER_TICKET, exchangeable_sets
     result = dict(toys)
     total = 0
     for entry in exchange_items:
@@ -223,9 +224,9 @@ def exchange_toy_duplicates_for_tickets(toys: dict, exchange_items: list) -> tup
         if item_id not in CARE_BY_ID or CARE_BY_ID[item_id]['kind'] != 'toy':
             raise ValueError(f"unknown_toy:{item_id}")
         current = result.get(item_id, 0)
-        available_sets = max(0, current // 3)
+        available_sets = exchangeable_sets(current)
         if sets < 1 or sets > available_sets:
             raise ValueError(f"invalid_sets:{item_id}:{sets}:{available_sets}")
-        result[item_id] = current - sets * 3
+        result[item_id] = current - sets * EXCHANGE_COPIES_PER_TICKET
         total += sets
     return result, total

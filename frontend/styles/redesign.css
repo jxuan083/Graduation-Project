@@ -2313,6 +2313,10 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 
 .chat-date-sep { align-self: center; }
 .chat-date-sep span { font-size: 11px; font-weight: 600; color: var(--brown-40); background: var(--brown-06); padding: 4px 12px; border-radius: var(--r-pill); }
+/* 系統通知：沿用日期分隔線的膠囊樣式，可換行並附時間 */
+.chat-system-note { align-self: center; max-width: 86%; text-align: center; }
+.chat-system-note span { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1.45; color: var(--brown-60); background: var(--brown-08); padding: 6px 14px; border-radius: 14px; }
+.chat-system-note small { display: block; margin-top: 1px; font-size: 10px; font-weight: 500; color: var(--brown-40); white-space: nowrap; }
 
 .chat-img-bubble { padding: 4px !important; }
 .chat-img { max-width: 200px; max-height: 260px; border-radius: var(--r-md); display: block; cursor: pointer; }
