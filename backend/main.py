@@ -3593,7 +3593,7 @@ async def get_gacha_catalog(
                 g_data = g_snap.to_dict() or {}
                 result["wardrobe"] = _wardrobe_items(g_data)
                 result["pet_equipped"] = _equipped_items(g_data)
-                result["group_gacha_tickets"] = 0
+                result["group_gacha_tickets"] = int(g_data.get(GROUP_TICKETS_FIELD) or 0)
         except Exception as e:
             print(f"[gacha catalog] group fetch error: {e}")
 
@@ -3630,34 +3630,34 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
 
         u_snap = user_ref.get(transaction=tx)
         u_data = u_snap.to_dict() or {} if u_snap.exists else {}
-        current_points  = int(u_data.get("ranking_gacha_points") or 0)
-        current_tickets = int(u_data.get("gacha_tickets") or 0)
-        ticket_source   = None
+        current_points = int(u_data.get("ranking_gacha_points") or 0)
+        group_tickets  = int(g_data.get(GROUP_TICKETS_FIELD) or 0)
+        ticket_source  = None
 
         if payload.count == 1:
-            if current_tickets > 0:
-                using_ticket  = True
-                draw_cost     = 0
-                tickets_after = current_tickets - 1
-                ticket_source = "personal"
+            if group_tickets > 0:
+                using_ticket        = True
+                draw_cost           = 0
+                group_tickets_after = group_tickets - 1
+                ticket_source       = "group"
             else:
-                using_ticket  = False
-                draw_cost     = DRAW_COST_SINGLE
+                using_ticket        = False
+                draw_cost           = DRAW_COST_SINGLE
                 if current_points < draw_cost:
                     raise HTTPException(
                         status_code=409,
                         detail=f"金幣不足（需要 {draw_cost} 枚，目前 {current_points} 枚）",
                     )
-                tickets_after = current_tickets
+                group_tickets_after = group_tickets
         else:
-            using_ticket  = False
-            draw_cost     = DRAW_COST_TRIPLE
+            using_ticket        = False
+            draw_cost           = DRAW_COST_TRIPLE
             if current_points < draw_cost:
                 raise HTTPException(
                     status_code=409,
                     detail=f"金幣不足（需要 {draw_cost} 枚，目前 {current_points} 枚）",
                 )
-            tickets_after = current_tickets
+            group_tickets_after = group_tickets
 
         new_points = current_points - draw_cost
         pity        = int(g_data.get("pet_gacha_pity", 0) or 0)
@@ -3683,12 +3683,10 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
                               "pity_triggered": pity_triggered})
             items_drawn.append(item)
 
-        group_updates = {"pet_wardrobe": wardrobe, "pet_gacha_pity": pity}
+        group_updates = {"pet_wardrobe": wardrobe, "pet_gacha_pity": pity,
+                         GROUP_TICKETS_FIELD: group_tickets_after}
         tx.update(group_ref, group_updates)
-        tx.set(user_ref, {
-            "ranking_gacha_points": new_points,
-            "gacha_tickets": tickets_after,
-        }, merge=True)
+        tx.set(user_ref, {"ranking_gacha_points": new_points}, merge=True)
 
         result = {
             "status": "success",
@@ -3698,8 +3696,8 @@ async def gacha_draw(payload: GachaDrawPayload, decoded: dict = Depends(verify_t
             "items": items_drawn,
             "ranking_gacha_points_remaining": new_points,
             "points_remaining": new_points,
-            "gacha_tickets": tickets_after,
-            "group_gacha_tickets": 0,
+            "gacha_tickets": 0,
+            "group_gacha_tickets": group_tickets_after,
             "ticket_source": ticket_source,
             "wardrobe_size": len(wardrobe),
             "refund_points": 0,
@@ -3899,24 +3897,20 @@ async def gacha_exchange_duplicates(payload: ExchangeDuplicatesPayload, decoded:
         if total_tickets == 0:
             raise HTTPException(status_code=400, detail="沒有可兌換的道具")
 
-        u_snap = user_ref.get(transaction=tx)
-        u_data = u_snap.to_dict() or {} if u_snap.exists else {}
-        new_personal_tickets = int(u_data.get("gacha_tickets") or 0) + total_tickets
+        new_group_tickets = int(g_data.get(GROUP_TICKETS_FIELD) or 0) + total_tickets
 
-        group_updates: dict = {}
+        group_updates: dict = {GROUP_TICKETS_FIELD: new_group_tickets}
         if payload.items:
             group_updates["pet_wardrobe"] = new_wardrobe
         if payload.toy_items:
             group_updates["pet_owned_toys"] = new_toys
-        if group_updates:
-            tx.update(group_ref, group_updates)
-        tx.set(user_ref, {"gacha_tickets": new_personal_tickets}, merge=True)
+        tx.update(group_ref, group_updates)
 
         result = {
             "status": "success",
             "tickets_earned": total_tickets,
-            "gacha_tickets": new_personal_tickets,
-            "group_gacha_tickets": 0,
+            "gacha_tickets": 0,
+            "group_gacha_tickets": new_group_tickets,
             "wardrobe": [
                 {**_gacha_public_item(GACHA_BY_ID[iid]), "count": cnt}
                 for iid, cnt in new_wardrobe.items()
@@ -4704,16 +4698,10 @@ def _apply_group_pet_reward(room_id: str, group_id_local: Optional[str], score_b
                     "pet_last_session_at": firestore.SERVER_TIMESTAMP,
                     "pet_rewarded_room_ids": (rewarded_room_ids + [room_id])[-50:],
                 })
-                # 升級全員各送 1 張扭蛋券（冪等：整個 transaction 由 ledger 保護）
+                # 升級群組送 1 張群組抽獎卷（冪等：整個 transaction 由 ledger 保護）
                 leveled_up = new_level > old_level
                 if leveled_up:
-                    for m_uid in (g_data.get("member_uids") or []):
-                        if not _is_guest_user_id(m_uid):
-                            tx.set(
-                                db.collection("users").document(m_uid),
-                                {"gacha_tickets": firestore.Increment(1)},
-                                merge=True,
-                            )
+                    tx.set(g_ref, {GROUP_TICKETS_FIELD: firestore.Increment(1)}, merge=True)
                 tx.set(ledger_ref, {"coins": coin_gain, "xp": xp_gain, "at": firestore.SERVER_TIMESTAMP})
                 return {"coins": coin_gain, "xp": xp_gain, "level": new_level, "hp": new_hp, "leveled_up": leveled_up}
 
@@ -4894,7 +4882,7 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
             except Exception as mm_err:
                 print(f"[END_SESSION] mirror write failed for {p_uid}: {mm_err}")
 
-        # 依聚會排名發放金幣（含專注度倍率）+ 每人各發 1 張扭蛋券
+        # 依聚會排名發放個人金幣（含專注度倍率）；群組共用抽獎卷 +1 張
         try:
             quality_mult = 1.5 if avg_score >= 70 else (1.0 if avg_score >= 40 else 0.7)
             coin_awards: dict = {}
@@ -4909,20 +4897,16 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
             for p_uid, coins in coin_awards.items():
                 gacha_batch.set(
                     db.collection("users").document(p_uid),
-                    {
-                        "ranking_gacha_points": firestore.Increment(coins),
-                        "gacha_tickets": firestore.Increment(1),
-                    },
-                    merge=True,
-                )
-            # Teacher (host in class context): no coins, but still gets 1 ticket
-            if host_uid_local and not _is_guest_user_id(host_uid_local) and host_uid_local not in coin_awards:
-                gacha_batch.set(
-                    db.collection("users").document(host_uid_local),
-                    {"gacha_tickets": firestore.Increment(1)},
+                    {"ranking_gacha_points": firestore.Increment(coins)},
                     merge=True,
                 )
             gacha_batch.commit()
+            # Meeting always adds 1 group ticket to the group (if room is linked to a group)
+            if group_id_local:
+                db.collection("groups").document(group_id_local).set(
+                    {GROUP_TICKETS_FIELD: firestore.Increment(1)},
+                    merge=True,
+                )
         except Exception as gacha_err:
             print(f"[END_SESSION] coin awards batch failed: {gacha_err}")
     except Exception as e:

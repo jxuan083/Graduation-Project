@@ -44,7 +44,7 @@ export function exchangeableSets(count) {
 }
 export function formatTickets(tickets) {
     if (tickets && typeof tickets === 'object') {
-        return String(Number(tickets.personal || 0));
+        return String(Number(tickets.group || 0));
     }
     return String(tickets ?? 0);
 }

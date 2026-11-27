@@ -76,7 +76,7 @@ const VIEW_MODULES = {
     'group-chat':        () => import('./views/group-chat/group-chat.js?v=94'),
     'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=93'),
     'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=93'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=119'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=120'),
 };
 
 async function loadAllViewHtml() {

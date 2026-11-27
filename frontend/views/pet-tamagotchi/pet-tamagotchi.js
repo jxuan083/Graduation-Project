@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=119';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=120';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -2125,7 +2125,7 @@ async function drawGacha(count) {
     // 單抽：有券就用券，沒有券扣 30 金幣；三連抽 80 金幣
     let ticketSource = null;
     if (count === 1) {
-        ticketSource = _gachaUserTickets > 0 ? 'personal' : null;
+        ticketSource = _gachaGroupTickets > 0 ? 'group' : null;
     }
     const usingTicket = Boolean(ticketSource);
     const usedPersonal = ticketSource === 'personal' ? 1 : 0;
