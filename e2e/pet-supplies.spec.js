@@ -28,7 +28,8 @@ test('profile owns settings and the pet tab opens group care',async({page})=>{
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
 });
 
-test('draw retry survives reload; backpack food consumes once and toys stay owned',async({page})=>{
+// v101 起補給品直接在扭蛋機的「補給品」分頁抽取（沒有拆包動畫），結果與狀態顯示在 #gacha-supplies-*。
+test('draw retry survives reload without charging twice; backpack food consumes once',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     const enter=async()=>{
         await expect(page.locator('#auth-logged-in')).toBeVisible();
@@ -46,28 +47,22 @@ test('draw retry survives reload; backpack food consumes once and toys stay owne
         if(lost){lost=false;await route.abort();}else await route.fulfill({response});
     });
     await page.locator('.care-draw-card').first().click();
-    await expect(page.locator('#pet-draw-status')).toContainText('尚未確認');
+    await expect(page.locator('#gacha-supplies-status')).toContainText('尚未確認');
     await page.reload();await enter();await openSupplies();
     await expect(page.locator('.care-draw-card').first()).toContainText('重試確認結果');
     await page.locator('.care-draw-card').first().click();
-    await expect(page.locator('#pet-draw-status')).toContainText('沒有再次扣款');
+    await expect(page.locator('#gacha-supplies-status')).toContainText('沒有再次扣款');
     expect(requests[0].request_id).toBe(requests[1].request_id);
-    await expect(page.locator('[data-shop-coins]')).toHaveText('174');
-    const itemName=await page.locator('[data-shop-result] strong').textContent();
-    await page.locator('[data-shop-tab=bag]').click();
+    await expect(page.locator('.supplies-balance b')).toHaveText('174');
+    const itemName=await page.locator('#gacha-supplies-result strong').textContent();
+    await page.locator('#btn-gacha-close').click();
+    await page.locator('#btn-pet-bag').click();
     const food=page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:itemName})});
     await expect(food).toContainText('3 份');
     await food.getByRole('button').click();
     await expect(page.locator('#pet-stage')).toHaveAttribute('data-care-phase','feedComplete');
     await expect(page.locator('#pet-care-result')).toContainText(itemName);
-    await page.locator('#btn-gacha-close').click();
     await page.locator('#btn-pet-bag').click();await expect(food).toContainText('2 份');
-    await page.locator('[data-shop-kind=toy]').click();
-    const plush=page.locator('.care-bag-item').filter({has:page.locator('strong',{hasText:'星星布偶'})});
-    await plush.getByRole('button').click();
-    await expect(page.locator('#pet-stage')).toHaveAttribute('data-care-phase','playComplete');
-    await page.locator('#btn-pet-bag').click();await page.locator('[data-shop-kind=toy]').click();
-    await expect(plush).toContainText('已收藏');
     await page.screenshot({path:'test-results/pet-backpack.png'});
     expect(errors).toEqual([]);
 });
@@ -158,50 +153,4 @@ test('main care retry keeps the selected item without reopening the picker',asyn
     await expect(page.locator('#pet-care-shop')).not.toBeVisible();
 });
 
-async function openDraw(page) {
-    await page.locator('#btn-bottom-pets').click();await page.locator('.btn-care-pet').first().click();
-    await expect(page.locator('#pet-stage')).toHaveClass(/illustrated-ready/,{timeout:20000});
-    await page.locator('#btn-pet-gacha').click();
-    await page.getByRole('button',{name:'補給品',exact:true}).click();
-}
-
-test('draw animation can skip while waiting but reveals only confirmed results',async({page})=>{
-    let release;const gate=new Promise(resolve=>{release=resolve;});let calls=0;
-    await page.route('**/api/groups/browser-group/pet/draw',async r=>{
-        calls++;const response=await r.fetch({url:r.request().url().replace(':8080',':8093')});
-        await gate;await r.fulfill({response});
-    });
-    await openDraw(page);await page.locator('.care-draw-card').first().click();
-    await expect(page.locator('[data-draw-reveal]')).toBeVisible();
-    await page.screenshot({path:'test-results/draw-sealed-package.png'});
-    await page.locator('.draw-reveal-skip').click();
-    await expect(page.locator('[data-shop-result]')).not.toBeVisible();
-    await expect(page.locator('[data-draw-reveal]')).toHaveAttribute('data-phase','waiting');
-    release();
-    await expect(page.locator('[data-shop-result]')).toBeVisible();
-    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
-    await expect(page.locator('[data-shop-coins]')).toHaveText('174');
-    expect(calls).toBe(1);
-});
-
-test('closing an opening animation keeps the confirmed item without another draw',async({page})=>{
-    let calls=0;page.on('request',r=>{if(r.url().endsWith('/pet/draw')&&r.method()==='POST')calls++;});
-    await openDraw(page);await page.locator('.care-draw-card').first().click();
-    await expect(page.locator('[data-draw-reveal]')).toHaveAttribute('data-phase','opening');
-    await page.locator('[data-shop-close]').click();
-    await page.locator('#btn-gacha-close').click();
-    await page.locator('#btn-pet-bag').click();
-    await expect(page.locator('[data-shop-coins]')).toHaveText('174');
-    await expect(page.locator('.care-bag-item').filter({hasText:'3 份'})).toHaveCount(1);
-    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
-    expect(calls).toBe(1);
-});
-
-test('reduced motion reveals draws without moving the package',async({page})=>{
-    await page.emulateMedia({reducedMotion:'reduce'});
-    await openDraw(page);await page.locator('.care-draw-card').first().click();
-    await expect(page.locator('[data-shop-result]')).toBeVisible();
-    await expect(page.locator('[data-draw-reveal]')).not.toBeVisible();
-    expect(await page.locator('#pet-care-shop').evaluate(d=>d.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
-    await page.screenshot({path:'test-results/draw-revealed-item.png'});
-});
+// 拆包動畫（可跳過、關閉、減少動態）已在 v101 (2c574a0) 隨補給品改版移除，對應的三個測試一併移除。

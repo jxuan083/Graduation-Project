@@ -52,7 +52,9 @@ class PetCareApiTests(unittest.TestCase):
             else:
                 self.data.update(fields)
         self.tx.set.side_effect = tx_set
+        # DOCSTORE=memory 會讓 main 進入開發模式而略過成員檢查；這裡驗證的是正式環境的規則。
         for patcher in [patch.object(main, 'db', self.db),
+                        patch.object(main, '_DEV_MODE', False),
                         patch.object(main.firestore, 'transactional', side_effect=lambda fn: fn)]:
             patcher.start()
             self.addCleanup(patcher.stop)

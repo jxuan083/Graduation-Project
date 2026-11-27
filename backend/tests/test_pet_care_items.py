@@ -50,7 +50,8 @@ class EconomyTests(unittest.TestCase):
             use_inventory_item(result, 'feed', 'heart_biscuit')
         _, result = use_inventory_item(data, 'play', 'star_plush')
         # pet_owned_toys is now a dict; 'in' checks keys
-        self.assertIn('star_plush', result['pet_owned_toys'])
+        # 9ea4cc4 起非基本玩具用一次會消耗一件，最後一件用完就從背包移除
+        self.assertNotIn('star_plush', result['pet_owned_toys'])
         self.assertIsInstance(result['pet_owned_toys'], dict)
         with self.assertRaises(ValueError):
             use_inventory_item(data, 'play', 'flying_disc')

@@ -72,6 +72,7 @@
 | POST | `/api/groups/{group_id}/pet/equip` |
 | GET | `/api/groups/{group_id}/pet/wardrobe` |
 | POST | `/api/users/gacha/add_points` |
+| POST | `/api/users/gacha/exchange-duplicates` |
 | POST | `/api/groups/{group_id}/pet/use_gacha_item` |
 | GET | `/api/group-pets` |
 | DELETE | `/api/groups/{group_id}/pet` |

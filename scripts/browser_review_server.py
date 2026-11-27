@@ -13,10 +13,16 @@ os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
 os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
 os.environ['ALLOWED_ORIGINS'] = 'http://127.0.0.1:5191'
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1] / 'backend'))
+# 每次測試都從乾淨資料開始：不讀寫本機開發用的 backend/dev_db.json
+import docstore
+docstore._MemoryBackend._load = lambda self: None
+docstore._MemoryBackend._save = lambda self: None
 import main
 
 OWNER = 'browser-owner'
 main._verify_id_token = lambda token: {'uid':OWNER,'sub':OWNER,'email':'browser@example.test'}
+# 前端在 127.0.0.1 會改用開發 token；讓它對應到同一個測試使用者，金幣與群組資料才一致
+main._DEV_USER = {'uid':OWNER,'sub':OWNER,'email':'browser@example.test','name':'本機測試'}
 group = main.db.collection('groups').document('browser-group')
 user_doc = main.db.collection('users').document(OWNER)
 def reset():
