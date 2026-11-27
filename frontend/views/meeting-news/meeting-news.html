@@ -12,31 +12,26 @@
 
             <div class="mn-band">★ PARTY REPORT ★</div>
 
+            <!-- 大標題由 Prompt A 產生（兩行）；副標固定句型 -->
             <section class="mn-headline-block">
                 <h2 id="mn-headline">聚會圓滿落幕</h2>
                 <p id="mn-subhead">本次聚會回顧報已生成</p>
             </section>
 
+            <!-- 主圖：有照片放照片（群組寵物疊在不擋到人的位置）；沒照片放聚會中的情境場景＋寵物 -->
             <section class="mn-hero">
-                <div id="mn-hero-photo" class="mn-photo-frame mn-hero-photo"></div>
-                <div id="mn-mascot-scene" class="mn-mascot-scene">
-                    <div class="mn-sky"></div>
-                    <div class="mn-sun"></div>
-                    <div class="mn-lion">🦁</div>
+                <figure id="mn-hero-photo-wrap" class="mn-hero-photo-wrap" hidden>
+                    <img id="mn-hero-img" alt="聚會照片">
+                    <img id="mn-hero-pet" class="mn-hero-pet" alt="" hidden>
+                </figure>
+                <div id="mn-scene" class="pa-scene-card has-scene" hidden>
+                    <img id="mn-scene-pet" class="pa-pet-face" alt="" hidden>
                 </div>
-                <p id="mn-hero-caption">▲ 聚會吉祥物「獅子」見證了整場活動的全程</p>
+                <p id="mn-hero-caption"><img id="mn-caption-pet" class="mn-caption-pet" alt="" hidden><span id="mn-hero-caption-text"></span></p>
             </section>
 
-            <section class="mn-article">
-                <p id="mn-lead"></p>
-                <div id="mn-inline-photo-wrap" class="mn-inline-photo-wrap">
-                    <div id="mn-inline-photo" class="mn-photo-frame mn-inline-photo"></div>
-                    <p>▲ 聚會現場一景</p>
-                </div>
-                <p id="mn-body-total"></p>
-                <p id="mn-body-mvp"></p>
-                <p id="mn-body-close"></p>
-            </section>
+            <!-- 兩欄內文由 Prompt B 產生（段落數不固定） -->
+            <section id="mn-article" class="mn-article"></section>
 
             <section id="mn-gallery-section" class="mn-gallery-section">
                 <div class="mn-thin-rule"></div>
@@ -61,6 +56,11 @@
                         <span id="mn-total-distractions" class="mn-stat-value">0</span>
                         <span class="mn-stat-unit">次</span>
                         <span class="mn-stat-label">總分心</span>
+                    </div>
+                    <div>
+                        <span id="mn-longest-focus" class="mn-stat-value">—</span>
+                        <span class="mn-stat-unit">分鐘</span>
+                        <span class="mn-stat-label">最長連續專注</span>
                     </div>
                 </div>
             </section>

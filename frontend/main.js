@@ -20,7 +20,7 @@ import { showJoinView } from './views/join/join.js?v=93';
 import { events } from './core/events.js';
 import { initI18n, t } from './core/i18n.js?v=93';
 
-const ASSET_VERSION = '97';
+const ASSET_VERSION = '98';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [

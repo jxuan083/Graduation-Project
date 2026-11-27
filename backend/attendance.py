@@ -179,14 +179,33 @@ def record_deviation(room: dict, uid: str, count: int, now_ms: int, at_ms: Optio
     m = room["members"][uid]
     m["deviations"] = int(m.get("deviations", 0) or 0) + count
     room["deviations"] = int(room.get("deviations", 0) or 0) + count
+    first = min(now_ms, int(at_ms)) if at_ms else now_ms
+    # 全場每一批分心的時間點與次數（報紙的「最長連續專注」用）
+    room.setdefault("deviation_log", []).append([first, count])
     ap = (room.get("all_participants") or {}).get(uid)
     if ap is not None:
         ap["deviations"] = int(ap.get("deviations", 0) or 0) + count
-        first = min(now_ms, int(at_ms)) if at_ms else now_ms
         if not ap.get("first_dev_at_ms") or first < int(ap["first_dev_at_ms"]):
             ap["first_dev_at_ms"] = first
     note_focus_break(room, uid, now_ms)
     return m["deviations"], room["deviations"]
+
+
+def longest_focus_minutes(room: dict, end_ms: int) -> Optional[int]:
+    """整場最長一段「沒有任何人分心」的時間（分鐘，無條件捨去）。
+
+    用聚會中逐筆記下的分心時間點算。記錄的次數跟全場分心總數對不上（例如伺服器中途重啟、
+    改版前就開始的聚會）就回傳 None：寧可顯示「—」，也不要把有分心的時段算成專注。
+    """
+    start = int(room.get("active_started_ms", 0) or 0)
+    if not start or end_ms <= start:
+        return None
+    log = room.get("deviation_log") or []
+    if sum(int(c) for _, c in log) != int(room.get("deviations", 0) or 0):
+        return None
+    times = sorted(min(max(int(t), start), end_ms) for t, _ in log)
+    edges = [start, *times, end_ms]
+    return int(max(b - a for a, b in zip(edges, edges[1:])) // 60000)
 
 
 # ── 暫離窗口：結算、延長、超時 ──
@@ -318,6 +337,8 @@ def apply_intent_overage(room: dict, now_ms: int) -> None:
             continue
         m["deviations"] = int(m.get("deviations", 0) or 0) + add
         room["deviations"] = int(room.get("deviations", 0) or 0) + add
+        # 超時每 per_dev_sec 秒記一次，所以超時至少從這麼久之前就開始了（最長連續專注用）
+        room.setdefault("deviation_log", []).append([now_ms - add * per_dev_sec * 1000, add])
         if uid in all_part:
             all_part[uid]["deviations"] = int(all_part[uid].get("deviations", 0) or 0) + add
 
@@ -467,6 +488,7 @@ def settle_room(room: dict, end_ms: int, window_sec: int, fallback_minutes: int 
             _close_segment(ap, end_ms)
         ap["attended_minutes"] = _attended_minutes(ap)
         _write_streak_metric(ap)
+    room["ended_ms"] = end_ms   # 跟整場分鐘數用同一個結束時間（最長連續專注用）
     return max(0, int(round((end_ms - started) / 60000.0)))
 
 

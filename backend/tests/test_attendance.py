@@ -187,6 +187,35 @@ class TestLeaveAndRejoin(unittest.TestCase):
         self.assertEqual(att.settle_room(room, T0 + 90 * MIN, WINDOW), 30)
 
 
+class TestLongestFocus(unittest.TestCase):
+    """報紙的「最長連續專注」：整場最長一段沒有任何人分心的時間。"""
+
+    def test_no_distraction_means_the_whole_meeting(self):
+        room = make_room("a")
+        att.settle_room(room, T0 + 30 * MIN, WINDOW)
+        self.assertEqual(att.longest_focus_minutes(room, room["ended_ms"]), 30)
+
+    def test_longest_gap_between_distractions(self):
+        room = make_room("a", "b")
+        att.record_deviation(room, "a", 1, T0 + 10 * MIN)
+        att.record_deviation(room, "b", 2, T0 + 12 * MIN)
+        att.settle_room(room, T0 + 30 * MIN, WINDOW)
+        self.assertEqual(att.longest_focus_minutes(room, room["ended_ms"]), 18)
+
+    def test_late_report_counts_from_when_it_happened(self):
+        room = make_room("a")
+        att.record_deviation(room, "a", 1, T0 + 20 * MIN, at_ms=T0 + 5 * MIN)   # 回到 App 才補報
+        att.settle_room(room, T0 + 30 * MIN, WINDOW)
+        self.assertEqual(att.longest_focus_minutes(room, room["ended_ms"]), 25)
+
+    def test_unknown_when_log_does_not_match_total(self):
+        room = make_room("a")
+        att.record_deviation(room, "a", 1, T0 + 10 * MIN)
+        room["deviations"] += 1          # 例如伺服器重啟後從資料庫還原、沒有逐筆紀錄
+        self.assertIsNone(att.longest_focus_minutes(room, T0 + 30 * MIN))
+        self.assertIsNone(att.longest_focus_minutes({"deviations": 0}, T0))
+
+
 class TestExemptionTimeout(unittest.TestCase):
     def _declare_and_go(self, room, uid, declared_ms, used=1):
         m = room["members"][uid]

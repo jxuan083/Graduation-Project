@@ -1646,7 +1646,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-summary .ps-mascot-card { background: #fff; border-radius: var(--r-lg); overflow: hidden; }
 #view-summary .ps-mascot-scene { height: 180px; position: relative; background: linear-gradient(to bottom, #87c1ea, #f5d98b 70%, #8aac58); display: flex; align-items: flex-end; justify-content: center; }
 /* 聚會總結沿用「聚會中」的情境場景：由 renderSummaryPet 複製 .pa-scene-card 進來。
-   場景 CSS 已用 :is(#view-focus,#view-summary) 擴展，卡片維持與聚會中相同的 180px，
+   場景 CSS 已用 :is(#view-focus,#view-summary,#view-meeting-news) 擴展，卡片維持與聚會中相同的 180px，
    寵物 / 前景的絕對定位才不會被壓縮裁切 → 看起來就是同一張畫面的延續。 */
 #view-summary .ps-mascot-scene .pa-scene-card { height: 180px; border-radius: 0; width: 100%; }
 #view-summary .ps-mascot-scene .pa-scene-card .pa-pet-identity,
@@ -1719,12 +1719,16 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-news .mn-headline-block p { margin: 8px 0 0; text-align: center; font-size: 11.5px; color: #5a3e1e; font-style: italic; }
 #view-meeting-news .mn-hero { padding: 16px 20px 0; }
 #view-meeting-news .mn-photo-frame { border: 1px solid rgba(26,18,8,.2); border-radius: 4px; overflow: hidden; background-size: cover; background-position: center; background-color: rgba(26,18,8,.06); }
-#view-meeting-news .mn-hero-photo { width: 100%; height: 200px; }
-#view-meeting-news .mn-mascot-scene { position: relative; height: 110px; border: 1px solid rgba(26,18,8,.2); border-radius: 4px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
-#view-meeting-news .mn-sky { position: absolute; inset: 0; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #8aac58 100%); }
-#view-meeting-news .mn-sun { position: absolute; width: 22px; height: 22px; border-radius: var(--r-pill); background: #f9d05e; top: 10px; right: 16px; box-shadow: 0 0 10px #f9d05e; }
-#view-meeting-news .mn-lion { position: relative; z-index: 1; font-size: 64px; line-height: 1; margin-bottom: 4px; }
-#view-meeting-news .mn-hero p, #view-meeting-news .mn-inline-photo-wrap p { margin: 4px 0 0; text-align: center; font-size: 9.5px; color: rgba(26,18,8,.4); font-style: italic; }
+#view-meeting-news [hidden] { display: none !important; }
+/* 主圖：照片完整顯示（不裁切），寵物依後端算好的比例座標疊上去，保證不擋到人 */
+#view-meeting-news .mn-hero-photo-wrap { position: relative; margin: 0; border: 1px solid rgba(26,18,8,.2); border-radius: 4px; overflow: hidden; background: rgba(26,18,8,.06); }
+#view-meeting-news #mn-hero-img { display: block; width: 100%; height: auto; min-height: 120px; }
+#view-meeting-news .mn-hero-pet { position: absolute; aspect-ratio: 1; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(26,18,8,.35)); pointer-events: none; }
+/* 沒照片：沿用聚會中的情境場景卡（.pa-scene-card），只把外框改成報紙的細框 */
+#view-meeting-news .mn-hero .pa-scene-card { border-radius: 4px; border: 1px solid rgba(26,18,8,.2); }
+#view-meeting-news .mn-hero > p { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0 0; text-align: center; font-size: 9.5px; color: rgba(26,18,8,.45); font-style: italic; }
+#view-meeting-news .mn-caption-pet { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+#view-meeting-news .mn-inline-photo-wrap p { margin: 4px 0 0; text-align: center; font-size: 9.5px; color: rgba(26,18,8,.4); font-style: italic; }
 #view-meeting-news .mn-article { padding: 16px 20px 0; column-count: 2; column-gap: 14px; column-rule: 1px solid rgba(26,18,8,.15); }
 #view-meeting-news .mn-article p { margin: 0 0 10px; font-size: 11.5px; line-height: 1.8; color: #2a1c08; text-align: justify; }
 #view-meeting-news .mn-inline-photo-wrap { break-inside: avoid; margin-bottom: 10px; }
@@ -1739,16 +1743,23 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-meeting-news .mn-stats div { display: flex; flex-direction: column; align-items: center; }
 #view-meeting-news .mn-stat-value { font-size: 26px; font-weight: 900; color: #1a1208; line-height: 1; }
 #view-meeting-news .mn-stat-unit { font-size: 11px; color: #1a1208; }
-#view-meeting-news .mn-stat-label { font-size: 9px; color: rgba(26,18,8,.4); margin-top: 2px; }
+#view-meeting-news .mn-stats div { flex: 1; min-width: 0; }
+#view-meeting-news .mn-stat-label { font-size: 9px; color: rgba(26,18,8,.4); margin-top: 2px; white-space: nowrap; }
 #view-meeting-news .mn-roster-section { padding: 0 20px; margin-top: 16px; }
-#view-meeting-news .mn-roster-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px; border-bottom: 1px solid rgba(26,18,8,.1); }
+/* 出席名單：4 人以內一欄，5～12 人兩欄，再多三欄往下排（報紙變長，字不縮到看不清楚） */
+#view-meeting-news .mn-roster { display: grid; grid-template-columns: 1fr; column-gap: 12px; }
+#view-meeting-news .mn-roster[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#view-meeting-news .mn-roster[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 8px; }
+#view-meeting-news .mn-roster-row { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 6px; border-bottom: 1px solid rgba(26,18,8,.1); }
 #view-meeting-news .mn-roster-row.me { background: rgba(26,18,8,.04); }
-#view-meeting-news .mn-roster-rank { width: 14px; text-align: center; font-weight: 700; font-size: 11px; color: rgba(26,18,8,.3); }
-#view-meeting-news .mn-roster-row:first-child .mn-roster-rank { color: #8b5e00; }
 #view-meeting-news .mn-roster-avatar { width: 28px; height: 28px; border-radius: var(--r-pill); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
-#view-meeting-news .mn-roster-name { flex: 1; min-width: 0; font-size: 12px; color: #1a1208; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-meeting-news .mn-roster-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+#view-meeting-news .mn-roster-name { font-size: 12px; color: #1a1208; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #view-meeting-news .mn-roster-name small { font-size: 9.5px; color: rgba(26,18,8,.4); }
-#view-meeting-news .mn-roster-count { font-size: 11.5px; color: rgba(26,18,8,.55); white-space: nowrap; }
+#view-meeting-news .mn-roster-count { font-size: 10.5px; color: rgba(26,18,8,.5); white-space: nowrap; }
+#view-meeting-news .mn-roster[data-columns="3"] .mn-roster-row { gap: 6px; padding: 7px 2px; }
+#view-meeting-news .mn-roster[data-columns="3"] .mn-roster-avatar { width: 22px; height: 22px; font-size: 12px; }
+#view-meeting-news .mn-roster[data-columns="3"] .mn-roster-name { font-size: 11px; }
 #view-meeting-news .mn-home-bar { position: absolute; left: 20px; right: 20px; bottom: 40px; }
 #view-meeting-news .mn-home-bar button { width: 100%; height: 52px; border: none; border-radius: var(--r-sm); background: #1a1208; color: #f5f0e2; font-size: 15px; font-weight: 700; letter-spacing: .08em; font-family: Georgia, 'Times New Roman', 'Noto Serif TC', serif; cursor: pointer; }
 
@@ -1781,61 +1792,61 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 #view-focus .pa-scroll::-webkit-scrollbar { display: none; }
 
 /* 場景卡：吉祥物舞台（沿用 Lottie 動畫作吉祥物） */
-:is(#view-focus,#view-summary) .pa-scene-card { border-radius: var(--r-lg); overflow: hidden; position: relative; height: 180px; flex-shrink: 0; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #c8a45a 100%); }  /* 不被壓扁：寵物座位依 180 高計算，矮螢幕改用捲動 */
-:is(#view-focus,#view-summary) .pa-sun { position: absolute; top: 14px; right: 24px; width: 36px; height: 36px; border-radius: var(--r-pill); background: #f9d05e; box-shadow: 0 0 18px #f9d05e; }
-:is(#view-focus,#view-summary) .pa-ground { position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: #8aac58; }
-:is(#view-focus,#view-summary) .pa-grass { position: absolute; bottom: 42px; }
-:is(#view-focus,#view-summary) .pa-scene-card .lottie-container { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); width: 132px; height: 132px; margin: 0; }
-:is(#view-focus,#view-summary) .pa-pet-face { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 116px; height: 116px; object-fit: contain; border-radius: var(--r-pill); filter: drop-shadow(0 4px 10px rgba(79,53,26,.25)); z-index: 2; transform-origin: 50% 100%; animation: meeting-pet-presence 3.4s ease-in-out infinite; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card { border-radius: var(--r-lg); overflow: hidden; position: relative; height: 180px; flex-shrink: 0; background: linear-gradient(to bottom, #87c1ea 0%, #f5d98b 60%, #c8a45a 100%); }  /* 不被壓扁：寵物座位依 180 高計算，矮螢幕改用捲動 */
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-sun { position: absolute; top: 14px; right: 24px; width: 36px; height: 36px; border-radius: var(--r-pill); background: #f9d05e; box-shadow: 0 0 18px #f9d05e; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-ground { position: absolute; bottom: 0; left: 0; right: 0; height: 46px; background: #8aac58; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-grass { position: absolute; bottom: 42px; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card .lottie-container { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); width: 132px; height: 132px; margin: 0; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-pet-face { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 116px; height: 116px; object-fit: contain; border-radius: var(--r-pill); filter: drop-shadow(0 4px 10px rgba(79,53,26,.25)); z-index: 2; transform-origin: 50% 100%; animation: meeting-pet-presence 3.4s ease-in-out infinite; }
 #view-focus .pa-pet-identity { position: absolute; left: 12px; bottom: 12px; z-index: 3; align-items: center; gap: 6px; padding: 5px 9px; border-radius: var(--r-pill); background: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.7); backdrop-filter: blur(8px); color: var(--brown); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); animation: meeting-pet-chip-in .48s cubic-bezier(.2,1.45,.38,1) both; }
 #view-focus .pa-pet-identity span { font-size: 10px; font-weight: 800; color: var(--gold); letter-spacing: .04em; }
 #view-focus .pa-pet-identity strong { font-size: 12px; font-weight: 700; }
 #view-focus .pa-pet-growth-hint { margin: 10px 0 0; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--gold); font-size: 12px; font-weight: 650; }
 
 /* ── 聚會場景天氣：群體專注→晴天，一兩人分心→陰天，多數人分心→雨天 ── */
-:is(#view-focus,#view-summary) .pa-scene-card { transition: background 1.2s ease; }
-:is(#view-focus,#view-summary) .pa-scene-card.weather-cloudy { background: linear-gradient(to bottom, #9fb0bd 0%, #c4c3b6 58%, #a7a086 100%); }
-:is(#view-focus,#view-summary) .pa-scene-card.weather-rainy { background: linear-gradient(to bottom, #5d6976 0%, #767770 58%, #545040 100%); }
-:is(#view-focus,#view-summary) .pa-sun { transition: opacity .9s ease; }
-:is(#view-focus,#view-summary) .weather-cloudy .pa-sun { opacity: .35; }
-:is(#view-focus,#view-summary) .weather-rainy .pa-sun { opacity: 0; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card { transition: background 1.2s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.weather-cloudy { background: linear-gradient(to bottom, #9fb0bd 0%, #c4c3b6 58%, #a7a086 100%); }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.weather-rainy { background: linear-gradient(to bottom, #5d6976 0%, #767770 58%, #545040 100%); }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-sun { transition: opacity .9s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-cloudy .pa-sun { opacity: .35; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-rainy .pa-sun { opacity: 0; }
 
 /* 雲：晴天隱藏，陰/雨淡入並緩慢飄移 */
-:is(#view-focus,#view-summary) .pa-clouds { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s ease; }
-:is(#view-focus,#view-summary) .weather-cloudy .pa-clouds,
-:is(#view-focus,#view-summary) .weather-rainy .pa-clouds { opacity: 1; }
-:is(#view-focus,#view-summary) .pa-cloud { position: absolute; height: 16px; background: #fbfcfd; border-radius: 16px; opacity: .9; }
-:is(#view-focus,#view-summary) .pa-cloud::before, #view-focus .pa-cloud::after { content: ""; position: absolute; background: inherit; border-radius: 50%; }
-:is(#view-focus,#view-summary) .pa-cloud::before { width: 20px; height: 20px; top: -9px; left: 9px; }
-:is(#view-focus,#view-summary) .pa-cloud::after { width: 14px; height: 14px; top: -6px; left: 26px; }
-:is(#view-focus,#view-summary) .pa-cloud-1 { width: 48px; top: 22px; left: 22px; animation: pa-cloud-drift 9s ease-in-out infinite; }
-:is(#view-focus,#view-summary) .pa-cloud-2 { width: 38px; top: 42px; left: 46%; opacity: .7; animation: pa-cloud-drift 12s ease-in-out infinite reverse; }
-:is(#view-focus,#view-summary) .pa-cloud-3 { width: 44px; top: 15px; right: 26px; animation: pa-cloud-drift 11s ease-in-out infinite; }
-:is(#view-focus,#view-summary) .weather-rainy .pa-cloud { background: #d5d9de; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-clouds { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-cloudy .pa-clouds,
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-rainy .pa-clouds { opacity: 1; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud { position: absolute; height: 16px; background: #fbfcfd; border-radius: 16px; opacity: .9; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud::before, #view-focus .pa-cloud::after { content: ""; position: absolute; background: inherit; border-radius: 50%; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud::before { width: 20px; height: 20px; top: -9px; left: 9px; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud::after { width: 14px; height: 14px; top: -6px; left: 26px; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud-1 { width: 48px; top: 22px; left: 22px; animation: pa-cloud-drift 9s ease-in-out infinite; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud-2 { width: 38px; top: 42px; left: 46%; opacity: .7; animation: pa-cloud-drift 12s ease-in-out infinite reverse; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud-3 { width: 44px; top: 15px; right: 26px; animation: pa-cloud-drift 11s ease-in-out infinite; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-rainy .pa-cloud { background: #d5d9de; }
 @keyframes pa-cloud-drift { 0%, 100% { transform: translateX(-10px); } 50% { transform: translateX(12px); } }
 
 /* 雨：只有雨天顯示，細斜線墜落 */
-:is(#view-focus,#view-summary) .pa-rain { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity .8s ease; }
-:is(#view-focus,#view-summary) .weather-rainy .pa-rain { opacity: 1; }
-:is(#view-focus,#view-summary) .pa-rain i { position: absolute; top: -14%; width: 1.5px; height: 13px; border-radius: 1px; background: linear-gradient(rgba(206,224,236,0), rgba(206,224,236,.55)); animation: pa-rain-fall linear infinite; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(1) { left: 8%;  animation-duration: .95s; animation-delay: 0s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(2) { left: 16%; animation-duration: 1.1s; animation-delay: .35s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(3) { left: 24%; animation-duration: .85s; animation-delay: .6s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(4) { left: 33%; animation-duration: 1.05s; animation-delay: .15s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(5) { left: 41%; animation-duration: .9s;  animation-delay: .5s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(6) { left: 50%; animation-duration: 1.15s; animation-delay: .05s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(7) { left: 58%; animation-duration: .9s;  animation-delay: .7s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(8) { left: 66%; animation-duration: 1.0s;  animation-delay: .25s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(9) { left: 74%; animation-duration: .88s; animation-delay: .55s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(10){ left: 82%; animation-duration: 1.08s; animation-delay: .1s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(11){ left: 90%; animation-duration: .92s; animation-delay: .45s; }
-:is(#view-focus,#view-summary) .pa-rain i:nth-child(12){ left: 96%; animation-duration: 1.12s; animation-delay: .3s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity .8s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-rainy .pa-rain { opacity: 1; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i { position: absolute; top: -14%; width: 1.5px; height: 13px; border-radius: 1px; background: linear-gradient(rgba(206,224,236,0), rgba(206,224,236,.55)); animation: pa-rain-fall linear infinite; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(1) { left: 8%;  animation-duration: .95s; animation-delay: 0s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(2) { left: 16%; animation-duration: 1.1s; animation-delay: .35s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(3) { left: 24%; animation-duration: .85s; animation-delay: .6s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(4) { left: 33%; animation-duration: 1.05s; animation-delay: .15s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(5) { left: 41%; animation-duration: .9s;  animation-delay: .5s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(6) { left: 50%; animation-duration: 1.15s; animation-delay: .05s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(7) { left: 58%; animation-duration: .9s;  animation-delay: .7s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(8) { left: 66%; animation-duration: 1.0s;  animation-delay: .25s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(9) { left: 74%; animation-duration: .88s; animation-delay: .55s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(10){ left: 82%; animation-duration: 1.08s; animation-delay: .1s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(11){ left: 90%; animation-duration: .92s; animation-delay: .45s; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-rain i:nth-child(12){ left: 96%; animation-duration: 1.12s; animation-delay: .3s; }
 @keyframes pa-rain-fall { from { transform: translateY(0) rotate(10deg); } to { transform: translateY(210px) rotate(10deg); } }
 
 /* 寵物：陰天變暗加陰影，雨天更重（表達失落感） */
-:is(#view-focus,#view-summary) .pa-pet-face { transition: filter 1.1s ease; }
-:is(#view-focus,#view-summary) .weather-cloudy .pa-pet-face { filter: brightness(.9) saturate(.9) drop-shadow(0 6px 12px rgba(45,45,55,.4)); }
-:is(#view-focus,#view-summary) .weather-rainy .pa-pet-face { filter: brightness(.72) saturate(.8) drop-shadow(0 9px 14px rgba(20,20,30,.55)); }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-pet-face { transition: filter 1.1s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-cloudy .pa-pet-face { filter: brightness(.9) saturate(.9) drop-shadow(0 6px 12px rgba(45,45,55,.4)); }
+:is(#view-focus,#view-summary,#view-meeting-news) .weather-rainy .pa-pet-face { filter: brightness(.72) saturate(.8) drop-shadow(0 9px 14px rgba(20,20,30,.55)); }
 
 /* 失落對話框（陰/雨才顯示） */
 #view-focus .pa-pet-bubble { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4; max-width: 82%; padding: 5px 11px; border-radius: 14px; background: rgba(255,255,255,.92); color: var(--brown); font-size: 11px; font-weight: 650; line-height: 1.3; text-align: center; overflow-wrap: anywhere; box-shadow: 0 2px 10px rgba(0,0,0,.14); animation: pa-bubble-in .4s cubic-bezier(.2,1.4,.4,1) both; }
@@ -1849,7 +1860,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
      --pet-x 寵物水平中心、--pet-top 寵物圖框上緣、--pet-size 圖框大小、--pet-seat 座位線（腳踩的位置或桌緣）、
      --pet-clip 坐在桌子後面的情境把圖框下方切掉多少（做出被桌子擋住的樣子，不需要另外的前景圖）。
    群組寵物圖（例：puppy-poster-v1）的身體約在圖框 18%～92% 高；預設吉祥物（圓臉）的臉佔圖框 68%、下方留白 16%。 */
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene {
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene {
     --scene-h: 180px;
     --scene-w: calc(var(--scene-h) * 20 / 9);
     --pet-clip: 0%;
@@ -1862,13 +1873,13 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
     background-repeat: no-repeat;
 }
 /* 有場景圖時關掉預設的戶外舞台（太陽、草地、雲、雨）與外部 Lottie；分心變暗改用整張蓋上的遮罩 */
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-sun,
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-ground,
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-grass,
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-clouds,
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-rain,
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .lottie-container { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-pet-face {
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-sun,
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-ground,
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-grass,
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-clouds,
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-rain,
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .lottie-container { display: none; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-pet-face {
     left: var(--pet-left); top: calc(var(--pet-top) * var(--scene-h)); bottom: auto;
     width: calc(var(--pet-size) * var(--scene-h)); height: calc(var(--pet-size) * var(--scene-h)); z-index: 2;
     clip-path: inset(0 0 var(--pet-clip) 0);
@@ -1877,69 +1888,69 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 /* 寵物名牌（LV／名字）：寵物都坐在畫面左邊或中間，名牌改放右下角才不會擋到寵物 */
 #view-focus .pa-scene-card.has-scene .pa-pet-identity { left: auto; right: 12px; }
 /* 坐在桌子後面：寵物圖框為了切掉下半身放得比較大，預設吉祥物跟著縮小；寵物不上下晃（切口會跟著晃，桌緣會露出空隙） */
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.pet-behind { --ball-scale: 0.58; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.pet-behind .pa-pet-face { animation: none; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.pet-behind { --ball-scale: 0.58; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.pet-behind .pa-pet-face { animation: none; }
 /* 預設坐位吉祥物（沒有群組寵物時）：同一個座位，臉的下緣貼在座位線 */
-:is(#view-focus,#view-summary) .pa-seat-ball { display: none; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-seat-ball {
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-seat-ball { display: none; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-seat-ball {
     display: block; position: absolute; left: var(--pet-left);
     bottom: calc((1 - var(--pet-seat)) * var(--scene-h) - 0.16 * var(--ball-size));
     width: var(--ball-size); height: var(--ball-size); z-index: 2;
     transform: translateX(-50%); animation: pa-seat-bob 3.4s ease-in-out infinite;
 }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-seat-ball svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.has-pet .pa-seat-ball { display: none; }  /* 有真寵物時藏起預設吉祥物 */
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-seat-ball svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.has-pet .pa-seat-ball { display: none; }  /* 有真寵物時藏起預設吉祥物 */
 @keyframes pa-seat-bob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-3px); } }
 
 /* 燈光遮罩：正常（晴）全亮不遮；越多人分心越暗（顏色、深淺依情境，沿用原本調好的數值） */
-:is(#view-focus,#view-summary) .pa-scene-dim { display: none; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #0a0705; opacity: 0; transition: opacity 1.2s ease; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene .pa-scene-dim { display: block; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-dim { display: none; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #0a0705; opacity: 0; transition: opacity 1.2s ease; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene .pa-scene-dim { display: block; }
 
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-general { background-image: url("../assets/scenes/general.webp"); --pet-x: 0.359; --pet-top: 0.237; --pet-size: 0.537; --pet-seat: 0.732; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general .pa-scene-dim { background: #1c160d; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-cloudy .pa-scene-dim { opacity: 0.24; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-general.weather-rainy .pa-scene-dim { opacity: 0.48; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-meeting { background-image: url("../assets/scenes/meeting.webp"); --pet-x: 0.25; --pet-top: 0.466; --pet-size: 0.366; --pet-seat: 0.803; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting .pa-scene-dim { background: #12151c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-cloudy .pa-scene-dim { opacity: 0.26; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meeting.weather-rainy .pa-scene-dim { opacity: 0.5; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-family { background-image: url("../assets/scenes/family.webp"); --pet-x: 0.4925; --pet-top: 0.226; --pet-size: 0.53; --pet-seat: 0.61; --pet-clip: 27.6%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family .pa-scene-dim { background: #1f1710; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-cloudy .pa-scene-dim { opacity: 0.24; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-family.weather-rainy .pa-scene-dim { opacity: 0.48; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-study { background-image: url("../assets/scenes/study.webp"); --pet-x: 0.313; --pet-top: 0.185; --pet-size: 0.557; --pet-seat: 0.592; --pet-clip: 26.8%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study .pa-scene-dim { background: #35415c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: 0.18; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: 0.36; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-class { background-image: url("../assets/scenes/class.webp"); --pet-x: 0.49; --pet-top: 0.508; --pet-size: 0.45; --pet-seat: 0.823; --pet-clip: 30.1%; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class .pa-scene-dim { background: #171a20; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-cloudy .pa-scene-dim { opacity: 0.22; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-class.weather-rainy .pa-scene-dim { opacity: 0.46; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-meal { background-image: url("../assets/scenes/meal.webp"); --pet-x: 0.2195; --pet-top: 0.352; --pet-size: 0.431; --pet-seat: 0.749; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal .pa-scene-dim { background: #1c1208; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-cloudy .pa-scene-dim { opacity: 0.28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-meal.weather-rainy .pa-scene-dim { opacity: 0.54; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-date { background-image: url("../assets/scenes/date.webp"); --pet-x: 0.2645; --pet-top: 0.33; --pet-size: 0.412; --pet-seat: 0.71; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date .pa-scene-dim { background: #0a0705; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-cloudy .pa-scene-dim { opacity: 0.32; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-date.weather-rainy .pa-scene-dim { opacity: 0.6; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-social { background-image: url("../assets/scenes/social.webp"); --pet-x: 0.332; --pet-top: 0.309; --pet-size: 0.399; --pet-seat: 0.677; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social .pa-scene-dim { background: #1a130a; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-cloudy .pa-scene-dim { opacity: 0.28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-social.weather-rainy .pa-scene-dim { opacity: 0.52; }
-:is(#view-focus,#view-summary) .pa-scene-card.has-scene.scene-outdoor { background-image: url("../assets/scenes/outdoor.webp"); --pet-x: 0.281; --pet-top: 0.412; --pet-size: 0.361; --pet-seat: 0.744; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor .pa-scene-dim { background: #10131c; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-cloudy .pa-scene-dim { opacity: 0.28; }
-:is(#view-focus,#view-summary) .pa-scene-card.scene-outdoor.weather-rainy .pa-scene-dim { opacity: 0.54; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-general { background-image: url("../assets/scenes/general.webp"); --pet-x: 0.359; --pet-top: 0.237; --pet-size: 0.537; --pet-seat: 0.732; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-general .pa-scene-dim { background: #1c160d; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-general.weather-cloudy .pa-scene-dim { opacity: 0.24; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-general.weather-rainy .pa-scene-dim { opacity: 0.48; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-meeting { background-image: url("../assets/scenes/meeting.webp"); --pet-x: 0.25; --pet-top: 0.466; --pet-size: 0.366; --pet-seat: 0.803; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meeting .pa-scene-dim { background: #12151c; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meeting.weather-cloudy .pa-scene-dim { opacity: 0.26; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meeting.weather-rainy .pa-scene-dim { opacity: 0.5; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-family { background-image: url("../assets/scenes/family.webp"); --pet-x: 0.4925; --pet-top: 0.226; --pet-size: 0.53; --pet-seat: 0.61; --pet-clip: 27.6%; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-family .pa-scene-dim { background: #1f1710; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-family.weather-cloudy .pa-scene-dim { opacity: 0.24; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-family.weather-rainy .pa-scene-dim { opacity: 0.48; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-study { background-image: url("../assets/scenes/study.webp"); --pet-x: 0.313; --pet-top: 0.185; --pet-size: 0.557; --pet-seat: 0.592; --pet-clip: 26.8%; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-study .pa-scene-dim { background: #35415c; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-study.weather-cloudy .pa-scene-dim { opacity: 0.18; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-study.weather-rainy .pa-scene-dim { opacity: 0.36; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-class { background-image: url("../assets/scenes/class.webp"); --pet-x: 0.49; --pet-top: 0.508; --pet-size: 0.45; --pet-seat: 0.823; --pet-clip: 30.1%; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-class .pa-scene-dim { background: #171a20; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-class.weather-cloudy .pa-scene-dim { opacity: 0.22; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-class.weather-rainy .pa-scene-dim { opacity: 0.46; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-meal { background-image: url("../assets/scenes/meal.webp"); --pet-x: 0.2195; --pet-top: 0.352; --pet-size: 0.431; --pet-seat: 0.749; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meal .pa-scene-dim { background: #1c1208; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meal.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-meal.weather-rainy .pa-scene-dim { opacity: 0.54; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-date { background-image: url("../assets/scenes/date.webp"); --pet-x: 0.2645; --pet-top: 0.33; --pet-size: 0.412; --pet-seat: 0.71; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-date .pa-scene-dim { background: #0a0705; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-date.weather-cloudy .pa-scene-dim { opacity: 0.32; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-date.weather-rainy .pa-scene-dim { opacity: 0.6; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-social { background-image: url("../assets/scenes/social.webp"); --pet-x: 0.332; --pet-top: 0.309; --pet-size: 0.399; --pet-seat: 0.677; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-social .pa-scene-dim { background: #1a130a; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-social.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-social.weather-rainy .pa-scene-dim { opacity: 0.52; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.has-scene.scene-outdoor { background-image: url("../assets/scenes/outdoor.webp"); --pet-x: 0.281; --pet-top: 0.412; --pet-size: 0.361; --pet-seat: 0.744; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-outdoor .pa-scene-dim { background: #10131c; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-outdoor.weather-cloudy .pa-scene-dim { opacity: 0.28; }
+:is(#view-focus,#view-summary,#view-meeting-news) .pa-scene-card.scene-outdoor.weather-rainy .pa-scene-dim { opacity: 0.54; }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(#view-focus,#view-summary) .pa-seat-ball, :is(#view-focus,#view-summary) .has-scene .pa-pet-face { animation: none !important; }
+  :is(#view-focus,#view-summary,#view-meeting-news) .pa-seat-ball, :is(#view-focus,#view-summary,#view-meeting-news) .has-scene .pa-pet-face { animation: none !important; }
 }
 
 @keyframes pa-bubble-in { from { opacity: 0; transform: translate(-50%, -4px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(#view-focus,#view-summary) .pa-cloud, #view-focus .pa-rain i, #view-focus .pa-pet-bubble { animation: none !important; }
+  :is(#view-focus,#view-summary,#view-meeting-news) .pa-cloud, #view-focus .pa-rain i, #view-focus .pa-pet-bubble { animation: none !important; }
 }
 #view-focus .pa-pet-growth-hint i { width: 14px; height: 14px; }
 #view-focus .pa-mascot-text { margin: 12px 0 0; font-size: 13px; color: var(--brown-60); text-align: center; line-height: 1.6; }
@@ -1955,7 +1966,7 @@ select.text-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(#view-focus,#view-summary) .pa-pet-face,
+  :is(#view-focus,#view-summary,#view-meeting-news) .pa-pet-face,
   #view-focus .pa-pet-identity,
   #view-summary .ps-pet-face,
   #view-summary .ps-pet-xp { animation: none !important; }

@@ -2201,9 +2201,3 @@
 .care-exchange-btn b { font-size: 13px; color: #7c3aed; white-space: nowrap; }
 .care-exchange-btn:disabled { opacity: .5; cursor: default; }
 .care-exchange-all-btn { width:100%; margin-bottom:10px; font-size:.85rem; }
-
-/* 單抽選券：沿用 redesign.css 的 pa-sheet 底部選單外觀，包成 dialog 才能疊在扭蛋機 dialog 之上 */
-.gacha-ticket-sheet { border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 440px; max-height: none; background: transparent; overflow: visible; }
-.gacha-ticket-sheet:not([open]) { display: none; }
-.gacha-ticket-sheet::backdrop { background: rgba(15,23,42,.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
-.gacha-ticket-sheet .pa-sheet-item { text-align: left; cursor: pointer; }

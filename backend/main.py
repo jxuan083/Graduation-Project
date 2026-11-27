@@ -1,6 +1,7 @@
 import uuid
 import json
 import asyncio
+import concurrent.futures
 import qrcode
 import io
 import base64
@@ -1075,6 +1076,7 @@ import ordering as _ordering  # noqa: E402
 import phone_open as _phone  # noqa: E402
 import study as _study  # noqa: E402
 import transcript_merge as _tm  # noqa: E402
+import newspaper_photo as _newspaper_photo  # noqa: E402
 
 
 def _week_start_utc_from_taipei() -> datetime.datetime:
@@ -1996,6 +1998,7 @@ async def delete_meeting_photo(
             db.collection("meetings").document(meeting_id).set({
                 "cover_photo_id": new_cover.id,
                 "cover_url": firestore.DELETE_FIELD,
+                "cover_set_by_host": False,   # 自動補上的封面不算主持人選的
             }, merge=True)
         else:
             # 只有在 meetings doc 存在時才移除封面欄位（進行中的聚會還沒建立 doc，無須處理）
@@ -2005,6 +2008,7 @@ async def delete_meeting_photo(
                     db.collection("meetings").document(meeting_id).update({
                         "cover_url": firestore.DELETE_FIELD,
                         "cover_photo_id": firestore.DELETE_FIELD,
+                        "cover_set_by_host": False,
                     })
             except Exception as e:
                 print(f"Warning: clear cover fields failed: {e}")
@@ -2038,6 +2042,7 @@ async def set_meeting_photo_cover(
     db.collection("meetings").document(meeting_id).set({
         "cover_photo_id": photo_id,
         "cover_url": firestore.DELETE_FIELD,
+        "cover_set_by_host": True,   # 主持人手動選的封面：報紙優先用這張（不跑人臉數量比較）
     }, merge=True)
     return {"status": "success"}
 
@@ -2407,147 +2412,180 @@ def _build_participation(transcripts: list, meeting: dict) -> list:
     return rows
 
 
-def _extract_key_points(transcripts: list) -> list:
-    candidates = []
-    for entry in transcripts:
-        text = _clean_transcript_text(entry.get("text", ""), limit=120)
-        if len(text) >= 12:
-            candidates.append({
-                "speaker": "",
-                "text": text,
-            })
-
-    if not candidates:
-        return [
-            {"speaker": "", "text": "這場聚會尚未加入逐字稿，系統先以照片與參與者資料產生回顧。"}
-        ]
-
-    # 優先挑較完整的句子，避免整份 newspaper 只出現零碎短句。
-    candidates.sort(key=lambda x: len(x["text"]), reverse=True)
-    return candidates[:5]
+def _newspaper_context(meeting_id: str, meeting: dict) -> str:
+    """這場選的情境；改版前的聚會紀錄沒存，就去房間資料找，再找不到用一般聚會。"""
+    ctx = meeting.get("context")
+    if not ctx:
+        try:
+            room_snap = db.collection("rooms").document(meeting.get("room_id") or meeting_id).get()
+            ctx = (room_snap.to_dict() or {}).get("context") if room_snap.exists else None
+        except Exception as e:  # noqa: BLE001
+            print(f"[newspaper] room context lookup failed: {e}")
+    return ctx if ctx in SUMMARY_CONTEXT_LABELS else "general"
 
 
-def _extract_topics(transcripts: list) -> list:
-    stopwords = {
-        "the", "and", "that", "this", "with", "have", "just", "really",
-        "今天", "大家", "就是", "那個", "我們", "你們", "他們", "覺得", "然後", "因為", "所以"
-    }
-    counts: Dict[str, int] = {}
-    for entry in transcripts:
-        text = (entry.get("text") or "").lower()
-        tokens = []
-        for raw in text.replace("，", " ").replace("。", " ").replace(",", " ").replace(".", " ").split():
-            token = raw.strip("!?！？、:：;；()[]{}\"'")
-            if len(token) >= 2 and token not in stopwords:
-                tokens.append(token)
-        for token in tokens:
-            counts[token] = counts.get(token, 0) + 1
+def _newspaper_pet(meeting: dict) -> Optional[dict]:
+    """群組聚會才有寵物；改版前的聚會紀錄沒存寵物，就用群組現在的寵物。"""
+    group_id = meeting.get("group_id")
+    if not group_id:
+        return None
+    name, face = meeting.get("group_pet_name") or "", meeting.get("group_pet_face_url") or ""
+    if not face:
+        try:
+            g_snap = db.collection("groups").document(group_id).get()
+            g_data = (g_snap.to_dict() or {}) if g_snap.exists else {}
+            name, face = name or g_data.get("pet_name") or "", g_data.get("pet_face_url") or ""
+        except Exception as e:  # noqa: BLE001
+            print(f"[newspaper] group pet lookup failed: {e}")
+    return {"name": name or "群組寵物", "face_url": face} if face else None
 
-    topics = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:6]
-    if not topics:
-        return ["聚會回顧", "照片回憶", "朋友互動"]
-    return [t for t, _ in topics]
+
+def _newspaper_roster(meeting: dict) -> list:
+    """出席名單：參加過的每個人（不論多久），附各自的參加分鐘；不計分的人（上課的老師）分心是 None。"""
+    duration = int(meeting.get("duration_minutes") or 0)
+    ranking = {r.get("uid"): r for r in meeting.get("score_ranking") or meeting.get("deviation_ranking") or []}
+    rows, seen = [], set()
+    for member in meeting.get("members_snapshot") or []:
+        uid = member.get("uid") or member.get("nickname") or f"member-{len(rows)}"
+        if uid in seen:
+            continue
+        seen.add(uid)
+        rank = ranking.get(uid) or {}
+        minutes = member.get("attended_minutes")
+        if minutes is None:
+            minutes = rank.get("attended_minutes", duration)
+        rows.append({
+            "uid": member.get("uid") or "",
+            "name": member.get("nickname") or rank.get("nickname") or "成員",
+            "attended_minutes": int(minutes or 0),
+            "deviations": int(rank["deviations"]) if "deviations" in rank else None,
+            "is_guest": bool(member.get("is_guest")),
+        })
+    rows.sort(key=lambda r: -r["attended_minutes"])
+    return rows
+
+
+def _newspaper_most_focused(roster: list, duration: int) -> tuple:
+    """最專注：參加超過一半時間、分心最少的人（最多列 3 位）。所有人都一樣時不特別挑人。"""
+    eligible = [r for r in roster if r["deviations"] is not None and r["attended_minutes"] * 2 >= duration]
+    if not eligible:
+        return [], None
+    best = min(r["deviations"] for r in eligible)
+    names = [r["name"] for r in eligible if r["deviations"] == best]
+    if (len(names) == len(eligible) and len(names) > 1) or len(names) > 3:
+        return [], None
+    return names, best
+
+
+def _newspaper_headline_rules(facts: dict) -> list:
+    n, d, dev, longest = facts["member_count"], facts["duration_minutes"], facts["total_deviations"], facts["longest_focus_minutes"]
+    line1 = f"一個人的{d}分鐘" if n == 1 else f"{n}人的{facts['context_label']}"
+    if dev == 0:
+        line2 = "零分心的專注時光" if n == 1 else "全場零分心"
+    elif longest:
+        line2 = f"最長專注{longest}分鐘"
+    else:
+        line2 = f"一起度過{d}分鐘"
+    return [line1, line2]
+
+
+def _newspaper_article_rules(facts: dict) -> list:
+    n, d, dev, longest = facts["member_count"], facts["duration_minutes"], facts["total_deviations"], facts["longest_focus_minutes"]
+    pet = facts.get("pet_name")
+    paragraphs = [f"【本報訊】一場 {n} 人參與的{facts['context_label']}，在 {d} 分鐘內順利落幕。"
+                  + (f"群組寵物「{pet}」見證了整場聚會。" if pet else "")]
+    # 專注情形只給評價、不寫數字（數字在下方的「本次聚會數據」）
+    if dev == 0:
+        focus = "整場聚會沒有人被手機打斷，大家把這段時間完整地留給了彼此。"
+    elif longest and d and longest * 2 >= d:
+        focus = "雖然偶爾有人看了手機，但大部分的時間，大家的注意力都在彼此身上。"
+    else:
+        focus = "席間手機偶爾來湊熱鬧，不過大家很快又回到了彼此的話題裡。"
+    if facts["most_focused"] and not (dev == 0 and n > 1):
+        names = "、".join(facts["most_focused"])
+        focus += f"其中{names}全程投入，參與度最高。" if facts["most_focused_deviations"] == 0 else f"其中{names}最為投入，參與度最高。"
+    paragraphs.append(focus)
+    paragraphs.append("聚會尾聲，眾人意猶未盡。本報期待下一次相聚，帶來更多精彩故事。")
+    return paragraphs
+
+
+def _newspaper_hero(photos: list, meeting: dict, context: str, pet: Optional[dict]) -> dict:
+    """主圖：有照片用照片（挑人最多的，主持人手動選的封面優先），寵物放在不擋到人的位置；沒照片用情境圖。"""
+    def read_bytes(photo):
+        return _storage_bucket().blob(photo["storage_path"]).download_as_bytes()
+    usable = [p for p in photos if p.get("storage_path")]
+    host_cover = meeting.get("cover_photo_id") if meeting.get("cover_set_by_host") else None
+    hero = _newspaper_photo.build_photo_hero(usable, read_bytes, host_cover, with_pet=bool(pet))
+    return hero or {"kind": "scene", "context": context}
 
 
 def _build_newspaper(meeting_id: str, meeting: dict, transcripts: list, photos: list) -> dict:
+    """聚會回顧報紙。數字都由這裡算；大標題（Prompt A）與內文（Prompt B）交給 Qwen，失敗就用規則版。"""
     participation = _build_participation(transcripts, meeting)
-    key_points = _extract_key_points(transcripts)
-    topics = _extract_topics(transcripts)
+    context = _newspaper_context(meeting_id, meeting)
+    context_label = SUMMARY_CONTEXT_LABELS[context][0]
+    duration = int(meeting.get("duration_minutes") or 0)
+    roster = _newspaper_roster(meeting)
+    member_count = int(meeting.get("member_count") or len(roster))
+    pet = _newspaper_pet(meeting)
+    most_focused, most_focused_dev = _newspaper_most_focused(roster, duration)
+    longest = meeting.get("longest_focus_minutes")
+    facts = {
+        "context_label": context_label,
+        "duration_minutes": duration,
+        "member_count": member_count,
+        "total_deviations": int(meeting.get("total_deviations") or 0),
+        "longest_focus_minutes": int(longest) if longest is not None else None,
+        "members": [{"name": r["name"], "attended_minutes": r["attended_minutes"], "deviations": r["deviations"]} for r in roster],
+        "most_focused": most_focused,
+        "most_focused_deviations": most_focused_dev,
+        "pet_name": (pet or {}).get("name", ""),
+        "photo_count": len(photos),
+        "transcript_lines": [_clean_transcript_text(e.get("text", ""), limit=200) for e in transcripts],
+    }
 
-    title_mode = meeting.get("mode") or "Gathering"
-    member_count = meeting.get("member_count") or len(meeting.get("members_snapshot") or [])
-    duration = meeting.get("duration_minutes") or 0
+    headline = article = None
+    if llm is not None:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            head_job = pool.submit(llm.generate_newspaper_headline, facts)
+            body_job = pool.submit(llm.generate_newspaper_article, facts)
+            headline, article = head_job.result(), body_job.result()
+    headline_by = "qwen-plus" if headline else "rules"
+    article_by = "qwen-plus" if article else "rules"
+    headline = headline or _newspaper_headline_rules(facts)
+    article = article or _newspaper_article_rules(facts)
+
     cover = next((p for p in photos if p.get("is_cover")), photos[0] if photos else None)
-
-    lead = (
-        f"這場 {title_mode} 聚會共有 {member_count} 位成員參與，"
-        f"持續約 {duration} 分鐘。系統整理了對話重點、參與度與照片，"
-        "生成這份聚會回顧報。"
-    )
-
-    top_people = participation[:3]
-    spotlights = [
-        {
-            "uid": p["uid"],
-            "nickname": p["nickname"],
-            "role": p["role"],
-            "participation_score": p["participation_score"],
-            "summary": f"{p['nickname']} 在本次聚會中被標記為 {p['role']}，共發言 {p['utterance_count']} 次。"
-        }
-        for p in top_people
-    ]
-
-    newspaper = {
+    return {
         "id": "newspaper",
         "meeting_id": meeting_id,
-        "style": "social_newspaper",
-        "title": "Party Newspaper",
-        "subtitle": f"{title_mode} recap",
-        "lead": lead,
-        "highlights": [],
+        "style": "gathering_post_v2",
+        "headline": headline,
+        "title": "".join(headline),                 # 舊欄位相容
+        "subhead": f"本次聚會歷時 {duration} 分鐘，共有 {member_count} 名成員參與",
+        "article": article,
+        "lead": article[0],                         # 舊欄位相容
+        "headline_by": headline_by,
+        "article_by": article_by,
+        "generated_by": "qwen-plus" if headline_by == article_by == "qwen-plus" else "rules" if headline_by == article_by else "mixed",
+        "context": context,
+        "context_label": context_label,
+        "pet": pet,
+        "hero": _newspaper_hero(photos, meeting, context, pet),
         "cover_photo": cover,
         "photo_count": len(photos),
         "photos": photos[:10],
-        "topics": topics,
-        "key_points": key_points,
+        "roster": roster,
         "participation": participation,
-        "spotlights": spotlights,
         "stats": {
             "member_count": member_count,
             "duration_minutes": duration,
+            "total_deviations": facts["total_deviations"],
+            "longest_focus_minutes": facts["longest_focus_minutes"],
             "transcript_entries": len(transcripts),
-            "total_deviations": meeting.get("total_deviations", 0),
         },
-        "generated_by": "rules",
         "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
     }
-
-    # ── 用 Qwen 生成更自然的文案疊加上去；任何失敗都保留上面的規則版 ──
-    _enrich_newspaper_with_llm(newspaper)
-    return newspaper
-
-
-def _enrich_newspaper_with_llm(newspaper: dict) -> None:
-    """呼叫 Qwen 生成文案並就地覆蓋 newspaper 的文字欄位。
-
-    只覆蓋 title / subtitle / lead / highlights，以及 spotlights 的 summary（按 uid 對應）；
-    參與度分數、統計數字、照片一律不動，確保數據正確。失敗則原封不動（=規則版）。
-    """
-    if llm is None:
-        return
-    context = {
-        "mode": newspaper.get("subtitle", "").replace(" recap", "") or "聚會",
-        "member_count": newspaper["stats"]["member_count"],
-        "duration_minutes": newspaper["stats"]["duration_minutes"],
-        "topics": newspaper.get("topics") or [],
-        "photo_count": newspaper.get("photo_count") or 0,
-        "participation": newspaper.get("participation") or [],
-        "key_points": newspaper.get("key_points") or [],
-    }
-    try:
-        copy = llm.generate_newspaper_copy(context)
-    except Exception as e:  # noqa: BLE001
-        print(f"[main] Qwen enrich 例外，保留規則版：{e}")
-        return
-    if not copy:
-        return
-
-    if copy.get("title"):
-        newspaper["title"] = copy["title"]
-    if copy.get("subtitle"):
-        newspaper["subtitle"] = copy["subtitle"]
-    if copy.get("lead"):
-        newspaper["lead"] = copy["lead"]
-    if copy.get("highlights"):
-        newspaper["highlights"] = copy["highlights"]
-
-    ai_spotlights = copy.get("spotlights") or {}
-    for sp in newspaper.get("spotlights") or []:
-        ai_text = ai_spotlights.get(sp.get("uid"))
-        if ai_text:
-            sp["summary"] = ai_text
-
-    newspaper["generated_by"] = "qwen-plus"
 
 
 @app.post("/api/meetings/{meeting_id}/transcripts")
@@ -2716,7 +2754,8 @@ async def generate_meeting_newspaper(meeting_id: str, decoded: dict = Depends(ve
     meeting = _get_meeting_or_403(meeting_id, uid)
     transcripts = _collect_meeting_transcripts(meeting_id)
     photos = _collect_meeting_photos(meeting_id)
-    newspaper = _build_newspaper(meeting_id, meeting, transcripts, photos)
+    # 會呼叫 Qwen 與人臉偵測（各要幾秒），放到執行緒跑，不卡住其他聚會的 WebSocket
+    newspaper = await asyncio.to_thread(_build_newspaper, meeting_id, meeting, transcripts, photos)
 
     db.collection("meetings").document(meeting_id).collection("artifacts").document("newspaper").set({
         **newspaper,
@@ -3836,12 +3875,8 @@ class ExchangeDuplicatesPayload(BaseModel):
     request_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
-# 用群組共用道具換來的抽獎券放在群組文件上，所有成員都能用；個人券（聚會、升級獲得）仍在 users/{uid}.gacha_tickets
+# 抽獎卷只有群組共用一種（兌換、聚會、升級都加在群組文件上），所有成員都能用
 GROUP_TICKETS_FIELD = "group_gacha_tickets"
-
-
-def _actor_nickname(u_data: dict, decoded: dict) -> str:
-    return str(u_data.get("nickname") or decoded.get("name") or "有位成員").strip()[:40] or "有位成員"
 
 
 def _stage_group_system_message(tx, group_ref, text: str, *, kind: str, actor_uid: str):
@@ -3859,18 +3894,9 @@ def _stage_group_system_message(tx, group_ref, text: str, *, kind: str, actor_ui
     })
 
 
-def _exchange_notice_parts(before: dict, after: dict, name_of) -> list[str]:
-    parts = []
-    for iid, old in before.items():
-        used = int(old) - int(after.get(iid, 0))
-        if used > 0:
-            parts.append(f"{used} 件「{name_of(iid)}」")
-    return parts
-
-
 @app.post("/api/users/gacha/exchange-duplicates")
 async def gacha_exchange_duplicates(payload: ExchangeDuplicatesPayload, decoded: dict = Depends(verify_token)):
-    """兌換群組背包的重複道具為群組抽獎券（同款保留 1 件，多出的每 3 件換 1 張），並在群組聊天室通知。"""
+    """兌換群組背包的重複道具為群組抽獎卷（每 3 件換 1 張）。"""
     uid = decoded.get("uid") or decoded.get("user_id")
     if not uid:
         raise HTTPException(status_code=401, detail="Token 內無 uid")
@@ -4735,6 +4761,9 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
 
     duration_minutes = _att.settle_room(room_data, _now_ms(), _room_window_sec(room_data), client_minutes)
     room_data["status"] = "ENDED"
+    longest_focus = _att.longest_focus_minutes(room_data, int(room_data.get("ended_ms") or 0))
+    if longest_focus is not None:
+        longest_focus = min(longest_focus, duration_minutes)
 
     all_ever = _att.scored_participants(room_data)
     host_uid_local = room_data.get("host_uid")
@@ -4800,7 +4829,8 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
             members_snapshot.append({
                 "uid": uid,
                 "nickname": info.get("nickname", ""),
-                "is_guest": is_guest
+                "is_guest": is_guest,
+                "attended_minutes": int(info.get("attended_minutes", duration_minutes) or 0),   # 報紙出席名單
             })
             if not is_guest:
                 participants.append(uid)
@@ -4848,6 +4878,11 @@ async def _finalize_room(room_id: str, reason: str, client_minutes: int = 0) -> 
             "base_score": avg_score,          # 舊欄位相容：現在代表全場平均分
             "score_ranking": score_ranking,
             "deviation_ranking": score_ranking,   # 舊欄位相容：同一份資料
+            # 報紙用：情境、最長連續專注（整場沒人分心最久的一段；算不出來是 None）、群組寵物
+            "context": context_local,
+            "longest_focus_minutes": longest_focus,
+            "group_pet_name": room_data.get("group_pet_name", "") if record_group_id else "",
+            "group_pet_face_url": room_data.get("group_pet_face_url", "") if record_group_id else "",
         }
         # merge=True 保留聚會中可能已經寫入的 cover_photo_id
         db.collection("meetings").document(room_id).set(meeting_record, merge=True)

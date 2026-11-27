@@ -79,115 +79,273 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-SYSTEM_PROMPT = (
-    "你是一位替朋友聚會撰寫「聚會回顧報」的中文編輯。"
-    "根據提供的聚會統計與對話片段，寫出生動、溫暖、有畫面感的繁體中文文案。"
-    "只描述資料中出現的內容，不要杜撰不存在的人名、地點或事件。"
-    "嚴格只輸出一個 JSON 物件，不要有任何額外說明或 markdown。"
-)
+# ── 聚會回顧報紙：兩個 prompt ──
+# Prompt A 寫大標題（兩行），Prompt B 寫兩欄內文。兩個同時呼叫。
+# 數字由程式算好放進「聚會資料」，AI 只能照抄；產生後再檢查一次，出現資料以外的數字就不用（改用規則版）。
+
+NEWSPAPER_TIMEOUT_SEC = 25.0
+TRANSCRIPT_MAX_CHARS = 3500
+TRANSCRIPT_RICH_CHARS = 300      # 逐字稿超過這麼多字，內文就以聊天內容為主
+
+HEADLINE_SYSTEM_PROMPT = """你是聚會回顧報紙《THE GATHERING POST》的標題編輯。根據聚會資料，替這場聚會下一個兩行的頭版大標題。
+
+規則：
+1. 繁體中文，兩行，每行 4～10 個字。第二行要補充或呼應第一行，兩行合起來像一句報紙頭條。
+2. 從資料裡挑這場最有特色的一點來寫：例如人很少或很多、全場零分心、專注很久、聊天的主題、聚會情境。有逐字稿時優先用聊天主題。
+3. 語氣溫暖、有畫面感，可以俏皮，但不要浮誇、不要說教。
+4. 數字可以寫成中文（例如「五分鐘」），但必須跟資料完全一樣；不要寫出資料裡沒有的數字、人名、地點、事件。
+5. 不要用「聚會圓滿落幕」這類空泛的句子；不要用驚嘆號、引號、emoji，行尾不加標點。
+6. 只輸出 JSON：{"line1": "第一行", "line2": "第二行"}
+
+範例（一個人、5 分鐘、0 次分心）：{"line1": "一個人的五分鐘", "line2": "零分心的專注時光"}"""
+
+ARTICLE_SYSTEM_PROMPT = """你是聚會回顧報紙《THE GATHERING POST》的記者。這份報紙是給參加的人留作回憶的，請根據聚會資料寫一篇頭版短報導。
+
+規則：
+1. 繁體中文，第三人稱、報紙新聞的口吻，溫暖、可以帶一點幽默。分段寫，每段 2～4 句。
+2. 第一段用「【本報訊】」開頭，簡單交代這是什麼情境的聚會、幾個人、多長時間（用阿拉伯數字，例如「4 人」「95 分鐘」）。
+3. 依照【寫作重點】決定聊天內容的篇幅：
+   - 逐字稿充足：內文以「大家聊了什麼」為主，寫 2～3 段。整理出主要的話題、有趣或難忘的片段、大家提到的計畫或約定、當下的氣氛，讓大家之後重讀時能想起那天。用轉述的方式寫，最多可以引用一句很短的原話（15 字以內）。逐字稿是語音辨識出來的，可能有錯字，看不懂的句子就跳過，不要硬寫。
+   - 逐字稿不多：聊天內容用一兩句帶過。
+   - 沒有逐字稿：不寫聊天內容。
+4. 專注的情形只寫一段，而且不寫任何數字，中文數字也不行（不寫幾次、幾分鐘，也不要提最長連續專注有多長）。根據資料給評價：沒有分心的人可以說他全程投入、參與度很高；全場都沒分心就肯定大家把時間留給了彼此；有人分心也只用輕鬆的口吻帶過，不點名責備。參加時間很短的人不要評價他專不專心。
+5. 最後一段收尾，例如期待下一次相聚。
+6. 不要寫到群組寵物（系統會自己加在第一段）。
+7. 不要提到錄音、逐字稿、資料、系統這些字眼；不要寫任何時間點或時段（例如昨天、今晚、近日、週末、幾月幾日、早餐、午餐、晚餐、宵夜）。
+8. 數字只能出現在兩個地方：第一段的人數與時長，以及轉述逐字稿裡本來就有的數字（例如「練了兩個月」）。不要自己算平均、比例或任何新數字。
+9. 只能提到資料裡出現的人名。這是大家的回憶，寫錯比少寫更糟：具體的事情（誰說了什麼、做了什麼、決定了什麼、吃了什麼）都必須在逐字稿裡找得到，不要自己加情節，例如鼓掌、取名字、誰的動作或表情；可以形容氣氛。逐字稿沒有標出是誰說的：除非句子本身就點名（例如「小美你最近在學吉他嗎」），否則不要寫是誰說的、誰做的。地名只能用逐字稿裡出現過的。
+10. 全文 150～450 字。只輸出 JSON：{"paragraphs": ["第一段", "第二段", "第三段"]}"""
 
 
-def _build_user_prompt(context: dict) -> str:
-    """把規則算好的資料組成給 Qwen 的輸入。"""
-    mode = context.get("mode") or "聚會"
-    member_count = context.get("member_count") or 0
-    duration = context.get("duration_minutes") or 0
-    topics = context.get("topics") or []
-    photo_count = context.get("photo_count") or 0
-
-    # 精選逐字稿片段：只提供對話內容，不提供講者，讓 AI 以整體聚會為單位分析。
-    quote_lines = []
-    for q in context.get("key_points") or []:
-        text = q.get("text") or ""
-        if text:
-            quote_lines.append(f"- {text}")
-
-    return f"""這是一場聚會的資料，請據此撰寫回顧報。
-
-【基本資訊】
-- 聚會模式：{mode}
-- 參與人數：{member_count}
-- 持續時間：約 {duration} 分鐘
-- 照片數量：{photo_count}
-- 熱門話題（詞頻）：{"、".join(topics) if topics else "（無）"}
-
-【整體對話內容】
-{chr(10).join(quote_lines) if quote_lines else "（本場沒有逐字稿）"}
-
-請只輸出以下 JSON 結構（繁體中文）：
-{{
-  "title": "有創意的報紙主標題（8~16字）",
-  "subtitle": "副標題（一句話）",
-  "lead": "導語，2~3 句話總結這場聚會的氛圍與重點",
-  "highlights": ["2~4 條整體聚會亮點，每條一句話"]
-}}
-
-注意：請總結整場聚會在聊什麼、氣氛如何、留下哪些共同記憶；不要寫成逐字稿，不要指出是誰說了哪句話。"""
+def _transcript_excerpt(lines: list) -> str:
+    """逐字稿依時間串起來；太長時平均抽樣，讓頭中尾都留到。"""
+    lines = [str(t).strip() for t in lines if str(t or "").strip()]
+    text = "\n".join(lines)
+    if len(text) <= TRANSCRIPT_MAX_CHARS:
+        return text
+    keep, picked, total = [], 0, len(lines)
+    step = max(1, round(len(text) / TRANSCRIPT_MAX_CHARS))
+    for i in range(0, total, step):
+        if picked + len(lines[i]) > TRANSCRIPT_MAX_CHARS:
+            break
+        keep.append(lines[i])
+        picked += len(lines[i]) + 1
+    return "\n".join(keep)
 
 
-def generate_newspaper_copy(context: dict) -> dict | None:
-    """呼叫 Qwen 生成 newspaper 文案。
+def _attendance_word(minutes: int, duration: int) -> str:
+    if duration <= 0 or minutes * 10 >= duration * 9:
+        return "全程參加"
+    return "參加了大部分時間" if minutes * 2 >= duration else "參加時間短"
 
-    回傳 dict（含 title/subtitle/lead/highlights/spotlights）或 None（失敗）。
-    呼叫端負責在 None 時 fallback。
-    """
+
+def _distraction_word(deviations) -> str:
+    if deviations is None:
+        return "不計分"
+    return "沒有分心" if deviations == 0 else "偶爾分心" if deviations <= 2 else "分心次數較多"
+
+
+def build_article_facts_text(facts: dict) -> str:
+    """Prompt B 用的資料：專注情形只給描述、不給數字（內文只評價，數字在報紙下方的數據區）；
+    也不給寵物名字（寵物那句由程式固定加在第一段）。"""
+    duration = int(facts.get("duration_minutes") or 0)
+    dev, longest = int(facts.get("total_deviations") or 0), facts.get("longest_focus_minutes")
+    if dev == 0:
+        overall = "全場沒有人分心"
+    elif longest is not None and duration and longest * 2 >= duration:
+        overall = "有少數幾次分心，但大部分時間大家都很專注"
+    else:
+        overall = "偶爾有人被手機分心，專注的時間比較零碎"
+    focused = facts.get("most_focused") or []
+    focused_text = "（沒有特別突出的人，不要提）"
+    if focused:
+        focused_text = "、".join(focused) + ("（全程沒有分心）" if facts.get("most_focused_deviations") == 0 else "（分心最少）")
+    member_lines = [f"- {m['name']}：{_attendance_word(int(m['attended_minutes'] or 0), duration)}，{_distraction_word(m.get('deviations'))}"
+                    for m in facts.get("members") or []]
+    return f"""【寫作重點】{_writing_focus(facts)}
+
+【聚會資料】
+- 情境：{facts.get("context_label") or "聚會"}
+- 總時長：{duration} 分鐘
+- 參加人數：{facts.get("member_count", 0)} 人
+- 專注情形：{overall}
+- 最專注：{focused_text}
+
+【出席名單】
+{chr(10).join(member_lines) if member_lines else "（無）"}
+
+【逐字稿】（依時間排序，不含講者）
+{_transcript_excerpt(facts.get("transcript_lines") or []) or "（這場沒有開錄音，沒有逐字稿）"}"""
+
+
+def _writing_focus(facts: dict) -> str:
+    transcript = _transcript_excerpt(facts.get("transcript_lines") or [])
+    if len(transcript) >= TRANSCRIPT_RICH_CHARS:
+        return "逐字稿充足：內文以大家聊了什麼為主，專注情形用一段帶過。"
+    if transcript:
+        return "逐字稿不多：聊天內容用一兩句帶過。"
+    return "沒有逐字稿：不寫聊天內容。"
+
+
+def build_newspaper_facts_text(facts: dict) -> str:
+    """Prompt A（大標題）用的聚會資料：完整數字。"""
+    members = facts.get("members") or []
+    member_lines = []
+    for m in members:
+        dev = "（不計分）" if m.get("deviations") is None else f"，分心 {m['deviations']} 次"
+        member_lines.append(f"- {m['name']}：參加 {m['attended_minutes']} 分鐘{dev}")
+    longest = facts.get("longest_focus_minutes")
+    focused = facts.get("most_focused") or []
+    transcript = _transcript_excerpt(facts.get("transcript_lines") or [])
+    return f"""【寫作重點】{_writing_focus(facts)}
+
+【聚會資料】
+- 情境：{facts.get("context_label") or "聚會"}
+- 總時長：{facts.get("duration_minutes", 0)} 分鐘
+- 參加人數：{facts.get("member_count", 0)} 人
+- 全場分心：{facts.get("total_deviations", 0)} 次
+- 最長連續專注（整場沒有任何人分心最久的一段）：{f"{longest} 分鐘" if longest is not None else "（沒有資料，不要提）"}
+- 最專注：{("、".join(focused) + f"（分心 {facts.get('most_focused_deviations', 0)} 次）") if focused else "（沒有資料，不要提）"}
+- 群組寵物：{facts.get("pet_name") or "（沒有）"}
+- 現場照片：{facts.get("photo_count", 0)} 張
+
+【出席名單】
+{chr(10).join(member_lines) if member_lines else "（無）"}
+
+【逐字稿】（依時間排序，不含講者）
+{transcript if transcript else "（這場沒有開錄音，沒有逐字稿；只根據上面的數據寫）"}"""
+
+
+_CN_DIGITS = {"零": 0, "〇": 0, "一": 1, "二": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+# 「下一次」「這一次」「第一次」之類是說法不是數量，前面是這些字就不算
+_CN_NUMBER_RE = re.compile(r"(?<![下這那每第上同])([零〇一二兩三四五六七八九十百]+)(?=\s*(?:分鐘|小時|個人|人|位|名|次|張|分心))")
+
+
+def _cn_to_int(text: str) -> int | None:
+    total, current = 0, 0
+    for ch in text:
+        if ch in _CN_DIGITS:
+            current = _CN_DIGITS[ch]
+        elif ch == "十":
+            total += (current or 1) * 10
+            current = 0
+        elif ch == "百":
+            total += (current or 1) * 100
+            current = 0
+        else:
+            return None
+    return total + current
+
+
+def numbers_in_text(text: str) -> set:
+    """文字裡出現的數字：阿拉伯數字，以及後面接單位（分鐘、人、次…）的中文數字。"""
+    found = {int(n) for n in re.findall(r"\d+", text or "")}
+    for m in _CN_NUMBER_RE.finditer(text or ""):
+        value = _cn_to_int(m.group(1))
+        if value is not None:
+            found.add(value)
+    return found
+
+
+def allowed_numbers(facts: dict) -> set:
+    nums = {facts.get("duration_minutes"), facts.get("member_count"), facts.get("total_deviations"),
+            facts.get("longest_focus_minutes"), facts.get("photo_count"), facts.get("most_focused_deviations")}
+    for m in facts.get("members") or []:
+        nums.update({m.get("attended_minutes"), m.get("deviations")})
+    if facts.get("member_count") == 1:
+        nums.add(1)          # 「一個人」
+    nums.update(numbers_in_text("\n".join(str(t) for t in facts.get("transcript_lines") or [])))   # 轉述聊天內容裡本來就有的數字
+    return {int(n) for n in nums if n is not None}
+
+
+def clean_headline(parsed, facts: dict) -> list | None:
+    if not isinstance(parsed, dict):
+        return None
+    lines = [re.sub(r"[「」『』\"'！!。．.，,]+", "", str(parsed.get(k) or "")).strip() for k in ("line1", "line2")]
+    if not all(2 <= len(line) <= 14 for line in lines):
+        return None
+    if not numbers_in_text("".join(lines)) <= allowed_numbers(facts):
+        return None
+    return lines
+
+
+def clean_article(parsed, facts: dict) -> list | None:
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("paragraphs"), list):
+        return None
+    paragraphs = [str(p).strip() for p in parsed["paragraphs"] if str(p or "").strip()]
+    if not 2 <= len(paragraphs) <= 6:
+        return None
+    total = sum(len(p) for p in paragraphs)
+    if not 100 <= total <= 700:
+        return None
+    if not numbers_in_text("".join(paragraphs)) <= allowed_numbers(facts):
+        return None
+    transcript_numbers = numbers_in_text("\n".join(str(t) for t in facts.get("transcript_lines") or []))
+    if not numbers_in_text("".join(paragraphs[1:])) <= transcript_numbers:
+        return None          # 專注情形只給評價：分心次數、分鐘數只能出現在第一段（人數、時長）
+    if not paragraphs[0].startswith("【本報訊】"):
+        paragraphs[0] = "【本報訊】" + paragraphs[0]
+    return with_pet_sentence(paragraphs, facts.get("pet_name"))
+
+
+def with_pet_sentence(paragraphs: list, pet_name: str | None) -> list:
+    """群組寵物固定一句、接在第一段句尾。AI 若還是寫了寵物，那幾句先拿掉，避免重複或單獨成段。"""
+    if pet_name:
+        cleaned = []
+        for p in paragraphs:
+            kept = "".join(x for x in re.split(r"(?<=[。！？])", p) if x and pet_name not in x and "見證了整場聚會" not in x)
+            if kept.strip():
+                cleaned.append(kept.strip())
+        paragraphs = cleaned or paragraphs
+        paragraphs[0] = paragraphs[0] + f"群組寵物「{pet_name}」見證了整場聚會。"
+    return paragraphs
+
+
+def _chat_json(system_prompt: str, user_prompt: str, temperature: float = 0.8) -> dict | None:
     api_key = _load_api_key()
     if not api_key:
         return None
-
     try:
         from openai import OpenAI
     except ImportError:
         return None
-
     try:
-        client = OpenAI(
-            api_key=api_key,
-            base_url=DASHSCOPE_BASE_URL,
-            timeout=REQUEST_TIMEOUT_SEC,
-        )
+        client = OpenAI(api_key=api_key, base_url=DASHSCOPE_BASE_URL, timeout=NEWSPAPER_TIMEOUT_SEC)
         resp = client.chat.completions.create(
             model=QWEN_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(context)},
-            ],
-            temperature=0.8,
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+            temperature=temperature,
             response_format={"type": "json_object"},
         )
-        content = resp.choices[0].message.content
-    except Exception as e:  # noqa: BLE001 — 任何 API 錯誤都退回 fallback
-        print(f"[llm] Qwen 生成失敗，將 fallback：{e}")
+        return _extract_json(resp.choices[0].message.content)
+    except Exception as e:  # noqa: BLE001 — 任何 API 錯誤都退回規則版
+        print(f"[llm] 報紙文案生成失敗，改用規則版：{e}")
         return None
 
-    parsed = _extract_json(content)
-    if not isinstance(parsed, dict):
-        print("[llm] Qwen 回傳無法解析為 JSON，將 fallback")
-        return None
 
-    # 基本清洗，確保型別正確
-    out: dict = {}
-    if isinstance(parsed.get("title"), str) and parsed["title"].strip():
-        out["title"] = parsed["title"].strip()[:40]
-    if isinstance(parsed.get("subtitle"), str) and parsed["subtitle"].strip():
-        out["subtitle"] = parsed["subtitle"].strip()[:60]
-    if isinstance(parsed.get("lead"), str) and parsed["lead"].strip():
-        out["lead"] = parsed["lead"].strip()[:400]
-    if isinstance(parsed.get("highlights"), list):
-        out["highlights"] = [
-            str(h).strip()[:120] for h in parsed["highlights"] if str(h).strip()
-        ][:5]
-    if isinstance(parsed.get("spotlights"), dict):
-        out["spotlights"] = {
-            str(k): str(v).strip()[:200]
-            for k, v in parsed["spotlights"].items()
-            if str(v).strip()
-        }
+NEWSPAPER_ATTEMPTS = 2   # 沒通過檢查就重寫一次，還是不行才用規則版
 
-    # 至少要有 lead 才算成功，否則 fallback
-    if not out.get("lead"):
-        return None
-    return out
+
+def _generate_checked(system_prompt: str, facts: dict, temperature: float, clean, build_text=None):
+    user = (build_text or build_newspaper_facts_text)(facts)
+    for _ in range(NEWSPAPER_ATTEMPTS):
+        parsed = _chat_json(system_prompt, user, temperature)
+        if parsed is None and not _load_api_key():
+            return None
+        result = clean(parsed, facts)
+        if result:
+            return result
+    return None
+
+
+def generate_newspaper_headline(facts: dict) -> list | None:
+    """Prompt A：兩行大標題。失敗或沒通過檢查回傳 None。"""
+    return _generate_checked(HEADLINE_SYSTEM_PROMPT, facts, 0.9, clean_headline)
+
+
+def generate_newspaper_article(facts: dict) -> list | None:
+    """Prompt B：報導內文（段落 list）。失敗或沒通過檢查回傳 None。"""
+    return _generate_checked(ARTICLE_SYSTEM_PROMPT, facts, 0.8, clean_article, build_article_facts_text)
 
 
 # ── 結算頁的寵物文字：依分心次數、在場時間說明這場的表現 ──

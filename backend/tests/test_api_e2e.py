@@ -259,7 +259,15 @@ class ApiEndToEndTest(unittest.TestCase):
             {"speaker_uid": a, "speaker_name": "Alice", "text": "大家好", "started_at_ms": 1000, "duration_sec": 2.0},
         ]})
         self.assertEqual(len(self.call("GET", f"/api/meetings/{room_id}/transcripts", b)["transcripts"]), 1)
-        self.call("POST", f"/api/meetings/{room_id}/newspaper/generate", a)
+        # 報紙：聚會紀錄有存情境與最長連續專注；出席名單是每個參加過的人＋參加分鐘
+        self.assertIn(saved.get("context"), main.SUMMARY_CONTEXT_LABELS)
+        self.assertIn("longest_focus_minutes", saved)
+        paper = self.call("POST", f"/api/meetings/{room_id}/newspaper/generate", a)["newspaper"]
+        self.assertEqual(len(paper["headline"]), 2)
+        self.assertTrue(paper["article"][0].startswith("【本報訊】"))
+        self.assertEqual({r["uid"] for r in paper["roster"]}, {m["uid"] for m in saved["members_snapshot"]})
+        self.assertTrue(all(isinstance(r["attended_minutes"], int) for r in paper["roster"]))
+        self.assertEqual(paper["hero"]["kind"], "scene")                        # 照片已刪掉 → 情境圖
         self.call("GET", f"/api/meetings/{room_id}/newspaper", b)
         self.call("GET", "/api/leaderboard/global", a)
         self.call("GET", "/api/leaderboard/friends", a)
