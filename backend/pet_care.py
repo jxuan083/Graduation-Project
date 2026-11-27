@@ -214,7 +214,7 @@ def use_inventory_item(data, action, item_id=None):
 
 
 def exchange_toy_duplicates_for_tickets(toys: dict, exchange_items: list) -> tuple:
-    """Exchange toy duplicates for tickets: keep 1, then every 3 extra copies → 1 ticket."""
+    """Exchange toy duplicates for tickets: every 3 copies → 1 ticket (no keep-1)."""
     from pet_gacha import EXCHANGE_COPIES_PER_TICKET, exchangeable_sets
     result = dict(toys)
     total = 0

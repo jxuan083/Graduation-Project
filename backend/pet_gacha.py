@@ -233,14 +233,14 @@ def equipped_items(group_data: dict) -> dict:
     return result
 
 
-# ── 重複道具兌換群組抽獎券（服裝與玩具共用同一規則）──
-# 同款永遠保留 1 件，多出來的每 3 件換 1 張：4 件 → 1 張（剩 1）、7 件 → 2 張（剩 1）。
+# ── 重複道具兌換個人抽獎卷（服裝與玩具共用同一規則）──
+# 每 3 件換 1 張：3 件 → 1 張（剩 0）、6 件 → 2 張（剩 0）。
 EXCHANGE_COPIES_PER_TICKET = 3
-EXCHANGE_KEEP = 1
+EXCHANGE_KEEP = 0
 
 
 def exchangeable_sets(count: int) -> int:
-    """這款道具目前最多可換幾張券（已扣掉要保留的 1 件）。"""
+    """這款道具目前最多可換幾張券。"""
     return max(0, (int(count or 0) - EXCHANGE_KEEP) // EXCHANGE_COPIES_PER_TICKET)
 
 
