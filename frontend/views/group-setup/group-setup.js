@@ -149,7 +149,7 @@ function renderMembers(g) {
     const myUid = state.currentUser?.uid;
     const isCreator = g.creator_uid === myUid;
     _isGroupCreator = isCreator;
-    if (leaveBtn) leaveBtn.style.display = myUid ? '' : 'none';
+    if (leaveBtn) leaveBtn.style.display = (!isCreator && myUid) ? '' : 'none';
     if (countEl) countEl.textContent = members.length;
     if (!ul) return;
     ul.innerHTML = '';
@@ -231,10 +231,6 @@ function renderPetPreview(g) {
 
 async function handleLeaveGroup() {
     if (!currentGroupId) return;
-    if (_isGroupCreator) {
-        alert(t('你是群組建立者，無法直接退出。\n請先讓其他成員接手管理，之後再由新建立者將你移除。'));
-        return;
-    }
     if (!confirm(t('確定退出這個群組？'))) return;
     try {
         const { removeGroupMember } = await import('../../features/groups/controller.js?v=89');
