@@ -94,20 +94,23 @@ class EconomyTests(unittest.TestCase):
             exchange_toy_duplicates_for_tickets(toys, [{'item_id': 'star_plush', 'exchange_sets': 2}])
         with self.assertRaises(ValueError):  # unknown toy
             exchange_toy_duplicates_for_tickets(toys, [{'item_id': 'fake_item', 'exchange_sets': 1}])
-        with self.assertRaises(ValueError):  # 剛好 3 件：要保留 1 件，所以還不能換
-            exchange_toy_duplicates_for_tickets({'star_plush': 3}, [{'item_id': 'star_plush', 'exchange_sets': 1}])
+        # 每 3 件換 1 張、不保留：剛好 3 件可換 1 張，換完歸零
+        self.assertEqual(exchange_toy_duplicates_for_tickets({'star_plush': 3}, [{'item_id': 'star_plush', 'exchange_sets': 1}]),
+                         ({'star_plush': 0}, 1))
+        with self.assertRaises(ValueError):  # 2 件還不夠換
+            exchange_toy_duplicates_for_tickets({'star_plush': 2}, [{'item_id': 'star_plush', 'exchange_sets': 1}])
 
-    def test_costume_exchange_always_keeps_one_copy(self):
+    def test_costume_exchange_every_three_copies_and_drops_emptied_items(self):
         from pet_gacha import GACHA_BY_ID, exchange_duplicates_for_tickets, exchangeable_sets
-        self.assertEqual([exchangeable_sets(n) for n in [0, 1, 3, 4, 6, 7, 10]], [0, 0, 0, 1, 1, 2, 3])
+        self.assertEqual([exchangeable_sets(n) for n in [0, 1, 2, 3, 5, 6, 7]], [0, 0, 0, 1, 1, 2, 2])
         hat, scarf = list(GACHA_BY_ID)[:2]
         wardrobe = {hat: 7, scarf: 3}
-        new_wardrobe, tickets = exchange_duplicates_for_tickets(wardrobe, [{'item_id': hat, 'exchange_sets': 2}])
-        self.assertEqual((tickets, new_wardrobe), (2, {hat: 1, scarf: 3}))
+        new_wardrobe, tickets = exchange_duplicates_for_tickets(wardrobe, [
+            {'item_id': hat, 'exchange_sets': 2}, {'item_id': scarf, 'exchange_sets': 1}])
+        self.assertEqual((tickets, new_wardrobe), (3, {hat: 1}))   # 換到 0 件的道具會從衣櫥移除
         self.assertEqual(wardrobe, {hat: 7, scarf: 3})
-        for item_id, sets in [(scarf, 1), (hat, 3)]:
-            with self.assertRaises(ValueError):
-                exchange_duplicates_for_tickets(wardrobe, [{'item_id': item_id, 'exchange_sets': sets}])
+        with self.assertRaises(ValueError):
+            exchange_duplicates_for_tickets(wardrobe, [{'item_id': hat, 'exchange_sets': 3}])
 
     def test_toy_inventory_normalizes_legacy_list(self):
         from pet_care import _normalize_toy_inventory

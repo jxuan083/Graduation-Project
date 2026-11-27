@@ -261,5 +261,7 @@ def exchange_duplicates_for_tickets(wardrobe: dict, exchange_items: list[dict]) 
         if exchange_sets > exchangeable_sets(count):
             raise ValueError(f"not_enough_duplicates:{item_id}")
         new_wardrobe[item_id] = count - exchange_sets * EXCHANGE_COPIES_PER_TICKET
+        if new_wardrobe[item_id] == 0:
+            del new_wardrobe[item_id]
         total_tickets += exchange_sets
     return new_wardrobe, total_tickets

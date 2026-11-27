@@ -3913,6 +3913,7 @@ async def gacha_exchange_duplicates(payload: ExchangeDuplicatesPayload, decoded:
             group_updates["pet_owned_toys"] = new_toys
         tx.update(group_ref, group_updates)
 
+        from pet_gacha import GACHA_BY_ID
         result = {
             "status": "success",
             "tickets_earned": total_tickets,

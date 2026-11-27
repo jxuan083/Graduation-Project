@@ -416,63 +416,53 @@ class ApiEndToEndTest(unittest.TestCase):
         self.assertEqual(len(calls), n)
         self.call("POST", f"/api/rooms/{room_id}/summary-message", None, expect=401, json=body)
 
-    def test_group_tickets_keep_one_copy_and_notify_group_chat(self):
+    def test_group_tickets_from_duplicates_pay_for_draws_and_notify_group_chat(self):
         from unittest.mock import patch
         from pet_gacha import GACHA_BY_ID
         hat, scarf = list(GACHA_BY_ID)[:2]
         a, b, outsider = (str(uuid.uuid4()) for _ in range(3))
-        main.db.collection("users").document(a).set({"nickname": "小明", "gacha_tickets": 0})
-        main.db.collection("users").document(b).set({"nickname": "小華", "gacha_tickets": 0})
+        main.db.collection("users").document(a).set({"nickname": "小明"})
+        main.db.collection("users").document(b).set({"nickname": "小華"})
         group_id = "ticket-group"
         main.db.collection("groups").document(group_id).set({
             "creator_uid": a, "member_uids": [a, b], "name": "抽獎群組",
             "pet_wardrobe": {hat: 7, scarf: 3},
         })
         exchange = "/api/users/gacha/exchange-duplicates"
+        draw = "/api/users/gacha/draw"
         with patch.object(main, "_DEV_MODE", False):
             # 非成員不能動群組背包
             self.call("POST", exchange, outsider, expect=403, json={
                 "group_id": group_id, "request_id": "exchange-outsider", "items": [{"item_id": hat, "exchange_sets": 1}]})
-            # 同款保留 1 件：3 件不能換，7 件最多換 2 張
-            self.call("POST", exchange, a, expect=409, json={
-                "group_id": group_id, "request_id": "exchange-scarf-01", "items": [{"item_id": scarf, "exchange_sets": 1}]})
+            # 每 3 件換 1 張：7 件最多 2 張
             self.call("POST", exchange, a, expect=409, json={
                 "group_id": group_id, "request_id": "exchange-hat-0003", "items": [{"item_id": hat, "exchange_sets": 3}]})
-            done = self.call("POST", exchange, a, json={
-                "group_id": group_id, "request_id": "exchange-hat-0002", "items": [{"item_id": hat, "exchange_sets": 2}]})
-            self.assertEqual((done["tickets_earned"], done["group_gacha_tickets"], done["gacha_tickets"]), (2, 2, 0))
-            self.assertEqual({i["id"]: i["count"] for i in done["wardrobe"]}, {hat: 1, scarf: 3})
-            # 券在群組、不在兌換者身上；重送同一個請求不會再換一次
-            self.assertTrue(self.call("POST", exchange, a, json={
-                "group_id": group_id, "request_id": "exchange-hat-0002", "items": [{"item_id": hat, "exchange_sets": 2}]})["replayed"])
-            group = main.db.collection("groups").document(group_id).get().to_dict()
-            self.assertEqual(group["group_gacha_tickets"], 2)
-            self.assertEqual(main.db.collection("users").document(a).get().to_dict()["gacha_tickets"], 0)
-            self.assertEqual(self.call("GET", f"/api/users/gacha/catalog?group_id={group_id}", b)["group_gacha_tickets"], 2)
+            body = {"group_id": group_id, "request_id": "exchange-all-01",
+                    "items": [{"item_id": hat, "exchange_sets": 2}, {"item_id": scarf, "exchange_sets": 1}]}
+            done = self.call("POST", exchange, a, json=body)
+            self.assertEqual((done["tickets_earned"], done["group_gacha_tickets"]), (3, 3))
+            self.assertEqual({i["id"]: i["count"] for i in done["wardrobe"]}, {hat: 1})
+            # 重送同一個請求不會再換一次；券在群組上
+            self.assertTrue(self.call("POST", exchange, a, json=body)["replayed"])
+            self.assertEqual(main.db.collection("groups").document(group_id).get().to_dict()["group_gacha_tickets"], 3)
+            self.assertEqual(self.call("GET", f"/api/users/gacha/catalog?group_id={group_id}", b)["group_gacha_tickets"], 3)
 
-            # 另一位成員用群組券抽；沒有個人券時指定個人券會被拒絕
-            draw = "/api/users/gacha/draw"
-            self.call("POST", draw, b, expect=409, json={
-                "group_id": group_id, "count": 1, "request_id": "draw-personal-01", "ticket_source": "personal"})
-            drawn = self.call("POST", draw, b, json={
-                "group_id": group_id, "count": 1, "request_id": "draw-group-0001", "ticket_source": "group"})
-            self.assertEqual((drawn["ticket_source"], drawn["group_gacha_tickets"], drawn["cost"]), ("group", 1, 0))
-            self.assertEqual(drawn["gacha_tickets"], 0)
-            # 不指定時先用個人券；這裡只剩群組券就用群組券
-            auto = self.call("POST", draw, a, json={"group_id": group_id, "count": 1, "request_id": "draw-auto-00001"})
-            self.assertEqual((auto["ticket_source"], auto["group_gacha_tickets"]), ("group", 0))
-            self.call("POST", draw, a, expect=409, json={
-                "group_id": group_id, "count": 1, "request_id": "draw-group-0002", "ticket_source": "group"})
+            # 任何成員單抽都先用群組抽獎卷，不扣金幣
+            for uid, left in [(b, 2), (a, 1), (a, 0)]:
+                drawn = self.call("POST", draw, uid, json={
+                    "group_id": group_id, "count": 1, "request_id": f"draw-{uid[:8]}-{left}"})
+                self.assertEqual((drawn["ticket_source"], drawn["group_gacha_tickets"], drawn["cost"]), ("group", left, 0))
+            # 抽獎卷用完、又沒有金幣：不能抽
+            self.call("POST", draw, a, expect=409, json={"group_id": group_id, "count": 1, "request_id": "draw-no-ticket"})
 
-        notes = [m for m in self.call("GET", f"/api/groups/{group_id}/messages", b)["messages"] if m["type"] == "system"]
-        self.assertEqual([m["text"] for m in notes], [
-            f"🎟 小明 用 6 件「{GACHA_BY_ID[hat]['name']}」換了 2 張群組抽獎券",
-            f"🎰 小華 用 1 張群組抽獎券抽到了「{drawn['draws'][0]['item']['name']}」",
-            f"🎰 小明 用 1 張群組抽獎券抽到了「{auto['draws'][0]['item']['name']}」",
+        notes = [m["text"] for m in self.call("GET", f"/api/groups/{group_id}/messages", b)["messages"] if m["type"] == "system"]
+        self.assertEqual(notes, [
+            "小華 用了 1 張群組抽獎卷抽扭蛋 🎰（剩餘 2 張）",
+            "小明 用了 1 張群組抽獎卷抽扭蛋 🎰（剩餘 1 張）",
+            "小明 用了 1 張群組抽獎卷抽扭蛋 🎰（剩餘 0 張）",
         ])
         # 一般使用者不能偽造系統通知
         self.call("POST", f"/api/groups/{group_id}/messages", a, expect=400, json={"type": "system", "text": "假通知"})
-
 
 if __name__ == "__main__":
     unittest.main()
