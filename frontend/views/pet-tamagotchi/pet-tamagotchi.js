@@ -2146,7 +2146,7 @@ async function drawGacha(count) {
             const ticketsNow = _gachaGroupTickets;
             let errMsg = serverMsg || t('抽取失敗，請再試一次');
             if (res.status === 409 && ticketsNow === 0 && usingTicket) {
-                errMsg = t('抽獎卷已被其他成員使用，目前餘額 0 張');
+                errMsg = t('抽獎卷餘額 0 張');
             }
             if (statusEl) statusEl.textContent = errMsg;
             document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
