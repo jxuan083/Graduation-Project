@@ -267,28 +267,6 @@
         </div>
     </dialog>
 
-    <!-- 扭蛋機 Dialog -->
-    <!-- 單抽時個人券與群組券都有：選這次要用哪一種（pet-tamagotchi.js chooseTicketSource） -->
-    <dialog id="gacha-ticket-sheet" class="gacha-ticket-sheet" aria-labelledby="gacha-ticket-sheet-title">
-        <div class="pa-sheet-panel">
-            <div class="pa-sheet-grip"></div>
-            <p class="pa-sheet-title" id="gacha-ticket-sheet-title">這次要用哪一種抽獎券？</p>
-            <button class="pa-sheet-item" data-ticket-source="personal" type="button">
-                <span class="pa-sheet-item-icon" style="background:rgba(155,121,85,0.13);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9b7955" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
-                </span>
-                <span class="pa-sheet-item-text"><strong>個人抽獎券</strong><small id="gacha-ticket-personal-count"></small></span>
-            </button>
-            <button class="pa-sheet-item" data-ticket-source="group" type="button">
-                <span class="pa-sheet-item-icon" style="background:rgba(88,150,110,0.13);">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f8a62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </span>
-                <span class="pa-sheet-item-text"><strong>群組抽獎券</strong><small id="gacha-ticket-group-count"></small></span>
-            </button>
-            <button class="pa-sheet-cancel" data-ticket-cancel type="button">取消</button>
-        </div>
-    </dialog>
-
     <dialog id="pet-gacha-dialog" class="pet-gacha-dialog" aria-labelledby="pet-gacha-title">
       <div class="gacha-machine">
         <!-- Machine Header -->
@@ -335,10 +313,7 @@
           <span class="gacha-wallet-label">金幣</span>
           <strong class="gacha-wallet-points"><span id="gacha-user-points">0</span></strong>
           <span class="gacha-wallet-sep">·</span>
-          <span class="gacha-wallet-label">個人券</span>
-          <strong class="gacha-wallet-points"><span id="gacha-user-tickets">0</span></strong>
-          <span class="gacha-wallet-sep">·</span>
-          <span class="gacha-wallet-label">群組券</span>
+          <span class="gacha-wallet-label">抽獎卷</span>
           <strong class="gacha-wallet-points"><span id="gacha-group-tickets">0</span></strong>
           <span class="gacha-wallet-hint" id="gacha-points-hint">每場聚會 +1 抽獎卷 · 高分名次金幣加成</span>
         </div>

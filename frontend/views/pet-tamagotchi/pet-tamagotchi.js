@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=120';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=121';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -656,7 +656,6 @@ async function loadGroupPet() {
             .then(({ res: cr, data: cd }) => {
                 if (cr.ok && cd) {
                     _gachaUserPoints  = cd.points ?? _gachaUserPoints;
-                    _gachaUserTickets = cd.gacha_tickets ?? _gachaUserTickets;
                     _gachaGroupTickets = cd.group_gacha_tickets ?? _gachaGroupTickets;
                     _gachaWardrobe    = cd.wardrobe ?? _gachaWardrobe;
                     _gachaEquipped    = cd.pet_equipped ?? cd.equipped ?? _gachaEquipped;
@@ -1334,7 +1333,7 @@ function syncCareCollection() {
     }
     document.getElementById('pet-coin-balance').textContent = _gachaUserPoints;
     document.getElementById('btn-pet-bag').disabled = !_careCatalog;
-    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,wardrobe:_gachaWardrobe,equipped:_gachaEquipped,tickets:{personal:_gachaUserTickets, group:_gachaGroupTickets}});
+    _careCollection?.update({pet:_groupPet,catalog:_careCatalog,wardrobe:_gachaWardrobe,equipped:_gachaEquipped,tickets:{group:_gachaGroupTickets}});
     renderGachaSupplies();
 }
 async function drawCareItem(kind) {
@@ -1433,7 +1432,6 @@ async function exchangeDuplicates(exchangePayload) {
             body: JSON.stringify({ group_id: _groupId, request_id: requestId, ...exchangePayload }),
         });
         if (!res.ok) { alert(t('兌換失敗：') + (data?.detail || `HTTP ${res.status}`)); return; }
-        _gachaUserTickets = data.gacha_tickets ?? _gachaUserTickets;
         _gachaGroupTickets = data.group_gacha_tickets ?? _gachaGroupTickets;
         if (data.wardrobe) _gachaWardrobe = data.wardrobe;
         if (data.toy_inventory && _groupPet) _groupPet.pet_owned_toys = data.toy_inventory;
@@ -1543,7 +1541,6 @@ let _gachaDrawBusy = false;
 let _gachaWardrobe = [];
 let _gachaEquipped = {};
 let _gachaUserPoints = 0;
-let _gachaUserTickets = 0;
 let _gachaGroupTickets = 0;
 let _gachaPityCount = 0;
 let _pendingGachaOpen = false;
@@ -1636,19 +1633,17 @@ function updateGachaBtnCoins() {
         void el.offsetWidth;
         el.classList.add('popping');
     }
-    const ticketsEl = document.getElementById('gacha-user-tickets');
-    if (ticketsEl) ticketsEl.textContent = _gachaUserTickets;
     const groupTicketsEl = document.getElementById('gacha-group-tickets');
     if (groupTicketsEl) groupTicketsEl.textContent = _gachaGroupTickets;
     const ptBalanceEl = document.getElementById('pet-ticket-balance');
-    if (ptBalanceEl) ptBalanceEl.textContent = _gachaUserTickets + _gachaGroupTickets;
+    if (ptBalanceEl) ptBalanceEl.textContent = _gachaGroupTickets;
     updateDrawProgress();
 }
 
 function updateDrawProgress() {
     const el = document.getElementById('gacha-draw-progress');
     if (!el) return;
-    if (_gachaUserTickets > 0 || _gachaGroupTickets > 0 || _gachaUserPoints >= 30) {
+    if (_gachaGroupTickets > 0 || _gachaUserPoints >= 30) {
         el.hidden = true;
         el.textContent = '';
     } else {
@@ -1661,7 +1656,7 @@ function updateDrawProgress() {
 function updateDrawBtnLabels() {
     const singleCostEl = document.getElementById('gacha-single-cost-label');
     if (singleCostEl) {
-        singleCostEl.textContent = (_gachaUserTickets > 0 || _gachaGroupTickets > 0) ? '1 張抽獎卷' : '30 金幣';
+        singleCostEl.textContent = _gachaGroupTickets > 0 ? '1 張抽獎卷' : '30 金幣';
     }
     const pityEl = document.getElementById('gacha-pity-counter');
     if (pityEl && _gachaPityCount !== undefined) pityEl.textContent = _gachaPityCount;
@@ -1685,7 +1680,6 @@ async function openGachaDialog(initialTab = 'draw') {
             const { res, data } = await gachaFetch(`/api/users/gacha/catalog?group_id=${_groupId}`);
             if (res.ok && data) {
                 _gachaUserPoints  = data.points ?? _gachaUserPoints;
-                _gachaUserTickets = data.gacha_tickets ?? _gachaUserTickets;
                 _gachaGroupTickets = data.group_gacha_tickets ?? _gachaGroupTickets;
                 _gachaPityCount   = data.pity_count ?? _gachaPityCount;
                 _gachaWardrobe    = data.wardrobe ?? _gachaWardrobe;
@@ -1697,7 +1691,6 @@ async function openGachaDialog(initialTab = 'draw') {
     }
 
     document.getElementById('gacha-user-points').textContent = _gachaUserPoints;
-    document.getElementById('gacha-user-tickets').textContent = _gachaUserTickets;
     const groupTicketsEl = document.getElementById('gacha-group-tickets');
     if (groupTicketsEl) groupTicketsEl.textContent = _gachaGroupTickets;
     updateGachaBtnCoins();
@@ -2102,23 +2095,6 @@ function spawnConfetti(container, rarity) {
     setTimeout(() => { container.innerHTML = ''; }, 1800);
 }
 
-// 個人券與群組券都有時，讓使用者選這次要用哪一種；取消回傳 null
-function chooseTicketSource() {
-    const sheet = document.getElementById('gacha-ticket-sheet');
-    if (!sheet?.showModal) return Promise.resolve('personal');
-    document.getElementById('gacha-ticket-personal-count').textContent = t('你自己的，剩 {n} 張', {n: _gachaUserTickets});
-    document.getElementById('gacha-ticket-group-count').textContent = t('群組共用，剩 {n} 張 · 會通知群組聊天室', {n: _gachaGroupTickets});
-    return new Promise(resolve => {
-        const done = value => { sheet.onclose = null; if (sheet.open) sheet.close(); resolve(value); };
-        sheet.querySelector('[data-ticket-source="personal"]').onclick = () => done('personal');
-        sheet.querySelector('[data-ticket-source="group"]').onclick = () => done('group');
-        sheet.querySelector('[data-ticket-cancel]').onclick = () => done(null);
-        sheet.onclick = e => { if (e.target === sheet) done(null); };
-        sheet.onclose = () => resolve(null);
-        sheet.showModal();
-    });
-}
-
 async function drawGacha(count) {
     if (_gachaDrawBusy || !_groupId) return;
 
@@ -2128,7 +2104,6 @@ async function drawGacha(count) {
         ticketSource = _gachaGroupTickets > 0 ? 'group' : null;
     }
     const usingTicket = Boolean(ticketSource);
-    const usedPersonal = ticketSource === 'personal' ? 1 : 0;
     const usedGroup = ticketSource === 'group' ? 1 : 0;
     const cost = count === 3 ? 80 : (usingTicket ? 0 : 30);
     if (!usingTicket && _gachaUserPoints < cost) {
@@ -2165,7 +2140,6 @@ async function drawGacha(count) {
                 const { res: cr, data: cd } = await gachaFetch(`/api/users/gacha/catalog?group_id=${_groupId}`);
                 if (cr.ok && cd) {
                     _gachaUserPoints = cd.points ?? _gachaUserPoints;
-                    _gachaUserTickets = cd.gacha_tickets ?? _gachaUserTickets;
                     _gachaGroupTickets = cd.group_gacha_tickets ?? _gachaGroupTickets;
                 }
             } catch { /* 保留目前顯示 */ }
@@ -2179,7 +2153,6 @@ async function drawGacha(count) {
         if (res.ok && data?.draws) {
             items = data.draws.map(d => ({ ...d.item, duplicate: d.duplicate, refund: d.refund || 0 }));
             _gachaUserPoints  = data.points_remaining ?? Math.max(0, _gachaUserPoints - cost);
-            _gachaUserTickets = data.gacha_tickets    ?? Math.max(0, _gachaUserTickets - usedPersonal);
             _gachaGroupTickets = data.group_gacha_tickets ?? Math.max(0, _gachaGroupTickets - usedGroup);
             _gachaPityCount   = data.pity ?? _gachaPityCount;
             // Update wardrobe: now wardrobe items have count
@@ -2195,7 +2168,6 @@ async function drawGacha(count) {
             if (data.equipped) _gachaEquipped = data.equipped;
         } else {
             _gachaUserPoints  = Math.max(0, _gachaUserPoints - cost);
-            _gachaUserTickets = Math.max(0, _gachaUserTickets - usedPersonal);
             _gachaGroupTickets = Math.max(0, _gachaGroupTickets - usedGroup);
             items = Array.from({ length: count }, () => {
                 const item = gachaPickItem(GACHA_LOCAL_CATALOG);
@@ -2216,7 +2188,6 @@ async function drawGacha(count) {
         if (statusEl) statusEl.textContent = newCount > 0 ? `獲得 ${newCount} 個新徽章！` : '全為已收集徽章。';
     } catch (err) {
         _gachaUserPoints  = Math.max(0, _gachaUserPoints - cost);
-        _gachaUserTickets = Math.max(0, _gachaUserTickets - usedPersonal);
         _gachaGroupTickets = Math.max(0, _gachaGroupTickets - usedGroup);
         const items = Array.from({ length: count }, () => {
             const item = gachaPickItem(GACHA_LOCAL_CATALOG);

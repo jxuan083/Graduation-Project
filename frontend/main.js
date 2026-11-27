@@ -20,7 +20,7 @@ import { showJoinView } from './views/join/join.js?v=93';
 import { events } from './core/events.js';
 import { initI18n, t } from './core/i18n.js?v=93';
 
-const ASSET_VERSION = '96';
+const ASSET_VERSION = '97';
 
 // ===== 所有需要載入 HTML 片段的 view =====
 const VIEW_NAMES = [
@@ -76,7 +76,7 @@ const VIEW_MODULES = {
     'group-chat':        () => import('./views/group-chat/group-chat.js?v=94'),
     'friend-profile':    () => import('./views/friend-profile/friend-profile.js?v=93'),
     'pet-swap':          () => import('./views/pet-swap/pet-swap.js?v=93'),
-    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=120'),
+    'pet-tamagotchi':    () => import('./views/pet-tamagotchi/pet-tamagotchi.js?v=121'),
 };
 
 async function loadAllViewHtml() {
