@@ -187,9 +187,9 @@ export class CareCollection {
                 const action = item.kind === 'food' ? 'feed' : 'play';
                 const card = document.createElement('article'); card.className = `care-bag-item${owned ? '' : ' is-locked'}`;
                 const countBadge = item.kind === 'toy' && toyCount > 1 ? `<span class="care-count-badge">×${toyCount}</span>` : '';
-                const toyExchangeSets = item.kind === 'toy' ? exchangeableSets(toyCount) : 0;
-                const toyExchangeBadge = toyExchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張群組抽獎券', {n: toyExchangeSets}))}</span>` : '';
-                const quantityText = base ? t('基本款 · 今日可用') : item.kind === 'food' ? t('{n} 份', {n:quantity}) : t(owned ? '已收藏 · 可重複使用' : '尚未收藏');
+                const toyExchangeSets = item.kind === 'toy' ? Math.floor(toyCount / 3) : 0;
+                const toyExchangeBadge = toyExchangeSets > 0 ? `<span class="care-exchange-badge">${escape(t('可兌換 {n} 張抽獎卷', {n: toyExchangeSets}))}</span>` : '';
+                const quantityText = base ? t('基本款 · 無限可用') : item.kind === 'food' ? t('{n} 份', {n:quantity}) : t(owned ? '剩餘 {n} 件 · 用完即失去' : '尚未收藏', {n:toyCount});
                 const availability = this.availability(action);
                 card.innerHTML = `${itemArt(item)}${itemBadge(item)}<strong>${escape(t(item.name))}</strong>${countBadge}<small>${escape(quantityText)}</small>${effectsHtml(item)}${toyExchangeBadge}`;
                 const button = document.createElement('button'); button.type = 'button'; button.className = 'btn secondary';

@@ -3,7 +3,7 @@ import { apiFetch, apiBase } from '../../core/api.js';
 import { state } from '../../core/state.js';
 import { showToast } from '../../utils/toast.js';
 import { isImeComposing } from '../../utils/ime.js';
-import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=116';
+import { CareCollection, renderCareResult, itemArt, itemBadge, exchangeableSets } from '../../features/pets/care-collection.js?v=117';
 import { careAvailability } from '../../features/pets/care-state.js';
 import { t, getLang } from '../../core/i18n.js';
 
@@ -1362,8 +1362,8 @@ async function drawCareItem(kind) {
         }
         if (data.points_remaining !== undefined) _gachaUserPoints = data.points_remaining;
         const message = data.duplicate
-            ? t('已是第 {n} 件！同款滿 4 件可換 1 張群組抽獎券', {n: data.toy_count || 2})
-            : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，可重複使用');
+            ? t('已是第 {n} 件！集滿 3 件可換 1 張抽獎卷', {n: data.toy_count || 2})
+            : data.care_item.kind === 'food' ? t('已放進群組背包，共 {n} 份', {n:data.quantity}) : t('已放進群組背包，使用後消耗');
         await _careCollection.finishDraw(data.care_item,message);
         if (!sameScreen(seq,groupId)) return;
         status.textContent = t(data.replayed ? '已確認上次的抽取結果，沒有再次扣款。' : '打開背包就能使用。');
@@ -1404,8 +1404,8 @@ async function drawCareItemInline(kind) {
         if (data.points_remaining !== undefined) _gachaUserPoints = data.points_remaining;
         const item = data.care_item;
         const message = data.duplicate
-            ? t('已是第 {n} 件！同款滿 4 件可換 1 張群組抽獎券', {n: data.toy_count || 2})
-            : item.kind === 'food' ? t('已放進群組背包，共 {n} 份', { n: data.quantity }) : t('已放進群組背包，可重複使用');
+            ? t('已是第 {n} 件！集滿 3 件可換 1 張抽獎卷', {n: data.toy_count || 2})
+            : item.kind === 'food' ? t('已放進群組背包，共 {n} 份', { n: data.quantity }) : t('已放進群組背包，使用後消耗');
         if (resultEl) {
             resultEl.innerHTML = `${itemArt(item)}<div>${itemBadge(item)}<strong>${escHtml(t(item.name))}</strong><p>${escHtml(message)}</p></div>`;
             resultEl.hidden = false;
